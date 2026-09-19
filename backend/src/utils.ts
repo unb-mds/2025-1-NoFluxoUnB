@@ -1,3 +1,4 @@
+import { User } from "@supabase/supabase-js";
 import { SupabaseWrapper } from "./supabase_wrapper";
 import { createControllerLogger } from "./utils/controller_logger";
 import { Request } from "express";
@@ -23,7 +24,7 @@ export const Utils = {
      * autenticado (ou null). Use quando a rota precisa amarrar a operação
      * à identidade real do token, e não a headers/body controlados pelo cliente.
      */
-    getAuthenticatedUser: async (req: Request) => {
+    getAuthenticatedUser: async (req: Request): Promise<User | null> => {
         const authorization = req.headers["authorization"];
         if (!authorization || typeof authorization !== "string") {
             return null;
