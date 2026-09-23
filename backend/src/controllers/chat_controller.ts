@@ -23,7 +23,7 @@ import { createControllerLogger } from "../utils/controller_logger";
 import { logAiUsage } from "../utils/ai_usage_logger";
 import { SupabaseWrapper } from "../supabase_wrapper";
 import { SupabaseSession } from "../services/chat/supabase_session";
-import { createOrquestradorAgent } from "../services/chat/orquestrador_agent";
+import { createOrquestradorAgent, obterOpcaoGradeDoOrquestrador } from "../services/chat/orquestrador_agent";
 import { isMaritacaConfigured } from "../services/chat/model_provider";
 import { MARITACA_MODELS } from "../config/maritaca";
 import { AI_SEM_CREDITOS_BODY, isMaritacaSemCreditos } from "../config/maritaca_errors";
@@ -110,7 +110,14 @@ export const ChatController: EndpointController = {
                     }],
                 });
 
-                return res.status(200).json({ reply: resultado.finalOutput });
+                // Fase 3 (montador-de-grade-resilient-muffin.md): quando a Darcy chamou a
+                // tool montar_grade nesta run, a seleção que ela realmente calculou (backend
+                // solver, garantidamente sem conflito) vai junto em `opcaoGrade` — o frontend
+                // aplica ISSO, não faz parsing do texto de `reply`. Fora do contexto de grade
+                // (ou quando nenhuma tool de grade rodou), `opcaoGrade` fica `undefined` e
+                // some do JSON (comportamento antigo de /chat/send intacto).
+                const opcaoGrade = obterOpcaoGradeDoOrquestrador(orquestrador) ?? undefined;
+                return res.status(200).json({ reply: resultado.finalOutput, opcaoGrade });
             } catch (error) {
                 if (isMaritacaSemCreditos(error)) {
                     logger.error("Chat (orquestrador): Maritaca sem créditos ativos");

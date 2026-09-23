@@ -42,6 +42,28 @@ function lerResumo(texto: string): Map<string, string> {
 	return mapa;
 }
 
+/**
+ * "Montar grade" agora abre o wizard de 2 passos (Configurar → Resultados) em vez
+ * de montar direto — o clique sozinho não basta mais. Aqui: abre o passo 1 com os
+ * parâmetros padrão, gera as opções e aplica a primeira (equivalente ao clique
+ * único de antes, do ponto de vista do que o teste verifica).
+ */
+async function montarGradeCompleta(page: import('@playwright/test').Page): Promise<void> {
+	await page
+		.getByRole('button', { name: /Montar grade/i })
+		.first()
+		.click();
+	const gerar = page.getByRole('button', { name: /Gerar opções/i });
+	await gerar.waitFor({ state: 'visible', timeout: 10_000 });
+	await gerar.click();
+	const opcao = page
+		.getByRole('button', { name: /Menos dias|Menos lacunas|Semana equilibrada/i })
+		.first();
+	await opcao.waitFor({ state: 'visible', timeout: 20_000 });
+	await opcao.click();
+	await page.waitForTimeout(800);
+}
+
 test('a turma escolhida na mão sobrevive a "Montar grade"', async ({ page }) => {
 	const s = sessoes[0];
 
@@ -67,9 +89,7 @@ test('a turma escolhida na mão sobrevive a "Montar grade"', async ({ page }) =>
 	const resumo = page.locator('[data-tour="resumo"]');
 	await resumo.waitFor({ state: 'visible', timeout: 45_000 });
 
-	const montar = page.getByRole('button', { name: /Montar grade/i }).first();
-	await montar.click();
-	await page.waitForTimeout(3000);
+	await montarGradeCompleta(page);
 
 	const antes = lerResumo((await resumo.textContent()) ?? '');
 	expect(antes.size, 'a primeira montagem não produziu grade nenhuma').toBeGreaterThan(0);
@@ -113,8 +133,7 @@ test('a turma escolhida na mão sobrevive a "Montar grade"', async ({ page }) =>
 	console.log(`[alvo] ${alvo.codigo} → turma ${alvo.turma} escolhida na mão`);
 
 	// O clique que apagava tudo.
-	await montar.click();
-	await page.waitForTimeout(3000);
+	await montarGradeCompleta(page);
 
 	const depois = lerResumo((await resumo.textContent()) ?? '');
 	expect(

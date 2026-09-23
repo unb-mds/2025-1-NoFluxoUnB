@@ -7,6 +7,7 @@
 	import ChatLoader from '$lib/components/chat/ChatLoader.svelte';
 	import MarqueeText from '$lib/components/ui/MarqueeText.svelte';
 	import type { Snippet } from 'svelte';
+	import type { OpcaoGradeChat } from '$lib/types/plano-formatura';
 
 	interface Starter {
 		prefix: string;
@@ -24,6 +25,8 @@
 	interface ChatMsg {
 		role: 'user' | 'assistant';
 		content: string;
+		/** Ver `PlannerChatMessage.opcaoGrade` — só usado pelo botão "Montar grade". */
+		opcaoGrade?: OpcaoGradeChat;
 	}
 
 	let {
@@ -60,7 +63,14 @@
 			codigos: string[],
 			turnos?: string[],
 			docentes?: Record<string, string>,
-			incluirCursando?: boolean
+			incluirCursando?: boolean,
+			/**
+			 * Seleção já resolvida pelo backend (`msg.opcaoGrade`) — quando presente,
+			 * quem trata o clique aplica ela direto via `gradeStore.aplicarSelecao`, sem
+			 * recomputar a partir de `codigos`/`docentes` (que continuam sendo o
+			 * fallback pra quando o backend não resolveu, `undefined`).
+			 */
+			opcaoGrade?: OpcaoGradeChat
 		) => void;
 		/** Mapa código→nome: chips de matéria exibem o nome (código vira tooltip). */
 		nomesMaterias?: Map<string, string>;
@@ -518,7 +528,8 @@
 											block.codigos,
 											block.turnos,
 											block.docentes,
-											block.incluirCursando
+											block.incluirCursando,
+											msg.opcaoGrade
 										)}
 									class="flex w-full items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-600/25 px-4 py-2.5 text-left text-sm font-semibold text-emerald-50 shadow-[0_0_15px_rgba(16,185,129,0.15)] backdrop-blur-md transition-all hover:bg-emerald-600/45 active:scale-[0.98]"
 								>

@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { gradeStore } from '$lib/stores/grade.store.svelte';
+	import { gradeStore, docenteBate } from '$lib/stores/grade.store.svelte';
 	import SeguirVagaButton from '$lib/components/materia/SeguirVagaButton.svelte';
 	import { vagaAssinaturasStore } from '$lib/stores/vaga-assinaturas.store.svelte';
 	import { formatLocalCompacto, horarioLegivel } from '$lib/utils/sigaa';
-	import type { TurmaComMask } from '$lib/utils/horario-slots';
+	import { turmaRespeitaTurnos, type TurmaComMask } from '$lib/utils/horario-slots';
 	import type { TurmaOferta } from '$lib/services/turmas.service';
-	import { Check, Users, CalendarClock, Ban } from 'lucide-svelte';
+	import TurmaStatusBadge from './TurmaStatusBadge.svelte';
+	import { Check, CalendarClock, Ban } from 'lucide-svelte';
 
 	/**
 	 * Uma linha de turma, reutilizada pelo seletor do montador, pelo diálogo de
@@ -37,14 +38,23 @@
 	const local = $derived(formatLocalCompacto(t.local));
 
 
-	const vagas = $derived.by(() => {
+	/** `null` quando o SIGAA não informou vagas para esta turma. */
+	const statusVagas = $derived.by((): 'vagas' | 'sem-vagas' | null => {
 		if (t.vagas_sobrando == null) return null;
-		return t.vagas_sobrando > 0
-			? {
-					texto: `${t.vagas_sobrando} vaga(s)`,
-					classe: 'border-emerald-300/45 bg-emerald-500/18 text-emerald-100'
-				}
-			: { texto: 'Sem vagas', classe: 'border-red-300/40 bg-red-500/15 text-red-200' };
+		return t.vagas_sobrando > 0 ? 'vagas' : 'sem-vagas';
+	});
+
+	/**
+	 * Turma fora dos turnos que o aluno permitiu ao montar a grade — ele ainda pode
+	 * escolhê-la na mão (a lista não filtra), mas o selo avisa que ela não vai entrar
+	 * sozinha numa montagem automática.
+	 */
+	const foraDoTurno = $derived(!turmaRespeitaTurnos(tg.mask, gradeStore.turnosPermitidos));
+
+	/** Professor preferido confirmado pro aluno nesta matéria (sessão anterior ou pedido no chat). */
+	const professorPreferido = $derived.by(() => {
+		const alvo = gradeStore.docentesPersistidos[codigo];
+		return !!alvo && docenteBate(t.docente, alvo);
 	});
 
 </script>
@@ -55,13 +65,19 @@
 				{#if isSel}<Check class="h-3.5 w-3.5" />{/if}
 				Turma {t.turma}
 			</span>
-			{#if vagas}
-				<span
-					class="flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold {vagas.classe}"
-				>
-					<Users class="h-2.5 w-2.5" />{vagas.texto}
-				</span>
-			{/if}
+			<span class="flex flex-wrap items-center justify-end gap-1">
+				{#if professorPreferido}
+					<TurmaStatusBadge status="professor-preferido" />
+				{/if}
+				{#if foraDoTurno}
+					<TurmaStatusBadge status="fora-do-turno" />
+				{/if}
+				{#if statusVagas === 'vagas'}
+					<TurmaStatusBadge status="vagas" quantidade={t.vagas_sobrando ?? 0} />
+				{:else if statusVagas === 'sem-vagas'}
+					<TurmaStatusBadge status="sem-vagas" />
+				{/if}
+			</span>
 		</div>
 		<p class="mt-1 flex items-center gap-1.5 text-[11px] text-white/55">
 			<CalendarClock class="h-3 w-3 shrink-0" />

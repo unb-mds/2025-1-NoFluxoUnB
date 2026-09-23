@@ -6,6 +6,7 @@
 	import { Bot, X, RefreshCw } from 'lucide-svelte';
 	import { scale } from 'svelte/transition';
 	import { backOut, cubicOut } from 'svelte/easing';
+	import type { OpcaoGradeChat } from '$lib/types/plano-formatura';
 
 	// Botão flutuante do chatbot (mesmo padrão do Plano de Formatura), embutindo o
 	// Darcy com contexto 'montador' — recomenda só matérias com turma — e o botão
@@ -19,7 +20,8 @@
 			codigos: string[],
 			turnos?: string[],
 			docentes?: Record<string, string>,
-			incluirCursando?: boolean
+			incluirCursando?: boolean,
+			opcaoGrade?: OpcaoGradeChat
 		) => void;
 	} = $props();
 

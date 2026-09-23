@@ -3,9 +3,10 @@
 	import { unidadeCargaStore } from '$lib/stores/unidade-carga.store.svelte';
 	import { montadorChatStore } from '$lib/stores/assistente-chat.store.svelte';
 	import TurmaOption from './TurmaOption.svelte';
+	import TurmaStatusBadge from './TurmaStatusBadge.svelte';
 	import MateriaNaturezaBadge from '$lib/components/materia/MateriaNaturezaBadge.svelte';
 	import type { Turno } from '$lib/utils/horario-slots';
-	import { TriangleAlert, Star, Trash2, Info, Bot, GraduationCap, Lock } from 'lucide-svelte';
+	import { TriangleAlert, Star, Trash2, Info, Bot, Lock } from 'lucide-svelte';
 
 	// Alterna a turma de uma matéria: clicar na já selecionada remove; senão seleciona.
 	function toggle(codigo: string, idTurma: number) {
@@ -107,8 +108,7 @@
 						{/if}
 					</p>
 					{#if gradeStore.isCursandoAtual(materia.codigo)}
-						<p class="mt-1 flex items-start gap-1 text-[10px] font-medium text-emerald-300/90">
-							<GraduationCap class="mt-px h-3 w-3 shrink-0" />
+						<TurmaStatusBadge status="cursando-travada">
 							{#if gradeStore.isTravada(materia.codigo)}
 								<span class="flex items-center gap-1">
 									<Lock class="h-2.5 w-2.5 shrink-0" /> Já cursando — turma travada, "Montar grade"
@@ -124,7 +124,7 @@
 							{:else}
 								<span>Já cursando — escolha a turma real que você está abaixo.</span>
 							{/if}
-						</p>
+						</TurmaStatusBadge>
 						{:else if gradeStore.isTravada(materia.codigo)}
 							<!--
 								Trava de escolha manual. Sem este aviso o cadeado ficaria invisível
@@ -132,8 +132,7 @@
 								"Montar grade" (com razão) não mexeria mais nela, e ele não teria
 								como saber por quê nem como soltar.
 							-->
-							<p class="mt-1 flex items-start gap-1 text-[10px] font-medium text-white/60">
-								<Lock class="mt-px h-2.5 w-2.5 shrink-0" />
+							<TurmaStatusBadge status="travada-manual">
 								<span class="flex items-center gap-1">
 									Turma escolhida por você — "Montar grade" não troca.
 									<button
@@ -144,7 +143,7 @@
 										Destravar
 									</button>
 								</span>
-							</p>
+							</TurmaStatusBadge>
 					{/if}
 					{#if codigoOfertado}
 						<p class="mt-1 flex items-start gap-1 text-[10px] font-medium text-sky-300/90">

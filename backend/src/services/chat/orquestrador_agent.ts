@@ -13,8 +13,25 @@ import { Agent, tool } from "@openai/agents";
 import { createMaritacaModel } from "./model_provider";
 import { createIntegralizacaoAgent, runIntegralizacaoComRevisao } from "./actuators/integralizacao_actuator";
 import { createOptativasAgent } from "./actuators/optativas_actuator";
-import { createGradeAgent, runGradeComRevisao } from "./actuators/grade_actuator";
+import { createGradeAgent, runGradeComRevisao, type OpcaoGradeResumo } from "./actuators/grade_actuator";
 import { createModuloLivreAgent } from "./actuators/modulo_livre_actuator";
+
+/**
+ * Extensão não-invasiva de `Agent` pra carregar a `OpcaoGrade` (Fase 3 — contrato
+ * `/chat/send`) que a tool `montar_grade` do sub-agente AtuadorGrade calculou, por cima
+ * da closure privada de `createOrquestradorAgent`. Mesmo padrão de
+ * `AgentComOpcaoGrade`/`obterOpcaoGradeDoAgente` em `grade_actuator.ts` — deliberadamente
+ * NÃO muda a assinatura de `createOrquestradorAgent` (continua devolvendo `Agent` puro),
+ * pra não quebrar os consumidores existentes (`chat_controller.ts`,
+ * `orquestrador-fase2.test.ts`) que esperam um `Agent` de verdade.
+ */
+export interface AgentComOpcaoGrade extends Agent {
+    obterUltimaOpcaoGrade?: () => OpcaoGradeResumo | null;
+}
+
+export function obterOpcaoGradeDoOrquestrador(agent: Agent): OpcaoGradeResumo | null {
+    return (agent as AgentComOpcaoGrade).obterUltimaOpcaoGrade?.() ?? null;
+}
 
 const INSTRUCOES = `Você é o Darcy, orquestrador de planejamento acadêmico do No Fluxo (UnB).
 
@@ -51,18 +68,7 @@ const PROTOCOLO_MONTAR_GRADE = `
 O aluno está montando uma GRADE HORÁRIA nesta tela, com as turmas realmente ofertadas no período. A tela NÃO planeja um semestre específico — quem estima o que pegar até formar é o Plano de Formatura, que é outra tela.
 - Só recomende matérias que TENHAM turma ofertada neste período (a tool buscar_optativas já filtra por isso).
 - Se o aluno disser que tem um horário livre / buraco na grade e pedir recomendação (ex: "tenho segunda de manhã livre, me recomenda algo"), delegue para a tool "recomendar_por_horario_livre" em vez de buscar_optativas — ela já sabe o que cabe no horário e o que é parecido com o histórico do aluno.
-- MONTAR/REARRANJAR A GRADE: quando o aluno pedir para montar ou rearranjar a grade garantindo/priorizando matérias, restringindo TURNOS e/ou pedindo um PROFESSOR específico numa matéria, confirme em UMA frase curta e inclua no FINAL da resposta o marcador EXATO:
-[MONTAR_GRADE|CODIGOS|TURNOS|DOCENTES|INCLUIR_CURSANDO]
-- CODIGOS: códigos a priorizar (UPPERCASE, separados por vírgula, sem espaços). Pode ficar VAZIO se o aluno só falou de turno/professor.
-- TURNOS (opcional): letras dos turnos permitidos — M=manhã, T=tarde, N=noite — separadas por vírgula. Omita (ou o campo todo) se o aluno não restringiu turno.
-- DOCENTES (opcional): quando o aluno quiser um professor específico numa matéria, um par CODIGO=Nome do professor (como o aluno disse); vários pares separados por ponto e vírgula. Omita (ou o campo todo) se ninguém foi pedido. O CODIGO aqui também conta como priorizado — não precisa repetir no 1º campo.
-- INCLUIR_CURSANDO (opcional): use "0" APENAS quando o aluno pedir para montar SEM as matérias que ele já está cursando (ex.: "monta sem as que já tô fazendo", "ignora as matriculadas", "quero ver só o que posso pegar a mais"). Nesse modo a grade é montada como se ele não estivesse matriculado em nada, liberando horário e créditos. Omita o campo em qualquer outro caso — o padrão é incluir.
-O app adiciona as matérias como PRIORITÁRIAS, aplica o filtro de turno, e para as com DOCENTE só considera turmas daquele professor — rearranjando o resto da grade pra abrir espaço se precisar. Isso é uma PRÉVIA: o app mostra um botão pro aluno aceitar ou manter a grade de antes, então diga que vai "tentar" encaixar, não que já está garantido. Se a matéria não tiver turma nenhuma daquele professor, ela pode ficar de fora — avise que isso pode acontecer quando o pedido for de professor. Não descreva o passo a passo. Exemplos:
-"Beleza, vou priorizar FGA0060 e reorganizar o resto. [MONTAR_GRADE|FGA0060||]"
-"Fechou, só de manhã e à noite. [MONTAR_GRADE|||M,N]"
-"Vou tentar encaixar FGA0060 só nos horários da manhã. [MONTAR_GRADE|FGA0060|M|]"
-"Vou tentar rearranjar pra encaixar FGA0060 com a professora Maria — se não der pra caber sem conflito, ela pode ficar de fora dessa prévia. [MONTAR_GRADE|||FGA0060=Maria]"
-"Beleza, montando como se você não estivesse cursando nada agora. [MONTAR_GRADE||||0]"
+- MONTAR/REARRANJAR A GRADE INTEIRA: quando o aluno pedir para montar ou rearranjar a grade garantindo/priorizando uma matéria ESSENCIAL, restringindo TURNOS e/ou pedindo um PROFESSOR específico, delegue para a tool "montar_grade" — passe o pedido do aluno como texto (código da essencial, turnos, nome do professor, se é pra incluir ou não as matérias que ele já está cursando, qual estratégia — menos dias, menos furos, semana equilibrada). Essa tool RESOLVE o conflito de horário de verdade no backend (branch-and-bound, sem re-solve no app depois): o resultado é GARANTIDAMENTE ótimo, nunca uma prévia sujeita a mudar — não prometa "vou tentar encaixar". Repasse a resposta citando MÉTRICAS REAIS da opção (dias com aula, minutos de furo entre aulas, se o professor pedido foi atendido). A matéria ESSENCIAL NUNCA fica de fora só por causa de professor — isso mudou: professor é só preferência de desempate (a tool tenta atender, mas se nenhuma turma daquele professor coube, a essencial ainda entra do mesmo jeito, só sem o professor pedido — avise isso citando a métrica de professor atendido, não como "pode ficar de fora"). Se a tool voltar com erro de essencial (sem turma ofertada, fora do turno pedido, pré-requisito pendente ou conflito de horário com outra matéria), explique o motivo REAL ao aluno em vez de dizer genericamente que não coube.
 - MÓDULO LIVRE: se o aluno pedir sugestão de módulo livre (matéria fora da matriz do curso, nem obrigatória nem optativa) e a área de interesse ainda não apareceu na conversa, pergunte em UMA frase curta ANTES de delegar — sem chamar tool ainda (ex: "Qual área te interessa pra módulo livre? Ex: economia, música, gestão..."). Use sempre o histórico da conversa: se a área já foi dita antes (nesse turno ou em qualquer mensagem anterior), não pergunte de novo — delegue direto pra tool "buscar_modulo_livre" com o tema/área como input.`;
 
 function montarInstrucoes(apenasComOferta: boolean): string {
@@ -81,6 +87,12 @@ export function createOrquestradorAgent(
     // mensagem (AssistenteChatFab.svelte), então o filtro por matriz funciona mesmo
     // fora do Montador de Grade.
     const optativas = createOptativasAgent(apenasComOferta, email, curriculoCompleto);
+
+    // Fase 3 (contrato `/chat/send`): a `OpcaoGrade` que `montar_grade` (ou, em tese,
+    // `recomendar_por_horario_livre`, embora hoje ela não gere uma) calculou, pra expor
+    // por cima da assinatura pública de `createOrquestradorAgent` — ver
+    // `AgentComOpcaoGrade`/`obterOpcaoGradeDoOrquestrador` no topo do arquivo.
+    let ultimaOpcaoGradeOrquestrador: OpcaoGradeResumo | null = null;
 
     // Fase 3: não usa agent.asTool() puro pro atuador de integralização — precisa do
     // wrapper runIntegralizacaoComRevisao pra reexecutar com o motivo da reprovação
@@ -116,9 +128,29 @@ export function createOrquestradorAgent(
             name: "recomendar_por_horario_livre",
             description: "Delega para o atuador que recomenda matérias que cabem no horário livre atual do aluno, priorizando afinidade com o histórico.",
             parameters: z.object({ input: z.string() }),
-            execute: async ({ input }) => runGradeComRevisao(grade, input),
+            execute: async ({ input }) => {
+                const resultado = await runGradeComRevisao(grade, input);
+                if (resultado.opcaoGrade) ultimaOpcaoGradeOrquestrador = resultado.opcaoGrade;
+                return resultado.reply;
+            },
         });
         tools.push(recomendarHorarioLivreTool);
+
+        // Fase 3: delega pra tool montar_grade dentro do MESMO sub-agente AtuadorGrade
+        // (grade_actuator.ts) — ele já decide sozinho, via suas próprias instruções, se
+        // chama recomendar_por_horario_livre ou montar_grade internamente, de acordo com
+        // o pedido. `runGradeComRevisao` é a mesma função/guardrail dos dois caminhos.
+        const montarGradeTool = tool({
+            name: "montar_grade",
+            description: "Delega para o atuador que MONTA/REARRANJA a grade horária inteira (matéria essencial, turnos, professor preferido, estratégia), com o solver determinístico do backend — resultado garantidamente ótimo, não uma prévia.",
+            parameters: z.object({ input: z.string() }),
+            execute: async ({ input }) => {
+                const resultado = await runGradeComRevisao(grade, input);
+                if (resultado.opcaoGrade) ultimaOpcaoGradeOrquestrador = resultado.opcaoGrade;
+                return resultado.reply;
+            },
+        });
+        tools.push(montarGradeTool);
 
         // Módulo livre só faz sentido no mesmo contexto do AtuadorGrade acima — o
         // mesmo gate (apenasComOferta && curriculoCompleto && horarioLivre): sem
@@ -134,10 +166,15 @@ export function createOrquestradorAgent(
         );
     }
 
-    return new Agent({
+    const agent = new Agent({
         name: "DarcyOrquestrador",
         instructions: montarInstrucoes(apenasComOferta),
         model: createMaritacaModel(),
         tools,
     });
+
+    // Assinatura pública inalterada (Agent puro) — a OpcaoGrade some por cima via cast,
+    // ver AgentComOpcaoGrade/obterOpcaoGradeDoOrquestrador no topo do arquivo.
+    (agent as AgentComOpcaoGrade).obterUltimaOpcaoGrade = () => ultimaOpcaoGradeOrquestrador;
+    return agent;
 }

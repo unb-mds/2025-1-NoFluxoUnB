@@ -299,9 +299,13 @@ describe("Fase 2 — Orquestrador (delegação)", () => {
 describe("Fase 2 (migração) — protocolo MONTAR_GRADE nas instruções do orquestrador", () => {
     it("inclui o bloco do protocolo quando apenasComOferta=true (contexto montador)", () => {
         const orquestrador = createOrquestradorAgent("aluno@unb.br", true);
-        expect(String(orquestrador.instructions)).toContain(
-            "[MONTAR_GRADE|CODIGOS|TURNOS|DOCENTES|INCLUIR_CURSANDO]"
-        );
+        // Fase 3 (montador-de-grade-resilient-muffin.md): o protocolo não compõe mais o
+        // marcador [MONTAR_GRADE|CODIGOS|TURNOS|DOCENTES|INCLUIR_CURSANDO] ele mesmo — ele
+        // delega pra tool "montar_grade" (backend resolve de verdade, ver grade_actuator.ts).
+        const inst = String(orquestrador.instructions);
+        expect(inst).toContain("## Contexto: Montador de Grade");
+        expect(inst).toContain("montar_grade");
+        expect(inst).toContain("GARANTIDAMENTE ótimo");
     });
 
     it("NÃO inclui o bloco fora do contexto montador (apenasComOferta=false)", () => {

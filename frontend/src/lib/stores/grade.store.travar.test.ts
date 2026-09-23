@@ -133,4 +133,51 @@ describe('gradeStore — matéria travada (já cursando, turma real escolhida)',
 		gradeStore.montarAutomatico();
 		expect(gradeStore.turmaSelecionada('N')?.turma.id_turmas).toBe(1);
 	});
+
+	/**
+	 * Regressão: `OpcaoGrade.resultado.selecao` (de `montarOpcoes`) nunca inclui
+	 * travadas — elas são horário pré-ocupado passado pro solver via máscara, não
+	 * candidatas dele. `popularOpcoes`/`aplicarSelecao` têm que mesclar a travada de
+	 * volta, senão aplicar uma opção apaga a matéria travada da grade.
+	 */
+	it('popularOpcoes preserva a matéria travada em cada cenário gerado', () => {
+		const materias = [
+			materiaComTurmas('L', 4, [0], 1), // travada no bit 0
+			materiaComTurmas('C', 4, [1], 10) // livre, só cabe no bit 1
+		];
+		gradeStore.init(materias, { idUser: null, periodo: '2026.1' });
+		gradeStore.definirCursandoAtual(['L']);
+		gradeStore.selecionarTurma('L', 1);
+		expect(gradeStore.isTravada('L')).toBe(true);
+
+		const opcoes = gradeStore.montarOpcoes();
+		expect(opcoes.length).toBeGreaterThan(0);
+		gradeStore.popularOpcoes(opcoes);
+
+		const geradas = gradeStore.grades.filter((g) => g.origem === 'opcao-solver');
+		expect(geradas.length).toBeGreaterThan(0);
+		for (const cenario of geradas) {
+			expect(cenario.selecao['L']).toBe(1);
+		}
+
+		gradeStore.selecionarCenario(geradas[0].id);
+		expect(gradeStore.turmaSelecionada('L')?.turma.id_turmas).toBe(1);
+		expect(gradeStore.turmaSelecionada('C')?.turma.id_turmas).toBe(10);
+	});
+
+	it('aplicarSelecao preserva a matéria travada ao aplicar uma seleção sem ela (ex.: vinda do chat)', () => {
+		const materias = [
+			materiaComTurmas('L', 4, [0], 1), // travada no bit 0
+			materiaComTurmas('C', 4, [1], 10)
+		];
+		gradeStore.init(materias, { idUser: null, periodo: '2026.1' });
+		gradeStore.definirCursandoAtual(['L']);
+		gradeStore.selecionarTurma('L', 1);
+
+		// Simula o que `opcaoGrade.selecao` do chat traria: só a matéria livre.
+		gradeStore.aplicarSelecao({ C: 10 });
+
+		expect(gradeStore.turmaSelecionada('L')?.turma.id_turmas).toBe(1);
+		expect(gradeStore.turmaSelecionada('C')?.turma.id_turmas).toBe(10);
+	});
 });

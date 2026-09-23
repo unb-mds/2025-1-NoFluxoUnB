@@ -353,18 +353,30 @@
 	}
 
 	/**
+	 * Seleção exata que o backend já resolveu no orquestrador (`opcaoGrade` da
+	 * resposta de `/chat/send`) — quando vem, o frontend só aplica via
+	 * `gradeStore.aplicarSelecao`, sem rodar `montarAutomatico` de novo. `undefined`
+	 * quando o backend não resolveu (resposta comum, ou ainda só a tag de texto
+	 * `[MONTAR_GRADE|...]`, que continua sendo o fallback).
+	 * Espelha `ChatService.OrquestradorChatResponse['opcaoGrade']`.
+	 */
+	type OpcaoGradeDoChat = { estrategia: string; selecao: Array<{ codigo: string; idTurma: number }> };
+
+	/**
 	 * Ação vinda do chat ([MONTAR_GRADE|...]): garante as matérias no pool, marca-as
 	 * como prioritárias e monta — mantendo as demais que couberem sem conflito.
 	 *
-	 * Quando vem professor (`docentes`), o filtro é rígido e pode rearranjar o resto
-	 * da grade pra abrir espaço — por isso vira uma prévia com "Aceitar"/"Manter
-	 * grade anterior" em vez de aplicar direto: o aluno confere antes de confirmar.
+	 * Quando vem professor (`docentes`), a preferência agora é bônus (não filtro
+	 * rígido) e pode rearranjar o resto da grade pra abrir espaço — por isso vira
+	 * uma prévia com "Aceitar"/"Manter grade anterior" em vez de aplicar direto: o
+	 * aluno confere antes de confirmar.
 	 */
 	async function montarGradeComPrioridade(
 		codigos: string[],
 		turnos?: string[],
 		docentes?: Record<string, string>,
-		incluirCursando?: boolean
+		incluirCursando?: boolean,
+		opcaoGrade?: OpcaoGradeDoChat
 	): Promise<void> {
 		if (turnos && turnos.length > 0) gradeStore.setTurnos(turnos);
 		// A Darcy pode pedir a grade sem as matérias em curso — mesmo efeito do botão
@@ -378,18 +390,19 @@
 		if (p.length > 0) {
 			pendencias = p;
 			aguardando = todosCodigos;
-			aposConfirmar = () => aplicarMontagemDoChat(todosCodigos, docentes);
+			aposConfirmar = () => aplicarMontagemDoChat(todosCodigos, docentes, opcaoGrade);
 			return;
 		}
 
 		await adicionarCodigos(todosCodigos);
-		await aplicarMontagemDoChat(todosCodigos, docentes);
+		await aplicarMontagemDoChat(todosCodigos, docentes, opcaoGrade);
 	}
 
 	/** Prioriza o que o chat pediu e monta — já com o lote garantido no pool. */
 	async function aplicarMontagemDoChat(
 		todosCodigos: string[],
-		docentes?: Record<string, string>
+		docentes?: Record<string, string>,
+		opcaoGrade?: OpcaoGradeDoChat
 	): Promise<void> {
 		for (const raw of todosCodigos) {
 			const c = raw.trim().toUpperCase();
@@ -397,6 +410,27 @@
 			if (gradeStore.hasMateria(c) && !gradeStore.isPrioritaria(c)) {
 				gradeStore.togglePrioridade(c);
 			}
+		}
+
+		// O backend já pode ter resolvido a montagem no orquestrador — nesse caso o
+		// frontend só aplica a seleção exata (caminho único de `aplicarSelecao`),
+		// sem re-resolver com o solver local. A tag de texto [MONTAR_GRADE|...] (que
+		// chegou como `codigos`/`docentes`) é o fallback só para quando `opcaoGrade`
+		// vem `undefined`.
+		if (opcaoGrade) {
+			const snapshot = gradeStore.snapshotSelecao();
+			const selecao: Record<string, number> = {};
+			for (const { codigo, idTurma } of opcaoGrade.selecao) {
+				selecao[codigo.trim().toUpperCase()] = idTurma;
+			}
+			gradeStore.aplicarSelecao(selecao);
+			if (docentes && Object.keys(docentes).length > 0) {
+				const resumo = Object.entries(docentes)
+					.map(([c, nome]) => `${c} com ${nome}`)
+					.join(', ');
+				confirmacaoProfessor = { resumo, snapshot, docentes };
+			}
+			return;
 		}
 
 		if (docentes && Object.keys(docentes).length > 0) {

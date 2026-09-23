@@ -110,6 +110,7 @@ function createAssistenteChatStore() {
 
 			try {
 				let reply: string;
+				let opcaoGrade: PlannerChatMessage['opcaoGrade'];
 				if (opts?.contexto === 'montador') {
 					// Montador de Grade já migrou pro pipeline novo (orquestrador + atuadores).
 					const resposta = await chatService.enviarMensagem(mensagem, {
@@ -120,12 +121,17 @@ function createAssistenteChatStore() {
 						codigosNaGrade: opts.codigosNaGrade
 					});
 					reply = resposta.reply;
+					// Quando o orquestrador já resolveu a montagem no backend, a seleção
+					// exata vem pronta aqui — precisa sobreviver na mensagem pra o botão
+					// "Montar grade" do ChatPanel aplicar via `gradeStore.aplicarSelecao`
+					// em vez de recomputar a partir da tag de texto `[MONTAR_GRADE|...]`.
+					opcaoGrade = resposta.opcaoGrade;
 				} else {
 					const planoInput = await buildPlanoInput();
 					const resposta = await service.chatAgente(chatMessages, planoInput, undefined, opts?.contexto);
 					reply = resposta.reply;
 				}
-				chatMessages = [...chatMessages, { role: 'assistant', content: reply }];
+				chatMessages = [...chatMessages, { role: 'assistant', content: reply, opcaoGrade }];
 			} catch (err) {
 				// Bolha amigável: "sem créditos" da Maritaca ganha texto próprio;
 				// o resto cai no fallback genérico (ver $lib/utils/ai-errors).

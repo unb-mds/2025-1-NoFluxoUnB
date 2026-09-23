@@ -22,9 +22,28 @@ export interface RestricoesPlano {
 
 export type PlannerChatRole = 'user' | 'assistant';
 
+/**
+ * Seleção exata que o backend já resolveu no orquestrador (`opcaoGrade` de
+ * `ChatService.OrquestradorChatResponse`) — espelhada aqui pra `PlannerChatMessage`
+ * poder carregar isso por mensagem sem acoplar o tipo de mensagem do chat ao
+ * client HTTP. Ver `assistente-chat.store.svelte.ts` (quem preenche) e
+ * `ChatPanel.svelte` (quem lê, no clique do botão "Montar grade").
+ */
+export interface OpcaoGradeChat {
+	estrategia: string;
+	selecao: Array<{ codigo: string; idTurma: number }>;
+}
+
 export interface PlannerChatMessage {
 	role: PlannerChatRole;
 	content: string;
+	/**
+	 * Só populado em respostas do chat do Montador de Grade quando o backend já
+	 * resolveu a montagem (não usado pelo chat do Plano de Formatura). `undefined`
+	 * é o caso comum — o handler cai no fallback de reconstruir a partir da tag de
+	 * texto `[MONTAR_GRADE|...]`.
+	 */
+	opcaoGrade?: OpcaoGradeChat;
 }
 
 export interface PlannerChatResponse {

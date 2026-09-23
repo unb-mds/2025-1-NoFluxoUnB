@@ -16,6 +16,18 @@ export interface EnviarMensagemOrquestradorOpts {
 
 export interface OrquestradorChatResponse {
 	reply: string;
+	/**
+	 * Quando o orquestrador já resolveu a montagem no backend (ação MONTAR_GRADE
+	 * processada lá, com o contexto de turmas que só ele tem), a seleção exata vem
+	 * pronta aqui — o frontend só aplica via `gradeStore.aplicarSelecao`, sem rodar
+	 * o solver de novo. `undefined` quando o backend não resolveu (resposta comum,
+	 * ou a ação ainda só na tag de texto `[MONTAR_GRADE|...]`) — nesse caso o
+	 * handler do chat cai no fallback de re-montar a partir da tag.
+	 */
+	opcaoGrade?: {
+		estrategia: string;
+		selecao: Array<{ codigo: string; idTurma: number }>;
+	};
 }
 
 export class ChatService {

@@ -126,11 +126,22 @@ for (const s of ALVOS) {
 					await page.waitForTimeout(2500);
 				}
 			}
+			// "Montar grade" agora abre o wizard de 2 passos (Configurar → Resultados)
+			// em vez de montar direto: gera as opções e aplica a primeira, que é o
+			// equivalente do clique único de antes pro que esta auditoria mede.
 			const botao = page.getByRole('button', { name: /Montar grade/i }).first();
 			await botao.waitFor({ state: 'visible', timeout: 20_000 });
 			await botao.click();
 			clicou = true;
-			await page.waitForTimeout(3500);
+			const gerar = page.getByRole('button', { name: /Gerar opções/i });
+			await gerar.waitFor({ state: 'visible', timeout: 10_000 });
+			await gerar.click();
+			const opcaoGerada = page
+				.getByRole('button', { name: /Menos dias|Menos lacunas|Semana equilibrada/i })
+				.first();
+			await opcaoGerada.waitFor({ state: 'visible', timeout: 20_000 });
+			await opcaoGerada.click();
+			await page.waitForTimeout(1500);
 		} catch {
 			chegou = false;
 		}

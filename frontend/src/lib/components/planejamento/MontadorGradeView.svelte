@@ -7,12 +7,16 @@
 	import SituacaoPanel from './SituacaoPanel.svelte';
 	import CenarioSwitcher from './CenarioSwitcher.svelte';
 	import TrocarTurmaDialog from './TrocarTurmaDialog.svelte';
+	import MontadorParametros, { type ParametrosMontagem } from './MontadorParametros.svelte';
+	import ResponsiveSheet from '$lib/components/ui/ResponsiveSheet.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { gradeStore } from '$lib/stores/grade.store.svelte';
 	import { unidadeCargaStore } from '$lib/stores/unidade-carga.store.svelte';
+	import { preferenciasGradeService } from '$lib/services/preferencias-grade.service';
 	import type { SemeaduraResultado } from '$lib/services/grade-pool.service';
 	import type { SituacaoAcademica } from '$lib/services/situacao-academica.service';
-	import type { Turno } from '$lib/utils/horario-slots';
+	import type { TurmaOferta } from '$lib/services/turmas.service';
+	import type { Turno, OpcaoGrade, ErroMontagem } from '$lib/utils/horario-slots';
 	import { ROUTES } from '$lib/config/routes';
 	import { LIMITE_CREDITOS_MAX, LIMITE_CREDITOS_MIN } from '$lib/types/plano-formatura';
 	import {
@@ -32,7 +36,9 @@
 		BookMarked,
 		Check,
 		Undo2,
-		GraduationCap
+		GraduationCap,
+		ArrowLeft,
+		Sparkles
 	} from 'lucide-svelte';
 	import OnboardingTour from '$lib/components/onboarding/OnboardingTour.svelte';
 	import HelpTip from '$lib/components/onboarding/HelpTip.svelte';
@@ -330,6 +336,129 @@
 		}
 	}
 
+	// ---------------------------------------------------------------------------
+	// Wizard "Montar grade" (Passo 1 Configurar → Passo 2 Resultados)
+	// ---------------------------------------------------------------------------
+	/**
+	 * `'fechado'` = tela normal (lista de matérias). Clicar em "Montar grade" abre
+	 * o Passo 1; "Gerar opções" leva ao Passo 2. No desktop os dois substituem a
+	 * coluna de matérias inline (painel estilo "modo mágico", calendário fica fixo
+	 * ao lado); no compacto abrem como bottom sheet (`ResponsiveSheet`).
+	 */
+	let modoMontador = $state<'fechado' | 'parametros' | 'resultados'>('fechado');
+	/** Preservado entre Passo 2 → "Voltar" → Passo 1, pra não perder o que o aluno escolheu. */
+	let parametrosAtuais = $state<ParametrosMontagem | null>(null);
+	let opcoesGeradas = $state<OpcaoGrade<TurmaOferta>[]>([]);
+	/**
+	 * `gradeStore.montarOpcoes` não devolve `ErroMontagem[]` (só `montarAutomatico`
+	 * diagnostica causa — ver o aviso "não coube" mais abaixo, fora do wizard).
+	 * Aqui, se a essencial pedida não aparece em NENHUMA das opções geradas, um
+	 * aviso genérico já é suficiente pro aluno saber que precisa ajustar algo.
+	 */
+	let avisoEssencial = $state<string | null>(null);
+	let gerandoOpcoes = $state(false);
+
+	function abrirWizard(): void {
+		modoMontador = 'parametros';
+		calendarioExpandido = false; // não cabem os dois ao mesmo tempo
+	}
+	function fecharWizard(): void {
+		modoMontador = 'fechado';
+	}
+	function voltarParaParametros(): void {
+		modoMontador = 'parametros';
+	}
+
+	/**
+	 * Passo 1 → Passo 2: primeiro puxa da matriz o que falta na lista (mesma
+	 * semeadura que a montagem rápida já fazia), persiste a preferência de turno/
+	 * professor da essencial se o aluno marcou algum, e então chama o solver de
+	 * múltiplas opções.
+	 */
+	async function handleGerarOpcoes(params: ParametrosMontagem): Promise<void> {
+		if (gerandoOpcoes) return;
+		gerandoOpcoes = true;
+		parametrosAtuais = params;
+		try {
+			await onSemear?.();
+
+			// Persiste turno/professor da essencial pra próxima sessão puxar sozinha
+			// (`preferencias_grade` — a coluna `turnos` já é aceita e enviada por
+			// `preferenciasGradeService.salvar`). Não alimenta o solver desta chamada:
+			// hoje só o turno GLOBAL (`gradeStore.turnosPermitidos`, os pills reusados
+			// no painel) filtra turma — turno POR MATÉRIA ainda não tem parâmetro no
+			// `MontarOpts` do store.
+			if (params.essencial && (params.professorPreferidoEssencial || params.turnosEssencial.length > 0)) {
+				void preferenciasGradeService.salvar(params.essencial, {
+					turnos: params.turnosEssencial,
+					docente: params.professorPreferidoEssencial
+				});
+			}
+
+			const opcoes = gradeStore.montarOpcoes({
+				limiteCreditos: params.limiteCreditos,
+				essencial: params.essencial ?? undefined,
+				professorPreferidoEssencial: params.professorPreferidoEssencial ?? undefined
+			});
+
+			opcoesGeradas = opcoes;
+			avisoEssencial =
+				params.essencial && !opcoes.some((o) => o.resultado.selecao.has(params.essencial as string))
+					? `${nomeMateria(params.essencial)} não coube em nenhuma opção — pode ser falta de vaga, conflito de horário ou os turnos escolhidos. Tente afrouxar os turnos ou trocar a essencial.`
+					: null;
+
+			if (opcoes.length === 0) {
+				toast.warning(avisoEssencial ?? 'Não consegui montar nenhuma opção com esses parâmetros.');
+				modoMontador = 'parametros';
+				return;
+			}
+
+			gradeStore.popularOpcoes(opcoes);
+			modoMontador = 'resultados';
+		} catch {
+			toast.error('Não consegui gerar as opções agora. Tente de novo.');
+		} finally {
+			gerandoOpcoes = false;
+		}
+	}
+
+	/** Aplica a opção escolhida (o cenário já foi criado por `popularOpcoes`) e fecha o wizard. */
+	function escolherOpcao(opcao: OpcaoGrade<TurmaOferta>): void {
+		const cenario = gradeStore.grades.find((g) => g.nome === opcao.estrategia);
+		if (cenario) gradeStore.selecionarCenario(cenario.id);
+		modoMontador = 'fechado';
+		toast.success(`Grade aplicada: ${opcao.estrategia}.`);
+	}
+
+	function nomeMateria(codigo: string): string {
+		return gradeStore.pool.find((m) => m.codigo === codigo)?.nome ?? codigo;
+	}
+
+	const TURNO_LABEL: Record<Turno, string> = { M: 'manhã', T: 'tarde', N: 'noite' };
+
+	/** Traduz cada `ErroMontagem` pra uma frase em português — nunca mostrar o `tipo` cru. */
+	function mensagemErro(erro: ErroMontagem): string {
+		const nome = nomeMateria(erro.chave);
+		switch (erro.tipo) {
+			case 'ESSENCIAL_SEM_VAGA':
+				return `${nome} não tem nenhuma turma ofertada neste período.`;
+			case 'ESSENCIAL_FORA_DO_TURNO': {
+				const turnos = erro.turnosComOferta.map((t) => TURNO_LABEL[t]).join(' ou ');
+				return turnos
+					? `${nome} só tem turma de ${turnos} — fora dos turnos escolhidos.`
+					: `${nome} não tem turma nos turnos escolhidos.`;
+			}
+			case 'ESSENCIAL_PRE_REQUISITO':
+				return `${nome} tem pré-requisito pendente: ${erro.pendencias.join(', ')}.`;
+			case 'ESSENCIAL_CONFLITO':
+				return erro.colideCom.length > 0
+					? `${nome} colide de horário com ${erro.colideCom.map(nomeMateria).join(', ')}.`
+					: `${nome} não coube por conflito de horário.`;
+			default:
+				return `Não consegui encaixar ${nome}.`;
+		}
+	}
+
 	let exportando = $state(false);
 	async function exportarGrade(): Promise<void> {
 		if (exportando) return;
@@ -613,21 +742,15 @@
 			<!-- Único botão preenchido da tela: é a ação principal, não mais uma pílula. -->
 			<button
 				type="button"
-				onclick={montarGrade}
-				disabled={montando}
+				onclick={abrirWizard}
 				data-tour="montar"
 				class="ml-auto inline-flex shrink-0 touch-manipulation items-center justify-center gap-1.5 rounded-full bg-purple-500 px-3.5 py-2 text-xs font-semibold text-white shadow-[0_2px_14px_rgba(168,85,247,0.4)] transition-colors active:bg-purple-600 disabled:opacity-60"
 			>
-				{#if montando}
-					<Loader2 class="h-3.5 w-3.5 shrink-0 animate-spin" />
-					<span>Montando…</span>
-				{:else}
-					<Wand2 class="h-3.5 w-3.5 shrink-0" />
-					<span>Montar grade</span>
-					{#if gradeStore.temPrioritarias}<Star
-							class="h-3 w-3 shrink-0 fill-current text-amber-200"
-						/>{/if}
-				{/if}
+				<Wand2 class="h-3.5 w-3.5 shrink-0" />
+				<span>Montar grade</span>
+				{#if gradeStore.temPrioritarias}<Star
+						class="h-3 w-3 shrink-0 fill-current text-amber-200"
+					/>{/if}
 			</button>
 		</div>
 	{:else}
@@ -722,26 +845,19 @@
 				<HelpTip
 					side="bottom"
 					title="Montar grade"
-					text={gradeStore.temPrioritarias
-						? 'Traz as matérias que faltam na lista (do seu plano ou, na falta dele, da sua matriz) e encaixa tudo sem conflito de horário, começando pelas marcadas com estrela.'
-						: 'Traz as matérias que faltam na lista (do seu plano ou, na falta dele, da sua matriz) e encaixa tudo sem conflito de horário, respeitando os turnos escolhidos. Marque estrela numa matéria para ela entrar primeiro.'}
+					text="Abre o assistente de montagem: escolha escopo, carga horária, turnos e uma disciplina essencial (se quiser), e a gente gera até 6 opções de grade sem conflito de horário pra você escolher."
 				>
 					<!-- Único botão preenchido da barra: é a ação principal da tela. -->
 					<button
 						type="button"
-						onclick={montarGrade}
-						disabled={montando}
+						onclick={abrirWizard}
 						data-tour="montar"
 						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full bg-purple-500 px-3.5 py-1.5 text-xs font-semibold text-white shadow-[0_2px_14px_rgba(168,85,247,0.4)] transition-colors hover:bg-purple-400 disabled:opacity-60"
 					>
-						{#if montando}
-							<Loader2 class="h-3.5 w-3.5 animate-spin" /> Montando…
-						{:else}
-							<Wand2 class="h-3.5 w-3.5" /> Montar grade
-							{#if gradeStore.temPrioritarias}<Star
-									class="h-3 w-3 fill-current text-amber-200"
-								/>{/if}
-						{/if}
+						<Wand2 class="h-3.5 w-3.5" /> Montar grade
+						{#if gradeStore.temPrioritarias}<Star
+								class="h-3 w-3 fill-current text-amber-200"
+							/>{/if}
 					</button>
 				</HelpTip>
 				<HelpTip
@@ -910,13 +1026,25 @@
 
 	{#if gradeStore.ultimaMontagem && gradeStore.ultimaMontagem.naoAlocadas.length > 0}
 		<div
-			class="mb-3 flex items-start gap-2 rounded-xl border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"
+			class="mb-3 space-y-1 rounded-xl border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"
 		>
-			<Info class="mt-0.5 h-3.5 w-3.5 shrink-0" />
-			<span
-				>Não coube sem conflito: <strong>{gradeStore.ultimaMontagem.naoAlocadas.join(', ')}</strong
-				>. Ajuste manualmente.</span
-			>
+			{#if gradeStore.ultimaMontagem.erros && gradeStore.ultimaMontagem.erros.length > 0}
+				<!-- Diagnóstico estruturado da essencial (quando houver) — nunca o `tipo` cru. -->
+				{#each gradeStore.ultimaMontagem.erros as erro (erro.chave + erro.tipo)}
+					<p class="flex items-start gap-2">
+						<Info class="mt-0.5 h-3.5 w-3.5 shrink-0" />{mensagemErro(erro)}
+					</p>
+				{/each}
+			{:else}
+				<p class="flex items-start gap-2">
+					<Info class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+					<span
+						>Não coube sem conflito: <strong
+							>{gradeStore.ultimaMontagem.naoAlocadas.join(', ')}</strong
+						>. Ajuste manualmente.</span
+					>
+				</p>
+			{/if}
 		</div>
 	{/if}
 
@@ -995,6 +1123,90 @@
 				/>
 			</div>
 			<SubjectTurmaSelector />
+		{/if}
+	{/snippet}
+
+	<!--
+		Painel "modo mágico" do wizard: substitui `colunaMaterias()` no lugar (desktop)
+		ou abre como bottom sheet (compacto — ver `ResponsiveSheet` mais abaixo) quando
+		`modoMontador !== 'fechado'`. Passo 1 é `MontadorParametros`; Passo 2 é a lista
+		de até 6 `OpcaoGrade`, renderizada aqui mesmo (não vira componente à parte —
+		é pouco código e específico desta tela).
+	-->
+	{#snippet wizardMontador()}
+		{#if modoMontador === 'parametros'}
+			<MontadorParametros
+				{periodo}
+				limiteCreditosInicial={limiteSessao}
+				gerando={gerandoOpcoes}
+				valorInicial={parametrosAtuais}
+				onGerar={handleGerarOpcoes}
+				onCancelar={fecharWizard}
+			/>
+		{:else if modoMontador === 'resultados'}
+			<div class="space-y-3">
+				<div class="flex items-center justify-between gap-2 px-1">
+					<button
+						type="button"
+						onclick={voltarParaParametros}
+						class="inline-flex touch-manipulation items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/60 transition-colors hover:bg-white/10"
+					>
+						<ArrowLeft class="h-3 w-3" /> Voltar
+					</button>
+					<p
+						class="flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.12em] text-white/55 uppercase"
+					>
+						<Sparkles class="h-3.5 w-3.5 text-purple-300" /> 2 · Resultados
+					</p>
+				</div>
+
+				{#if avisoEssencial}
+					<div
+						class="rounded-xl border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"
+					>
+						<p class="flex items-start gap-1.5">
+							<Info class="mt-0.5 h-3.5 w-3.5 shrink-0" />{avisoEssencial}
+						</p>
+					</div>
+				{/if}
+
+				{#if opcoesGeradas.length === 0}
+					<p class="px-1 text-xs text-white/50">
+						Nenhuma opção coube com esses parâmetros. Volte e ajuste turnos, carga ou a essencial.
+					</p>
+				{:else}
+					<div class="space-y-2">
+						{#each opcoesGeradas as opcao (opcao.estrategia)}
+							<button
+								type="button"
+								onclick={() => escolherOpcao(opcao)}
+								class="w-full touch-manipulation rounded-2xl border border-white/10 bg-zinc-950/78 p-3 text-left transition-colors hover:border-purple-300/40 hover:bg-purple-500/10"
+							>
+								<div class="flex items-center justify-between gap-2">
+									<p class="text-sm font-semibold text-white">{opcao.estrategia}</p>
+									{#if opcao.metricas.professorEssencialAtendido && parametrosAtuais?.professorPreferidoEssencial}
+										<span
+											class="shrink-0 rounded-full border border-sky-300/45 bg-sky-500/18 px-2 py-0.5 text-[10px] font-semibold text-sky-100"
+										>
+											Professor preferido
+										</span>
+									{/if}
+								</div>
+								<p class="mt-1 text-[11px] text-white/55">
+									{opcao.resultado.selecao.size} disciplina(s) · {opcao.metricas.diasComAula} dia(s) ·
+									{opcao.metricas.horasTotais.toFixed(1)}h ·
+									{Math.round(opcao.metricas.minutosDeLacuna / 60)}h de furo
+								</p>
+								{#if opcao.resultado.naoAlocadas.length > 0}
+									<p class="mt-1 text-[10px] text-amber-300/85">
+										Não coube: {opcao.resultado.naoAlocadas.map(nomeMateria).join(', ')}
+									</p>
+								{/if}
+							</button>
+						{/each}
+					</div>
+				{/if}
+			</div>
 		{/if}
 	{/snippet}
 
@@ -1108,7 +1320,13 @@
 		<div class="space-y-4">
 			<div>{@render calendario()}</div>
 			<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-				<div class="space-y-3">{@render colunaMaterias()}</div>
+				<div class="space-y-3">
+					{#if modoMontador !== 'fechado'}
+						{@render wizardMontador()}
+					{:else}
+						{@render colunaMaterias()}
+					{/if}
+				</div>
 				<div class="space-y-3">
 					{@render painelSituacao(false)}
 					<GradeResumo />
@@ -1117,11 +1335,19 @@
 		</div>
 	{:else}
 		<div class="grid gap-4 lg:grid-cols-[22rem_minmax(0,1fr)_18rem]">
-			<!-- Coluna esquerda: matérias + busca -->
+			<!--
+				Coluna esquerda: matérias + busca — ou o painel "modo mágico" do wizard,
+				substituindo-a inline quando "Montar grade" está aberto (não é modal: o
+				calendário e o resumo continuam fixos ao lado, "Minha semana" sem sumir).
+			-->
 			<div
 				class="order-2 space-y-3 lg:sticky lg:top-24 lg:order-1 lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto lg:pr-0.5"
 			>
-				{@render colunaMaterias()}
+				{#if modoMontador !== 'fechado'}
+					{@render wizardMontador()}
+				{:else}
+					{@render colunaMaterias()}
+				{/if}
 			</div>
 
 			<!-- Centro: calendário -->
@@ -1137,6 +1363,57 @@
 				<GradeResumo />
 			</div>
 		</div>
+	{/if}
+
+	<!--
+		Resumo compacto fixo mobile: só faz sentido fora da aba "resumo" (que já É o
+		resumo) e com o wizard fechado (o sheet do wizard cobre a tela toda por cima).
+		Créditos + matérias na grade + o que não coube — os mesmos números que já
+		existem no store, sem cálculo novo.
+	-->
+	{#if compacto && painel !== 'resumo' && modoMontador === 'fechado'}
+		<div
+			class="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-zinc-950/95 px-3 backdrop-blur-sm"
+			style="padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px)); padding-top: 0.5rem;"
+		>
+			<div class="mx-auto flex max-w-7xl items-center gap-3 text-[11px] text-white/60">
+				<span class="flex items-center gap-1 {creditosAcima ? 'font-semibold text-red-300' : ''}">
+					<ListChecks class="h-3.5 w-3.5 shrink-0" />
+					{contadorTexto}{unidadeCargaStore.sufixo}
+				</span>
+				<span class="flex items-center gap-1">
+					<BookMarked class="h-3.5 w-3.5 shrink-0" />
+					{gradeStore.selecao.size} na grade
+				</span>
+				{#if gradeStore.ultimaMontagem && gradeStore.ultimaMontagem.naoAlocadas.length > 0}
+					<span class="ml-auto flex items-center gap-1 text-amber-300/85">
+						<Info class="h-3.5 w-3.5 shrink-0" />
+						{gradeStore.ultimaMontagem.naoAlocadas.length} não coube
+					</span>
+				{/if}
+			</div>
+		</div>
+	{/if}
+
+	<!--
+		Painel de parâmetros/resultados do wizard no compacto: bottom sheet (Fase 4 do
+		plano), em vez de mais uma aba — abre por cima de qualquer aba selecionada e
+		fecha de volta pra ela. Fica dentro do wrapper porque é aqui que `wizardMontador`
+		está em escopo (snippets do Svelte seguem o aninhamento do template).
+	-->
+	{#if compacto}
+		<ResponsiveSheet
+			aberto={modoMontador !== 'fechado'}
+			onClose={fecharWizard}
+			titulo="Montar grade"
+			subtitulo={modoMontador === 'parametros'
+				? 'Passo 1 de 2 — Configurar'
+				: 'Passo 2 de 2 — Resultados'}
+		>
+			<div class="max-h-[75dvh] overflow-y-auto p-3">
+				{@render wizardMontador()}
+			</div>
+		</ResponsiveSheet>
 	{/if}
 </div>
 
