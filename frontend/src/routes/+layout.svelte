@@ -45,7 +45,10 @@
 
 	// Determine layout visibility based on current route
 	let showNavbar = $derived(
-		!isAuthRoute($page.url.pathname) && $page.url.pathname !== '/'
+		!isAuthRoute($page.url.pathname) &&
+		$page.url.pathname !== '/' &&
+		// Página de apresentação acessada por link direto (QR/NFC/bio): sem navbar.
+		!$page.url.pathname.startsWith('/conheca')
 	);
 
 	// Watch for route changes and verify auth
