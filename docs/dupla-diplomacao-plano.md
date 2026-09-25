@@ -9,10 +9,10 @@ Regras de negócio já documentadas em [`unb-domain.md`](./unb-domain.md#dupla-d
 - Ser provável formando no semestre corrente.
 - Integralizar ≥ 70% da CH do curso pretendido, pela fórmula oficial `X = (T - P) / (T - C - E)`,
   onde `T` = CH total exigida, `P` = CH total pendente, `C` = CH complementar exigida,
-  `E` = CH de disciplinas obrigatórias de estágio.
+  `E` = CH de disciplinas obrigatórias de estágio (geralmente a disciplina se chama 'ESTAGIO SUPERVISIONADO' ,	'ESTÁGIO SUPERVISIONADO 1 ou 2', etc.. e é considerado uma disciplina obrigatória).
 - IRA ≥ 3,0.
 - Não ter ingressado no curso atual por dupla diplomação.
-- CH optativa considerada é limitada ao valor exigido pelo curso pretendido.
+- CH optativa considerada é limitada ao valor de optativas exigido pelo curso pretendido.
 - Complementares (módulo livre) não contam para o 70%.
 
 Esse módulo é uma variação do módulo já existente de **Simulação de Troca de Curso**
@@ -43,7 +43,7 @@ o que muda:
 
 ## O que precisa ser novo
 
-1. **Separar CH de estágio obrigatório na grade.** Hoje `materias_por_curso.tipo_natureza` só distingue obrigatória (0) / optativa (1); não há sinalização de "estágio obrigatório" isolável. Precisa decidir a fonte: (a) nova coluna/flag no banco, ou (b) heurística por nome/código da disciplina (ex.: contém "ESTÁGIO"). Recomendo (b) para não depender de migração de banco no primeiro corte, com um util isolado e testável, e documentar a limitação.
+1. **Separar CH de estágio obrigatório na grade.** Hoje `materias_por_curso.tipo_natureza` só distingue obrigatória (0) / optativa (1); não há sinalização de "estágio obrigatório" isolável. Precisa decidir a fonte: (a) nova coluna/flag no banco, ou (b) heurística por nome/código da disciplina (ex.: contém "ESTÁGIO"). Recomendo (b) para não depender de migração de banco no primeiro corte, com um util isolado e testável, e documentar a limitação. Observasão: Se a disciplina de estágio conta como uma disciplina obrigatória, será necessário mesmo separa-la?
 2. **`dupla-diplomacao-requisitos.service.ts`** (novo arquivo, mesmo diretório de `mudanca-curso-requisitos.service.ts`):
    - Recebe `dadosFluxograma`, `integralizacaoDestino` (resultado de `getIntegralizacao`) e a grade do curso destino (para achar CH de estágio e de complementar exigida).
    - Calcula `T`, `C`, `E` a partir de `integralizacaoDestino.exigido` + util de estágio do item 1.
@@ -52,8 +52,8 @@ o que muda:
    - Aplica gate de IRA: `atendeIra: dadosFluxograma.ira >= 3.0`.
    - Aplica gate "é provável formando": ver item 3.
    - Retorna um objeto `AvaliacaoDuplaDiplomacao` agregando os três gates + `elegivel: boolean`.
-3. **Heurística/critério de "provável formando".** Não existe hoje. Opções: (a) checar se todas as obrigatórias da matriz de origem estão concluídas e falta só um resíduo pequeno de optativa/complementar; (b) usar campo explícito se existir no perfil/histórico. Precisa decisão de produto — meter como pergunta aberta no PR/ticket, não travar a primeira versão nisso (pode entrar como aviso não bloqueante inicialmente).
-4. **Checagem "não ingressou por dupla diplomação antes".** Não há esse dado hoje no schema (`dados_users` / `historicos_usuarios`). Primeira versão: omitir o gate e deixar como aviso textual manual (o PDF do histórico normalmente não traz essa informação). Não modelar no banco até confirmar necessidade real.
+3. **Heurística/critério de "provável formando".** Para ser provável formando, é necessário ter no mínimo, 90% do curso atual feito.
+4. **Checagem "não ingressou por dupla diplomação antes".** Não precisa implementar, deixa a critério do aluno checar.
 5. **Teto de optativa = exigido no destino.** Pequeno ajuste no cálculo de `P`/`realizado.chOptativa` usado pelo serviço novo: `min(realizado.chOptativa, exigido.chOptativa)` — não mexe em `integralizacao.service.ts` genérico (usado por troca de curso), o clamp fica local ao serviço de dupla diplomação.
 6. **UI**:
    - Clonar `MudancaCursoModal.svelte` → `DuplaDiplomacaoModal.svelte` (mesma lista de cursos, texto/CTA diferentes).
@@ -74,5 +74,3 @@ o que muda:
 ## Decisões em aberto (levar para o usuário/PO antes de codar 3 e 4)
 
 - Como definir "estágio obrigatório" na grade sem migração de banco — heurística por nome é aceitável?
-- Como definir "provável formando" — travar o módulo ou só avisar?
-- Vale a pena já guardar no banco se o aluno usou dupla diplomação antes, ou fica de fora da v1?
