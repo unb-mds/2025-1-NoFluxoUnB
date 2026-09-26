@@ -112,7 +112,7 @@
 					<div>
 						<p class="font-medium text-[13px] text-white/90">Integralização · curso pretendido</p>
 						<p class="mt-1 text-[11px] leading-relaxed text-white/62">
-							Fórmula oficial <span class="font-mono text-white/75">X = (T - P) / (T - C - E)</span>: mede o núcleo
+							Fórmula usada <span class="font-mono text-white/75">X = (CH Total - CH Pendente) / (CH Total - CH Complementar - CH Estágio)</span>: mede o núcleo
 							acadêmico (obrigatórias + optativas, limitada ao exigido), excluindo complementares e estágio
 							obrigatório do denominador. É preciso <span class="text-white/80">X ≥ 70%</span>.
 						</p>

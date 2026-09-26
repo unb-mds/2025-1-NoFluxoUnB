@@ -148,7 +148,7 @@
 						<p class="mt-1 text-white/60">
 							Analisamos três indicativos com base no seu histórico e no curso pretendido: você ser
 							<strong class="text-white/78">provável formando</strong> no curso atual, integralizar
-							<strong class="text-white/78">≥ 70%</strong> da CH do curso pretendido (fórmula oficial) e ter
+							<strong class="text-white/78">≥ 70%</strong> da CH do curso pretendido (fórmula usada) e ter
 							<strong class="text-white/78">IRA ≥ 3,0</strong>. Confira sempre o edital vigente e o PPC oficial.
 						</p>
 					</div>
