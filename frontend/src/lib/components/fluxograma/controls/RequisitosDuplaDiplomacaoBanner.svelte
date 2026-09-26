@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Loader2, GraduationCap, Percent, ShieldCheck } from 'lucide-svelte';
-	import type { DadosFluxogramaUser } from '$lib/types/user';
+	import type { CargaHorariaIntegralizada, DadosFluxogramaUser } from '$lib/types/user';
 	import type { IntegralizacaoResult } from '$lib/types/matriz';
 	import type { MateriaModel } from '$lib/types/materia';
 	import {
@@ -13,8 +13,17 @@
 		integralizacao: IntegralizacaoResult | null;
 		integralizacaoLoading?: boolean;
 		materiasDestino: MateriaModel[];
+		/** CH integralizada (PDF/SIGAA) do curso ATUAL do aluno — para o gate de "provável
+		 * formando" bater com o % exibido no dashboard de integralização do curso atual. */
+		cargaHorariaIntegralizada?: CargaHorariaIntegralizada | null;
 	};
-	let { dadosFluxograma, integralizacao, integralizacaoLoading = false, materiasDestino }: Props = $props();
+	let {
+		dadosFluxograma,
+		integralizacao,
+		integralizacaoLoading = false,
+		materiasDestino,
+		cargaHorariaIntegralizada = null
+	}: Props = $props();
 
 	let avaliacao = $state<AvaliacaoDuplaDiplomacao | null>(null);
 	let avaliacaoRodando = $state(false);
@@ -32,7 +41,12 @@
 			}
 			avaliacaoRodando = true;
 			avaliacao = null;
-			const r = await avaliarRequisitosDuplaDiplomacao(dadosFluxograma, integralizacao, materiasDestino);
+			const r = await avaliarRequisitosDuplaDiplomacao(
+				dadosFluxograma,
+				integralizacao,
+				materiasDestino,
+				cargaHorariaIntegralizada
+			);
 			if (id !== seq) return;
 			avaliacao = r;
 			avaliacaoRodando = false;

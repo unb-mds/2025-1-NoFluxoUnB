@@ -5,11 +5,21 @@ import type { MateriaModel } from '$lib/types/materia';
 
 let matrizOrigemMock: { idMatriz: number; chTotalExigida: number } | null = { idMatriz: 1, chTotalExigida: 1000 };
 let gradeOrigemMock: Array<{ codigoMateria: string; cargaHoraria: number; categoria: 'obrigatoria' | 'optativa' | 'complementar' }> = [];
+let cursoOrigemMock: { materias: MateriaModel[]; equivalencias: unknown[] } = { materias: [], equivalencias: [] };
 
 vi.mock('$lib/services/supabase-data.service', () => ({
 	supabaseDataService: {
 		getMatrizByCurriculoCompleto: vi.fn(async () => matrizOrigemMock),
 		getGradeByMatriz: vi.fn(async () => gradeOrigemMock)
+	}
+}));
+
+vi.mock('$lib/services/fluxograma.service', () => ({
+	fluxogramaService: {
+		getCourseDataByCurriculoCompleto: vi.fn(async () => {
+			if (!matrizOrigemMock) throw new Error('Matriz não encontrada');
+			return cursoOrigemMock;
+		})
 	}
 }));
 
@@ -155,53 +165,63 @@ describe('avaliarRequisitosDuplaDiplomacao', () => {
 	});
 
 	it('reprova por não ser provável formando quando as matriculadas não cobrem o que falta', async () => {
-		gradeOrigemMock = [{ codigoMateria: 'ORI0001', cargaHoraria: 200, categoria: 'obrigatoria' }];
+		gradeOrigemMock = [{ codigoMateria: 'ORI0001', cargaHoraria: 180, categoria: 'obrigatoria' }];
+		cursoOrigemMock = {
+			materias: [materia({ codigoMateria: 'ORI0001', creditos: 12 })], // 12*15 = 180h
+			equivalencias: []
+		};
 		const resultado = await avaliarRequisitosDuplaDiplomacao(
 			dadosFluxograma({
 				ira: 4.0,
-				horasIntegralizadas: 500, // faltam 500 para 100%
-				dadosFluxograma: [[materiaCursada('ORI0001', 'MATR')]] // só cobre 200 de 500 que faltam
+				dadosFluxograma: [[materiaCursada('ORI0001', 'MATR')]] // só cobre 180 de 500 que faltam
 			}),
 			integralizacao({
 				exigido: { chObrigatoria: 900, chOptativa: 100, chComplementar: 0, chTotal: 1000 },
 				realizado: { chObrigatoria: 900, chOptativa: 100, chComplementar: 0, chTotal: 1000 },
 				codigosConcluidos: []
 			}),
-			[]
+			[],
+			{ obrigatoria: 500, optativa: 0, complementar: 0, total: 500 } // 500/1000 já integralizado (curso atual), faltam 500
 		);
 		expect(resultado?.formando.chFaltanteOrigem).toBe(500);
-		expect(resultado?.formando.chMatriculadaAtual).toBe(200);
+		expect(resultado?.formando.chMatriculadaAtual).toBe(180);
 		expect(resultado?.formando.atendeProvavelFormando).toBe(false);
 		expect(resultado?.elegivel).toBe(false);
 		gradeOrigemMock = [];
+		cursoOrigemMock = { materias: [], equivalencias: [] };
 	});
 
 	it('é elegível quando os três gates passam (matriculado em tudo que falta para 100%)', async () => {
-		gradeOrigemMock = [{ codigoMateria: 'ORI0001', cargaHoraria: 50, categoria: 'obrigatoria' }];
+		gradeOrigemMock = [{ codigoMateria: 'ORI0001', cargaHoraria: 60, categoria: 'obrigatoria' }];
+		cursoOrigemMock = {
+			materias: [materia({ codigoMateria: 'ORI0001', creditos: 4 })], // 4*15 = 60h
+			equivalencias: []
+		};
 		const resultado = await avaliarRequisitosDuplaDiplomacao(
 			dadosFluxograma({
 				ira: 4.0,
-				horasIntegralizadas: 950, // faltam 50 para 100%
-				dadosFluxograma: [[materiaCursada('ORI0001', 'MATR')]] // cobre exatamente os 50 que faltam
+				dadosFluxograma: [[materiaCursada('ORI0001', 'MATR')]] // cobre além dos 50 que faltam
 			}),
 			integralizacao({
 				exigido: { chObrigatoria: 900, chOptativa: 100, chComplementar: 0, chTotal: 1000 },
 				realizado: { chObrigatoria: 900, chOptativa: 100, chComplementar: 0, chTotal: 1000 },
 				codigosConcluidos: []
 			}),
-			[]
+			[],
+			{ obrigatoria: 950, optativa: 0, complementar: 0, total: 950 } // 950/1000 já integralizado (curso atual), faltam 50
 		);
 		expect(resultado?.integralizacao.atende70porcento).toBe(true);
 		expect(resultado?.formando.atendeProvavelFormando).toBe(true);
 		expect(resultado?.ira.atendeIra).toBe(true);
 		expect(resultado?.elegivel).toBe(true);
 		gradeOrigemMock = [];
+		cursoOrigemMock = { materias: [], equivalencias: [] };
 	});
 
 	it('não consegue avaliar "provável formando" sem matriz de origem encontrada', async () => {
 		matrizOrigemMock = null;
 		const resultado = await avaliarRequisitosDuplaDiplomacao(
-			dadosFluxograma({ ira: 4.0, horasIntegralizadas: 950 }),
+			dadosFluxograma({ ira: 4.0 }),
 			integralizacao({
 				exigido: { chObrigatoria: 900, chOptativa: 100, chComplementar: 0, chTotal: 1000 },
 				realizado: { chObrigatoria: 900, chOptativa: 100, chComplementar: 0, chTotal: 1000 },

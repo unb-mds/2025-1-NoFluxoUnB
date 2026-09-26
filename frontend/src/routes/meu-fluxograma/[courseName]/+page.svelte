@@ -545,6 +545,7 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 										{integralizacao}
 										integralizacaoLoading={integralizacaoLoading}
 										materiasDestino={store.state.courseData.materias}
+										cargaHorariaIntegralizada={store.cargaHorariaIntegralizada}
 									/>
 								{:else}
 									<RequisitosMudancaCursoBanner
@@ -582,6 +583,7 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 								{integralizacao}
 								integralizacaoLoading={integralizacaoLoading}
 								materiasDestino={store.state.courseData.materias}
+								cargaHorariaIntegralizada={store.cargaHorariaIntegralizada}
 							/>
 						{:else}
 							<RequisitosMudancaCursoBanner

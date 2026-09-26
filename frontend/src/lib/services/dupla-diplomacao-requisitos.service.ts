@@ -16,9 +16,10 @@
  *   próprio aluno conferir — não é verificável pelos dados do NoFluxo.
  */
 
-import { supabaseDataService } from '$lib/services/supabase-data.service';
+import { fluxogramaService } from '$lib/services/fluxograma.service';
+import { getIntegralizacao } from '$lib/services/integralizacao.service';
 import type { IntegralizacaoResult } from '$lib/types/matriz';
-import type { DadosFluxogramaUser } from '$lib/types/user';
+import type { CargaHorariaIntegralizada, DadosFluxogramaUser } from '$lib/types/user';
 import { isMateriaCurrent } from '$lib/types/user';
 import type { MateriaModel } from '$lib/types/materia';
 import { getChEstagioObrigatorio, getCodigosEstagioObrigatorio } from '$lib/utils/estagio-obrigatorio';
@@ -77,11 +78,15 @@ export type AvaliacaoDuplaDiplomacao = {
  *
  * @param materiasDestino grade (materias) do curso pretendido — usada para localizar as
  * disciplinas de estágio obrigatório (heurística por nome, ver estagio-obrigatorio.ts).
+ * @param cargaHorariaIntegralizadaOrigem CH integralizada (PDF/SIGAA) do curso atual do
+ * aluno — mesma fonte usada no dashboard de integralização, para o gate de "provável
+ * formando" bater com o percentual exibido lá.
  */
 export async function avaliarRequisitosDuplaDiplomacao(
 	dadosFluxograma: DadosFluxogramaUser,
 	integralizacaoDestino: IntegralizacaoResult | null,
-	materiasDestino: MateriaModel[]
+	materiasDestino: MateriaModel[],
+	cargaHorariaIntegralizadaOrigem?: CargaHorariaIntegralizada | null
 ): Promise<AvaliacaoDuplaDiplomacao | null> {
 	if (!integralizacaoDestino) return null;
 
@@ -94,7 +99,7 @@ export async function avaliarRequisitosDuplaDiplomacao(
 		atendeIra: ira >= IRA_MINIMO_DUPLA_DIPLOMACAO
 	};
 
-	const formando = await avaliarFormandoOrigem(dadosFluxograma);
+	const formando = await avaliarFormandoOrigem(dadosFluxograma, cargaHorariaIntegralizadaOrigem);
 
 	const elegivel =
 		formando.atendeProvavelFormando === true && integralizacao.atende70porcento && avaliacaoIra.atendeIra;
@@ -144,7 +149,10 @@ export function calcularIntegralizacaoDupla(
 	};
 }
 
-async function avaliarFormandoOrigem(dadosFluxograma: DadosFluxogramaUser): Promise<AvaliacaoFormandoOrigem> {
+async function avaliarFormandoOrigem(
+	dadosFluxograma: DadosFluxogramaUser,
+	cargaHorariaIntegralizadaOrigem?: CargaHorariaIntegralizada | null
+): Promise<AvaliacaoFormandoOrigem> {
 	const semBase: AvaliacaoFormandoOrigem = {
 		podeAvaliar: false,
 		horasIntegralizadas: dadosFluxograma.horasIntegralizadas ?? 0,
@@ -159,17 +167,35 @@ async function avaliarFormandoOrigem(dadosFluxograma: DadosFluxogramaUser): Prom
 	if (!ccOrigem) return semBase;
 
 	try {
-		const matrizOrigem = await supabaseDataService.getMatrizByCurriculoCompleto(ccOrigem);
-		const chTotalExigidaOrigem = matrizOrigem?.chTotalExigida ?? 0;
-		if (!matrizOrigem || chTotalExigidaOrigem <= 0) return semBase;
+		// Carrega o MESMO CursoModel (materias + equivalências) que o dashboard de
+		// integralização usa para o curso atual — evita "provável formando" resolver
+		// contra uma grade/equivalências diferente e divergir do % exibido lá.
+		const cursoOrigem = await fluxogramaService.getCourseDataByCurriculoCompleto(ccOrigem);
 
-		const horasIntegralizadas = dadosFluxograma.horasIntegralizadas ?? 0;
-		const gradeOrigem = await supabaseDataService.getGradeByMatriz(matrizOrigem.idMatriz);
+		// Mesma fonte/heurística do dashboard (ProgressSummarySection / CargaHorariaDashboard):
+		// prefere a CH integralizada do PDF quando disponível, senão recalcula pela grade
+		// (agora com as equivalências corretas do curso atual, não vazias).
+		const integralizacaoOrigem = await getIntegralizacao({
+			curriculoCompleto: ccOrigem,
+			dadosFluxograma,
+			cargaHorariaIntegralizada: cargaHorariaIntegralizadaOrigem,
+			equivalencias: cursoOrigem.equivalencias
+		});
+		const chTotalExigidaOrigem = integralizacaoOrigem?.exigido.chTotal ?? 0;
+		if (!integralizacaoOrigem || chTotalExigidaOrigem <= 0) return semBase;
+
+		const horasIntegralizadas = integralizacaoOrigem.realizado.chTotal;
+
+		// CH por código a partir do MESMO courseData.materias usado pelo badge "se aprovado"
+		// do dashboard (não uma query de grade separada) — mesma fórmula (creditos * 15,
+		// ignorando matérias fora da matriz/sem crédito válido).
 		const chPorCodigo = new Map<string, number>();
-		for (const item of gradeOrigem) {
-			const codigo = String(item.codigoMateria ?? '').trim().toUpperCase();
+		for (const m of cursoOrigem.materias) {
+			const codigo = String(m.codigoMateria ?? '').trim().toUpperCase();
 			if (!codigo) continue;
-			chPorCodigo.set(codigo, Math.max(0, Number(item.cargaHoraria) || 0));
+			const creditos = Number(m.creditos);
+			if (!(creditos > 0)) continue;
+			chPorCodigo.set(codigo, Math.round(creditos * 15));
 		}
 
 		let chMatriculadaAtual = 0;
@@ -177,8 +203,7 @@ async function avaliarFormandoOrigem(dadosFluxograma: DadosFluxogramaUser): Prom
 			for (const materia of semestre) {
 				if (!isMateriaCurrent(materia)) continue;
 				const codigo = String(materia.codigoMateria ?? '').trim().toUpperCase();
-				const chGrade = chPorCodigo.get(codigo);
-				chMatriculadaAtual += chGrade ?? Math.max(0, (Number(materia.creditos) || 0) * 15);
+				chMatriculadaAtual += chPorCodigo.get(codigo) ?? 0;
 			}
 		}
 
