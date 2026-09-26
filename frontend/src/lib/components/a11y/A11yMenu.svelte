@@ -1,6 +1,7 @@
 <!-- frontend/src/lib/components/a11y/A11yMenu.svelte -->
 <script lang="ts">
-	import { Accessibility, RotateCcw, SlidersHorizontal } from 'lucide-svelte';
+	import { RotateCcw, SlidersHorizontal } from 'lucide-svelte';
+	import UniversalAccessIcon from './UniversalAccessIcon.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { a11y, a11yActiveCount } from '$lib/stores/a11y';
@@ -53,7 +54,7 @@
 						? `Acessibilidade, ${$a11yActiveCount} ${$a11yActiveCount === 1 ? 'opção ativa' : 'opções ativas'}`
 						: 'Acessibilidade'}
 				>
-					<Accessibility class="h-[1.2rem] w-[1.2rem]" />
+					<UniversalAccessIcon class="h-[1.25rem] w-[1.25rem]" />
 					{#if $a11yActiveCount > 0}
 						<span
 							aria-hidden="true"

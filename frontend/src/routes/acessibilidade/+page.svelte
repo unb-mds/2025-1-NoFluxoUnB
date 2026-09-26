@@ -1,6 +1,7 @@
 <!-- frontend/src/routes/acessibilidade/+page.svelte -->
 <script lang="ts">
-	import { Accessibility, RotateCcw, ExternalLink, Keyboard, Moon } from 'lucide-svelte';
+	import { RotateCcw, ExternalLink, Keyboard, Moon } from 'lucide-svelte';
+	import UniversalAccessIcon from '$lib/components/a11y/UniversalAccessIcon.svelte';
 	import { a11y, a11yActiveCount } from '$lib/stores/a11y';
 	import { A11Y_OPTIONS } from '$lib/components/a11y/a11y-options';
 	import A11ySwitch from '$lib/components/a11y/A11ySwitch.svelte';
@@ -15,7 +16,7 @@
 <div class="mx-auto w-full max-w-3xl px-4 py-8 md:py-12">
 	<header class="mb-8 flex items-start gap-4">
 		<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-			<Accessibility class="h-6 w-6" aria-hidden="true" />
+			<UniversalAccessIcon class="h-6 w-6" />
 		</div>
 		<div>
 			<h1 class="text-2xl font-bold tracking-tight text-foreground md:text-3xl">Acessibilidade</h1>
@@ -82,7 +83,7 @@
 				</span>
 			</li>
 			<li class="flex gap-3">
-				<Accessibility class="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+				<UniversalAccessIcon class="mt-0.5 h-4 w-4 shrink-0 text-primary" />
 				<span>
 					<span class="font-medium text-foreground">Leitores de tela.</span>
 					Status de disciplina, erros de formulário e a página atual são anunciados por texto, não
