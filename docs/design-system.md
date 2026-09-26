@@ -154,10 +154,18 @@ Removidos em 2026-09-26 por não terem nenhum importador: `forms/Select`, `forms
 
 ## 7. Acessibilidade
 
-O módulo de acessibilidade (alto contraste, texto ampliado, fonte para dislexia,
-redução de movimento, foco reforçado, skip link, testes com axe) foi feito em
-2026-06-23 na branch `feat/testes-acessibilidade`, que nunca foi mesclada. O commit
-está preservado em `recuperado/feat-testes-acessibilidade` e precisa ser portado para a
-estrutura atual (`frontend/` em vez de `no_fluxo_frontend_svelte/`) e integrado a estes
-tokens, em especial o modo de alto contraste, que deve sobrescrever os tokens em vez de
-usar cores próprias.
+As preferências de acessibilidade (alto contraste, texto ampliado, fonte de leitura
+facilitada, redução de movimento, foco reforçado) viram classes `a11y-*` no `<html>`,
+aplicadas pela store `src/lib/stores/a11y.ts` e, antes do primeiro paint, pelo script de
+`app.html`. O **alto contraste sobrescreve os tokens** desta página (`html.a11y-high-contrast`
+e `html.dark.a11y-high-contrast` em `app.css`), por isso nenhum componente precisa tratá-lo:
+quem usa tokens já o respeita. As sombras `--nf-shadow-*` viram bordas de 1px e o vidro da
+navbar fica opaco.
+
+Menu na navbar (`components/a11y/A11yMenu.svelte`), lista no drawer mobile e página
+`/acessibilidade`. Skip link e foco no `<main>` ficam no layout raiz. Testes com axe e
+critérios WCAG cobertos: `docs/testes/acessibilidade.md`.
+
+Regras para novos componentes: ícone sozinho tem `aria-label`; informação por cor tem
+texto ou ícone redundante; alvos clicáveis têm pelo menos 24px; não use `outline: none`
+sem um `:focus-visible` equivalente.
