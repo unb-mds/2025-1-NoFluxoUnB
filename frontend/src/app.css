@@ -277,18 +277,18 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
    :where(.dark) (especificidade zero → a cascata autofill/focus fica igual à antiga). */
 .auth-card {
 	background: hsl(var(--card));
-	border-radius: 16px;
+	border-radius: 22px;
 	box-shadow:
 		0 0 0 1px hsl(var(--border)),
-		var(--nf-shadow-card);
-	padding: 24px 20px 20px;
+		var(--nf-shadow-card-lg);
+	padding: 28px 22px 24px;
 	max-width: 440px;
 	width: 100%;
 }
 
 :where(.dark) .auth-card {
 	background: white;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
 	/* Tokens neutros re-escopados para o card branco: os filhos que usam
 	   text-foreground / text-muted-foreground / bg-muted / bg-border / border-strong
 	   resolvem para os cinzas históricos (gray-900/500/50/200/300) sem twins dark:. */
@@ -301,13 +301,112 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 
 @media (min-width: 640px) {
 	.auth-card {
-		padding: 40px 40px 28px;
+		padding: 36px 40px 32px;
 	}
+}
+
+/* Estrutura do formulário: blocos com respiro em vez de margens soltas. */
+.auth-form {
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+}
+
+.auth-head {
+	display: flex;
+	flex-direction: column;
+	gap: 0.375rem;
+}
+
+.auth-title {
+	font-size: 1.5rem;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	line-height: 1.2;
+	color: hsl(var(--foreground));
+}
+
+.auth-subtitle {
+	font-size: 0.9rem;
+	line-height: 1.5;
+	color: hsl(var(--muted-foreground));
+}
+
+.auth-fields {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.auth-field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+}
+
+.auth-label {
+	font-size: 0.85rem;
+	font-weight: 500;
+	color: hsl(var(--foreground) / 0.85);
+}
+
+.auth-field-error {
+	font-size: 0.75rem;
+	color: hsl(var(--destructive));
+}
+
+.auth-input-wrap {
+	position: relative;
+}
+
+.auth-input-icon {
+	position: absolute;
+	left: 0.95rem;
+	top: 50%;
+	width: 1.1rem;
+	height: 1.1rem;
+	transform: translateY(-50%);
+	color: hsl(var(--muted-foreground));
+	pointer-events: none;
+	transition: color 0.2s;
+}
+
+.auth-input-wrap:focus-within .auth-input-icon {
+	color: hsl(var(--primary));
+}
+
+.auth-input-action {
+	position: absolute;
+	right: 0.5rem;
+	top: 50%;
+	transform: translateY(-50%);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	border: none;
+	border-radius: 0.6rem;
+	background: transparent;
+	color: hsl(var(--muted-foreground));
+	cursor: pointer;
+	transition: background 0.2s, color 0.2s;
+}
+
+.auth-input-action:hover {
+	background: hsl(var(--muted));
+	color: hsl(var(--foreground));
+}
+
+.auth-input-action:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 3px hsl(var(--ring) / 0.35);
 }
 
 .auth-input {
 	width: 100%;
-	padding: 18px;
+	height: 52px;
+	padding: 0 1rem;
 	/* border-strong: ≥ 3:1 sobre o card no light */
 	border: 1px solid hsl(var(--border-strong));
 	border-radius: 14px;
@@ -322,13 +421,21 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 	box-sizing: border-box;
 }
 
+.auth-input--icon {
+	padding-left: 2.75rem;
+}
+
+.auth-input--invalid {
+	border-color: hsl(var(--destructive));
+}
+
 :where(.dark) .auth-input {
 	border-color: #d1d5db;
 	color: #111827;
 	background: #fff;
 }
 
-/* Evita texto acinzentado ilegível no autofill do Chrome/Edge em SO com tema escuro */
+/* Autofill: mantém o fundo do card em vez do amarelo/azul do navegador. */
 .auth-input:-webkit-autofill,
 .auth-input:-webkit-autofill:hover,
 .auth-input:-webkit-autofill:focus {
@@ -350,11 +457,11 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 .auth-input:focus {
 	outline: none;
 	border-color: hsl(var(--ring));
-	box-shadow: 0 0 0 3px hsl(var(--ring) / 0.18);
+	box-shadow: 0 0 0 4px hsl(var(--ring) / 0.16);
 }
 
 .auth-input::placeholder {
-	color: hsl(var(--muted-foreground));
+	color: hsl(var(--muted-foreground) / 0.8);
 }
 
 :where(.dark) .auth-input::placeholder {
@@ -366,45 +473,89 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 	cursor: not-allowed;
 }
 
+.auth-remember {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	cursor: pointer;
+	user-select: none;
+	font-size: 0.875rem;
+	color: hsl(var(--muted-foreground));
+}
+
+.auth-remember input {
+	width: 1.05rem;
+	height: 1.05rem;
+	border-radius: 0.3rem;
+	border: 1px solid hsl(var(--border-strong));
+	accent-color: hsl(var(--primary));
+}
+
+/* Ações: respiro fixo entre os botões (12px) e o divisor. */
+.auth-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
 .auth-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
 	width: 100%;
 	height: 52px;
 	background: hsl(var(--primary));
 	color: hsl(var(--primary-foreground));
 	border: none;
 	border-radius: 14px;
-	font-size: 18px;
+	font-size: 1.0625rem;
 	font-weight: 600;
+	letter-spacing: 0.01em;
 	font-family: inherit;
 	cursor: pointer;
-	transition: filter 0.2s;
+	box-shadow: 0 8px 24px hsl(var(--primary) / 0.28);
+	transition: filter 0.2s, transform 0.15s, box-shadow 0.2s;
 }
 
 .auth-btn:hover:not(:disabled) {
 	filter: brightness(1.06);
+	box-shadow: 0 10px 28px hsl(var(--primary) / 0.34);
+}
+
+.auth-btn:active:not(:disabled) {
+	transform: translateY(1px);
+}
+
+.auth-btn:focus-visible {
+	outline: none;
+	box-shadow:
+		0 0 0 3px hsl(var(--card)),
+		0 0 0 5px hsl(var(--ring));
 }
 
 .auth-btn:disabled {
-	opacity: 0.65;
+	opacity: 0.55;
 	cursor: not-allowed;
+	box-shadow: none;
 }
 
 .auth-btn-google {
 	width: 100%;
-	height: 52px;
+	height: 50px;
 	background: hsl(var(--card));
 	color: hsl(var(--foreground));
 	border: 1px solid hsl(var(--border-strong));
 	border-radius: 14px;
-	font-size: 16px;
+	font-size: 0.95rem;
 	font-weight: 500;
 	font-family: inherit;
 	cursor: pointer;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	gap: 0.5rem;
-	transition: background 0.2s;
+	gap: 0.6rem;
+	transition: background 0.2s, border-color 0.2s;
 }
 
 :where(.dark) .auth-btn-google {
@@ -415,14 +566,49 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 
 .auth-btn-google:hover:not(:disabled) {
 	background: hsl(var(--muted));
+	border-color: hsl(var(--foreground) / 0.35);
 }
 
 :where(.dark) .auth-btn-google:hover:not(:disabled) {
 	background: #f5f5f5;
 }
 
-/* Botão "entrar como visitante": escuro sobre o card branco legado.
-   Light usa o token de texto; .dark mantém o valor histórico. */
+.auth-btn-google:focus-visible,
+.auth-btn-ghost:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 3px hsl(var(--ring) / 0.35);
+}
+
+/* Ação terciária (visitante): só texto, mesma altura da linha para alinhar o respiro. */
+.auth-btn-ghost {
+	width: 100%;
+	height: 44px;
+	background: transparent;
+	color: hsl(var(--muted-foreground));
+	border: none;
+	border-radius: 12px;
+	font-size: 0.9rem;
+	font-weight: 500;
+	font-family: inherit;
+	cursor: pointer;
+	transition: background 0.2s, color 0.2s;
+}
+
+.auth-btn-ghost:hover:not(:disabled) {
+	background: hsl(var(--muted));
+	color: hsl(var(--foreground));
+}
+
+.auth-foot {
+	display: flex;
+	justify-content: center;
+	gap: 0.35rem;
+	padding-top: 1.25rem;
+	border-top: 1px solid hsl(var(--border));
+	font-size: 0.9rem;
+	color: hsl(var(--muted-foreground));
+}
+
 .auth-btn-visitor {
 	width: 100%;
 	height: 52px;
@@ -484,7 +670,7 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 .auth-divider {
 	display: flex;
 	align-items: center;
-	margin: 1.25rem 0;
+	margin: 0.25rem 0;
 }
 
 .auth-divider::before,
@@ -496,9 +682,9 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 }
 
 .auth-divider span {
-	padding: 0 1rem;
+	padding: 0 0.9rem;
 	color: hsl(var(--muted-foreground));
-	font-size: 0.875rem;
+	font-size: 0.8rem;
 }
 
 /* Card branco legado no dark: a linha já resolve para gray-200 via --border do .auth-card;
