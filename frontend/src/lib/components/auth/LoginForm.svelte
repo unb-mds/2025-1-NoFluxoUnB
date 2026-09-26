@@ -144,7 +144,7 @@
 
 	<!-- Email -->
 	<div class="mb-4">
-		<label for="login-email" class="mb-1.5 block text-sm font-medium text-gray-700">Email</label>
+		<label for="login-email" class="mb-1.5 block text-sm font-medium text-foreground/80 dark:text-gray-700">Email</label>
 		<input
 			type="email"
 			id="login-email"
@@ -156,13 +156,13 @@
 			disabled={submitting}
 		/>
 		{#if emailTouched && emailError}
-			<p class="mt-1 text-xs text-red-500">{emailError}</p>
+			<p class="mt-1 text-xs text-red-700 dark:text-red-500">{emailError}</p>
 		{/if}
 	</div>
 
 	<!-- Password -->
 	<div class="mb-2">
-		<label for="login-password" class="mb-1.5 block text-sm font-medium text-gray-700">Senha</label>
+		<label for="login-password" class="mb-1.5 block text-sm font-medium text-foreground/80 dark:text-gray-700">Senha</label>
 		<div class="relative">
 			<input
 				type={showPassword ? 'text' : 'password'}
@@ -181,9 +181,9 @@
 				aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
 			>
 				{#if showPassword}
-					<EyeOff class="h-5 w-5 text-gray-400" />
+					<EyeOff class="h-5 w-5 text-muted-foreground dark:text-gray-400" />
 				{:else}
-					<Eye class="h-5 w-5 text-gray-400" />
+					<Eye class="h-5 w-5 text-muted-foreground dark:text-gray-400" />
 				{/if}
 			</button>
 		</div>
@@ -191,12 +191,12 @@
 
 	<!-- Remember me + Forgot password row -->
 	<div class="mb-5 flex items-center justify-between">
-		<label class="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-600">
+		<label class="flex items-center gap-2 cursor-pointer select-none text-sm text-muted-foreground dark:text-gray-600">
 			<input
 				type="checkbox"
 				bind:checked={rememberMe}
 				disabled={submitting}
-				class="h-4 w-4 rounded border-gray-300 text-blue-600 accent-blue-600"
+				class="h-4 w-4 rounded border-border-strong text-primary accent-primary dark:text-blue-600 dark:accent-blue-600"
 			/>
 			Lembrar-me
 		</label>
@@ -219,7 +219,7 @@
 	</a>
 
 	<!-- Divider -->
-	<div class="divider">
+	<div class="auth-divider">
 		<span>ou</span>
 	</div>
 
@@ -242,25 +242,5 @@
 		align-items: center;
 		justify-content: center;
 		gap: 0.5rem;
-	}
-
-	.divider {
-		display: flex;
-		align-items: center;
-		margin: 1.25rem 0;
-	}
-
-	.divider::before,
-	.divider::after {
-		content: '';
-		flex: 1;
-		height: 1px;
-		background: #e5e7eb;
-	}
-
-	.divider span {
-		padding: 0 1rem;
-		color: #9ca3af;
-		font-size: 0.875rem;
 	}
 </style>

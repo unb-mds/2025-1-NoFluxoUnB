@@ -185,7 +185,7 @@
 
 		<!--
 		<div class="sobre-note">
-			<MessageCircle class="h-4 w-4 shrink-0 text-white/70" />
+			<MessageCircle class="h-4 w-4 shrink-0 text-foreground/70" />
 			<p>
 				<strong>Observação:</strong> Inicialmente disponível para cursos da FGA/UnB, com perspectiva
 				de expansão!
@@ -339,7 +339,7 @@
 	.sobre-section {
 		padding: clamp(3.5rem, 8vw, 4.5rem) 1.5rem;
 		background: hsl(var(--background) / 0.9);
-		border-top: 1px solid hsl(0 0% 100% / 0.06);
+		border-top: 1px solid hsl(var(--foreground) / 0.06);
 	}
 
 	.sobre-card {
@@ -415,8 +415,12 @@
 		margin: 0 auto;
 		padding: 0.3rem;
 		border-radius: 999px;
-		border: 1px solid hsl(0 0% 100% / 0.08);
+		border: 1px solid hsl(var(--foreground) / 0.08);
 		background: hsl(var(--card) / 0.6);
+		box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
+	}
+
+	:global(.dark) .showcase-switch {
 		box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.05);
 	}
 
@@ -451,7 +455,7 @@
 		min-width: 20px;
 		padding: 0.05rem 0.35rem;
 		border-radius: 999px;
-		background: hsl(0 0% 100% / 0.1);
+		background: hsl(var(--foreground) / 0.1);
 		font-size: 0.6875rem;
 		font-weight: 700;
 	}
@@ -482,7 +486,7 @@
 		height: 2px;
 		margin: 0.75rem auto 1.75rem;
 		border-radius: 999px;
-		background: hsl(0 0% 100% / 0.07);
+		background: hsl(var(--foreground) / 0.07);
 		overflow: hidden;
 	}
 
@@ -559,14 +563,32 @@
 		}
 	}
 
-	/* menção honrosa — card "diamante" */
+	/* menção honrosa — card "diamante".
+	   --honor: azul legível no light (#075985, 7,6:1 sobre card); no dark alimenta só os tints,
+	   e texto/borda mantêm os hex originais nos overrides :global(.dark) abaixo. */
 	.honor-card {
+		--honor: 201 90% 27%;
 		position: relative;
 		max-width: 1120px;
 		margin: 1.5rem auto 0;
 		padding: 1.5rem;
 		border-radius: 18px;
-		border: 1.5px solid rgba(168, 226, 255, 0.55);
+		border: 1.5px solid hsl(var(--honor) / 0.45);
+		background:
+			radial-gradient(120% 140% at 12% 0%, hsl(var(--honor) / 0.1) 0%, transparent 55%),
+			radial-gradient(120% 140% at 100% 100%, hsl(var(--primary) / 0.08) 0%, transparent 55%),
+			hsl(var(--card));
+		box-shadow:
+			0 1px 2px hsl(var(--foreground) / 0.04),
+			0 8px 24px hsl(var(--honor) / 0.1);
+		overflow: hidden;
+		animation: card-in 0.55s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+		animation-delay: calc(120ms + var(--stagger, 0ms));
+	}
+
+	:global(.dark) .honor-card {
+		--honor: 200 100% 83%;
+		border-color: rgba(168, 226, 255, 0.55);
 		background:
 			radial-gradient(120% 140% at 12% 0%, rgba(150, 220, 255, 0.14) 0%, transparent 55%),
 			radial-gradient(120% 140% at 100% 100%, rgba(196, 168, 255, 0.14) 0%, transparent 55%),
@@ -575,9 +597,6 @@
 			0 0 0 1px rgba(168, 226, 255, 0.16),
 			0 18px 48px rgba(90, 180, 255, 0.14),
 			inset 0 1px 0 rgba(255, 255, 255, 0.08);
-		overflow: hidden;
-		animation: card-in 0.55s cubic-bezier(0.4, 0, 0.2, 1) backwards;
-		animation-delay: calc(120ms + var(--stagger, 0ms));
 	}
 
 	/* brilho de diamante atravessando o card */
@@ -592,13 +611,24 @@
 		background: linear-gradient(
 			100deg,
 			transparent 0%,
+			hsl(var(--honor) / 0.08) 45%,
+			hsl(var(--honor) / 0.16) 50%,
+			hsl(var(--honor) / 0.08) 55%,
+			transparent 100%
+		);
+		transform: rotate(8deg);
+		animation: diamond-shine 6.5s ease-in-out infinite;
+	}
+
+	:global(.dark) .honor-card::before {
+		background: linear-gradient(
+			100deg,
+			transparent 0%,
 			rgba(255, 255, 255, 0.16) 45%,
 			rgba(190, 235, 255, 0.28) 50%,
 			rgba(255, 255, 255, 0.16) 55%,
 			transparent 100%
 		);
-		transform: rotate(8deg);
-		animation: diamond-shine 6.5s ease-in-out infinite;
 	}
 
 	@keyframes diamond-shine {
@@ -623,12 +653,18 @@
 		gap: 0.4rem;
 		padding: 0.3rem 0.7rem;
 		border-radius: 999px;
-		border: 1px solid rgba(168, 226, 255, 0.5);
-		background: linear-gradient(135deg, rgba(168, 226, 255, 0.24), rgba(196, 168, 255, 0.14));
-		color: #d8f1ff;
+		border: 1px solid hsl(var(--honor) / 0.5);
+		background: linear-gradient(135deg, hsl(var(--honor) / 0.12), hsl(var(--primary) / 0.08));
+		color: hsl(var(--honor));
 		font-size: 0.75rem;
 		font-weight: 700;
 		letter-spacing: 0.02em;
+	}
+
+	:global(.dark) .honor-badge {
+		border-color: rgba(168, 226, 255, 0.5);
+		background: linear-gradient(135deg, rgba(168, 226, 255, 0.24), rgba(196, 168, 255, 0.14));
+		color: #d8f1ff;
 	}
 
 	.honor-body {
@@ -647,6 +683,11 @@
 		flex-shrink: 0;
 		border-radius: 50%;
 		padding: 3px;
+		background: linear-gradient(135deg, hsl(200 90% 60%) 0%, hsl(200 70% 85%) 35%, hsl(var(--primary) / 0.7) 70%, hsl(200 90% 55%) 100%);
+		box-shadow: 0 0 24px hsl(var(--honor) / 0.2);
+	}
+
+	:global(.dark) .honor-avatar-wrap {
 		background: linear-gradient(135deg, #bfe9ff 0%, #ffffff 35%, #c9b8ff 70%, #8fd7ff 100%);
 		box-shadow: 0 0 24px rgba(150, 220, 255, 0.35);
 	}
@@ -656,8 +697,12 @@
 		height: 100%;
 		border-radius: 50%;
 		object-fit: cover;
-		background: #374151;
+		background: hsl(var(--muted));
 		display: block;
+	}
+
+	:global(.dark) .honor-avatar {
+		background: #374151;
 	}
 
 	.honor-name {
@@ -669,7 +714,7 @@
 	}
 
 	.honor-funcao {
-		color: #cfeaff;
+		color: hsl(var(--honor));
 		font-size: clamp(0.8125rem, 1.4vw, 0.9375rem);
 		font-weight: 600;
 		margin: 0.15rem 0 0.5rem;
@@ -694,11 +739,17 @@
 	.honor-tag {
 		padding: 0.25rem 0.65rem;
 		border-radius: 999px;
-		border: 1px solid rgba(168, 226, 255, 0.3);
-		background: rgba(168, 226, 255, 0.08);
-		color: #e6f6ff;
+		border: 1px solid hsl(var(--honor) / 0.3);
+		background: hsl(var(--honor) / 0.06);
+		color: hsl(var(--honor));
 		font-size: 0.75rem;
 		font-weight: 500;
+	}
+
+	:global(.dark) .honor-tag {
+		border-color: rgba(168, 226, 255, 0.3);
+		background: rgba(168, 226, 255, 0.08);
+		color: #e6f6ff;
 	}
 
 	.honor-links {
@@ -712,13 +763,21 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.35rem;
-		color: #e6f6ff;
+		color: hsl(var(--honor));
 		font-size: 0.8125rem;
 		text-decoration: none;
 	}
 
 	.honor-links a:hover {
 		text-decoration: underline;
+	}
+
+	:global(.dark) .honor-funcao {
+		color: #cfeaff;
+	}
+
+	:global(.dark) .honor-links a {
+		color: #e6f6ff;
 	}
 
 	@media (min-width: 768px) {

@@ -40,15 +40,15 @@
 
 <div class="flex flex-col items-start mb-4 relative z-10">
 	{#if name}
-		<span class="text-[10px] font-medium text-white/40 mb-1.5 px-1 uppercase tracking-widest">{name}</span>
+		<span class="text-[10px] font-medium text-accent-foreground dark:text-white/40 mb-1.5 px-1 uppercase tracking-widest">{name}</span>
 	{/if}
-	<div class="max-w-[85%] px-5 py-4 bg-black/30 backdrop-blur-xl border border-white/10 rounded-[24px] rounded-tl-[8px] shadow-lg flex items-center gap-3">
+	<div class="max-w-[85%] px-5 py-4 bg-accent dark:bg-black/30 backdrop-blur-xl border border-ai/20 dark:border-white/10 rounded-[24px] rounded-tl-[8px] shadow-sm dark:shadow-lg flex items-center gap-3">
 		<div class="liquid-loader shrink-0 shadow-lg scale-75 origin-left">
 			<div class="liquid-blob-1"></div>
 			<div class="liquid-blob-2"></div>
 		</div>
 		{#key exibido}
-			<span class="text-[13px] text-white/50 animate-pulse font-medium" in:fade={{ duration: 300 }}>{exibido}</span>
+			<span class="text-[13px] text-muted-foreground animate-pulse font-medium" in:fade={{ duration: 300 }}>{exibido}</span>
 		{/key}
 	</div>
 </div>
@@ -73,7 +73,8 @@
 		border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
 		animation: liquidMix 3s linear infinite;
 		filter: blur(5px);
-		mix-blend-mode: screen;
+		/* Light: multiply pra manter a cor sobre fundo claro (screen viraria branco). */
+		mix-blend-mode: multiply;
 		opacity: 0.8;
 	}
 	.liquid-blob-2 {
@@ -84,8 +85,13 @@
 		border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
 		animation: liquidMixReverse 4s linear infinite;
 		filter: blur(5px);
-		mix-blend-mode: screen;
+		mix-blend-mode: multiply;
 		opacity: 0.8;
+	}
+	/* Dark: valores originais (blend screen sobre fundo escuro). */
+	:global(.dark) .liquid-blob-1,
+	:global(.dark) .liquid-blob-2 {
+		mix-blend-mode: screen;
 	}
 	@keyframes liquidMix {
 		0% { transform: rotate(0deg) scale(1) translate(-2px, -2px); }

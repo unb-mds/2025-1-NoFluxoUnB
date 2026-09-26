@@ -103,10 +103,8 @@
 		border-radius: 16px;
 		padding: 24px;
 		text-align: left;
-		box-shadow:
-			0 0 0 1px hsl(var(--primary) / 0.12),
-			0 0 12px hsl(var(--primary) / 0.14),
-			inset 0 1px 0 hsl(255 100% 100% / 0.06);
+		/* Sombra discreta no light; glow roxo original no dark (tokens em app.css) */
+		box-shadow: var(--nf-shadow-glow);
 		transition:
 			transform 0.2s ease,
 			border-color 0.2s ease,
@@ -116,11 +114,7 @@
 	.hero-info-card:hover {
 		transform: translateY(-2px);
 		border-color: hsl(var(--primary) / 0.6);
-		box-shadow:
-			0 0 0 1px hsl(var(--primary) / 0.26),
-			0 0 20px hsl(var(--primary) / 0.26),
-			0 0 34px hsl(var(--primary) / 0.14),
-			inset 0 1px 0 hsl(255 100% 100% / 0.12);
+		box-shadow: var(--nf-shadow-glow-hover);
 	}
 
 	.hero-info-card-icon {
@@ -133,25 +127,26 @@
 		justify-content: center;
 		background: hsl(var(--primary));
 		border: 2px solid hsl(var(--primary) / 0.55);
-		color: #ffffff;
+		/* --primary-foreground é branco nos dois temas */
+		color: hsl(var(--primary-foreground));
 		box-shadow:
 			0 0 20px hsl(var(--primary) / 0.45),
-			inset 0 1px 0 hsl(0 0% 100% / 0.18);
+			inset 0 1px 0 hsl(var(--primary-foreground) / 0.18);
 	}
 
 	.hero-info-card-icon :global(.hero-info-card-icon-svg) {
 		width: 1.75rem;
 		height: 1.75rem;
 		flex-shrink: 0;
-		color: #ffffff;
-		stroke: #ffffff;
+		color: hsl(var(--primary-foreground));
+		stroke: hsl(var(--primary-foreground));
 	}
 
 	.hero-info-card-icon :global(.hero-info-card-icon-svg--sm) {
 		width: 1.5rem;
 		height: 1.5rem;
-		color: #ffffff;
-		stroke: #ffffff;
+		color: hsl(var(--primary-foreground));
+		stroke: hsl(var(--primary-foreground));
 	}
 
 	.hero-info-card-title {
@@ -190,10 +185,7 @@
 				hsl(var(--primary) / 0.09) 40%,
 				hsl(var(--card) / 0.65) 100%
 			);
-		box-shadow:
-			0 0 0 1px hsl(var(--primary) / 0.1),
-			0 0 12px hsl(var(--primary) / 0.16),
-			inset 0 1px 0 hsl(0 0% 100% / 0.08);
+		box-shadow: var(--nf-shadow-pill);
 	}
 
 	.hero-info-card-pill :global(.hero-info-card-pill-icon) {

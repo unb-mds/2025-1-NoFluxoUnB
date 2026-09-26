@@ -2,7 +2,6 @@
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
 	import { browser } from '$app/environment';
 	import {
-		CHAIN_VISUAL,
 		classifyChainPrereqStroke,
 		getDirectDependentCodes,
 		getSubjectChain
@@ -470,41 +469,33 @@
 		return line.fromCode === h || line.toCode === h;
 	}
 
+	/**
+	 * Cores das linhas por tema: os hex vivem em CSS custom properties
+	 * (--edge-* / --chain-* em app.css; paleta do modo "todas" no bloco de estilo deste componente).
+	 * Light usa tons 600 (≥ 3:1 sobre o fundo claro); .dark mantém os hex históricos.
+	 */
 	function getStrokeColor(type: 'prerequisite' | 'dependent' | 'corequisite'): string {
 		switch (type) {
-			case 'prerequisite': return '#a78bfa';  // violeta
-			case 'dependent': return '#2dd4bf';     // teal
-			case 'corequisite': return '#10b981';   // verde
-			default: return '#a78bfa';
+			case 'prerequisite': return 'var(--edge-prereq)';  // violeta
+			case 'dependent': return 'var(--edge-dep)';        // teal
+			case 'corequisite': return 'var(--edge-coreq)';    // verde
+			default: return 'var(--edge-prereq)';
 		}
 	}
 
 	function chainStrokeColor(st: 'pre' | 'desc' | 'core'): string {
 		switch (st) {
 			case 'pre':
-				return CHAIN_VISUAL.precursor;
+				return 'var(--chain-pre)';
 			case 'desc':
-				return CHAIN_VISUAL.descendant;
+				return 'var(--chain-desc)';
 			case 'core':
-				return CHAIN_VISUAL.corequisite;
+				return 'var(--chain-core)';
 		}
 	}
 
-	/** Paleta harmônica (círculo cromático): 12 cores distribuídas no HSL para pré-requisitos no modo "todas". */
-	const PALETTE_PREREQ = [
-		'#a78bfa', // violeta
-		'#38bdf8', // azul claro
-		'#2dd4bf', // teal
-		'#34d399', // esmeralda
-		'#a3e635', // lima
-		'#facc15', // amarelo
-		'#fb923c', // laranja
-		'#f87171', // vermelho claro
-		'#f472b6', // rosa
-		'#c084fc', // violeta claro
-		'#818cf8', // índigo
-		'#22d3ee'  // ciano
-	];
+	/** Paleta harmônica (círculo cromático): 12 cores para pré-requisitos no modo "todas" (valores no bloco de estilo). */
+	const PALETTE_PREREQ = Array.from({ length: 12 }, (_, j) => `var(--edge-p${j})`);
 
 	// ─── Reactivity ──────────────────────────────────────────────────
 
@@ -564,7 +555,7 @@
 				refY="4"
 				orient="auto"
 			>
-				<polygon points="0 0, 9 4, 0 8" fill="#a78bfa" />
+				<polygon points="0 0, 9 4, 0 8" style="fill: var(--edge-prereq);" />
 			</marker>
 			<marker
 				id="arrow-dep"
@@ -575,7 +566,7 @@
 				refY="4"
 				orient="auto"
 			>
-				<polygon points="0 0, 9 4, 0 8" fill="#2dd4bf" />
+				<polygon points="0 0, 9 4, 0 8" style="fill: var(--edge-dep);" />
 			</marker>
 			<marker
 				id="arrow-coreq"
@@ -586,7 +577,7 @@
 				refY="4"
 				orient="auto"
 			>
-				<polygon points="0 0, 9 4, 0 8" fill="#10b981" />
+				<polygon points="0 0, 9 4, 0 8" style="fill: var(--edge-coreq);" />
 			</marker>
 			<!-- Modo diretas: liberadas diretas no hover (cores alinhadas ao painel de referência) -->
 			<marker
@@ -598,7 +589,7 @@
 				refY="4"
 				orient="auto"
 			>
-				<polygon points="0 0, 9 4, 0 8" fill={CHAIN_VISUAL.precursor} />
+				<polygon points="0 0, 9 4, 0 8" style="fill: var(--chain-pre);" />
 			</marker>
 			<marker
 				id="arrow-chain-desc"
@@ -609,7 +600,7 @@
 				refY="4"
 				orient="auto"
 			>
-				<polygon points="0 0, 9 4, 0 8" fill={CHAIN_VISUAL.descendant} />
+				<polygon points="0 0, 9 4, 0 8" style="fill: var(--chain-desc);" />
 			</marker>
 			<marker
 				id="arrow-chain-core"
@@ -620,7 +611,7 @@
 				refY="4"
 				orient="auto"
 			>
-				<polygon points="0 0, 9 4, 0 8" fill={CHAIN_VISUAL.corequisite} />
+				<polygon points="0 0, 9 4, 0 8" style="fill: var(--chain-core);" />
 			</marker>
 			<!-- Paleta para pré-requisitos (modo "todas") — uma cor por seta -->
 			{#each PALETTE_PREREQ as paletteColor, j}
@@ -633,7 +624,11 @@
 					refY="4"
 					orient="auto"
 				>
-					<polygon points="0 0, 9 4, 0 8" fill={paletteColor} fill-opacity="0.5" />
+					<polygon
+						points="0 0, 9 4, 0 8"
+						style:fill={paletteColor}
+						style:fill-opacity="var(--edge-alpha-all)"
+					/>
 				</marker>
 			{/each}
 		</defs>
@@ -667,9 +662,9 @@
 			<path
 				d={pathForLine(line)}
 				fill="none"
-				stroke={strokeColor}
+				style:stroke={strokeColor}
 				stroke-width={isRelated ? '3' : isAllMode ? '2.5' : '2'}
-				stroke-opacity={isDimmed ? '0.2' : isAllMode ? '0.5' : '0.85'}
+				style:stroke-opacity={isDimmed ? '0.2' : isAllMode ? 'var(--edge-alpha-all)' : '0.85'}
 				stroke-dasharray={line.type === 'corequisite' ? '8,5' : 'none'}
 				marker-end={markerUrl}
 				style="transition: stroke-opacity 0.2s ease, stroke-width 0.2s ease;"
@@ -677,3 +672,42 @@
 		{/each}
 	</svg>
 {/if}
+
+<style>
+	/*
+	 * Paleta do modo "todas" (uma cor por seta). Light: tons 600/700 da mesma matiz,
+	 * todos ≥ 3:1 sobre #faf9fe; opacidade um pouco maior porque o fundo é claro.
+	 */
+	svg {
+		--edge-alpha-all: 0.62;
+		--edge-p0: #7c3aed; /* violeta */
+		--edge-p1: #0284c7; /* azul */
+		--edge-p2: #0d9488; /* teal */
+		--edge-p3: #059669; /* esmeralda */
+		--edge-p4: #4d7c0f; /* lima */
+		--edge-p5: #a16207; /* amarelo */
+		--edge-p6: #ea580c; /* laranja */
+		--edge-p7: #dc2626; /* vermelho */
+		--edge-p8: #db2777; /* rosa */
+		--edge-p9: #9333ea; /* violeta claro */
+		--edge-p10: #4f46e5; /* índigo */
+		--edge-p11: #0e7490; /* ciano */
+	}
+
+	/* Dark: paleta e opacidade históricas, verbatim */
+	:global(.dark) svg {
+		--edge-alpha-all: 0.5;
+		--edge-p0: #a78bfa;
+		--edge-p1: #38bdf8;
+		--edge-p2: #2dd4bf;
+		--edge-p3: #34d399;
+		--edge-p4: #a3e635;
+		--edge-p5: #facc15;
+		--edge-p6: #fb923c;
+		--edge-p7: #f87171;
+		--edge-p8: #f472b6;
+		--edge-p9: #c084fc;
+		--edge-p10: #818cf8;
+		--edge-p11: #22d3ee;
+	}
+</style>

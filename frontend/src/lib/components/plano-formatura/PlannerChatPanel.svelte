@@ -105,11 +105,11 @@
 >
 	{#snippet emptyState()}
 		<div class="w-16 h-16 rounded-3xl bg-pink-500/10 border border-pink-500/50 flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(236,72,153,0.15)] backdrop-blur-md shrink-0">
-			<Bot class="h-8 w-8 text-pink-400" />
+			<Bot class="h-8 w-8 text-pink-600 dark:text-pink-400" />
 		</div>
-		<h3 class="text-xl font-semibold text-white tracking-tight">Pergunte à nossa IA</h3>
-		<p class="text-[12px] text-white/50 mt-2 max-w-[280px] leading-relaxed">
-			Dica: Eu posso <span class="font-bold text-indigo-200 drop-shadow-[0_0_6px_rgba(129,140,248,0.8)]">adiar</span>, <span class="font-bold text-indigo-200 drop-shadow-[0_0_6px_rgba(129,140,248,0.8)]">antecipar</span> ou <span class="font-bold text-indigo-200 drop-shadow-[0_0_6px_rgba(129,140,248,0.8)]">remanejar</span> qualquer disciplina do seu plano. Pode pedir!
+		<h3 class="text-xl font-semibold text-foreground tracking-tight">Pergunte à nossa IA</h3>
+		<p class="text-[12px] text-muted-foreground mt-2 max-w-[280px] leading-relaxed">
+			Dica: Eu posso <span class="font-bold text-indigo-700 dark:text-indigo-200 dark:drop-shadow-[0_0_6px_rgba(129,140,248,0.8)]">adiar</span>, <span class="font-bold text-indigo-700 dark:text-indigo-200 dark:drop-shadow-[0_0_6px_rgba(129,140,248,0.8)]">antecipar</span> ou <span class="font-bold text-indigo-700 dark:text-indigo-200 dark:drop-shadow-[0_0_6px_rgba(129,140,248,0.8)]">remanejar</span> qualquer disciplina do seu plano. Pode pedir!
 		</p>
 	{/snippet}
 </ChatPanel>

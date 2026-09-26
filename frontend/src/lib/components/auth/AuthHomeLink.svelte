@@ -18,14 +18,25 @@
 		width: 40px;
 		height: 40px;
 		border-radius: 10px;
-		background: rgba(0, 0, 0, 0.25);
-		color: rgba(255, 255, 255, 0.9);
+		background: hsl(var(--foreground) / 0.06);
+		color: hsl(var(--foreground) / 0.8);
+		box-shadow: inset 0 0 0 1px hsl(var(--border));
 		backdrop-filter: blur(8px);
 		transition: background 0.2s, color 0.2s, transform 0.15s;
 	}
 	.home-link:hover {
+		background: hsl(var(--foreground) / 0.1);
+		color: hsl(var(--foreground));
+		transform: scale(1.05);
+	}
+	/* Dark: vidro escuro histórico sobre o fundo preto */
+	:global(.dark) .home-link {
+		background: rgba(0, 0, 0, 0.25);
+		color: rgba(255, 255, 255, 0.9);
+		box-shadow: none;
+	}
+	:global(.dark) .home-link:hover {
 		background: rgba(0, 0, 0, 0.4);
 		color: #fff;
-		transform: scale(1.05);
 	}
 </style>

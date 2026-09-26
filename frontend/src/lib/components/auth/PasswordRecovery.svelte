@@ -46,7 +46,7 @@
 </script>
 
 <form onsubmit={handleSubmit} class="w-full" novalidate>
-	<h2 class="mb-2 text-center text-[28px] font-bold text-blue-600">Recuperar Senha</h2>
+	<h2 class="mb-2 text-center text-[28px] font-bold text-primary dark:text-blue-600">Recuperar Senha</h2>
 
 	{#if success}
 		<div class="flex flex-col items-center gap-4 py-4">
@@ -57,7 +57,7 @@
 				<CheckCircle class="h-5 w-5 shrink-0 text-emerald-600" />
 				<span>Email de recuperação enviado! Verifique sua caixa de entrada.</span>
 			</div>
-			<p class="text-center text-sm text-gray-500">
+			<p class="text-center text-sm text-muted-foreground">
 				Se não encontrar o email, verifique a pasta de spam.
 			</p>
 			<a href="/login" class="auth-link mt-2 flex items-center gap-1.5 text-sm font-medium">
@@ -66,7 +66,7 @@
 			</a>
 		</div>
 	{:else}
-		<p class="mb-6 text-center text-[0.95rem] leading-relaxed text-gray-500">
+		<p class="mb-6 text-center text-[0.95rem] leading-relaxed text-muted-foreground">
 			Informe seu email cadastrado e enviaremos um link para redefinir sua senha.
 		</p>
 
@@ -78,7 +78,7 @@
 		{/if}
 
 		<div class="mb-5">
-			<label for="recovery-email" class="mb-1.5 block text-sm font-medium text-gray-700">Email</label>
+			<label for="recovery-email" class="mb-1.5 block text-sm font-medium text-foreground/80 dark:text-gray-700">Email</label>
 			<input
 				type="email"
 				id="recovery-email"
@@ -90,7 +90,7 @@
 				disabled={submitting}
 			/>
 			{#if emailTouched && emailError}
-				<p class="mt-1 text-xs text-red-500">{emailError}</p>
+				<p class="mt-1 text-xs text-red-700 dark:text-red-500">{emailError}</p>
 			{/if}
 		</div>
 

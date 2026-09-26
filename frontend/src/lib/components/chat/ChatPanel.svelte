@@ -284,18 +284,18 @@
 <ChatWrapper>
 	<!-- Header -->
 	<div
-		class="relative z-10 flex shrink-0 items-center border-b border-white/5 bg-black/20 px-4 py-3 backdrop-blur-xl {draggable
+		class="relative z-10 flex shrink-0 items-center border-b border-border bg-background/60 px-4 py-3 backdrop-blur-xl dark:border-white/5 dark:bg-black/20 {draggable
 			? 'chat-drag-handle cursor-move pr-20 select-none'
 			: ''}"
 	>
 		<div
-			class="inline-flex max-w-full items-center gap-2 overflow-hidden rounded-full border border-white/10 bg-white/5 px-3 py-1 shadow-sm backdrop-blur-md"
+			class="inline-flex max-w-full items-center gap-2 overflow-hidden rounded-full border border-foreground/10 bg-foreground/5 px-3 py-1 shadow-sm backdrop-blur-md"
 		>
-			<Sparkles class="h-3.5 w-3.5 shrink-0 text-pink-400" />
-			<span class="shrink-0 text-[11px] font-bold tracking-[0.16em] text-white uppercase"
+			<Sparkles class="h-3.5 w-3.5 shrink-0 text-pink-600 dark:text-pink-400" />
+			<span class="shrink-0 text-[11px] font-bold tracking-[0.16em] text-foreground uppercase"
 				>{title.toUpperCase()}</span
 			>
-			<span class="min-w-0 truncate text-[10.5px] font-normal text-white/40"
+			<span class="min-w-0 truncate text-[10.5px] font-normal text-muted-foreground dark:text-white/40"
 				>Powered by Maritaca AI</span
 			>
 		</div>
@@ -313,11 +313,11 @@
 							{@render emptyState()}
 						{:else}
 							<div
-								class="mb-4 flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border border-pink-500/50 bg-pink-500/10 shadow-[0_0_30px_rgba(236,72,153,0.15)] backdrop-blur-md"
+								class="mb-4 flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border border-pink-500/50 bg-pink-500/10 shadow-sm backdrop-blur-md dark:shadow-[0_0_30px_rgba(236,72,153,0.15)]"
 							>
-								<Bot class="h-8 w-8 text-pink-400" />
+								<Bot class="h-8 w-8 text-pink-600 dark:text-pink-400" />
 							</div>
-							<h3 class="text-xl font-semibold tracking-tight text-white">Pergunte à nossa IA</h3>
+							<h3 class="text-xl font-semibold tracking-tight text-foreground">Pergunte à nossa IA</h3>
 						{/if}
 
 						{#if promptStarters.length > 0}
@@ -333,16 +333,16 @@
 												enviar();
 											}
 										}}
-										class="group flex shrink-0 cursor-pointer items-center rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[12px] font-medium text-white/80 shadow-sm backdrop-blur-md transition-all hover:border-indigo-500/40 hover:bg-white/10 hover:text-white hover:shadow-[0_0_15px_rgba(99,102,241,0.15)]"
+										class="group flex shrink-0 cursor-pointer items-center rounded-full border border-foreground/10 bg-foreground/5 px-3 py-1.5 text-[12px] font-medium text-foreground/80 shadow-sm backdrop-blur-md transition-all hover:border-primary/40 hover:bg-foreground/10 hover:text-foreground dark:hover:border-indigo-500/40 dark:hover:shadow-[0_0_15px_rgba(99,102,241,0.15)]"
 									>
 										<Sparkles
-											class="mr-1.5 h-3 w-3 shrink-0 text-white/30 transition-colors group-hover:text-indigo-400"
+											class="mr-1.5 h-3 w-3 shrink-0 text-muted-foreground/70 transition-colors group-hover:text-primary dark:group-hover:text-indigo-400"
 										/>
 										<div class="flex-1 leading-snug">
 											{starter.prefix}
 											{#if starter.badge}
 												<span
-													class="mx-1 inline-flex items-center rounded-full border border-white/20 bg-white/5 px-1.5 py-px font-mono text-[10px] font-bold tracking-wide text-white transition-all duration-300 group-hover:border-indigo-400/80 group-hover:bg-indigo-500/20 group-hover:text-indigo-200 group-hover:shadow-[0_0_12px_rgba(129,140,248,0.5),inset_0_0_8px_rgba(129,140,248,0.3)]"
+													class="mx-1 inline-flex items-center rounded-full border border-foreground/20 bg-foreground/5 px-1.5 py-px font-mono text-[10px] font-bold tracking-wide text-foreground transition-all duration-300 group-hover:border-primary/80 group-hover:bg-primary/15 group-hover:text-accent-foreground dark:group-hover:border-indigo-400/80 dark:group-hover:bg-indigo-500/20 dark:group-hover:text-indigo-200 dark:group-hover:shadow-[0_0_12px_rgba(129,140,248,0.5),inset_0_0_8px_rgba(129,140,248,0.3)]"
 													><MarqueeText text={starter.badge} maxWidth={150} /></span
 												>
 											{/if}
@@ -377,14 +377,14 @@
 													onclick={() => enviarTexto(segment.value)}
 													disabled={loading}
 													title={nomeChip ? segment.value : `Ver ${segment.value}`}
-													class="badge-glow inline-flex cursor-pointer items-center rounded-md border border-indigo-400/60 bg-indigo-500/20 px-1.5 py-0.5 text-xs font-bold tracking-wide text-white backdrop-blur-md transition-all hover:-translate-y-px hover:border-indigo-300 hover:bg-indigo-500/40 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 {nomeChip
+													class="badge-glow inline-flex cursor-pointer items-center rounded-md border border-ai/40 bg-background/90 px-1.5 py-0.5 text-xs font-bold tracking-wide text-accent-foreground backdrop-blur-md transition-all hover:-translate-y-px hover:border-ai/70 hover:bg-background active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-indigo-400/60 dark:bg-indigo-500/20 dark:text-white dark:hover:border-indigo-300 dark:hover:bg-indigo-500/40 {nomeChip
 														? ''
 														: 'font-mono'}"><MarqueeText text={rotulo} maxWidth={220} /></button
 												>
 											{:else}
 												<span
 													title={nomeChip ? segment.value : undefined}
-													class="inline-flex items-center rounded-md border border-white/20 bg-white/10 px-1.5 py-0.5 text-xs font-bold tracking-wide text-white shadow-sm backdrop-blur-md {nomeChip
+													class="inline-flex items-center rounded-md border border-ai/30 bg-background/90 px-1.5 py-0.5 text-xs font-bold tracking-wide text-accent-foreground shadow-sm backdrop-blur-md dark:border-white/20 dark:bg-white/10 dark:text-white {nomeChip
 														? ''
 														: 'font-mono'}"><MarqueeText text={rotulo} maxWidth={220} /></span
 												>
@@ -394,13 +394,13 @@
 													type="button"
 													onclick={() => onAddToGrade?.(segment.value)}
 													title={`Adicionar ${segment.value} à grade`}
-													class="inline-flex items-center rounded-md border border-emerald-400/50 bg-emerald-500/15 px-1 py-0.5 text-[10px] font-semibold text-emerald-100 transition-colors hover:bg-emerald-500/30 active:scale-95"
+													class="inline-flex items-center rounded-md border border-emerald-600/60 bg-emerald-50 px-1 py-0.5 text-[10px] font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 active:scale-95 dark:border-emerald-400/50 dark:bg-emerald-500/15 dark:text-emerald-100 dark:hover:bg-emerald-500/30"
 													>+ grade</button
 												>
 											{/if}
 										</span>
 									{:else if segment.type === 'bold'}
-										<strong class="font-bold text-white">{segment.value}</strong>
+										<strong class="font-bold text-current dark:text-white">{segment.value}</strong>
 									{:else}
 										<span class="whitespace-pre-wrap">{segment.value}</span>
 									{/if}
@@ -408,7 +408,7 @@
 							</ChatBubble>
 						{:else if block.type === 'turma'}
 							<div
-								class="relative my-2 flex w-[95%] flex-col gap-4 self-center overflow-hidden rounded-3xl border border-indigo-500/40 bg-linear-to-br from-indigo-500/10 to-fuchsia-500/10 p-5 shadow-2xl backdrop-blur-2xl sm:w-[85%]"
+								class="relative my-2 flex w-[95%] flex-col gap-4 self-center overflow-hidden rounded-3xl border border-border bg-card bg-linear-to-br from-indigo-500/10 to-fuchsia-500/10 p-5 shadow-nofluxo backdrop-blur-2xl sm:w-[85%] dark:border-indigo-500/40 dark:bg-transparent dark:shadow-2xl"
 							>
 								<div
 									class="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-indigo-500/30 blur-2xl"
@@ -418,34 +418,34 @@
 									class="relative z-10 mb-1 flex flex-wrap items-center justify-between gap-2 border-b border-indigo-400/20 pb-3"
 								>
 									<div class="flex items-center gap-2.5">
-										<span class="text-xl font-black tracking-tight text-white"
+										<span class="text-xl font-black tracking-tight text-foreground"
 											>Turma {block.value.turma}</span
 										>
 										{#if block.value.periodo}
 											<span
-												class="rounded-full border border-indigo-400/40 bg-indigo-500/25 px-2.5 py-0.5 text-xs font-bold text-indigo-200 shadow-sm"
+												class="rounded-full border border-indigo-400/40 bg-indigo-500/25 px-2.5 py-0.5 text-xs font-bold text-indigo-800 shadow-sm dark:text-indigo-200"
 												>{block.value.periodo}</span
 											>
 										{/if}
 									</div>
 									<span
-										class="rounded-full border border-indigo-400/30 bg-indigo-500/30 px-3 py-1.5 text-[11px] font-bold tracking-widest text-white shadow-inner"
+										class="rounded-full border border-indigo-400/30 bg-indigo-500/30 px-3 py-1.5 text-[11px] font-bold tracking-widest text-foreground shadow-inner"
 										>{block.value.vagas} VAGAS</span
 									>
 								</div>
 
 								<div class="relative z-10 space-y-4">
 									<div>
-										<p class="mb-1 text-[11px] font-bold tracking-widest text-indigo-200 uppercase">
+										<p class="mb-1 text-[11px] font-bold tracking-widest text-indigo-700 uppercase dark:text-indigo-200">
 											Professor
 										</p>
-										<p class="text-base font-bold text-white drop-shadow-md">{block.value.prof}</p>
+										<p class="text-base font-bold text-foreground dark:drop-shadow-md">{block.value.prof}</p>
 									</div>
 
 									<div class="flex flex-col gap-5 sm:flex-row sm:gap-8">
 										<div class="flex-1">
 											<p
-												class="mb-1.5 text-[11px] font-bold tracking-widest text-indigo-200 uppercase"
+												class="mb-1.5 text-[11px] font-bold tracking-widest text-indigo-700 uppercase dark:text-indigo-200"
 											>
 												Horário
 											</p>
@@ -453,34 +453,34 @@
 												<div class="space-y-1.5">
 													{#each formatHorarioSigaa(block.value.horario) as linha}
 														<div class="flex items-center gap-3 text-[14px]">
-															<span class="w-8 font-bold text-white">{linha.dia}</span>
-															<span class="font-medium text-white/90"
+															<span class="w-8 font-bold text-foreground">{linha.dia}</span>
+															<span class="font-medium text-foreground/90"
 																>{compactarFaixasHorarias(linha.faixas)}</span
 															>
 														</div>
 													{/each}
 												</div>
 											{:else}
-												<p class="text-[14px] font-medium text-white/90">{block.value.horario}</p>
+												<p class="text-[14px] font-medium text-foreground/90">{block.value.horario}</p>
 											{/if}
 										</div>
 
 										<div class="flex-1">
 											<p
-												class="mb-1.5 text-[11px] font-bold tracking-widest text-indigo-200 uppercase"
+												class="mb-1.5 text-[11px] font-bold tracking-widest text-indigo-700 uppercase dark:text-indigo-200"
 											>
 												Local
 											</p>
 											{#if formatLocalSigaa(block.value.local).length > 0}
 												<div class="space-y-1.5">
 													{#each formatLocalSigaa(block.value.local) as localLinha}
-														<p class="text-[14px] leading-snug font-medium text-white/90">
+														<p class="text-[14px] leading-snug font-medium text-foreground/90">
 															{localLinha}
 														</p>
 													{/each}
 												</div>
 											{:else}
-												<p class="text-[14px] font-medium text-white/90">{block.value.local}</p>
+												<p class="text-[14px] font-medium text-foreground/90">{block.value.local}</p>
 											{/if}
 										</div>
 									</div>
@@ -495,14 +495,14 @@
 											messageInput = btn.message;
 											enviar();
 										}}
-										class="w-full cursor-pointer rounded-xl border px-4 py-2.5 text-left text-sm font-medium tracking-wide shadow-md backdrop-blur-md transition-all active:scale-[0.98]
+										class="w-full cursor-pointer rounded-xl border px-4 py-2.5 text-left text-sm font-medium tracking-wide shadow-sm backdrop-blur-md transition-all active:scale-[0.98] dark:shadow-md
 											{btn.label.toLowerCase() === 'sim' || btn.label.toLowerCase().includes('aplicar')
-											? 'border-emerald-500/40 bg-emerald-600/30 text-emerald-50 shadow-[0_0_15px_rgba(16,185,129,0.15)] hover:bg-emerald-600/50'
+											? 'border-emerald-600/60 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-600/30 dark:text-emerald-50 dark:shadow-[0_0_15px_rgba(16,185,129,0.15)] dark:hover:bg-emerald-600/50'
 											: btn.label.toLowerCase() === 'não' ||
 												  btn.label.toLowerCase() === 'nao' ||
 												  btn.label.toLowerCase().includes('cancelar')
-												? 'border-rose-500/40 bg-rose-600/30 text-rose-50 shadow-[0_0_15px_rgba(244,63,94,0.15)] hover:bg-rose-600/50'
-												: 'border-indigo-500/40 bg-indigo-600/30 text-indigo-50 shadow-[0_0_15px_rgba(99,102,241,0.15)] hover:bg-indigo-600/50'}"
+												? 'border-rose-600/60 bg-rose-50 text-rose-800 hover:bg-rose-100 dark:border-rose-500/40 dark:bg-rose-600/30 dark:text-rose-50 dark:shadow-[0_0_15px_rgba(244,63,94,0.15)] dark:hover:bg-rose-600/50'
+												: 'border-primary/40 bg-accent text-accent-foreground hover:bg-primary/15 dark:border-indigo-500/40 dark:bg-indigo-600/30 dark:text-indigo-50 dark:shadow-[0_0_15px_rgba(99,102,241,0.15)] dark:hover:bg-indigo-600/50'}"
 									>
 										{btn.label}
 									</button>
@@ -520,7 +520,7 @@
 											block.docentes,
 											block.incluirCursando
 										)}
-									class="flex w-full items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-600/25 px-4 py-2.5 text-left text-sm font-semibold text-emerald-50 shadow-[0_0_15px_rgba(16,185,129,0.15)] backdrop-blur-md transition-all hover:bg-emerald-600/45 active:scale-[0.98]"
+									class="flex w-full items-center gap-2 rounded-xl border border-emerald-600/60 bg-emerald-50 px-4 py-2.5 text-left text-sm font-semibold text-emerald-800 shadow-sm backdrop-blur-md transition-all hover:bg-emerald-100 active:scale-[0.98] dark:border-emerald-500/40 dark:bg-emerald-600/25 dark:text-emerald-50 dark:shadow-[0_0_15px_rgba(16,185,129,0.15)] dark:hover:bg-emerald-600/45"
 								>
 									<CalendarPlus class="h-4 w-4 shrink-0" />
 									<span>
@@ -549,7 +549,7 @@
 
 		<!-- Input -->
 		<div class="relative z-10 bg-transparent p-5 pt-3 pb-6">
-			<div class="relative flex w-full items-center shadow-2xl">
+			<div class="relative flex w-full items-center dark:shadow-2xl">
 				<input
 					type="text"
 					bind:value={messageInput}
@@ -557,13 +557,13 @@
 					{placeholder}
 					disabled={loading}
 					onkeydown={handleKeydown}
-					class="w-full rounded-full border border-white/20 bg-white/10 py-3.5 pr-12 pl-5 text-[14.5px] text-white shadow-inner backdrop-blur-2xl transition-all placeholder:text-white/50 focus:border-white/30 focus:bg-white/15 focus:outline-none disabled:opacity-50"
+					class="w-full rounded-full border border-border-strong bg-card py-3.5 pr-12 pl-5 text-[14.5px] text-foreground shadow-sm backdrop-blur-2xl transition-all placeholder:text-muted-foreground focus:border-ring focus:outline-none disabled:opacity-50 dark:border-white/20 dark:bg-white/10 dark:shadow-inner dark:focus:border-white/30 dark:focus:bg-white/15"
 				/>
 				<button
 					type="button"
 					onclick={enviar}
 					disabled={loading || messageInput.trim() === ''}
-					class="absolute right-2 cursor-pointer rounded-full border border-white/10 bg-white/10 p-2 text-white shadow-sm transition-all hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-white/40"
+					class="absolute right-2 cursor-pointer rounded-full border border-foreground/10 bg-foreground/10 p-2 text-foreground shadow-sm transition-all hover:bg-foreground/20 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-foreground/40"
 					aria-label="Enviar"
 				>
 					<SendHorizontal class="h-4 w-4" />

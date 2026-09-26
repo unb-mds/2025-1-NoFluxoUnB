@@ -131,7 +131,7 @@
 							required
 						/>
 						<button type="button" class="password-toggle" onclick={() => showPassword = !showPassword} tabindex="-1">
-							{#if showPassword}<EyeOff class="h-5 w-5 text-gray-400" />{:else}<Eye class="h-5 w-5 text-gray-400" />{/if}
+							{#if showPassword}<EyeOff class="h-5 w-5 text-muted-foreground dark:text-gray-400" />{:else}<Eye class="h-5 w-5 text-muted-foreground dark:text-gray-400" />{/if}
 						</button>
 					</div>
 				</div>
@@ -149,7 +149,7 @@
 							required
 						/>
 						<button type="button" class="password-toggle" onclick={() => showConfirm = !showConfirm} tabindex="-1">
-							{#if showConfirm}<EyeOff class="h-5 w-5 text-gray-400" />{:else}<Eye class="h-5 w-5 text-gray-400" />{/if}
+							{#if showConfirm}<EyeOff class="h-5 w-5 text-muted-foreground dark:text-gray-400" />{:else}<Eye class="h-5 w-5 text-muted-foreground dark:text-gray-400" />{/if}
 						</button>
 					</div>
 				</div>
@@ -175,7 +175,7 @@
 	h2 {
 		text-align: center;
 		margin-bottom: 1.5rem;
-		color: #2563eb;
+		color: hsl(var(--primary));
 		font-size: 28px;
 		font-weight: 700;
 	}
@@ -190,14 +190,14 @@
 		align-items: center;
 		gap: 0.75rem;
 		padding: 1rem 0;
-		color: #374151;
+		color: hsl(var(--foreground) / 0.8);
 	}
 
 	.auth-loading .spinner {
 		width: 32px;
 		height: 32px;
-		border: 3px solid rgba(37, 99, 235, 0.2);
-		border-top-color: #2563eb;
+		border: 3px solid hsl(var(--primary) / 0.2);
+		border-top-color: hsl(var(--primary));
 		border-radius: 50%;
 		animation: spin 0.8s linear infinite;
 	}
@@ -206,7 +206,7 @@
 		display: block;
 		text-align: center;
 		margin-top: 0.75rem;
-		color: #2563eb;
+		color: hsl(var(--primary));
 		text-decoration: none;
 		font-size: 14px;
 	}
@@ -226,7 +226,23 @@
 		margin-bottom: 0.5rem;
 		font-weight: 500;
 		font-size: 14px;
+		color: hsl(var(--foreground) / 0.8);
+	}
+
+	/* Card branco legado no dark: mantém o azul/cinzas históricos */
+	:global(.dark) h2,
+	:global(.dark) .auth-link {
+		color: #2563eb;
+	}
+
+	:global(.dark) .auth-loading,
+	:global(.dark) label {
 		color: #374151;
+	}
+
+	:global(.dark) .auth-loading .spinner {
+		border-color: rgba(37, 99, 235, 0.2);
+		border-top-color: #2563eb;
 	}
 
 	.password-wrapper {

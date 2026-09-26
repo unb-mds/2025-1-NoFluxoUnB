@@ -203,15 +203,15 @@
 	<header class="mb-4">
 		<a
 			href={ROUTES.MONTADOR_GRADE}
-			class="mb-3 inline-flex touch-manipulation items-center gap-1.5 text-xs font-medium text-white/50 transition-colors hover:text-white/80"
+			class="mb-3 inline-flex touch-manipulation items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground/80"
 		>
 			<ArrowLeft class="h-3.5 w-3.5" /> Voltar ao montador
 		</a>
 		<div class="flex items-center gap-2.5">
-			<Search class="h-6 w-6 shrink-0 text-purple-300" />
+			<Search class="h-6 w-6 shrink-0 text-ai dark:text-purple-300" />
 			<div>
-				<h1 class="text-lg font-bold text-white sm:text-xl">Buscar turmas</h1>
-				<p class="text-xs text-white/50">
+				<h1 class="text-lg font-bold text-foreground sm:text-xl">Buscar turmas</h1>
+				<p class="text-xs text-muted-foreground">
 					Procure na oferta inteira{#if periodo} de <span class="font-mono">{periodo}</span>{/if} por
 					professor, horário, sala ou matéria.
 				</p>
@@ -220,21 +220,21 @@
 	</header>
 
 	<div class="relative mb-4">
-		<Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+		<Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/70 dark:text-white/30" />
 		<input
 			type="search"
 			value={termo}
 			oninput={(e) => aoDigitar((e.currentTarget as HTMLInputElement).value)}
 			placeholder="Ex.: nome do professor, 2M34, CIC0004, ICC ANF"
 			aria-label="Buscar turmas por professor, horário, sala ou matéria"
-			class="w-full rounded-2xl border border-white/12 bg-zinc-950/78 py-3 pl-10 pr-10 text-sm text-white placeholder:text-white/25 focus:border-purple-300/45 focus:outline-none focus:ring-1 focus:ring-purple-400/30"
+			class="w-full rounded-2xl border border-border-strong bg-card py-3 pl-10 pr-10 text-sm text-foreground placeholder:text-muted-foreground dark:placeholder:text-white/25 dark:border-border dark:bg-background/80 focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring/30 dark:focus:border-purple-300/45 dark:focus:ring-purple-400/30"
 		/>
 		{#if termo}
 			<button
 				type="button"
 				onclick={limpar}
 				aria-label="Limpar busca"
-				class="absolute right-2.5 top-1/2 -translate-y-1/2 touch-manipulation rounded-lg p-1.5 text-white/35 transition-colors hover:bg-white/10 hover:text-white/70"
+				class="absolute right-2.5 top-1/2 -translate-y-1/2 touch-manipulation rounded-lg p-1.5 text-muted-foreground/80 dark:text-white/35 transition-colors hover:bg-foreground/10 hover:text-foreground/70"
 			>
 				<X class="h-4 w-4" />
 			</button>
@@ -242,45 +242,45 @@
 	</div>
 
 	{#if buscando}
-		<p class="flex items-center justify-center gap-2 py-10 text-sm text-white/55">
+		<p class="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
 			<Loader2 class="h-4 w-4 animate-spin" /> Procurando na oferta...
 		</p>
 	{:else if erro}
-		<p class="rounded-2xl border border-red-300/30 bg-red-500/10 px-4 py-5 text-center text-sm text-red-200">
+		<p class="rounded-2xl border border-red-300 bg-red-50 dark:border-red-300/30 dark:bg-red-500/10 px-4 py-5 text-center text-sm text-red-800 dark:text-red-200">
 			{erro}
 		</p>
 	{:else if termo.trim().length > 0 && termo.trim().length < 2}
-		<p class="py-10 text-center text-xs text-white/35">Digite pelo menos 2 caracteres.</p>
+		<p class="py-10 text-center text-xs text-muted-foreground dark:text-white/35">Digite pelo menos 2 caracteres.</p>
 	{:else if termoBuscado && resultados.length === 0}
-		<p class="py-10 text-center text-sm text-white/45">
-			Nada encontrado para <strong class="text-white/70">{termoBuscado}</strong> na oferta atual.
+		<p class="py-10 text-center text-sm text-muted-foreground">
+			Nada encontrado para <strong class="text-foreground/70">{termoBuscado}</strong> na oferta atual.
 		</p>
 	{:else if resultados.length > 0}
-		<p class="mb-2 text-[11px] text-white/35">
+		<p class="mb-2 text-[11px] text-muted-foreground dark:text-white/35">
 			{resultados.length} turma(s) em {porMateria.length} matéria(s)
 		</p>
 		{#if avisoGrade}
-			<div class="mb-2 flex items-start gap-2 rounded-xl border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+			<div class="mb-2 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 dark:border-amber-300/30 dark:bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
 				<TriangleAlert class="mt-0.5 h-3.5 w-3.5 shrink-0" />
 				<span>{avisoGrade}</span>
-				<a href={ROUTES.MONTADOR_GRADE} class="ml-auto shrink-0 underline underline-offset-2 hover:text-white">
+				<a href={ROUTES.MONTADOR_GRADE} class="ml-auto shrink-0 underline underline-offset-2 hover:text-foreground">
 					Abrir montador
 				</a>
 			</div>
 		{/if}
 		<div class="space-y-3">
 			{#each porMateria as grupo (grupo.codigo)}
-				<section class="rounded-2xl border border-white/10 bg-zinc-950/78 p-3 sm:p-4">
-					<header class="mb-2.5 border-b border-white/10 pb-2">
+				<section class="rounded-2xl border border-border bg-card dark:bg-background/80 p-3 sm:p-4">
+					<header class="mb-2.5 border-b border-border pb-2">
 						<p class="flex flex-wrap items-center gap-x-2 gap-y-1">
-							<span class="font-mono text-sm font-semibold text-purple-200">{grupo.codigo}</span>
-							<span class="text-xs text-white/60">{grupo.nome}</span>
+							<span class="font-mono text-sm font-semibold text-ai dark:text-purple-200">{grupo.codigo}</span>
+							<span class="text-xs text-muted-foreground">{grupo.nome}</span>
 							{#if gradePronta}
 								<MateriaNaturezaBadge natureza={naturezaDoCodigo(grupo.codigo)} />
 							{/if}
 						</p>
 						{#if gradePronta}
-							<p class="mt-1 flex items-center gap-1 text-[10px] text-white/35">
+							<p class="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground dark:text-white/35">
 								<CalendarPlus class="h-3 w-3 shrink-0" />
 								Clique numa turma para pôr na sua grade; clicar de novo tira.
 							</p>
@@ -300,9 +300,9 @@
 			{/each}
 		</div>
 	{:else}
-		<div class="rounded-2xl border border-white/10 bg-zinc-950/78 px-4 py-8 text-center">
-			<p class="text-sm text-white/50">Busque na oferta do semestre.</p>
-			<p class="mx-auto mt-2 max-w-md text-xs leading-relaxed text-white/35">
+		<div class="rounded-2xl border border-border bg-card dark:bg-background/80 px-4 py-8 text-center">
+			<p class="text-sm text-muted-foreground">Busque na oferta do semestre.</p>
+			<p class="mx-auto mt-2 max-w-md text-xs leading-relaxed text-muted-foreground">
 				Dá para procurar pelo nome de um professor e ver tudo que ele dá, por um horário SIGAA
 				(<span class="font-mono">2M34</span>), pela sala, ou pelo código/nome da matéria.
 			</p>

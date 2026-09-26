@@ -675,11 +675,11 @@ function courseInfoLabel(curriculo: string | null | undefined): string | null {
 <PageBackground />
 
 <div class="relative z-10 flex h-[calc(100dvh-9.5rem)] flex-col overflow-hidden sm:h-[calc(100dvh-10.75rem)]">
-	<header class="flex h-14 shrink-0 items-center gap-3 border-b border-white/10 bg-black/55 px-4 backdrop-blur-md">
-		<div class="font-mono text-xs font-medium tracking-wider text-purple-300">DISCIPLINAS</div>
+	<header class="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/80 dark:bg-black/55 px-4 backdrop-blur-md">
+		<div class="font-mono text-xs font-medium tracking-wider text-ai">DISCIPLINAS</div>
 		<div class="flex-1"></div>
 		{#if carregandoMatrizes}
-			<p class="flex items-center gap-2 text-xs text-white/55">
+			<p class="flex items-center gap-2 text-xs text-muted-foreground">
 				<Loader2 class="h-3.5 w-3.5 animate-spin" /> Carregando matrizes…
 			</p>
 		{:else}
@@ -689,7 +689,7 @@ function courseInfoLabel(curriculo: string | null | undefined): string | null {
 					value={matrizBusca}
 					oninput={(e) => handleMatrizInput((e.currentTarget as HTMLInputElement).value)}
 					placeholder="Matriz (opcional) — digite para sugerir"
-					class="w-full rounded-xl border border-white/15 bg-zinc-900/80 px-3 py-1.5 text-xs text-white placeholder:text-white/45 sm:text-sm"
+					class="w-full rounded-xl border border-border-strong bg-card px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/80 focus:border-ring dark:focus:border-ring focus:outline-none sm:text-sm dark:border-border dark:bg-zinc-900/80"
 				/>
 				<datalist id="matrizes-sugestoes">
 					{#each matrizesOpcoes as op}
@@ -701,14 +701,14 @@ function courseInfoLabel(curriculo: string | null | undefined): string | null {
 	</header>
 
 	<div class="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[270px_minmax(0,1fr)] md:grid-rows-1">
-		<aside class="min-h-0 border-b border-white/10 bg-zinc-950/75 md:border-b-0 md:border-r">
-			<div class="m-2 rounded-2xl border border-white/10 bg-black/25 p-2.5 md:m-0 md:rounded-none md:border-0 md:bg-transparent md:p-3 md:border-b md:border-white/10">
+		<aside class="min-h-0 border-b border-border bg-card/80 dark:bg-background/80 md:border-b-0 md:border-r">
+			<div class="m-2 rounded-2xl border border-border bg-background/80 dark:bg-black/25 p-2.5 md:m-0 md:rounded-none md:border-0 md:bg-transparent md:p-3 md:border-b md:border-border">
 				<div class="flex items-center gap-2">
 					<input
 						type="text"
 						bind:value={termoBusca}
 						placeholder="Buscar por código ou nome..."
-						class="w-full rounded-xl border border-white/10 bg-zinc-900/70 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+						class="w-full rounded-xl border border-border-strong bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:ring-2 focus:ring-ring/30 dark:border-border dark:bg-zinc-900/70"
 						onfocus={() => {
 							if (isMobileView) mobileListCollapsed = false;
 						}}
@@ -716,7 +716,7 @@ function courseInfoLabel(curriculo: string | null | undefined): string | null {
 					{#if isMobileView}
 						<button
 							type="button"
-							class="shrink-0 rounded-lg border border-white/15 bg-zinc-900/70 px-2.5 py-2 text-[11px] font-medium text-white/80"
+							class="shrink-0 rounded-lg border border-border-strong bg-card px-2.5 py-2 text-[11px] font-medium text-foreground/80 dark:border-border dark:bg-zinc-900/70"
 							onclick={() => (mobileListCollapsed = !mobileListCollapsed)}
 							aria-label={mobileListCollapsed ? 'Mostrar lista de matérias' : 'Ocultar lista de matérias'}
 							title={mobileListCollapsed ? 'Mostrar lista' : 'Ocultar lista'}
@@ -734,22 +734,22 @@ function courseInfoLabel(curriculo: string | null | undefined): string | null {
 						<button
 							type="button"
 							class="rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors {filtroTipoMatriz === 'todas'
-								? 'border-purple-300/45 bg-purple-500/18 text-purple-100'
-								: 'border-white/15 bg-white/5 text-white/70 hover:bg-white/10'}"
+								? 'border-primary/45 bg-primary/15 text-accent-foreground'
+								: 'border-border bg-muted/60 text-foreground/70 hover:bg-muted'}"
 							onclick={() => (filtroTipoMatriz = 'todas')}
 						>Todas</button>
 						<button
 							type="button"
 							class="rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors {filtroTipoMatriz === 'obrigatoria'
-								? 'border-cyan-300/45 bg-cyan-500/18 text-cyan-100'
-								: 'border-white/15 bg-white/5 text-white/70 hover:bg-white/10'}"
+								? 'border-cyan-300/45 bg-cyan-500/18 text-cyan-800 dark:text-cyan-100'
+								: 'border-border bg-muted/60 text-foreground/70 hover:bg-muted'}"
 							onclick={() => (filtroTipoMatriz = 'obrigatoria')}
 						>Obrigatória</button>
 						<button
 							type="button"
 							class="rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors {filtroTipoMatriz === 'optativa'
-								? 'border-amber-300/45 bg-amber-500/18 text-amber-100'
-								: 'border-white/15 bg-white/5 text-white/70 hover:bg-white/10'}"
+								? 'border-amber-300/45 bg-amber-500/18 text-amber-800 dark:text-amber-100'
+								: 'border-border bg-muted/60 text-foreground/70 hover:bg-muted'}"
 							onclick={() => (filtroTipoMatriz = 'optativa')}
 						>Optativa</button>
 					</div>
@@ -757,11 +757,11 @@ function courseInfoLabel(curriculo: string | null | undefined): string | null {
 			</div>
 
 			{#if carregandoCurso}
-				<p class="flex items-center gap-2 p-3 text-xs text-white/55">
+				<p class="flex items-center gap-2 p-3 text-xs text-muted-foreground">
 					<Loader2 class="h-3.5 w-3.5 animate-spin" /> Carregando disciplinas...
 				</p>
 			{:else if isMobileView && mobileListCollapsed}
-				<p class="p-3 text-xs text-white/55">Lista recolhida. Toque no ícone de olho para reabrir.</p>
+				<p class="p-3 text-xs text-muted-foreground">Lista recolhida. Toque no ícone de olho para reabrir.</p>
 			{:else}
 				<div
 					class="space-y-1 overflow-x-hidden overflow-y-auto px-2 pb-2 {isMobileView
@@ -769,9 +769,9 @@ function courseInfoLabel(curriculo: string | null | undefined): string | null {
 						: 'h-[calc(100%-3.25rem)] pt-2'}"
 				>
 					{#if !curso && termoNorm.length < 2}
-						<p class="p-2 text-xs text-white/45">Digite pelo menos 2 caracteres para buscar globalmente.</p>
+						<p class="p-2 text-xs text-muted-foreground">Digite pelo menos 2 caracteres para buscar globalmente.</p>
 					{:else if resultadosBusca.length === 0}
-						<p class="p-2 text-xs text-white/45">Nenhuma disciplina para esse termo.</p>
+						<p class="p-2 text-xs text-muted-foreground">Nenhuma disciplina para esse termo.</p>
 					{/if}
 					{#each resultadosBusca as m}
 						<button
@@ -779,29 +779,29 @@ function courseInfoLabel(curriculo: string | null | undefined): string | null {
 							onclick={() => selecionarMateria(m)}
 							class="min-h-[4.5rem] w-full rounded-xl border px-2.5 py-2 text-left transition-colors {selecionada &&
 							selecionada.idMateria === m.idMateria
-								? 'border-purple-300/40 bg-purple-500/15'
-								: 'border-transparent hover:border-white/10 hover:bg-white/5'}"
+								? 'border-primary/40 bg-primary/15'
+								: 'border-transparent hover:border-border hover:bg-muted/60'}"
 						>
 							<div class="mb-0.5 flex items-center justify-between gap-2">
-								<p class="font-mono text-xs font-medium text-purple-300">{m.codigoMateria}</p>
+								<p class="font-mono text-xs font-medium text-ai">{m.codigoMateria}</p>
 								{#if curso && m.tipoNatureza != null}
 									<span class="rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide {m.tipoNatureza === 1
-										? 'border-amber-300/45 bg-amber-500/18 text-amber-100'
-										: 'border-cyan-300/45 bg-cyan-500/18 text-cyan-100'}">
+										? 'border-amber-300/45 bg-amber-500/18 text-amber-800 dark:text-amber-100'
+										: 'border-cyan-300/45 bg-cyan-500/18 text-cyan-800 dark:text-cyan-100'}">
 										{m.tipoNatureza === 1 ? 'Optativa' : 'Obrigatória'}
 									</span>
 								{/if}
 							</div>
-							<p class="line-clamp-2 text-sm text-white/75">{m.nomeMateria}</p>
+							<p class="line-clamp-2 text-sm text-foreground/75">{m.nomeMateria}</p>
 						</button>
 					{/each}
 					{#if !curso && carregandoBuscaGlobal}
-						<p class="flex items-center gap-2 p-2 text-xs text-white/55">
+						<p class="flex items-center gap-2 p-2 text-xs text-muted-foreground">
 							<Loader2 class="h-3.5 w-3.5 animate-spin" /> Buscando matérias...
 						</p>
 					{/if}
 					{#if !curso && erroBuscaGlobal}
-						<p class="p-2 text-xs text-red-300/85">{erroBuscaGlobal}</p>
+						<p class="p-2 text-xs text-red-700 dark:text-red-300/85">{erroBuscaGlobal}</p>
 					{/if}
 				</div>
 			{/if}
@@ -809,12 +809,12 @@ function courseInfoLabel(curriculo: string | null | undefined): string | null {
 
 		<main class="min-h-0 overflow-y-auto p-3 sm:p-6">
 			{#if erroCurso}
-				<p class="mb-3 text-sm text-red-400">{erroCurso}</p>
+				<p class="mb-3 text-sm text-red-700 dark:text-red-400">{erroCurso}</p>
 			{/if}
 
 			{#if !selecionada}
-				<div class="flex h-full items-center justify-center rounded-2xl border border-white/10 bg-black/20">
-					<p class="text-sm text-white/45">Selecione uma matéria para ver a cadeia.</p>
+				<div class="flex h-full items-center justify-center rounded-2xl border border-border bg-background/60 dark:bg-black/20">
+					<p class="text-sm text-muted-foreground">Selecione uma matéria para ver a cadeia.</p>
 				</div>
 			{:else if curso && selecionada.source === 'matrix'}
 				<div class="space-y-4">
@@ -834,13 +834,13 @@ function courseInfoLabel(curriculo: string | null | undefined): string | null {
 				</div>
 			{:else}
 				<div class="space-y-4">
-					<div class="rounded-2xl border border-white/10 bg-gradient-to-b from-zinc-950/95 to-black/88 p-5 sm:p-6">
-					<p class="mb-2 inline-flex rounded-md border border-purple-300/30 bg-purple-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-purple-200">
+					<div class="rounded-2xl border border-border bg-card p-5 shadow-nofluxo sm:p-6 dark:bg-transparent dark:shadow-none dark:bg-gradient-to-b dark:from-zinc-950/95 dark:to-black/88">
+					<p class="mb-2 inline-flex rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-accent-foreground">
 						Matéria global
 					</p>
-					<h2 class="text-2xl font-bold text-white">{selecionada.nomeMateria}</h2>
-					<p class="mt-1 font-mono text-sm text-purple-200/80">{selecionada.codigoMateria}</p>
-					<p class="mt-4 text-sm text-white/65">
+					<h2 class="text-2xl font-bold text-foreground">{selecionada.nomeMateria}</h2>
+					<p class="mt-1 font-mono text-sm text-ai/85">{selecionada.codigoMateria}</p>
+					<p class="mt-4 text-sm text-muted-foreground">
 						Cadeia global: pré-requisitos e dependências são calculados sem precisar de matriz. Equivalências
 						específicas podem variar por currículo.
 					</p>
@@ -852,16 +852,16 @@ function courseInfoLabel(curriculo: string | null | undefined): string | null {
 						equivalencias={curso?.equivalencias ?? []}
 					/>
 					{#if globalChainError}
-						<p class="text-sm text-red-300/90">{globalChainError}</p>
+						<p class="text-sm text-red-700 dark:text-red-300/90">{globalChainError}</p>
 					{/if}
 					{#if globalChainLoading}
-						<p class="flex items-center gap-2 text-sm text-white/60">
+						<p class="flex items-center gap-2 text-sm text-muted-foreground">
 							<Loader2 class="h-4 w-4 animate-spin" /> Calculando cadeia global...
 						</p>
 					{:else}
-						<section class="rounded-2xl border border-white/10 bg-zinc-950/78 p-4 sm:p-5">
-							<div class="mb-3 border-b border-white/10 pb-2">
-								<p class="text-xs font-semibold uppercase tracking-[0.12em] text-white/80">
+						<section class="rounded-2xl border border-border bg-card/80 dark:bg-background/80 p-4 sm:p-5">
+							<div class="mb-3 border-b border-border pb-2">
+								<p class="text-xs font-semibold uppercase tracking-[0.12em] text-foreground/80">
 									Ordem no grafo — cadeia topológica
 								</p>
 							</div>
@@ -874,56 +874,56 @@ function courseInfoLabel(curriculo: string | null | undefined): string | null {
 													type="button"
 													onclick={() => selecionarMateria(m)}
 													class="w-[172px] rounded-xl border px-3 py-2 text-left transition-colors {m.idMateria === selecionada.idMateria
-														? 'border-purple-300/40 bg-black/45 shadow-[inset_0_0_0_1px_rgba(168,85,247,0.22)]'
+														? 'border-primary/40 bg-background/80 dark:bg-black/45 shadow-[inset_0_0_0_1px_rgba(168,85,247,0.22)]'
 														: ci === globalRoadmapColumns.length - 1
-															? 'border-cyan-300/35 bg-black/45 hover:bg-black/55'
-															: 'border-amber-300/35 bg-black/45 hover:bg-black/55'}"
+															? 'border-cyan-300/35 bg-background/80 hover:bg-muted/60 dark:bg-black/45 dark:hover:bg-black/55'
+															: 'border-amber-300/35 bg-background/80 hover:bg-muted/60 dark:hover:bg-background/95'}"
 												>
-													<p class="font-mono text-xs {m.idMateria === selecionada.idMateria ? 'text-purple-200' : 'text-white/80'}">
+													<p class="font-mono text-xs {m.idMateria === selecionada.idMateria ? 'text-ai' : 'text-foreground/80'}">
 														{m.codigoMateria}
 													</p>
-													<p class="line-clamp-2 text-xs text-white/65">{m.nomeMateria}</p>
+													<p class="line-clamp-2 text-xs text-muted-foreground">{m.nomeMateria}</p>
 												</button>
 											{/each}
 										</div>
 										{#if ci < globalRoadmapColumns.length - 1}
-											<div class="px-3 text-white/35" aria-hidden="true">→</div>
+											<div class="px-3 text-muted-foreground/80" aria-hidden="true">→</div>
 										{/if}
 									{/each}
 								</div>
 							</div>
 						</section>
 
-						<section class="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/72">
-							<button type="button" class="flex w-full items-center justify-between px-4 py-3 hover:bg-white/5" onclick={() => (openGlobalPre = !openGlobalPre)}>
-								<span class="flex items-center gap-2 text-sm font-medium text-white">
-									<span class="h-2 w-2 rounded-full bg-amber-300"></span>
+						<section class="overflow-hidden rounded-2xl border border-border bg-card/80 dark:bg-background/80">
+							<button type="button" class="flex w-full items-center justify-between px-4 py-3 hover:bg-muted/60" onclick={() => (openGlobalPre = !openGlobalPre)}>
+								<span class="flex items-center gap-2 text-sm font-medium text-foreground">
+									<span class="h-2 w-2 rounded-full bg-amber-700 dark:bg-amber-300"></span>
 									Precisa cursar antes
-									<span class="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] text-white/65">{globalPreReqs.length}</span>
+									<span class="rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono text-[11px] text-muted-foreground">{globalPreReqs.length}</span>
 								</span>
-								{#if openGlobalPre}<span class="text-white/50">▲</span>{:else}<span class="text-white/50">▼</span>{/if}
+								{#if openGlobalPre}<span class="text-muted-foreground">▲</span>{:else}<span class="text-muted-foreground">▼</span>{/if}
 							</button>
 							{#if openGlobalPre}
-								<div class="border-t border-white/10 px-4 py-3">
+								<div class="border-t border-border px-4 py-3">
 									{#if globalPreReqRules.length > 0}
 										<div class="mb-2 space-y-1.5">
-											<p class="text-[11px] font-semibold uppercase tracking-wide text-white/55">
+											<p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
 												Regras (expressão)
 											</p>
 											{#each globalPreReqRules as rule}
-												<p class="rounded-md border border-purple-300/20 bg-purple-500/8 px-2.5 py-1 text-[11px] text-purple-100/90">
+												<p class="rounded-md border border-primary/20 bg-primary/8 px-2.5 py-1 text-[11px] text-ai dark:text-purple-100/90">
 													{rule}
 												</p>
 											{/each}
 										</div>
 									{/if}
 									{#if globalPreReqs.length === 0}
-										<p class="text-xs text-white/45">Nenhuma encontrada.</p>
+										<p class="text-xs text-muted-foreground">Nenhuma encontrada.</p>
 									{:else}
 										<div class="flex flex-wrap gap-2">
 											{#each globalPreReqs as m}
-												<button type="button" class="rounded-lg border border-amber-300/35 bg-amber-500/10 px-2.5 py-1 text-left text-xs text-amber-100 hover:bg-amber-500/20" onclick={() => selecionarMateria(m)}>
-													<span class="font-mono">{m.codigoMateria}</span><span class="text-white/60"> · {m.nomeMateria}</span>
+												<button type="button" class="rounded-lg border border-amber-300/35 bg-amber-500/10 px-2.5 py-1 text-left text-xs text-amber-800 dark:text-amber-100 hover:bg-amber-500/20" onclick={() => selecionarMateria(m)}>
+													<span class="font-mono">{m.codigoMateria}</span><span class="text-muted-foreground"> · {m.nomeMateria}</span>
 												</button>
 											{/each}
 										</div>
@@ -931,24 +931,24 @@ function courseInfoLabel(curriculo: string | null | undefined): string | null {
 								</div>
 							{/if}
 						</section>
-						<section class="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/72">
-							<button type="button" class="flex w-full items-center justify-between px-4 py-3 hover:bg-white/5" onclick={() => (openGlobalDep = !openGlobalDep)}>
-								<span class="flex items-center gap-2 text-sm font-medium text-white">
-									<span class="h-2 w-2 rounded-full bg-cyan-300"></span>
+						<section class="overflow-hidden rounded-2xl border border-border bg-card/80 dark:bg-background/80">
+							<button type="button" class="flex w-full items-center justify-between px-4 py-3 hover:bg-muted/60" onclick={() => (openGlobalDep = !openGlobalDep)}>
+								<span class="flex items-center gap-2 text-sm font-medium text-foreground">
+									<span class="h-2 w-2 rounded-full bg-cyan-700 dark:bg-cyan-300"></span>
 									Desbloqueia depois (transitivo)
-									<span class="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] text-white/65">{globalDeps.length}</span>
+									<span class="rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono text-[11px] text-muted-foreground">{globalDeps.length}</span>
 								</span>
-								{#if openGlobalDep}<span class="text-white/50">▲</span>{:else}<span class="text-white/50">▼</span>{/if}
+								{#if openGlobalDep}<span class="text-muted-foreground">▲</span>{:else}<span class="text-muted-foreground">▼</span>{/if}
 							</button>
 							{#if openGlobalDep}
-								<div class="border-t border-white/10 px-4 py-3">
+								<div class="border-t border-border px-4 py-3">
 									{#if globalDeps.length === 0}
-										<p class="text-xs text-white/45">Nenhuma encontrada.</p>
+										<p class="text-xs text-muted-foreground">Nenhuma encontrada.</p>
 									{:else}
 										<div class="flex flex-wrap gap-2">
 											{#each globalDeps as m}
-												<button type="button" class="rounded-lg border border-cyan-300/35 bg-cyan-500/10 px-2.5 py-1 text-left text-xs text-cyan-100 hover:bg-cyan-500/20" onclick={() => selecionarMateria(m)}>
-													<span class="font-mono">{m.codigoMateria}</span><span class="text-white/60"> · {m.nomeMateria}</span>
+												<button type="button" class="rounded-lg border border-cyan-300/35 bg-cyan-500/10 px-2.5 py-1 text-left text-xs text-cyan-800 dark:text-cyan-100 hover:bg-cyan-500/20" onclick={() => selecionarMateria(m)}>
+													<span class="font-mono">{m.codigoMateria}</span><span class="text-muted-foreground"> · {m.nomeMateria}</span>
 												</button>
 											{/each}
 										</div>
@@ -957,21 +957,21 @@ function courseInfoLabel(curriculo: string | null | undefined): string | null {
 							{/if}
 						</section>
 						{#if globalCoreqs.length > 0}
-							<section class="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/72">
-								<button type="button" class="flex w-full items-center justify-between px-4 py-3 hover:bg-white/5" onclick={() => (openGlobalCoreq = !openGlobalCoreq)}>
-									<span class="flex items-center gap-2 text-sm font-medium text-white">
-										<span class="h-2 w-2 rounded-full bg-indigo-300"></span>
+							<section class="overflow-hidden rounded-2xl border border-border bg-card/80 dark:bg-background/80">
+								<button type="button" class="flex w-full items-center justify-between px-4 py-3 hover:bg-muted/60" onclick={() => (openGlobalCoreq = !openGlobalCoreq)}>
+									<span class="flex items-center gap-2 text-sm font-medium text-foreground">
+										<span class="h-2 w-2 rounded-full bg-indigo-600 dark:bg-indigo-300"></span>
 										Co-requisitos
-										<span class="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] text-white/65">{globalCoreqs.length}</span>
+										<span class="rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono text-[11px] text-muted-foreground">{globalCoreqs.length}</span>
 									</span>
-									{#if openGlobalCoreq}<span class="text-white/50">▲</span>{:else}<span class="text-white/50">▼</span>{/if}
+									{#if openGlobalCoreq}<span class="text-muted-foreground">▲</span>{:else}<span class="text-muted-foreground">▼</span>{/if}
 								</button>
 								{#if openGlobalCoreq}
-									<div class="border-t border-white/10 px-4 py-3">
+									<div class="border-t border-border px-4 py-3">
 										<div class="flex flex-wrap gap-2">
 											{#each globalCoreqs as m}
-												<button type="button" class="rounded-lg border border-indigo-300/35 bg-indigo-500/10 px-2.5 py-1 text-left text-xs text-indigo-100 hover:bg-indigo-500/20" onclick={() => selecionarMateria(m)}>
-													<span class="font-mono">{m.codigoMateria}</span><span class="text-white/60"> · {m.nomeMateria}</span>
+												<button type="button" class="rounded-lg border border-indigo-300/35 bg-indigo-500/10 px-2.5 py-1 text-left text-xs text-indigo-800 dark:text-indigo-100 hover:bg-indigo-500/20" onclick={() => selecionarMateria(m)}>
+													<span class="font-mono">{m.codigoMateria}</span><span class="text-muted-foreground"> · {m.nomeMateria}</span>
 												</button>
 											{/each}
 										</div>
@@ -979,87 +979,87 @@ function courseInfoLabel(curriculo: string | null | undefined): string | null {
 								{/if}
 							</section>
 						{/if}
-						<section class="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/72">
-							<button type="button" class="flex w-full items-center justify-between px-4 py-3 hover:bg-white/5" onclick={() => (openGlobalEq = !openGlobalEq)}>
-								<span class="flex items-center gap-2 text-sm font-medium text-white">
-									<span class="h-2 w-2 rounded-full bg-purple-300"></span>
+						<section class="overflow-hidden rounded-2xl border border-border bg-card/80 dark:bg-background/80">
+							<button type="button" class="flex w-full items-center justify-between px-4 py-3 hover:bg-muted/60" onclick={() => (openGlobalEq = !openGlobalEq)}>
+								<span class="flex items-center gap-2 text-sm font-medium text-foreground">
+									<span class="h-2 w-2 rounded-full bg-ai"></span>
 									Equivalências
-									<span class="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] text-white/65">{globalEquivsGeneral.length + globalEquivsSpecific.length}</span>
+									<span class="rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono text-[11px] text-muted-foreground">{globalEquivsGeneral.length + globalEquivsSpecific.length}</span>
 								</span>
-								{#if openGlobalEq}<span class="text-white/50">▲</span>{:else}<span class="text-white/50">▼</span>{/if}
+								{#if openGlobalEq}<span class="text-muted-foreground">▲</span>{:else}<span class="text-muted-foreground">▼</span>{/if}
 							</button>
 							{#if openGlobalEq}
-								<div class="border-t border-white/10 px-4 py-3">
+								<div class="border-t border-border px-4 py-3">
 									{#if globalEquivsGeneral.length === 0}
-										<p class="text-xs text-white/45">Nenhuma equivalência geral encontrada para esta disciplina.</p>
+										<p class="text-xs text-muted-foreground">Nenhuma equivalência geral encontrada para esta disciplina.</p>
 									{:else}
-										<p class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/55">Gerais</p>
+										<p class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Gerais</p>
 										<ul class="space-y-2">
 											{#each globalEquivsGeneral as eq}
-												<li class="rounded-lg border border-purple-300/25 bg-purple-500/10 px-3 py-2 text-xs text-purple-100">
+												<li class="rounded-lg border border-primary/25 bg-primary/10 px-3 py-2 text-xs text-accent-foreground">
 													<div class="mb-1 flex items-center justify-between gap-2">
-														<span class="rounded-full border border-cyan-200/60 bg-cyan-300/25 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-cyan-50 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]">
+														<span class="rounded-full border border-cyan-200/60 bg-cyan-300/25 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-cyan-800 dark:text-cyan-50 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]">
 															Geral
 														</span>
 													</div>
 													<p>
-														<span class="font-semibold text-purple-50">Origem:</span>
+														<span class="font-semibold text-foreground">Origem:</span>
 														<span class="ml-1 font-mono">{eq.codigoOrigem || '—'}</span>
-														<span class="text-white/70"> · {eq.nomeOrigem || 'sem nome'}</span>
+														<span class="text-foreground/70"> · {eq.nomeOrigem || 'sem nome'}</span>
 													</p>
 													<p class="mt-1">
-														<span class="font-semibold text-purple-50">Equivalências:</span>
+														<span class="font-semibold text-foreground">Equivalências:</span>
 													</p>
 													{#if eq.gruposEquivalentes.length > 0}
 														<div class="mt-1 space-y-1.5">
 															{#each eq.gruposEquivalentes as group, gi}
-																<div class="rounded-lg border border-purple-300/25 bg-purple-500/8 p-2">
+																<div class="rounded-lg border border-primary/25 bg-primary/8 p-2">
 																	<div class="flex flex-wrap items-center gap-1.5">
 																		{#each group as item, ii}
-																			<span class="rounded-md border border-purple-300/30 bg-purple-500/10 px-2 py-0.5 text-[11px] text-purple-100/95">
+																			<span class="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] text-accent-foreground">
 																				<span class="font-mono">{item.codigo}</span>
-																				<span class="text-white/70"> · {item.nome}</span>
+																				<span class="text-foreground/70"> · {item.nome}</span>
 																			</span>
 																			{#if ii < group.length - 1}
-																				<span class="text-[10px] font-bold uppercase tracking-wide text-purple-200/85">E</span>
+																				<span class="text-[10px] font-bold uppercase tracking-wide text-ai/85">E</span>
 																			{/if}
 																		{/each}
 																	</div>
 																</div>
 																{#if gi < eq.gruposEquivalentes.length - 1}
-																	<div class="text-[10px] font-extrabold uppercase tracking-[0.12em] text-purple-200/80">OU</div>
+																	<div class="text-[10px] font-extrabold uppercase tracking-[0.12em] text-ai/85">OU</div>
 																{/if}
 															{/each}
 														</div>
 													{:else}
-														<p class="mt-1 text-[11px] text-white/60">Sem códigos equivalentes identificados.</p>
+														<p class="mt-1 text-[11px] text-muted-foreground">Sem códigos equivalentes identificados.</p>
 													{/if}
 													{#if eq.expressaoOriginal}
-														<p class="mt-1 text-[11px] text-white/65">{eq.expressaoOriginal}</p>
+														<p class="mt-1 text-[11px] text-muted-foreground">{eq.expressaoOriginal}</p>
 													{/if}
 												</li>
 											{/each}
 										</ul>
 									{/if}
 									{#if globalEquivsSpecific.length > 0}
-										<p class="mt-3 mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/55">
+										<p class="mt-3 mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
 											Específicas (por currículo)
 										</p>
 										<ul class="space-y-2">
 											{#each globalEquivsSpecific as eq}
-												<li class="rounded-lg border border-fuchsia-300/25 bg-fuchsia-500/10 px-3 py-2 text-xs text-fuchsia-100">
+												<li class="rounded-lg border border-fuchsia-300/25 bg-fuchsia-500/10 px-3 py-2 text-xs text-fuchsia-800 dark:text-fuchsia-100">
 													<div class="mb-1 flex items-center justify-between gap-2">
-														<span class="rounded-full border border-fuchsia-200/65 bg-fuchsia-300/30 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-fuchsia-50 shadow-[0_0_0_1px_rgba(244,114,182,0.3)]">
+														<span class="rounded-full border border-fuchsia-200/65 bg-fuchsia-300/30 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-fuchsia-900 dark:text-fuchsia-50 shadow-[0_0_0_1px_rgba(244,114,182,0.3)]">
 															Específica
 														</span>
 													</div>
 													<p>
-														<span class="font-semibold text-fuchsia-50">Origem:</span>
+														<span class="font-semibold text-fuchsia-900 dark:text-fuchsia-50">Origem:</span>
 														<span class="ml-1 font-mono">{eq.codigoOrigem || '—'}</span>
-														<span class="text-white/70"> · {eq.nomeOrigem || 'sem nome'}</span>
+														<span class="text-foreground/70"> · {eq.nomeOrigem || 'sem nome'}</span>
 													</p>
 													<p class="mt-1">
-														<span class="font-semibold text-fuchsia-50">Equivalências:</span>
+														<span class="font-semibold text-fuchsia-900 dark:text-fuchsia-50">Equivalências:</span>
 													</p>
 													{#if eq.gruposEquivalentes.length > 0}
 														<div class="mt-1 space-y-1.5">
@@ -1067,41 +1067,41 @@ function courseInfoLabel(curriculo: string | null | undefined): string | null {
 																<div class="rounded-lg border border-fuchsia-300/25 bg-fuchsia-500/8 p-2">
 																	<div class="flex flex-wrap items-center gap-1.5">
 																		{#each group as item, ii}
-																			<span class="rounded-md border border-fuchsia-300/30 bg-fuchsia-500/10 px-2 py-0.5 text-[11px] text-fuchsia-100/95">
+																			<span class="rounded-md border border-fuchsia-300/30 bg-fuchsia-500/10 px-2 py-0.5 text-[11px] text-fuchsia-800 dark:text-fuchsia-100/95">
 																				<span class="font-mono">{item.codigo}</span>
-																				<span class="text-white/70"> · {item.nome}</span>
+																				<span class="text-foreground/70"> · {item.nome}</span>
 																			</span>
 																			{#if ii < group.length - 1}
-																				<span class="text-[10px] font-bold uppercase tracking-wide text-fuchsia-200/85">E</span>
+																				<span class="text-[10px] font-bold uppercase tracking-wide text-fuchsia-800 dark:text-fuchsia-200/85">E</span>
 																			{/if}
 																		{/each}
 																	</div>
 																</div>
 																{#if gi < eq.gruposEquivalentes.length - 1}
-																	<div class="text-[10px] font-extrabold uppercase tracking-[0.12em] text-fuchsia-200/80">OU</div>
+																	<div class="text-[10px] font-extrabold uppercase tracking-[0.12em] text-fuchsia-800 dark:text-fuchsia-200/80">OU</div>
 																{/if}
 															{/each}
 														</div>
 													{:else}
-														<p class="mt-1 text-[11px] text-white/60">Sem códigos equivalentes identificados.</p>
+														<p class="mt-1 text-[11px] text-muted-foreground">Sem códigos equivalentes identificados.</p>
 													{/if}
 													{#if eq.curriculo}
-														<p class="mt-1 text-[11px] text-amber-200/85">Currículo: {eq.curriculo}</p>
+														<p class="mt-1 text-[11px] text-amber-800 dark:text-amber-200/85">Currículo: {eq.curriculo}</p>
 													{/if}
 													{#if courseInfoLabel(eq.curriculo)}
-														<p class="mt-1 text-[11px] text-cyan-100/85">
+														<p class="mt-1 text-[11px] text-cyan-800 dark:text-cyan-100/85">
 															Curso: {courseInfoLabel(eq.curriculo)}
 														</p>
 													{/if}
 													{#if eq.expressaoOriginal}
-														<p class="mt-1 text-[11px] text-white/65">{eq.expressaoOriginal}</p>
+														<p class="mt-1 text-[11px] text-muted-foreground">{eq.expressaoOriginal}</p>
 													{/if}
 												</li>
 											{/each}
 										</ul>
 									{/if}
 									{#if globalEquivsGeneral.length === 0 && globalEquivsSpecific.length === 0}
-										<p class="text-xs text-white/45">Nenhuma equivalência encontrada para esta disciplina.</p>
+										<p class="text-xs text-muted-foreground">Nenhuma equivalência encontrada para esta disciplina.</p>
 									{/if}
 								</div>
 							{/if}

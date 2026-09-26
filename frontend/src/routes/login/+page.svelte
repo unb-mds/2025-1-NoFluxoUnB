@@ -25,7 +25,7 @@
 		</a>
 		<button
 			type="button"
-			class="inline-flex items-center justify-center gap-2 rounded-full bg-white/95 px-4 py-2 text-sm font-medium text-blue-700 shadow-md hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-blue-700"
+			class="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-primary shadow-nofluxo hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:border-0 dark:bg-white/95 dark:text-blue-700 dark:shadow-md dark:hover:bg-white dark:focus-visible:ring-blue-500 dark:focus-visible:ring-offset-blue-700"
 			on:click={handleAnonymousLogin}
 		>
 			<UserX class="h-4 w-4" />

@@ -17,7 +17,7 @@
 	}
 </script>
 
-<section class="pronto-section border-t border-white/[0.06]">
+<section class="pronto-section">
 	<h2 class="section-heading">Pronto para organizar seu fluxo?</h2>
 	<p class="pronto-lead">
 		Crie sua conta, envie seu histórico e use o mesmo ecossistema visual em fluxograma, upload e assistente.
@@ -31,6 +31,8 @@
 	.pronto-section {
 		padding: clamp(3.5rem, 8vw, 4.5rem) 1.5rem;
 		background: hsl(var(--background) / 0.92);
+		/* divisória: foreground ≈ branco no dark → mesmo valor visual de antes */
+		border-top: 1px solid hsl(var(--foreground) / 0.06);
 		text-align: center;
 		display: flex;
 		flex-direction: column;

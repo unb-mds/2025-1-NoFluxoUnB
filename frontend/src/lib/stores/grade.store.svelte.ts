@@ -180,20 +180,53 @@ function normDocente(nome: string | null | undefined): string {
 	return (nome ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
 }
 
-/** Paleta dark-mode, uma cor estável por matéria (por ordem no pool). */
+/**
+ * Uma cor estável por matéria (por ordem no pool).
+ * Light: superfície pastel (100) + faixa esquerda de 4px na cor (600) + texto
+ * escuro (900) — ≥ 8:1. Dark: mantém o preenchimento translúcido original.
+ * Amber usa 700 na faixa/ponto: o 600 fica em 3,0:1 sobre o card claro.
+ */
 export const MATERIA_CORES: ReadonlyArray<{ cell: string; dot: string; text: string }> = [
-	{ cell: 'bg-purple-500/25 border-purple-400/50', dot: 'bg-purple-400', text: 'text-purple-100' },
-	{ cell: 'bg-sky-500/25 border-sky-400/50', dot: 'bg-sky-400', text: 'text-sky-100' },
 	{
-		cell: 'bg-emerald-500/25 border-emerald-400/50',
-		dot: 'bg-emerald-400',
-		text: 'text-emerald-100'
+		cell: 'bg-purple-100 border-purple-300 border-l-4 border-l-purple-600 dark:bg-purple-500/25 dark:border-purple-400/50 dark:border-l dark:border-l-purple-400/50',
+		dot: 'bg-purple-600 dark:bg-purple-400',
+		text: 'text-purple-900 dark:text-purple-100'
 	},
-	{ cell: 'bg-amber-500/25 border-amber-400/50', dot: 'bg-amber-400', text: 'text-amber-100' },
-	{ cell: 'bg-pink-500/25 border-pink-400/50', dot: 'bg-pink-400', text: 'text-pink-100' },
-	{ cell: 'bg-cyan-500/25 border-cyan-400/50', dot: 'bg-cyan-400', text: 'text-cyan-100' },
-	{ cell: 'bg-orange-500/25 border-orange-400/50', dot: 'bg-orange-400', text: 'text-orange-100' },
-	{ cell: 'bg-teal-500/25 border-teal-400/50', dot: 'bg-teal-400', text: 'text-teal-100' }
+	{
+		cell: 'bg-sky-100 border-sky-300 border-l-4 border-l-sky-600 dark:bg-sky-500/25 dark:border-sky-400/50 dark:border-l dark:border-l-sky-400/50',
+		dot: 'bg-sky-600 dark:bg-sky-400',
+		text: 'text-sky-900 dark:text-sky-100'
+	},
+	{
+		cell: 'bg-emerald-100 border-emerald-300 border-l-4 border-l-emerald-600 dark:bg-emerald-500/25 dark:border-emerald-400/50 dark:border-l dark:border-l-emerald-400/50',
+		dot: 'bg-emerald-600 dark:bg-emerald-400',
+		text: 'text-emerald-900 dark:text-emerald-100'
+	},
+	{
+		cell: 'bg-amber-100 border-amber-300 border-l-4 border-l-amber-700 dark:bg-amber-500/25 dark:border-amber-400/50 dark:border-l dark:border-l-amber-400/50',
+		dot: 'bg-amber-700 dark:bg-amber-400',
+		text: 'text-amber-900 dark:text-amber-100'
+	},
+	{
+		cell: 'bg-pink-100 border-pink-300 border-l-4 border-l-pink-600 dark:bg-pink-500/25 dark:border-pink-400/50 dark:border-l dark:border-l-pink-400/50',
+		dot: 'bg-pink-600 dark:bg-pink-400',
+		text: 'text-pink-900 dark:text-pink-100'
+	},
+	{
+		cell: 'bg-cyan-100 border-cyan-300 border-l-4 border-l-cyan-600 dark:bg-cyan-500/25 dark:border-cyan-400/50 dark:border-l dark:border-l-cyan-400/50',
+		dot: 'bg-cyan-600 dark:bg-cyan-400',
+		text: 'text-cyan-900 dark:text-cyan-100'
+	},
+	{
+		cell: 'bg-orange-100 border-orange-300 border-l-4 border-l-orange-600 dark:bg-orange-500/25 dark:border-orange-400/50 dark:border-l dark:border-l-orange-400/50',
+		dot: 'bg-orange-600 dark:bg-orange-400',
+		text: 'text-orange-900 dark:text-orange-100'
+	},
+	{
+		cell: 'bg-teal-100 border-teal-300 border-l-4 border-l-teal-600 dark:bg-teal-500/25 dark:border-teal-400/50 dark:border-l dark:border-l-teal-400/50',
+		dot: 'bg-teal-600 dark:bg-teal-400',
+		text: 'text-teal-900 dark:text-teal-100'
+	}
 ];
 
 function novoId(): string {

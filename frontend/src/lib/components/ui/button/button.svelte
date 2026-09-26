@@ -12,9 +12,9 @@
 				destructive:
 					"border border-transparent bg-destructive text-destructive-foreground shadow-none hover:brightness-1.05 focus-visible:ring-destructive/30",
 				outline:
-					"border border-white/12 bg-card/70 text-foreground hover:border-white/18 hover:bg-card dark:bg-secondary/40 dark:hover:bg-secondary/65",
+					"border border-foreground/12 bg-card text-foreground hover:border-foreground/18 hover:bg-muted dark:bg-secondary/40 dark:hover:bg-secondary/65",
 				secondary:
-					"border border-white/10 bg-secondary text-secondary-foreground hover:bg-secondary/90",
+					"border border-foreground/10 bg-secondary text-secondary-foreground hover:bg-secondary/90",
 				ghost: "border border-transparent hover:bg-secondary/55 text-foreground",
 				link: "border-transparent text-primary underline-offset-4 hover:underline font-medium",
 			},

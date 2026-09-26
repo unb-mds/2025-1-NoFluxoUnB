@@ -66,35 +66,35 @@
 		aria-label="Resumo de progresso"
 	>
 		<span
-			class="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/40 px-3 py-1 text-white/80 backdrop-blur-md"
+			class="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-border bg-background/80 dark:bg-black/40 px-3 py-1 text-foreground/80 backdrop-blur-md"
 		>
 			{#if integralizacaoLoading}
-				<Loader2 class="h-3.5 w-3.5 shrink-0 animate-spin text-green-400" />
+				<Loader2 class="h-3.5 w-3.5 shrink-0 animate-spin text-emerald-600 dark:text-green-400" />
 			{:else}
-				<GraduationCap class="h-3.5 w-3.5 shrink-0 text-green-400" />
+				<GraduationCap class="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-green-400" />
 			{/if}
-			<span class="truncate font-semibold text-white">{progressValue}</span>
+			<span class="truncate font-semibold text-foreground">{progressValue}</span>
 			{#if progressPct != null}
-				<span class="text-white/45">· {progressPct}%</span>
+				<span class="text-muted-foreground">· {progressPct}%</span>
 			{/if}
 		</span>
 
 		{#if currentSemester != null}
 			<span
-				class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/40 px-3 py-1 text-white/80 backdrop-blur-md"
+				class="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 dark:bg-black/40 px-3 py-1 text-foreground/80 backdrop-blur-md"
 			>
-				<Calendar class="h-3.5 w-3.5 shrink-0 text-amber-400" />
-				<span class="font-semibold text-white">{currentSemester}º</span>
-				<span class="text-white/45">semestre</span>
+				<Calendar class="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+				<span class="font-semibold text-foreground">{currentSemester}º</span>
+				<span class="text-muted-foreground">semestre</span>
 			</span>
 		{/if}
 
 		{#if userFluxograma.ira != null}
 			<span
-				class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/40 px-3 py-1 text-white/80 backdrop-blur-md"
+				class="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 dark:bg-black/40 px-3 py-1 text-foreground/80 backdrop-blur-md"
 			>
-				<span class="text-white/45">IRA</span>
-				<span class="font-semibold text-white"
+				<span class="text-muted-foreground">IRA</span>
+				<span class="font-semibold text-foreground"
 					>{formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}</span
 				>
 			</span>

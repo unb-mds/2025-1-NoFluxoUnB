@@ -116,26 +116,26 @@
 			TrocarTurmaDialog.
 		-->
 		<div
-			class="relative z-10 flex max-h-[88dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0e1117] shadow-2xl"
+			class="relative z-10 flex max-h-[88dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-nofluxoLg dark:shadow-2xl"
 			transition:fly={{ y: 24, duration: 250 }}
 		>
 			<!-- Header -->
-			<div class="relative border-b border-white/8 px-6 py-5">
+			<div class="relative border-b border-border px-6 py-5">
 				<div class="flex items-center gap-3">
 					<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-pink-500/15">
-						<PartyPopper class="h-5 w-5 text-pink-400" />
+						<PartyPopper class="h-5 w-5 text-pink-700 dark:text-pink-400" />
 					</div>
 					<div>
-						<p class="text-[11px] font-semibold uppercase tracking-widest text-pink-400">
+						<p class="text-[11px] font-semibold uppercase tracking-widest text-pink-700 dark:text-pink-400">
 							Atualização
 						</p>
-						<h2 class="text-base font-semibold leading-tight text-white">{RELEASE_TITULO}</h2>
+						<h2 class="text-base font-semibold leading-tight text-foreground">{RELEASE_TITULO}</h2>
 					</div>
 				</div>
 				<button
 					type="button"
 					onclick={marcarVisto}
-					class="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-white/40 transition-colors hover:bg-white/8 hover:text-white/80"
+					class="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 					aria-label="Fechar"
 				>
 					<X class="h-4 w-4" />
@@ -147,17 +147,17 @@
 				<ul class="flex flex-col gap-3">
 					{#each RELEASE_NOVIDADES as novidade}
 						<li class="flex items-start gap-2.5">
-							<Sparkles class="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-400" />
-							<span class="text-[13.5px] leading-relaxed text-white/80">{novidade}</span>
+							<Sparkles class="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
+							<span class="text-[13.5px] leading-relaxed text-foreground/80">{novidade}</span>
 						</li>
 					{/each}
 				</ul>
 
 				{#if dadosDesatualizados}
 					<div class="mt-5 rounded-xl border border-amber-500/25 bg-amber-600/10 px-4 py-3.5">
-						<p class="text-xs leading-relaxed text-amber-200/85">
+						<p class="text-xs leading-relaxed text-amber-800 dark:text-amber-200/85">
 							Seu histórico foi enviado antes dessas melhorias. Para o fluxograma reconhecer
-							<strong class="text-amber-100">módulo livre e equivalências</strong> com os dados
+							<strong class="text-amber-900 dark:text-amber-100">módulo livre e equivalências</strong> com os dados
 							novos, reenvie o PDF do histórico: leva menos de um minuto.
 						</p>
 					</div>
@@ -167,31 +167,31 @@
 					<!-- Nota da equipe -->
 					<div class="mt-5 rounded-xl border border-purple-500/25 bg-gradient-to-br from-purple-500/10 to-pink-500/10 px-4 py-4">
 						<div class="mb-2.5 flex items-center gap-2">
-							<Heart class="h-3.5 w-3.5 shrink-0 text-pink-400" />
-							<p class="text-[11px] font-semibold uppercase tracking-widest text-pink-300">
+							<Heart class="h-3.5 w-3.5 shrink-0 text-pink-700 dark:text-pink-400" />
+							<p class="text-[11px] font-semibold uppercase tracking-widest text-pink-700 dark:text-pink-300">
 								Uma nota da equipe
 							</p>
 						</div>
-						<p class="text-xs leading-relaxed text-white/75">
+						<p class="text-xs leading-relaxed text-foreground/75">
 							{#each segmentos(RELEASE_NOTA_EQUIPE.agradecimento) as s}
 								{#if s.href}<a
 										href={s.href}
 										target="_blank"
 										rel="noopener noreferrer"
-										class="font-semibold text-pink-300 underline decoration-pink-400/50 underline-offset-2 hover:text-pink-200"
+										class="font-semibold text-pink-700 underline decoration-pink-700/50 underline-offset-2 hover:text-pink-800 dark:text-pink-300 dark:decoration-pink-400/50 dark:hover:text-pink-200"
 										>{s.valor}</a
-									>{:else if s.negrito}<strong class="text-white">{s.valor}</strong>{:else}{s.valor}{/if}
+									>{:else if s.negrito}<strong class="text-foreground">{s.valor}</strong>{:else}{s.valor}{/if}
 							{/each}
 						</p>
-						<p class="my-3 border-l-2 border-pink-400/60 pl-3 text-[13px] font-medium italic leading-relaxed text-purple-100">
+						<p class="my-3 border-l-2 border-pink-400/60 pl-3 text-[13px] font-medium italic leading-relaxed text-foreground dark:text-purple-100">
 							“{RELEASE_NOTA_EQUIPE.lema}”
 						</p>
-						<p class="text-xs leading-relaxed text-white/75">
+						<p class="text-xs leading-relaxed text-foreground/75">
 							{#each segmentos(RELEASE_NOTA_EQUIPE.corpo) as s}
-								{#if s.negrito}<strong class="text-white">{s.valor}</strong>{:else}{s.valor}{/if}
+								{#if s.negrito}<strong class="text-foreground">{s.valor}</strong>{:else}{s.valor}{/if}
 							{/each}
 						</p>
-						<p class="mt-3 text-right text-[11.5px] font-semibold text-pink-200/90">
+						<p class="mt-3 text-right text-[11.5px] font-semibold text-pink-700 dark:text-pink-200/90">
 							{RELEASE_NOTA_EQUIPE.assinatura}
 						</p>
 					</div>
@@ -201,12 +201,12 @@
 			<!-- Ações (shrink-0 + safe area: o rodapé nunca some nem fica sob a
 			     barra de gestos do iPhone) -->
 			<div
-				class="flex shrink-0 items-center justify-between gap-3 border-t border-white/8 px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+				class="flex shrink-0 items-center justify-between gap-3 border-t border-border px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
 			>
 				<button
 					type="button"
 					onclick={marcarVisto}
-					class="text-sm font-medium text-white/45 transition-colors hover:text-white/70"
+					class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground/70"
 				>
 					{dadosDesatualizados ? 'Agora não' : 'Entendi'}
 				</button>

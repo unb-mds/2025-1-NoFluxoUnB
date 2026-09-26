@@ -220,9 +220,11 @@
 			const controls = document.querySelector('.svelte-flow__controls') as HTMLElement;
 			if (controls) controls.style.display = 'none';
 
-			const canvas = await html2canvas(element, { 
+			// Fundo do PDF acompanha o tema: valor do canvas no dark, --background no light.
+			const isDark = document.documentElement.classList.contains('dark');
+			const canvas = await html2canvas(element, {
 				scale: 2,
-				backgroundColor: '#090c12',
+				backgroundColor: isDark ? '#090c12' : '#faf9fe',
 				useCORS: true,
 				logging: false
 			});
@@ -322,7 +324,7 @@
 	});
 </script>
 
-<div class="flex h-full gap-0 bg-[#090c12] text-white">
+<div class="flex h-full gap-0 bg-background text-foreground dark:bg-[#090c12]">
 	<!-- Main content (plano scroll area).
 	     No mobile a página rola normalmente: o canvas do plano tem altura limitada e
 	     captura o toque só dentro dele, então precisa sobrar página rolável em volta. -->
@@ -333,11 +335,11 @@
 		<div>
 			<div class="flex items-center gap-2.5">
 				<div class="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600/20">
-					<GraduationCap class="h-4.5 w-4.5 text-blue-400" />
+					<GraduationCap class="h-4.5 w-4.5 text-blue-700 dark:text-blue-400" />
 				</div>
-				<h1 class="text-xl font-bold tracking-tight text-white">Plano de Formatura</h1>
+				<h1 class="text-xl font-bold tracking-tight text-foreground">Plano de Formatura</h1>
 			</div>
-			<p class="mt-1.5 text-sm text-white/40">
+			<p class="mt-1.5 text-sm text-muted-foreground">
 				Sequência personalizada de matérias para você se formar.
 			</p>
 		</div>
@@ -347,7 +349,7 @@
 				type="button"
 				onclick={handleExportPDF}
 				disabled={isExporting}
-				class="flex flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white/60 transition-colors hover:border-white/20 hover:bg-white/8 hover:text-white/85 disabled:opacity-40 sm:flex-none sm:py-1.5"
+				class="flex flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-border bg-foreground/5 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-border-strong hover:bg-foreground/10 hover:text-foreground/85 disabled:opacity-40 sm:flex-none sm:py-1.5"
 			>
 				{#if isExporting}
 					<Loader2 class="h-3.5 w-3.5 animate-spin" />
@@ -360,7 +362,7 @@
 			<button
 				type="button"
 				onclick={handleAjustar}
-				class="flex flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white/60 transition-colors hover:border-white/20 hover:bg-white/8 hover:text-white/85 sm:flex-none sm:py-1.5"
+				class="flex flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-border bg-foreground/5 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-border-strong hover:bg-foreground/10 hover:text-foreground/85 sm:flex-none sm:py-1.5"
 			>
 				<Settings class="h-3.5 w-3.5" />
 				Preferências
@@ -369,7 +371,7 @@
 				type="button"
 				onclick={handleRefresh}
 				disabled={planoFormaturaStore.status === 'loading'}
-				class="flex flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white/60 transition-colors hover:border-white/20 hover:bg-white/8 hover:text-white/85 disabled:opacity-40 sm:flex-none sm:py-1.5"
+				class="flex flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-border bg-foreground/5 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-border-strong hover:bg-foreground/10 hover:text-foreground/85 disabled:opacity-40 sm:flex-none sm:py-1.5"
 			>
 				<RefreshCw class="h-3.5 w-3.5 {planoFormaturaStore.status === 'loading' ? 'animate-spin' : ''}" />
 				Atualizar
@@ -382,27 +384,27 @@
 		<div class="grid grid-cols-3 gap-2 sm:gap-3" transition:fade={{ duration: 200 }}>
 			<!-- Formatura estimada -->
 			<div class="rounded-xl border border-blue-500/20 bg-blue-600/8 px-2.5 py-2.5 sm:px-4 sm:py-3.5">
-				<p class="text-[10px] font-medium uppercase tracking-wider text-blue-400/70 sm:text-[11px]">Formatura</p>
-				<p class="mt-1 text-lg font-bold text-blue-200 sm:text-xl">
+				<p class="text-[10px] font-medium uppercase tracking-wider text-blue-700 dark:text-blue-400/70 sm:text-[11px]">Formatura</p>
+				<p class="mt-1 text-lg font-bold text-blue-900 dark:text-blue-200 sm:text-xl">
 					{planoFormaturaStore.formaturaEstimada ?? '—'}
 				</p>
-				<p class="mt-0.5 text-[10px] leading-tight text-blue-400/45">semestre previsto</p>
+				<p class="mt-0.5 text-[10px] leading-tight text-blue-800/80 dark:text-blue-400/45">semestre previsto</p>
 			</div>
 
 			<!-- Semestres restantes -->
-			<div class="rounded-xl border border-white/10 bg-white/4 px-2.5 py-2.5 sm:px-4 sm:py-3.5">
-				<p class="text-[10px] font-medium uppercase tracking-wider text-white/40 sm:text-[11px]">Semestres</p>
-				<p class="mt-1 text-lg font-bold text-white/85 sm:text-xl">
+			<div class="rounded-xl border border-border bg-muted/60 px-2.5 py-2.5 sm:px-4 sm:py-3.5">
+				<p class="text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:text-[11px]">Semestres</p>
+				<p class="mt-1 text-lg font-bold text-foreground/85 sm:text-xl">
 					{planoFormaturaStore.semestresRestantes ?? '—'}
 				</p>
-				<p class="mt-0.5 text-[10px] leading-tight text-white/30">restantes até formatura</p>
+				<p class="mt-0.5 text-[10px] leading-tight text-muted-foreground dark:text-foreground/30">restantes até formatura</p>
 			</div>
 
 			<!-- Matérias críticas -->
 			<div class="rounded-xl border border-orange-500/20 bg-orange-600/8 px-2.5 py-2.5 sm:px-4 sm:py-3.5">
-				<p class="text-[10px] font-medium uppercase tracking-wider text-orange-400/70 sm:text-[11px]">Críticas</p>
-				<p class="mt-1 text-lg font-bold text-orange-200 sm:text-xl">{totalCriticas}</p>
-				<p class="mt-0.5 text-[10px] leading-tight text-orange-400/45">matérias estratégicas</p>
+				<p class="text-[10px] font-medium uppercase tracking-wider text-orange-800 dark:text-orange-400/70 sm:text-[11px]">Críticas</p>
+				<p class="mt-1 text-lg font-bold text-orange-900 dark:text-orange-200 sm:text-xl">{totalCriticas}</p>
+				<p class="mt-0.5 text-[10px] leading-tight text-orange-800 dark:text-orange-400/45">matérias estratégicas</p>
 			</div>
 		</div>
 	{/if}
@@ -410,7 +412,7 @@
 	<!-- ─── Credit limit toggle ───────────────────────────────────────────── -->
 	<div class="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
 		<div class="flex min-w-0 flex-1 items-center gap-2 sm:flex-none sm:gap-3">
-			<span class="shrink-0 text-xs font-medium text-white/40">
+			<span class="shrink-0 text-xs font-medium text-muted-foreground">
 				<span class="hidden sm:inline">Créditos / semestre:</span>
 				<span class="sm:hidden">Créditos:</span>
 			</span>
@@ -432,10 +434,10 @@
 					disabled={isChangingCredits}
 					value={planoFormaturaStore.preferencias.limiteCreditos}
 					onchange={(e) => debouncedLimiteChange(Number((e.target as HTMLInputElement).value))}
-					class="w-12 bg-[#161625] border border-white/10 rounded px-1.5 py-0.5 text-xs font-semibold text-white/90 text-right focus:outline-none focus:ring-1 focus:ring-blue-500/50 disabled:opacity-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+					class="w-12 bg-card border border-border-strong rounded px-1.5 py-0.5 text-xs font-semibold text-foreground/90 dark:bg-[#161625] dark:border-foreground/10 text-right focus:outline-none focus:ring-1 focus:ring-blue-500/50 disabled:opacity-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 				/>
-				<span class="text-xs font-semibold tabular-nums text-white/70">
-					cr <span class="text-white/35">({planoFormaturaStore.preferencias.limiteCreditos * 15}h)</span>
+				<span class="text-xs font-semibold tabular-nums text-foreground/70">
+					cr <span class="text-muted-foreground">({planoFormaturaStore.preferencias.limiteCreditos * 15}h)</span>
 				</span>
 			</div>
 		</div>
@@ -447,8 +449,8 @@
 				onclick={() => unidadeCargaStore.set('creditos')}
 				class="touch-manipulation rounded-lg px-3 py-2 text-xs font-semibold transition-all sm:py-1.5
 					{displayUnit === 'creditos'
-						? 'border border-blue-500/60 bg-blue-600/20 text-blue-200 ring-1 ring-blue-500/30'
-						: 'border border-white/10 bg-white/4 text-white/50 hover:border-white/20 hover:bg-white/7 hover:text-white/75'}"
+						? 'border border-blue-500/60 bg-blue-600/20 text-blue-800 ring-1 ring-blue-500/30 dark:text-blue-200'
+						: 'border border-border bg-muted/60 text-muted-foreground hover:border-border-strong hover:bg-muted hover:text-foreground/75'}"
 			>
 				Créditos
 			</button>
@@ -457,8 +459,8 @@
 				onclick={() => unidadeCargaStore.set('horas')}
 				class="touch-manipulation rounded-lg px-3 py-2 text-xs font-semibold transition-all sm:py-1.5
 					{displayUnit === 'horas'
-						? 'border border-blue-500/60 bg-blue-600/20 text-blue-200 ring-1 ring-blue-500/30'
-						: 'border border-white/10 bg-white/4 text-white/50 hover:border-white/20 hover:bg-white/7 hover:text-white/75'}"
+						? 'border border-blue-500/60 bg-blue-600/20 text-blue-800 ring-1 ring-blue-500/30 dark:text-blue-200'
+						: 'border border-border bg-muted/60 text-muted-foreground hover:border-border-strong hover:bg-muted hover:text-foreground/75'}"
 			>
 				Horas
 			</button>
@@ -467,8 +469,8 @@
 
 	<!-- Restrições ativas -->
 	{#if planoFormaturaStore.restricoes.adiar.length > 0 || planoFormaturaStore.restricoes.priorizar.length > 0}
-		<div class="rounded-xl border border-white/5 bg-black/20 backdrop-blur-xl px-4 py-3 shadow-inner">
-			<p class="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">Restrições ativas</p>
+		<div class="rounded-xl border border-border bg-muted/60 backdrop-blur-xl px-4 py-3 dark:border-foreground/5 dark:bg-black/20 dark:shadow-inner">
+			<p class="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Restrições ativas</p>
 			<RestricoesChips />
 		</div>
 	{/if}
@@ -477,27 +479,27 @@
 	{#if planoFormaturaStore.status === 'loading'}
 		<div class="flex flex-1 flex-col items-center justify-center gap-3 py-16" transition:fade={{ duration: 150 }}>
 			<div class="flex h-12 w-12 items-center justify-center rounded-full border border-blue-500/30 bg-blue-600/10">
-				<Loader2 class="h-6 w-6 animate-spin text-blue-400" />
+				<Loader2 class="h-6 w-6 animate-spin text-blue-700 dark:text-blue-400" />
 			</div>
-			<p class="text-sm text-white/40">Gerando seu plano de formatura…</p>
+			<p class="text-sm text-muted-foreground">Gerando seu plano de formatura…</p>
 		</div>
 
 	<!-- ─── Error state ───────────────────────────────────────────────────── -->
 	{:else if planoFormaturaStore.status === 'error'}
 		<div class="flex flex-1 flex-col items-center justify-center gap-4 py-16" transition:fade={{ duration: 150 }}>
 			<div class="flex h-12 w-12 items-center justify-center rounded-full border border-amber-500/30 bg-amber-600/10">
-				<AlertTriangle class="h-6 w-6 text-amber-400" />
+				<AlertTriangle class="h-6 w-6 text-amber-700 dark:text-amber-400" />
 			</div>
 			<div class="text-center">
-				<p class="text-sm font-medium text-white/70">Não foi possível gerar o plano</p>
-				<p class="mt-1.5 max-w-sm text-xs text-white/35 leading-relaxed">
+				<p class="text-sm font-medium text-foreground/70">Não foi possível gerar o plano</p>
+				<p class="mt-1.5 max-w-sm text-xs text-muted-foreground leading-relaxed">
 					{planoFormaturaStore.error ?? 'Verifique se seu histórico está importado e tente novamente.'}
 				</p>
 			</div>
 			<button
 				type="button"
 				onclick={handleRefresh}
-				class="flex items-center gap-1.5 rounded-lg bg-white/8 px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/12 hover:text-white/90"
+				class="flex items-center gap-1.5 rounded-lg bg-foreground/10 px-4 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-foreground/15 hover:text-foreground/90"
 			>
 				<RefreshCw class="h-4 w-4" />
 				Tentar novamente
@@ -507,10 +509,10 @@
 	<!-- ─── Idle state ────────────────────────────────────────────────────── -->
 	{:else if planoFormaturaStore.status === 'idle'}
 		<div class="flex flex-1 flex-col items-center justify-center gap-3 py-16" transition:fade={{ duration: 150 }}>
-			<div class="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/4">
-				<GraduationCap class="h-6 w-6 text-white/40" />
+			<div class="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-muted/60">
+				<GraduationCap class="h-6 w-6 text-muted-foreground" />
 			</div>
-			<p class="text-sm text-white/40">Configurando seu plano…</p>
+			<p class="text-sm text-muted-foreground">Configurando seu plano…</p>
 		</div>
 
 	<!-- ─── Success: horizontal scroll of semester cards ──────────────────── -->
@@ -521,15 +523,15 @@
 			{#if hasOptativasPendentes}
 				{#if chOptativaNaoCoberta > 0}
 					<div class="flex flex-wrap items-center gap-2.5 rounded-xl border border-red-500/25 bg-red-600/8 px-4 py-3">
-						<AlertTriangle class="h-4 w-4 shrink-0 text-red-400" />
-						<p class="min-w-[200px] flex-1 text-xs text-red-200/80 leading-relaxed">
-							Faltam <strong class="text-red-200">{chOptativaNaoCoberta}h de optativas</strong> fora do plano.
+						<AlertTriangle class="h-4 w-4 shrink-0 text-red-700 dark:text-red-400" />
+						<p class="min-w-[200px] flex-1 text-xs text-red-900/80 leading-relaxed dark:text-red-200/80">
+							Faltam <strong class="text-red-900 dark:text-red-200">{chOptativaNaoCoberta}h de optativas</strong> fora do plano.
 							Adicione optativas para bater as horas e conseguir se formar.
 						</p>
 						<button
 							type="button"
 							onclick={() => handleChatAction(`Preciso completar ${chOptativaNaoCoberta}h de optativas para me formar. Me pergunte meus interesses dentro da minha área e sugira optativas da UnB que combinem com eles e batam essas horas.`)}
-							class="flex shrink-0 touch-manipulation items-center gap-1.5 rounded-lg border border-pink-500/30 bg-pink-500/10 px-3 py-1.5 text-xs font-medium text-pink-300 transition-colors hover:border-pink-500/50 hover:bg-pink-500/20"
+							class="flex shrink-0 touch-manipulation items-center gap-1.5 rounded-lg border border-pink-500/30 bg-pink-500/10 px-3 py-1.5 text-xs font-medium text-pink-700 transition-colors hover:border-pink-500/50 hover:bg-pink-500/20 dark:text-pink-300"
 						>
 							<Sparkles class="h-3.5 w-3.5" />
 							Escolher com o Darcy AI
@@ -537,16 +539,16 @@
 					</div>
 				{:else if chOptativaEmSlots > 0}
 					<div class="flex flex-wrap items-center gap-2.5 rounded-xl border border-amber-500/25 bg-amber-600/10 px-4 py-3">
-						<AlertTriangle class="h-4 w-4 shrink-0 text-amber-400" />
-						<p class="min-w-[200px] flex-1 text-xs text-amber-200/80 leading-relaxed">
-							Faltam <strong class="text-amber-200">{chOptativaEmSlots}h de optativas</strong> para escolher:
+						<AlertTriangle class="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400" />
+						<p class="min-w-[200px] flex-1 text-xs text-amber-900/80 leading-relaxed dark:text-amber-200/80">
+							Faltam <strong class="text-amber-900 dark:text-amber-200">{chOptativaEmSlots}h de optativas</strong> para escolher:
 							o plano reservou o espaço nos semestres, mas as matérias ainda não foram definidas.
 							Escolha com o Darcy AI para bater as horas e se formar.
 						</p>
 						<button
 							type="button"
 							onclick={() => handleChatAction(`Preciso escolher ${chOptativaEmSlots}h de optativas para completar meu plano. Me pergunte meus interesses dentro da minha área e sugira matérias optativas da UnB que combinem com eles.`)}
-							class="flex shrink-0 touch-manipulation items-center gap-1.5 rounded-lg border border-pink-500/30 bg-pink-500/10 px-3 py-1.5 text-xs font-medium text-pink-300 transition-colors hover:border-pink-500/50 hover:bg-pink-500/20"
+							class="flex shrink-0 touch-manipulation items-center gap-1.5 rounded-lg border border-pink-500/30 bg-pink-500/10 px-3 py-1.5 text-xs font-medium text-pink-700 transition-colors hover:border-pink-500/50 hover:bg-pink-500/20 dark:text-pink-300"
 						>
 							<Sparkles class="h-3.5 w-3.5" />
 							Escolher com o Darcy AI
@@ -554,15 +556,15 @@
 					</div>
 				{:else}
 					<div class="flex flex-wrap items-center gap-2.5 rounded-xl border border-emerald-500/20 bg-emerald-600/8 px-4 py-3">
-						<BookOpenCheck class="h-4 w-4 shrink-0 text-emerald-400" />
-						<p class="min-w-[200px] flex-1 text-xs text-emerald-200/70 leading-relaxed">
-							O plano cobre as matérias <strong class="text-emerald-200/90">obrigatórias</strong> e as horas de optativas
+						<BookOpenCheck class="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" />
+						<p class="min-w-[200px] flex-1 text-xs text-emerald-900/80 leading-relaxed dark:text-emerald-200/70">
+							O plano cobre as matérias <strong class="text-emerald-900 dark:text-emerald-200/90">obrigatórias</strong> e as horas de optativas
 							já estão atendidas pelas suas escolhas. Ainda dá para trocar: converse com o Darcy AI.
 						</p>
 						<button
 							type="button"
 							onclick={() => handleChatAction('Me ajude a revisar as optativas do meu plano: sugira alternativas da UnB que combinem com meus interesses.')}
-							class="flex shrink-0 touch-manipulation items-center gap-1.5 rounded-lg border border-pink-500/30 bg-pink-500/10 px-3 py-1.5 text-xs font-medium text-pink-300 transition-colors hover:border-pink-500/50 hover:bg-pink-500/20"
+							class="flex shrink-0 touch-manipulation items-center gap-1.5 rounded-lg border border-pink-500/30 bg-pink-500/10 px-3 py-1.5 text-xs font-medium text-pink-700 transition-colors hover:border-pink-500/50 hover:bg-pink-500/20 dark:text-pink-300"
 						>
 							<Sparkles class="h-3.5 w-3.5" />
 							Revisar optativas
@@ -583,8 +585,8 @@
 
 			{#if planoFormaturaStore.plano.plano.length === 0 && materiasMATR.length === 0}
 				<div class="flex flex-1 flex-col items-center justify-center gap-3 py-12 text-center">
-					<GraduationCap class="h-10 w-10 text-white/20" />
-					<p class="text-sm text-white/40">
+					<GraduationCap class="h-10 w-10 text-muted-foreground/60" />
+					<p class="text-sm text-muted-foreground">
 							Nenhum semestre no plano — você pode estar prestes a se formar!
 						</p>
 					</div>
@@ -596,7 +598,7 @@
 	<!-- Chat panel (floating fixed) -->
 	{#if isChatOpen}
 		<div 
-			class="fixed z-[100] flex flex-col bg-[#090c12]/90 sm:bg-[#090c12]/60 backdrop-blur-3xl overflow-hidden border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)] origin-bottom-right
+			class="fixed z-[100] flex flex-col bg-background/95 sm:bg-background/80 backdrop-blur-3xl overflow-hidden border border-border shadow-nofluxoLg origin-bottom-right dark:bg-[#090c12]/90 dark:sm:bg-[#090c12]/60 dark:border-foreground/10 dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)]
 				{isMobile ? 'bottom-0 left-0 right-0 w-full h-[85vh] rounded-t-3xl rounded-b-none' : 'rounded-2xl'}" 
 			style={isMobile
 				? ''
@@ -613,7 +615,7 @@
 					role="presentation"
 					title="Redimensionar"
 				>
-					<div class="absolute top-1.5 left-1.5 h-2.5 w-2.5 rounded-tl border-t-2 border-l-2 border-white/25 transition-colors group-hover/resize:border-white/60"></div>
+					<div class="absolute top-1.5 left-1.5 h-2.5 w-2.5 rounded-tl border-t-2 border-l-2 border-foreground/25 transition-colors group-hover/resize:border-foreground/60"></div>
 				</div>
 			{/if}
 			<div class="absolute top-4 right-4 z-50 flex items-center gap-1">
@@ -621,7 +623,7 @@
 					<button
 						type="button"
 						onclick={resetChat}
-						class="p-1 rounded-md text-white/40 hover:text-white/80 hover:bg-white/5 transition-colors cursor-pointer"
+						class="p-1 rounded-md text-muted-foreground hover:text-foreground/80 hover:bg-foreground/5 transition-colors cursor-pointer"
 						aria-label="Restaurar tamanho e posição"
 						title="Restaurar tamanho e posição"
 					>
@@ -630,7 +632,7 @@
 					<button
 						type="button"
 						onclick={fecharChat}
-						class="p-1 rounded-md text-white/40 hover:text-white/80 hover:bg-white/5 transition-colors cursor-pointer"
+						class="p-1 rounded-md text-muted-foreground hover:text-foreground/80 hover:bg-foreground/5 transition-colors cursor-pointer"
 						aria-label="Minimizar chat"
 						title="Minimizar chat"
 					>
@@ -640,7 +642,7 @@
 				<button
 					type="button"
 					onclick={fecharChat}
-					class="p-1 rounded-md text-white/40 hover:text-white/80 hover:bg-white/5 transition-colors cursor-pointer"
+					class="p-1 rounded-md text-muted-foreground hover:text-foreground/80 hover:bg-foreground/5 transition-colors cursor-pointer"
 					aria-label="Fechar chat"
 				>
 					<X class="h-4 w-4" />
@@ -655,13 +657,13 @@
 		<button
 			type="button"
 			onclick={() => isChatOpen = true}
-			class="fixed z-[90] flex items-center justify-center bg-[#1e1e24]/80 backdrop-blur-md shadow-[0_8px_30px_rgba(236,72,153,0.3)] transition-all duration-300 hover:bg-[#2a2a32] hover:scale-105 active:scale-95 cursor-pointer border border-pink-500/50 hover:border-pink-400
+			class="fixed z-[90] flex items-center justify-center bg-card/90 backdrop-blur-md shadow-nofluxoLg transition-all duration-300 hover:bg-muted hover:scale-105 active:scale-95 cursor-pointer border border-pink-500/50 hover:border-pink-600 dark:bg-[#1e1e24]/80 dark:shadow-[0_8px_30px_rgba(236,72,153,0.3)] dark:hover:bg-[#2a2a32] dark:hover:border-pink-400
 				{isMobile ? 'bottom-4 right-4 h-14 w-14 rounded-full' : 'bottom-6 right-6 h-12 w-12 rounded-xl'}"
 			aria-label="Toggle IA"
 			in:scale={{ start: 0.5, duration: 400, easing: backOut, delay: 100 }}
 			out:scale={{ start: 0.5, duration: 200, easing: cubicOut }}
 		>
-			<Bot class="{isMobile ? 'h-7 w-7' : 'h-6 w-6'} text-pink-400" />
+			<Bot class="{isMobile ? 'h-7 w-7' : 'h-6 w-6'} text-pink-600 dark:text-pink-400" />
 		</button>
 	{/if}
 </div>
@@ -674,10 +676,10 @@
 		background: transparent;
 	}
 	:global(.overflow-x-auto::-webkit-scrollbar-thumb) {
-		background: hsl(0 0% 100% / 0.12);
+		background: hsl(var(--foreground) / 0.12);
 		border-radius: 999px;
 	}
 	:global(.overflow-x-auto::-webkit-scrollbar-thumb:hover) {
-		background: hsl(0 0% 100% / 0.2);
+		background: hsl(var(--foreground) / 0.2);
 	}
 </style>

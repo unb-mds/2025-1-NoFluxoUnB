@@ -47,10 +47,8 @@
 		border: 1px solid hsl(var(--primary) / 0.28);
 		border-radius: 16px;
 		padding: 24px;
-		box-shadow:
-			0 0 0 1px hsl(var(--primary) / 0.12),
-			0 0 12px hsl(var(--primary) / 0.14),
-			inset 0 1px 0 hsl(255 80% 90% / 0.06);
+		/* Sombra discreta no light; glow roxo original no dark (tokens em app.css) */
+		box-shadow: var(--nf-shadow-glow);
 		transition:
 			transform 0.2s ease,
 			border-color 0.2s ease,
@@ -60,11 +58,7 @@
 	.feature-card:hover {
 		transform: translateY(-2px);
 		border-color: hsl(var(--primary) / 0.6);
-		box-shadow:
-			0 0 0 1px hsl(var(--primary) / 0.26),
-			0 0 20px hsl(var(--primary) / 0.26),
-			0 0 34px hsl(var(--primary) / 0.14),
-			inset 0 1px 0 hsl(255 80% 90% / 0.12);
+		box-shadow: var(--nf-shadow-glow-hover);
 	}
 
 	.feature-card-inner {
@@ -84,10 +78,11 @@
 		justify-content: center;
 		background: hsl(var(--primary) / 0.85);
 		border: 2px solid hsl(var(--primary) / 0.6);
-		color: hsl(0 0% 100%);
+		/* --primary-foreground é branco nos dois temas */
+		color: hsl(var(--primary-foreground));
 		box-shadow:
 			0 0 16px hsl(var(--primary) / 0.4),
-			inset 0 1px 0 hsl(0 0% 100% / 0.2);
+			inset 0 1px 0 hsl(var(--primary-foreground) / 0.2);
 	}
 
 	.feature-card-icon :global(.feature-card-icon-svg) {
@@ -95,8 +90,8 @@
 		height: 1.5rem;
 		flex-shrink: 0;
 		opacity: 1;
-		color: hsl(0 0% 100%);
-		stroke: hsl(0 0% 100%);
+		color: hsl(var(--primary-foreground));
+		stroke: hsl(var(--primary-foreground));
 	}
 
 	.feature-card-content {

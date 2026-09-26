@@ -84,7 +84,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: #0a0a0a;
+		background: hsl(var(--background));
 	}
 
 	.loading {
@@ -92,14 +92,14 @@
 	}
 
 	.loading p {
-		color: white;
+		color: hsl(var(--foreground));
 	}
 
 	.spinner {
 		width: 48px;
 		height: 48px;
-		border: 4px solid rgba(255, 255, 255, 0.1);
-		border-top-color: #6C63FF;
+		border: 4px solid hsl(var(--foreground) / 0.1);
+		border-top-color: hsl(var(--primary));
 		border-radius: 50%;
 		animation: spin 1s linear infinite;
 		margin: 0 auto 1rem;
@@ -117,12 +117,34 @@
 	}
 
 	.error h2 {
-		color: #f87171;
+		color: hsl(var(--destructive));
 		margin-bottom: 1rem;
 	}
 
 	.error p {
-		color: #d1d5db;
+		color: hsl(var(--muted-foreground));
 		margin-bottom: 1rem;
+	}
+
+	/* Dark: valores históricos (fundo preto, texto branco, spinner #6C63FF) */
+	:global(.dark) .callback-container {
+		background: #0a0a0a;
+	}
+
+	:global(.dark) .loading p {
+		color: white;
+	}
+
+	:global(.dark) .spinner {
+		border-color: rgba(255, 255, 255, 0.1);
+		border-top-color: #6c63ff;
+	}
+
+	:global(.dark) .error h2 {
+		color: #f87171;
+	}
+
+	:global(.dark) .error p {
+		color: #d1d5db;
 	}
 </style>

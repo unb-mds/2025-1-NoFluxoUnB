@@ -114,8 +114,8 @@
 		{#if $isLoading && !isPublicRoute($page.url.pathname)}
 			<div class="flex min-h-[60vh] items-center justify-center">
 				<div class="text-center">
-					<div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-white/10 border-t-purple-500"></div>
-					<p class="mt-4 text-gray-400">Carregando...</p>
+					<div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-foreground/10 border-t-primary"></div>
+					<p class="mt-4 text-muted-foreground">Carregando...</p>
 				</div>
 			</div>
 		{:else}

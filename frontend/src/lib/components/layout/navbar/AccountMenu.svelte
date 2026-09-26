@@ -44,7 +44,7 @@
 		<DropdownMenu.Trigger
 			class={cn(
 				buttonVariants({ variant: 'outline', size: 'sm' }),
-				'rounded-full border-white/14 bg-secondary/55'
+				'rounded-full border-border bg-secondary/55'
 			)}
 		>
 			Visitante
@@ -73,7 +73,7 @@
 			</Avatar.Root>
 			{#if $ticketsNaoLidas > 0}
 				<span
-					class="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#25d366] px-1 text-[10px] font-bold leading-none text-[#05240f] ring-2 ring-background"
+					class="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold leading-none text-white dark:bg-[#25d366] dark:text-[#05240f] ring-2 ring-background"
 					aria-label="{$ticketsNaoLidas} resposta{$ticketsNaoLidas > 1 ? 's' : ''} do suporte não lida{$ticketsNaoLidas > 1 ? 's' : ''}"
 				>
 					{$ticketsNaoLidas > 9 ? '9+' : $ticketsNaoLidas}
@@ -102,7 +102,7 @@
 				Suporte
 				{#if $ticketsNaoLidas > 0}
 					<span
-						class="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#25d366] px-1 text-[10px] font-bold leading-none text-[#05240f]"
+						class="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold leading-none text-white dark:bg-[#25d366] dark:text-[#05240f]"
 					>
 						{$ticketsNaoLidas > 9 ? '9+' : $ticketsNaoLidas}
 					</span>

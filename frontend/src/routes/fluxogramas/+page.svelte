@@ -170,20 +170,20 @@
 >
 	<!-- Header -->
 	<div class="mb-4 sm:mb-6">
-		<h1 class="text-xl font-bold text-white sm:text-2xl">Fluxogramas</h1>
-		<p class="text-sm text-gray-300 sm:text-base">Explore e selecione o fluxograma do seu curso.</p>
+		<h1 class="text-xl font-bold text-foreground sm:text-2xl">Fluxogramas</h1>
+		<p class="text-sm text-foreground/80 sm:text-base">Explore e selecione o fluxograma do seu curso.</p>
 	</div>
 
 	<!-- Search and Filter -->
 	<div class="mb-6 flex flex-col gap-3 sm:flex-row">
 		<div class="relative flex-1">
-			<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+			<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 			<input
 				type="text"
 				bind:value={searchQuery}
 				oninput={onSearchOrFilterChange}
 				placeholder="Buscar por nome, tipo (ex.: Bacharelado) ou turno (Diurno/Noturno)..."
-				class="w-full rounded-xl border border-white/10 bg-black/40 py-2.5 pl-10 pr-4 text-sm text-white placeholder-white/40 backdrop-blur-md outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30"
+				class="w-full rounded-xl border border-border-strong bg-card py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground backdrop-blur-md outline-none focus:border-ring/50 focus:ring-1 focus:ring-ring/30 dark:bg-background/80 dark:placeholder:text-foreground/40"
 			/>
 		</div>
 
@@ -191,11 +191,11 @@
 			<div class="flex flex-wrap gap-3">
 				{#if courseTypes.length > 0}
 					<div class="relative w-full sm:w-auto">
-						<Filter class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+						<Filter class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 						<select
 							bind:value={selectedType}
 							onchange={onSearchOrFilterChange}
-							class="w-full appearance-none rounded-xl border border-white/10 bg-black/40 py-2.5 pl-10 pr-8 text-sm text-white backdrop-blur-md outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30 sm:w-auto"
+							class="w-full appearance-none rounded-xl border border-border-strong bg-card py-2.5 pl-10 pr-8 text-sm text-foreground backdrop-blur-md outline-none focus:border-ring/50 focus:ring-1 focus:ring-ring/30 dark:bg-background/80 sm:w-auto"
 						>
 							<option value="">Todos os tipos</option>
 							{#each courseTypes as type}
@@ -207,7 +207,7 @@
 				<select
 					bind:value={selectedTurno}
 					onchange={onSearchOrFilterChange}
-					class="w-full appearance-none rounded-xl border border-white/10 bg-black/40 py-2.5 pl-4 pr-8 text-sm text-white backdrop-blur-md outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30 sm:w-auto"
+					class="w-full appearance-none rounded-xl border border-border-strong bg-card py-2.5 pl-4 pr-8 text-sm text-foreground backdrop-blur-md outline-none focus:border-ring/50 focus:ring-1 focus:ring-ring/30 dark:bg-background/80 sm:w-auto"
 				>
 					{#each turnoOptions as opt}
 						<option value={opt.value}>{opt.label}</option>
@@ -217,7 +217,7 @@
 				<select
 					bind:value={selectedStatus}
 					onchange={onSearchOrFilterChange}
-					class="w-full appearance-none rounded-xl border border-white/10 bg-black/40 py-2.5 pl-4 pr-8 text-sm text-white backdrop-blur-md outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30 sm:w-auto"
+					class="w-full appearance-none rounded-xl border border-border-strong bg-card py-2.5 pl-4 pr-8 text-sm text-foreground backdrop-blur-md outline-none focus:border-ring/50 focus:ring-1 focus:ring-ring/30 dark:bg-background/80 sm:w-auto"
 				>
 					{#each statusOptions as opt}
 						<option value={opt.value}>{opt.label}</option>
@@ -232,27 +232,27 @@
 		<!-- Loading skeleton -->
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			{#each Array(6) as _}
-				<div class="animate-pulse rounded-2xl border border-white/10 bg-black/40 p-5 backdrop-blur-md">
+				<div class="animate-pulse rounded-2xl border border-border bg-card p-5 backdrop-blur-md dark:bg-background/80">
 					<div class="mb-3 flex items-start justify-between">
-						<div class="h-10 w-10 rounded-xl bg-white/10"></div>
-						<div class="h-5 w-16 rounded-full bg-white/10"></div>
+						<div class="h-10 w-10 rounded-xl bg-foreground/10"></div>
+						<div class="h-5 w-16 rounded-full bg-foreground/10"></div>
 					</div>
-					<div class="mb-2 h-4 w-3/4 rounded bg-white/10"></div>
-					<div class="h-3 w-1/2 rounded bg-white/10"></div>
+					<div class="mb-2 h-4 w-3/4 rounded bg-foreground/10"></div>
+					<div class="h-3 w-1/2 rounded bg-foreground/10"></div>
 				</div>
 			{/each}
 		</div>
 	{:else if error}
 		<div class="rounded-2xl border border-red-500/20 bg-red-500/10 p-8 text-center backdrop-blur-md">
-			<AlertTriangle class="mx-auto mb-3 h-8 w-8 text-red-400" />
-			<h2 class="mb-2 text-lg font-semibold text-white">Erro ao carregar cursos</h2>
-			<p class="text-sm text-red-300/80">{error}</p>
+			<AlertTriangle class="mx-auto mb-3 h-8 w-8 text-red-700 dark:text-red-400" />
+			<h2 class="mb-2 text-lg font-semibold text-foreground">Erro ao carregar cursos</h2>
+			<p class="text-sm text-red-700 dark:text-red-300/80">{error}</p>
 		</div>
 	{:else if filtered.length === 0}
-		<div class="rounded-2xl border border-white/10 bg-black/40 p-8 text-center backdrop-blur-md">
-			<GraduationCap class="mx-auto mb-3 h-8 w-8 text-white/40" />
-			<h2 class="mb-2 text-lg font-semibold text-white">Nenhum curso encontrado</h2>
-			<p class="text-sm text-white/50">Tente alterar os filtros de busca.</p>
+		<div class="rounded-2xl border border-border bg-card p-8 text-center backdrop-blur-md dark:bg-background/80">
+			<GraduationCap class="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+			<h2 class="mb-2 text-lg font-semibold text-foreground">Nenhum curso encontrado</h2>
+			<p class="text-sm text-muted-foreground">Tente alterar os filtros de busca.</p>
 		</div>
 	{:else}
 		<!-- Course grid -->
@@ -268,18 +268,18 @@
 				<button
 					onclick={() => (currentPage = Math.max(1, currentPage - 1))}
 					disabled={currentPage <= 1}
-					class="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-black/40 text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+					class="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground disabled:opacity-30 dark:bg-background/80 dark:hover:bg-foreground/10 disabled:cursor-not-allowed"
 				>
 					<ChevronLeft class="h-4 w-4" />
 				</button>
 
 				{#each paginationItems as item, idx}
 					{#if item === 'ellipsis'}
-						<span class="flex h-9 w-6 items-center justify-center text-white/40">…</span>
+						<span class="flex h-9 w-6 items-center justify-center text-muted-foreground">…</span>
 					{:else}
 						<button
 							onclick={() => (currentPage = item)}
-							class="flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-medium transition-colors {currentPage === item ? 'border-purple-500/50 bg-purple-500/20 text-purple-300' : 'border-white/10 bg-black/40 text-white/50 hover:bg-white/10 hover:text-white'}"
+							class="flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-medium transition-colors {currentPage === item ? 'border-primary/50 bg-primary/20 text-accent-foreground dark:text-purple-300' : 'border-border bg-card text-muted-foreground hover:bg-foreground/10 hover:text-foreground dark:bg-background/80 dark:hover:bg-foreground/10'}"
 						>
 							{item}
 						</button>
@@ -289,14 +289,14 @@
 				<button
 					onclick={() => (currentPage = Math.min(totalPages, currentPage + 1))}
 					disabled={currentPage >= totalPages}
-					class="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-black/40 text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+					class="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground disabled:opacity-30 dark:bg-background/80 dark:hover:bg-foreground/10 disabled:cursor-not-allowed"
 				>
 					<ChevronRight class="h-4 w-4" />
 				</button>
 			</div>
 		{/if}
 
-		<p class="mt-3 text-center text-xs text-white/40">
+		<p class="mt-3 text-center text-xs text-muted-foreground">
 			Mostrando {(currentPage - 1) * perPage + 1}–{Math.min(currentPage * perPage, filtered.length)} de {filtered.length} curso{filtered.length !== 1 ? 's' : ''}
 		</p>
 	{/if}

@@ -189,18 +189,19 @@
 </main>
 
 <style>
+	/* Página de dev: usa só tokens do tema (funciona no light e no dark). */
 	.wrap {
 		max-width: 720px;
 		margin: 2rem auto;
 		padding: 0 1.5rem;
 		font-family: system-ui, -apple-system, sans-serif;
-		color: #222;
+		color: hsl(var(--foreground));
 	}
 	h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
 	h2 { font-size: 1.1rem; margin-top: 2rem; margin-bottom: 0.75rem; }
 	.warn {
-		background: #fff7ed;
-		border-left: 4px solid #f59e0b;
+		background: rgba(245, 158, 11, 0.12);
+		border-left: 4px solid #d97706;
 		padding: 0.5rem 0.75rem;
 		font-size: 0.9rem;
 		border-radius: 4px;
@@ -216,14 +217,15 @@
 	.preset {
 		text-align: left;
 		padding: 0.75rem;
-		border: 1px solid #ddd;
+		border: 1px solid hsl(var(--border));
 		border-radius: 6px;
-		background: #fafafa;
+		background: hsl(var(--card));
+		color: hsl(var(--foreground));
 		cursor: pointer;
 	}
-	.preset:hover { border-color: #6b46c1; background: #f3eefb; }
+	.preset:hover { border-color: hsl(var(--primary)); background: hsl(var(--accent)); }
 	.preset strong { display: block; margin-bottom: 0.25rem; }
-	.preset span { font-size: 0.8rem; color: #555; }
+	.preset span { font-size: 0.8rem; color: hsl(var(--muted-foreground)); }
 	label {
 		display: block;
 		margin: 0.5rem 0;
@@ -239,24 +241,27 @@
 		width: 100%;
 		padding: 0.4rem 0.5rem;
 		font-size: 0.95rem;
-		border: 1px solid #ccc;
+		border: 1px solid hsl(var(--border-strong));
 		border-radius: 4px;
 		margin-top: 0.2rem;
+		background: hsl(var(--input));
+		color: hsl(var(--foreground));
 	}
 	.actions { margin-top: 1rem; display: flex; gap: 0.75rem; }
 	button.primary {
-		background: #6b46c1;
-		color: white;
+		background: hsl(var(--primary));
+		color: hsl(var(--primary-foreground));
 		border: none;
 		padding: 0.6rem 1.2rem;
 		font-weight: 600;
 		border-radius: 4px;
 		cursor: pointer;
 	}
-	button.primary:hover { background: #553099; }
+	button.primary:hover { background: hsl(var(--accent-foreground)); }
 	button:not(.primary):not(.preset) {
-		background: white;
-		border: 1px solid #ccc;
+		background: hsl(var(--card));
+		color: hsl(var(--foreground));
+		border: 1px solid hsl(var(--border-strong));
 		padding: 0.6rem 1.2rem;
 		border-radius: 4px;
 		cursor: pointer;
@@ -264,14 +269,14 @@
 	.status {
 		margin-top: 1rem;
 		padding: 0.5rem 0.75rem;
-		background: #ecfdf5;
-		border-left: 4px solid #10b981;
+		background: rgba(16, 185, 129, 0.12);
+		border-left: 4px solid #059669;
 		border-radius: 4px;
 		font-size: 0.9rem;
 	}
 	.docs ul { font-size: 0.9rem; line-height: 1.5; padding-left: 1.25rem; }
 	code {
-		background: #f4f4f5;
+		background: hsl(var(--muted));
 		padding: 0.1rem 0.3rem;
 		border-radius: 3px;
 		font-size: 0.85em;

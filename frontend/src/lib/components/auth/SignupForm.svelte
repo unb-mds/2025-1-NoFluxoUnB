@@ -123,7 +123,7 @@
 </script>
 
 <form onsubmit={handleSignup} class="w-full" novalidate>
-	<h2 class="mb-6 text-center text-[28px] font-bold text-blue-600">Criar Conta</h2>
+	<h2 class="mb-6 text-center text-[28px] font-bold text-primary dark:text-blue-600">Criar Conta</h2>
 
 	{#if success}
 		<div class="auth-success flex items-center gap-3">
@@ -140,8 +140,8 @@
 
 		<!-- Name -->
 		<div class="mb-4">
-			<label for="signup-name" class="mb-1.5 block text-sm font-medium text-gray-700">
-				Nome Completo <span class="text-red-400">*</span>
+			<label for="signup-name" class="mb-1.5 block text-sm font-medium text-foreground/80 dark:text-gray-700">
+				Nome Completo <span class="text-red-600 dark:text-red-400">*</span>
 			</label>
 			<input
 				type="text"
@@ -155,14 +155,14 @@
 				disabled={submitting}
 			/>
 			{#if nameTouched && nameError}
-				<p class="mt-1 text-xs text-red-500">{nameError}</p>
+				<p class="mt-1 text-xs text-red-700 dark:text-red-500">{nameError}</p>
 			{/if}
 		</div>
 
 		<!-- Email -->
 		<div class="mb-4">
-			<label for="signup-email" class="mb-1.5 block text-sm font-medium text-gray-700">
-				Email <span class="text-red-400">*</span>
+			<label for="signup-email" class="mb-1.5 block text-sm font-medium text-foreground/80 dark:text-gray-700">
+				Email <span class="text-red-600 dark:text-red-400">*</span>
 			</label>
 			<input
 				type="email"
@@ -176,14 +176,14 @@
 				disabled={submitting}
 			/>
 			{#if emailTouched && emailError}
-				<p class="mt-1 text-xs text-red-500">{emailError}</p>
+				<p class="mt-1 text-xs text-red-700 dark:text-red-500">{emailError}</p>
 			{/if}
 		</div>
 
 		<!-- Password -->
 		<div class="mb-2">
-			<label for="signup-password" class="mb-1.5 block text-sm font-medium text-gray-700">
-				Senha <span class="text-red-400">*</span>
+			<label for="signup-password" class="mb-1.5 block text-sm font-medium text-foreground/80 dark:text-gray-700">
+				Senha <span class="text-red-600 dark:text-red-400">*</span>
 			</label>
 			<div class="relative">
 				<input
@@ -203,9 +203,9 @@
 					aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
 				>
 					{#if showPassword}
-						<EyeOff class="h-5 w-5 text-gray-400" />
+						<EyeOff class="h-5 w-5 text-muted-foreground dark:text-gray-400" />
 					{:else}
-						<Eye class="h-5 w-5 text-gray-400" />
+						<Eye class="h-5 w-5 text-muted-foreground dark:text-gray-400" />
 					{/if}
 				</button>
 			</div>
@@ -213,17 +213,17 @@
 
 		<!-- Password strength indicators -->
 		{#if password.length > 0}
-			<div class="mb-4 rounded-xl bg-gray-50 px-4 py-3">
-				<p class="mb-2 text-xs font-medium text-gray-500">Requisitos da senha:</p>
+			<div class="mb-4 rounded-xl bg-muted px-4 py-3">
+				<p class="mb-2 text-xs font-medium text-muted-foreground">Requisitos da senha:</p>
 				<ul class="space-y-1">
 					{#each pwChecks as check}
 						<li class="flex items-center gap-2 text-xs">
 							{#if check.met}
-								<CheckCircle class="h-3.5 w-3.5 text-emerald-500" />
+								<CheckCircle class="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-500" />
 								<span class="text-emerald-700">{check.label}</span>
 							{:else}
-								<Circle class="h-3.5 w-3.5 text-gray-300" />
-								<span class="text-gray-400">{check.label}</span>
+								<Circle class="h-3.5 w-3.5 text-border-strong" />
+								<span class="text-muted-foreground dark:text-gray-400">{check.label}</span>
 							{/if}
 						</li>
 					{/each}
@@ -233,8 +233,8 @@
 
 		<!-- Confirm password -->
 		<div class="mb-4">
-			<label for="signup-confirm" class="mb-1.5 block text-sm font-medium text-gray-700">
-				Confirmar Senha <span class="text-red-400">*</span>
+			<label for="signup-confirm" class="mb-1.5 block text-sm font-medium text-foreground/80 dark:text-gray-700">
+				Confirmar Senha <span class="text-red-600 dark:text-red-400">*</span>
 			</label>
 			<div class="relative">
 				<input
@@ -256,24 +256,24 @@
 					aria-label={showConfirm ? 'Ocultar senha' : 'Mostrar senha'}
 				>
 					{#if showConfirm}
-						<EyeOff class="h-5 w-5 text-gray-400" />
+						<EyeOff class="h-5 w-5 text-muted-foreground dark:text-gray-400" />
 					{:else}
-						<Eye class="h-5 w-5 text-gray-400" />
+						<Eye class="h-5 w-5 text-muted-foreground dark:text-gray-400" />
 					{/if}
 				</button>
 			</div>
 			{#if confirmTouched && confirmError}
-				<p class="mt-1 text-xs text-red-500">{confirmError}</p>
+				<p class="mt-1 text-xs text-red-700 dark:text-red-500">{confirmError}</p>
 			{/if}
 		</div>
 
 		<!-- Terms checkbox -->
-		<label class="mb-5 flex items-start gap-2.5 cursor-pointer select-none text-sm text-gray-600">
+		<label class="mb-5 flex items-start gap-2.5 cursor-pointer select-none text-sm text-muted-foreground dark:text-gray-600">
 			<input
 				type="checkbox"
 				bind:checked={acceptTerms}
 				disabled={submitting}
-				class="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 accent-blue-600"
+				class="mt-0.5 h-4 w-4 rounded border-border-strong text-primary accent-primary dark:text-blue-600 dark:accent-blue-600"
 			/>
 			<span>
 				Li e aceito os
@@ -287,7 +287,7 @@
 		{#if missingRequirements.length > 0 && (nameTouched || emailTouched || passwordTouched)}
 			<div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
 				<p class="mb-1 text-xs font-semibold text-amber-700">Falta preencher:</p>
-				<ul class="list-disc pl-4 text-xs text-amber-600">
+				<ul class="list-disc pl-4 text-xs text-amber-800 dark:text-amber-600">
 					{#each missingRequirements as req}
 						<li>{req}</li>
 					{/each}
@@ -310,7 +310,7 @@
 		</button>
 
 		<!-- Divider -->
-		<div class="divider">
+		<div class="auth-divider">
 			<span>ou</span>
 		</div>
 
@@ -326,7 +326,7 @@
 		</button>
 
 		<!-- Link to login -->
-		<p class="mt-6 text-center text-sm text-gray-500">
+		<p class="mt-6 text-center text-sm text-muted-foreground">
 			Já tem uma conta?
 			<a href="/login" class="auth-link font-medium">Entrar</a>
 		</p>
@@ -339,25 +339,5 @@
 		align-items: center;
 		justify-content: center;
 		gap: 0.5rem;
-	}
-
-	.divider {
-		display: flex;
-		align-items: center;
-		margin: 1.25rem 0;
-	}
-
-	.divider::before,
-	.divider::after {
-		content: '';
-		flex: 1;
-		height: 1px;
-		background: #e5e7eb;
-	}
-
-	.divider span {
-		padding: 0 1rem;
-		color: #9ca3af;
-		font-size: 0.875rem;
 	}
 </style>

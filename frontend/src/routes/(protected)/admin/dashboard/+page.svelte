@@ -438,12 +438,12 @@
 				</p>
 			{:else if security.ultimo_status === 'ok'}
 				<h2 class="card-title">
-					<ShieldCheck class="h-4 w-4 text-emerald-500" /> Segurança das chaves
+					<ShieldCheck class="h-4 w-4 text-emerald-700 dark:text-emerald-500" /> Segurança das chaves
 				</h2>
 				<div class="ticket-grid">
 					<div class="ticket-block">
 						<span class="block-title">Último scan</span>
-						<span class="block-big text-emerald-500">Limpo</span>
+						<span class="block-big text-emerald-700 dark:text-emerald-500">Limpo</span>
 						<span class="block-sub">
 							{fmtDate(security.ultimo_scan_em)} · {security.ultimo_tipo === 'schedule'
 								? 'diário'

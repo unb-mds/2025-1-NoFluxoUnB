@@ -27,8 +27,8 @@
 		disabled={busy}
 		onclick={() => vagaAssinaturasStore.toggle(turma.id_materia, turma.turma, turma.ano_periodo)}
 		class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-medium transition-colors disabled:opacity-50 {seguindo
-			? 'border-purple-300/45 bg-purple-500/18 text-purple-100 hover:bg-purple-500/25'
-			: 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10'}"
+			? 'border-primary/45 bg-primary/15 text-accent-foreground hover:bg-primary/25'
+			: 'border-border bg-muted/60 text-muted-foreground hover:bg-muted'}"
 	>
 		{#if busy}
 			<Loader2 class="h-3 w-3 animate-spin" />
