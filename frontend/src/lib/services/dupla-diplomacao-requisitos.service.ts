@@ -4,7 +4,9 @@
  *
  * Regras (ver docs/unb-domain.md#dupla-diplomação--requisitos e
  * docs/dupla-diplomacao-plano.md):
- * - Ser provável formando no curso atual (heurística: ≥90% da CH total já integralizada).
+ * - Ser provável formando no curso atual: estar matriculado (status MATR) nas
+ *   disciplinas que faltam para completar 100% da CH exigida do curso atual —
+ *   ou seja, se concluir tudo que está cursando agora, a integralização chega a 100%.
  * - Integralizar ≥ 70% da CH do curso pretendido, via X = (T - P) / (T - C - E).
  * - IRA ≥ 3,0.
  * - CH optativa considerada é limitada ao exigido no curso pretendido.
@@ -17,14 +19,12 @@
 import { supabaseDataService } from '$lib/services/supabase-data.service';
 import type { IntegralizacaoResult } from '$lib/types/matriz';
 import type { DadosFluxogramaUser } from '$lib/types/user';
+import { isMateriaCurrent } from '$lib/types/user';
 import type { MateriaModel } from '$lib/types/materia';
 import { getChEstagioObrigatorio, getCodigosEstagioObrigatorio } from '$lib/utils/estagio-obrigatorio';
 
 /** IRA mínimo exigido para dupla diplomação. */
 export const IRA_MINIMO_DUPLA_DIPLOMACAO = 3.0;
-
-/** % mínimo de integralização do curso atual para ser considerado "provável formando". */
-export const PCT_MINIMO_PROVAVEL_FORMANDO = 0.9;
 
 /** % mínimo de integralização do curso pretendido (fórmula X) exigido para dupla diplomação. */
 export const PCT_MINIMO_INTEGRALIZACAO_DUPLA = 0.7;
@@ -33,8 +33,12 @@ export type AvaliacaoFormandoOrigem = {
 	podeAvaliar: boolean;
 	horasIntegralizadas: number;
 	chTotalExigidaOrigem: number;
-	/** 0–1. null se não há base para concluir (ex.: sem matriz de origem). */
-	pctIntegralizacaoOrigem: number | null;
+	/** CH que falta para chegar a 100% da CH exigida do curso atual (0 se já integralizou tudo). */
+	chFaltanteOrigem: number;
+	/** CH das disciplinas atualmente matriculadas (status MATR) casadas com a grade do curso atual. */
+	chMatriculadaAtual: number;
+	/** 0–1+. Hipotético: quanto seria integralizado se concluísse as matriculadas atuais. null se não há base para concluir (ex.: sem matriz de origem). */
+	pctIntegralizacaoSeConcluir: number | null;
 	atendeProvavelFormando: boolean | null;
 };
 
@@ -145,7 +149,9 @@ async function avaliarFormandoOrigem(dadosFluxograma: DadosFluxogramaUser): Prom
 		podeAvaliar: false,
 		horasIntegralizadas: dadosFluxograma.horasIntegralizadas ?? 0,
 		chTotalExigidaOrigem: 0,
-		pctIntegralizacaoOrigem: null,
+		chFaltanteOrigem: 0,
+		chMatriculadaAtual: 0,
+		pctIntegralizacaoSeConcluir: null,
 		atendeProvavelFormando: null
 	};
 
@@ -158,14 +164,35 @@ async function avaliarFormandoOrigem(dadosFluxograma: DadosFluxogramaUser): Prom
 		if (!matrizOrigem || chTotalExigidaOrigem <= 0) return semBase;
 
 		const horasIntegralizadas = dadosFluxograma.horasIntegralizadas ?? 0;
-		const pct = horasIntegralizadas / chTotalExigidaOrigem;
+		const gradeOrigem = await supabaseDataService.getGradeByMatriz(matrizOrigem.idMatriz);
+		const chPorCodigo = new Map<string, number>();
+		for (const item of gradeOrigem) {
+			const codigo = String(item.codigoMateria ?? '').trim().toUpperCase();
+			if (!codigo) continue;
+			chPorCodigo.set(codigo, Math.max(0, Number(item.cargaHoraria) || 0));
+		}
+
+		let chMatriculadaAtual = 0;
+		for (const semestre of dadosFluxograma.dadosFluxograma ?? []) {
+			for (const materia of semestre) {
+				if (!isMateriaCurrent(materia)) continue;
+				const codigo = String(materia.codigoMateria ?? '').trim().toUpperCase();
+				const chGrade = chPorCodigo.get(codigo);
+				chMatriculadaAtual += chGrade ?? Math.max(0, (Number(materia.creditos) || 0) * 15);
+			}
+		}
+
+		const chFaltanteOrigem = Math.max(0, chTotalExigidaOrigem - horasIntegralizadas);
+		const pctIntegralizacaoSeConcluir = (horasIntegralizadas + chMatriculadaAtual) / chTotalExigidaOrigem;
 
 		return {
 			podeAvaliar: true,
 			horasIntegralizadas,
 			chTotalExigidaOrigem,
-			pctIntegralizacaoOrigem: pct,
-			atendeProvavelFormando: pct >= PCT_MINIMO_PROVAVEL_FORMANDO
+			chFaltanteOrigem,
+			chMatriculadaAtual,
+			pctIntegralizacaoSeConcluir,
+			atendeProvavelFormando: chMatriculadaAtual >= chFaltanteOrigem
 		};
 	} catch {
 		return semBase;

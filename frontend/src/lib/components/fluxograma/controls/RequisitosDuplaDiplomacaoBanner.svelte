@@ -75,9 +75,11 @@
 					<div>
 						<p class="font-medium text-[13px] text-white/90">Provável formando · curso atual</p>
 						<p class="mt-1 text-[11px] leading-relaxed text-white/62">
-							É preciso já ter integralizado <span class="text-white/80">pelo menos 90%</span> da CH total do
-							<span class="text-white/80">curso atual</span> para ser considerado(a) provável formando no semestre
-							corrente. Confira a data de referência oficial da coordenação.
+							É preciso estar <span class="text-white/80">matriculado(a)</span> nas disciplinas que faltam para
+							completar <span class="text-white/80">100%</span> da CH total do <span class="text-white/80"
+								>curso atual</span
+							> — ou seja, ao concluir o que está cursando agora, a integralização chegaria a 100%. Confira a data de
+							referência oficial da coordenação.
 						</p>
 					</div>
 				</div>
@@ -87,15 +89,15 @@
 						<p
 							class="mt-2 rounded-md border border-emerald-400/25 bg-black/25 px-2 py-1.5 text-[11px] font-medium text-emerald-200/95"
 						>
-							Indicativo: <strong>{pctFmt(avaliacao.formando.pctIntegralizacaoOrigem)}</strong> da CH do curso atual
-							integralizada — atende ao mínimo de 90%.
+							Indicativo: <strong>{pctFmt(avaliacao.formando.pctIntegralizacaoSeConcluir)}</strong> da CH do curso atual
+							seria integralizada ao concluir as disciplinas matriculadas — atinge os 100%.
 						</p>
 					{:else}
 						<p
 							class="mt-2 rounded-md border border-amber-400/25 bg-black/25 px-2 py-1.5 text-[11px] font-medium text-amber-100/92"
 						>
-							Indicativo: <strong>{pctFmt(avaliacao.formando.pctIntegralizacaoOrigem)}</strong> da CH do curso atual
-							integralizada — abaixo do mínimo de 90%.
+							Indicativo: <strong>{pctFmt(avaliacao.formando.pctIntegralizacaoSeConcluir)}</strong> da CH do curso atual
+							seria integralizada ao concluir as disciplinas matriculadas — não atinge os 100%.
 						</p>
 					{/if}
 				{:else}

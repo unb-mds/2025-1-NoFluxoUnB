@@ -50,7 +50,9 @@ Onde:
 Exemplo: T=3840, P=3450, C=300, E=300 → X = 390/3240 = 12,03%
 
 ## Dupla Diplomação — requisitos
-- Ser provável formando no semestre corrente
+- Ser provável formando no curso atual: estar matriculado (status MATR) nas disciplinas
+  que faltam para completar 100% da CH exigida do curso atual — isto é, se o aluno
+  concluir tudo que está cursando agora, sua integralização chega a 100%.
 - Integralizar ≥ 70% da CH do curso pretendido (usando fórmula acima, excluindo estágios e complementares)
 - IRA ≥ 3,0
 - Não ter ingressado no curso atual por dupla diplomação

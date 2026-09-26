@@ -6,7 +6,8 @@ Status: planejado, não implementado. Branch de trabalho: `modulo_dupla_diplomac
 
 Regras de negócio já documentadas em [`unb-domain.md`](./unb-domain.md#dupla-diplomação--requisitos):
 
-- Ser provável formando no semestre corrente.
+- Ser provável formando no curso atual: estar matriculado (status MATR) nas
+  disciplinas que faltam para completar 100% da CH exigida do curso atual.
 - Integralizar ≥ 70% da CH do curso pretendido, pela fórmula oficial `X = (T - P) / (T - C - E)`,
   onde `T` = CH total exigida, `P` = CH total pendente, `C` = CH complementar exigida,
   `E` = CH de disciplinas obrigatórias de estágio (geralmente a disciplina se chama 'ESTAGIO SUPERVISIONADO' ,	'ESTÁGIO SUPERVISIONADO 1 ou 2', etc.. e é considerado uma disciplina obrigatória).
@@ -52,7 +53,10 @@ o que muda:
    - Aplica gate de IRA: `atendeIra: dadosFluxograma.ira >= 3.0`.
    - Aplica gate "é provável formando": ver item 3.
    - Retorna um objeto `AvaliacaoDuplaDiplomacao` agregando os três gates + `elegivel: boolean`.
-3. **Heurística/critério de "provável formando".** Para ser provável formando, é necessário ter no mínimo, 90% do curso atual feito.
+3. **Heurística/critério de "provável formando".** Para ser provável formando, o aluno
+   precisa estar matriculado (status `MATR`) nas disciplinas que faltam para completar
+   100% da CH exigida do curso atual — ou seja, `chMatriculadaAtual >= chFaltanteOrigem`,
+   onde `chFaltanteOrigem = chTotalExigidaOrigem - horasIntegralizadas`.
 4. **Checagem "não ingressou por dupla diplomação antes".** Não precisa implementar, deixa a critério do aluno checar.
 5. **Teto de optativa = exigido no destino.** Pequeno ajuste no cálculo de `P`/`realizado.chOptativa` usado pelo serviço novo: `min(realizado.chOptativa, exigido.chOptativa)` — não mexe em `integralizacao.service.ts` genérico (usado por troca de curso), o clamp fica local ao serviço de dupla diplomação.
 6. **UI**:
