@@ -8,6 +8,7 @@
 	import { A11Y_OPTIONS } from './a11y-options';
 	import A11ySwitch from './A11ySwitch.svelte';
 	import { cn } from '$lib/utils';
+	import NavTooltip from '$lib/components/layout/navbar/NavTooltip.svelte';
 
 	interface Props {
 		/** Botão menor (size-9) para barras compactas. */
@@ -43,7 +44,9 @@
 	</section>
 {:else}
 	<DropdownMenu.Root>
-		<DropdownMenu.Trigger>
+		<NavTooltip label={$a11yActiveCount > 0 ? `Acessibilidade · ${$a11yActiveCount} ${$a11yActiveCount === 1 ? 'ativa' : 'ativas'}` : 'Acessibilidade'}>
+		{#snippet children(tip)}
+		<DropdownMenu.Trigger {...tip}>
 			{#snippet child({ props })}
 				<Button
 					{...props}
@@ -66,6 +69,8 @@
 				</Button>
 			{/snippet}
 		</DropdownMenu.Trigger>
+		{/snippet}
+		</NavTooltip>
 		<DropdownMenu.Content {align} class="w-64">
 			<DropdownMenu.Label>Acessibilidade</DropdownMenu.Label>
 			<DropdownMenu.Separator />

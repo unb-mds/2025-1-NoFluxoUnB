@@ -5,6 +5,7 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { theme, type Theme } from '$lib/stores/theme';
 	import { cn } from '$lib/utils';
+	import NavTooltip from './NavTooltip.svelte';
 
 	interface Props {
 		/** Botão menor (size-9) para barras compactas. */
@@ -25,6 +26,8 @@
 		{ value: 'dark', label: 'Escuro', icon: Moon },
 		{ value: 'system', label: 'Sistema', icon: Monitor }
 	];
+
+	const currentLabel = $derived(options.find((o) => o.value === $theme)?.label ?? 'Escuro');
 
 	function choose(value: Theme) {
 		if (value === 'system') theme.setSystem();
@@ -58,7 +61,9 @@
 	</div>
 {:else}
 	<DropdownMenu.Root>
-		<DropdownMenu.Trigger>
+		<NavTooltip label={`Tema: ${currentLabel}`}>
+		{#snippet children(tip)}
+		<DropdownMenu.Trigger {...tip}>
 			{#snippet child({ props })}
 				<Button
 					{...props}
@@ -76,6 +81,8 @@
 				</Button>
 			{/snippet}
 		</DropdownMenu.Trigger>
+		{/snippet}
+		</NavTooltip>
 		<DropdownMenu.Content {align} class="min-w-[9rem]">
 			{#each options as opt (opt.value)}
 				{@const Icon = opt.icon}

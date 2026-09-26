@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Avatar from '$lib/components/ui/avatar';
+	import NavTooltip from './NavTooltip.svelte';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import { cn } from '$lib/utils';
 	import { createSupabaseBrowserClient } from '$lib/supabase/client';
@@ -41,7 +42,10 @@
 
 {#if isAnonymous}
 	<DropdownMenu.Root>
+		<NavTooltip label="Você está navegando como visitante">
+		{#snippet children(tip)}
 		<DropdownMenu.Trigger
+			{...tip}
 			class={cn(
 				buttonVariants({ variant: 'outline', size: 'sm' }),
 				'rounded-full border-border bg-secondary/55'
@@ -49,6 +53,8 @@
 		>
 			Visitante
 		</DropdownMenu.Trigger>
+		{/snippet}
+		</NavTooltip>
 		<DropdownMenu.Content class="w-56" align="end">
 			<DropdownMenu.Label class="font-normal text-muted-foreground">
 				Modo anônimo — algumas funções limitadas
@@ -62,7 +68,10 @@
 	</DropdownMenu.Root>
 {:else}
 	<DropdownMenu.Root>
+		<NavTooltip label={user?.nomeCompleto ? `Minha conta · ${user.nomeCompleto}` : 'Minha conta'}>
+		{#snippet children(tip)}
 		<DropdownMenu.Trigger
+			{...tip}
 			class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-none bg-transparent p-0 transition-opacity hover:opacity-90"
 			aria-label="Menu da conta"
 		>
@@ -80,6 +89,8 @@
 				</span>
 			{/if}
 		</DropdownMenu.Trigger>
+		{/snippet}
+		</NavTooltip>
 		<DropdownMenu.Content class="w-56" align="end">
 			<DropdownMenu.Label class="font-normal">
 				<div class="flex flex-col space-y-1">
