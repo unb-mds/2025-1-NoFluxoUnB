@@ -7,6 +7,7 @@
 	import { X, LifeBuoy, LogOut, GitBranch, BookOpen, ShieldCheck } from 'lucide-svelte';
 	import { ticketsNaoLidas } from '$lib/stores/ticketsNaoLidas';
 	import ModeToggle from './ModeToggle.svelte';
+	import A11yMenu from '$lib/components/a11y/A11yMenu.svelte';
 	import { type NavEntry, isEntryActive, isLinkActive } from './nav-config';
 	import type { UserModel } from '$lib/types';
 
@@ -55,6 +56,7 @@
 
 			<!-- Tema: segmentado (sem portal) porque o drawer fica em z-index 9999, acima do popover. -->
 			<ModeToggle layout="segmented" class="mb-3" />
+			<A11yMenu layout="list" class="mb-4" />
 
 			{#if isAuthenticated}
 				<div class="mb-4 border-b border-border pb-4">

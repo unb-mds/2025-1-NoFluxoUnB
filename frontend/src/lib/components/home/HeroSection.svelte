@@ -62,7 +62,7 @@
 				</div>
 				<h2 class="hero-info-card-title">
 					<span class="text-foreground">Consultar como</span>{' '}
-					<span class="text-primary">visitante</span>
+					<span class="text-primary dark:text-purple-500">visitante</span>
 				</h2>
 				<p class="hero-info-card-body">
 					Explore fluxogramas de qualquer curso da UnB sem fazer login. Faça a sua consulta rápida sem cadastro.
@@ -79,7 +79,7 @@
 				</div>
 				<h2 class="hero-info-card-title">
 					<span class="text-foreground">Recursos</span>{' '}
-					<span class="text-primary">exclusivos com login</span>
+					<span class="text-primary dark:text-purple-500">exclusivos com login</span>
 				</h2>
 				<p class="hero-info-card-body">
 					Faça upload do histórico em PDF, ganhe sugestões com IA e salve seu progresso em um só lugar.

@@ -445,20 +445,31 @@
 		margin-top: 0.75rem;
 	}
 
+	/* WCAG 2.5.8: alvo de 24px; o ponto visível de 8px é desenhado por dentro. */
 	.dot {
-		width: 8px;
-		height: 8px;
+		position: relative;
+		width: 24px;
+		height: 24px;
 		border-radius: 999px;
 		border: none;
 		cursor: pointer;
+		background: transparent;
+		padding: 0;
+	}
+
+	.dot::before {
+		content: '';
+		position: absolute;
+		inset: 8px;
+		border-radius: 999px;
 		background: hsl(var(--foreground) / 0.5);
 	}
 
-	:global(.dark) .dot {
+	:global(.dark) .dot::before {
 		background: hsl(var(--foreground) / 0.35);
 	}
 
-	.dot.active {
+	.dot.active::before {
 		background: hsl(var(--foreground));
 	}
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { MateriaModel } from '$lib/types/materia';
+	import { getStatusLabel } from '$lib/types/materia';
 	import {
 		SubjectStatusEnum,
 		canBeTaken,
@@ -377,7 +378,10 @@
 	ontouchend={handleTouchEnd}
 	ontouchcancel={handleTouchCancel}
 	tabindex="0"
+	aria-label={`${materia.codigoMateria} ${materia.nomeMateria}, ${materia.creditos} créditos, ${getStatusLabel(status)}`}
 >
+	<!-- WCAG 1.4.1: o status não pode depender só da cor — texto para leitores de tela. -->
+	<span class="sr-only">Status: {getStatusLabel(status)}</span>
 	<div class="mb-1 flex shrink-0 items-center justify-between gap-1">
 		<span class="text-[length:clamp(11px,5.8cqw,13.5px)] font-semibold uppercase tracking-wider opacity-100">
 			{materia.codigoMateria}

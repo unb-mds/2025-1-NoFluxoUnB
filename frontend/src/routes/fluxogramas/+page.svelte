@@ -193,6 +193,7 @@
 					<div class="relative w-full sm:w-auto">
 						<Filter class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 						<select
+							aria-label="Filtrar por tipo de curso"
 							bind:value={selectedType}
 							onchange={onSearchOrFilterChange}
 							class="w-full appearance-none rounded-xl border border-border-strong bg-card py-2.5 pl-10 pr-8 text-sm text-foreground backdrop-blur-md outline-none focus:border-ring/50 focus:ring-1 focus:ring-ring/30 dark:bg-background/80 sm:w-auto"
@@ -205,6 +206,7 @@
 					</div>
 				{/if}
 				<select
+					aria-label="Filtrar por turno"
 					bind:value={selectedTurno}
 					onchange={onSearchOrFilterChange}
 					class="w-full appearance-none rounded-xl border border-border-strong bg-card py-2.5 pl-4 pr-8 text-sm text-foreground backdrop-blur-md outline-none focus:border-ring/50 focus:ring-1 focus:ring-ring/30 dark:bg-background/80 sm:w-auto"
@@ -215,6 +217,7 @@
 				</select>
 				
 				<select
+					aria-label="Filtrar por situação da matriz"
 					bind:value={selectedStatus}
 					onchange={onSearchOrFilterChange}
 					class="w-full appearance-none rounded-xl border border-border-strong bg-card py-2.5 pl-4 pr-8 text-sm text-foreground backdrop-blur-md outline-none focus:border-ring/50 focus:ring-1 focus:ring-ring/30 dark:bg-background/80 sm:w-auto"
@@ -268,6 +271,7 @@
 				<button
 					onclick={() => (currentPage = Math.max(1, currentPage - 1))}
 					disabled={currentPage <= 1}
+					aria-label="Página anterior"
 					class="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground disabled:opacity-30 dark:bg-background/80 dark:hover:bg-foreground/10 disabled:cursor-not-allowed"
 				>
 					<ChevronLeft class="h-4 w-4" />
@@ -279,6 +283,8 @@
 					{:else}
 						<button
 							onclick={() => (currentPage = item)}
+							aria-label={`Página ${item}`}
+							aria-current={currentPage === item ? 'page' : undefined}
 							class="flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-medium transition-colors {currentPage === item ? 'border-primary/50 bg-primary/20 text-accent-foreground dark:text-purple-300' : 'border-border bg-card text-muted-foreground hover:bg-foreground/10 hover:text-foreground dark:bg-background/80 dark:hover:bg-foreground/10'}"
 						>
 							{item}
@@ -289,6 +295,7 @@
 				<button
 					onclick={() => (currentPage = Math.min(totalPages, currentPage + 1))}
 					disabled={currentPage >= totalPages}
+					aria-label="Próxima página"
 					class="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground disabled:opacity-30 dark:bg-background/80 dark:hover:bg-foreground/10 disabled:cursor-not-allowed"
 				>
 					<ChevronRight class="h-4 w-4" />

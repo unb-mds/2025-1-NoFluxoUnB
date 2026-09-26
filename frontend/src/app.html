@@ -24,13 +24,36 @@
 				var color = resolved === 'dark' ? '#09090b' : '#faf9fe';
 				var metas = document.querySelectorAll('meta[name="theme-color"][media]');
 				for (var i = 0; i < metas.length; i++) metas[i].setAttribute('content', color);
+
+				// Preferências de acessibilidade (mesmo algoritmo de src/lib/stores/a11y.ts):
+				// classes no <html> antes do primeiro paint para não piscar.
+				var a11yClass = {
+					highContrast: 'a11y-high-contrast',
+					largeText: 'a11y-large-text',
+					readableFont: 'a11y-readable-font',
+					reducedMotion: 'a11y-reduced-motion',
+					focusBold: 'a11y-focus-bold'
+				};
+				var prefs = null;
+				try {
+					var rawA11y = localStorage.getItem('nofluxo_a11y');
+					if (rawA11y) prefs = JSON.parse(rawA11y);
+				} catch (e) {
+					/* sem storage ou JSON inválido — padrão */
+				}
+				if (!prefs || typeof prefs !== 'object') {
+					prefs = { reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches };
+				}
+				for (var key in a11yClass) {
+					if (prefs[key] === true) root.classList.add(a11yClass[key]);
+				}
 			})();
 		</script>
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
 		<meta name="description" content="NoFluxo UNB - Organize seu fluxograma acadêmico de forma fácil" />
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Permanent+Marker&family=Poppins:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Permanent+Marker&family=Poppins:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/favicon.svg" />

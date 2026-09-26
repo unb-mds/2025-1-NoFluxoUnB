@@ -17,7 +17,12 @@
 
 {#each entries as entry}
 	{#if entry.kind === 'link'}
-		<a href={entry.href} class={linkClass} class:active={isEntryActive(entry, pathname)}>
+		<a
+			href={entry.href}
+			class={linkClass}
+			class:active={isEntryActive(entry, pathname)}
+			aria-current={isEntryActive(entry, pathname) ? 'page' : undefined}
+		>
 			{entry.label}
 		</a>
 	{:else}

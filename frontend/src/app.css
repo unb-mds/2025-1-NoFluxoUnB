@@ -504,5 +504,171 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 /* Card branco legado no dark: a linha já resolve para gray-200 via --border do .auth-card;
    o texto mantém o gray-400 histórico (muted-foreground do card é gray-500). */
 :where(.dark) .auth-divider span {
-	color: #9ca3af;
+	/* gray-500: o gray-400 histórico dava 2,5:1 sobre o card branco (WCAG 1.4.3 exige 4,5:1). */
+	color: #6b7280;
+}
+
+/* ============================================================================
+ * Acessibilidade (WCAG 2.2) — classes aplicadas no <html> pela store
+ * src/lib/stores/a11y.ts (e antes do primeiro paint pelo script de app.html).
+ *
+ * Princípio: o alto contraste SOBRESCREVE OS TOKENS, então todo componente que
+ * usa tokens já o respeita. Nada aqui pinta componente por componente.
+ * ========================================================================== */
+@layer base {
+	/* --- Alto contraste, tema claro: preto no branco, roxo profundo como ação ------------ */
+	html.a11y-high-contrast {
+		--background: 0 0% 100%;
+		--foreground: 0 0% 0%;
+		--card: 0 0% 100%;
+		--card-foreground: 0 0% 0%;
+		--popover: 0 0% 100%;
+		--popover-foreground: 0 0% 0%;
+		--primary: 258 100% 33%;
+		--primary-foreground: 0 0% 100%;
+		--secondary: 0 0% 94%;
+		--secondary-foreground: 0 0% 0%;
+		--muted: 0 0% 94%;
+		--muted-foreground: 0 0% 20%;
+		--accent: 258 100% 94%;
+		--accent-foreground: 258 100% 25%;
+		--destructive: 0 100% 32%;
+		--destructive-foreground: 0 0% 100%;
+		--border: 0 0% 0%;
+		--input: 0 0% 0%;
+		--border-strong: 0 0% 0%;
+		--ring: 258 100% 33%;
+		--ai: 258 100% 28%;
+		--ai-soft: 258 100% 94%;
+		--nf-shadow-card: 0 0 0 1px hsl(var(--foreground));
+		--nf-shadow-card-lg: 0 0 0 2px hsl(var(--foreground));
+		--nf-shadow-pill: 0 0 0 1px hsl(var(--foreground));
+		--nf-shadow-glow: 0 0 0 1px hsl(var(--foreground));
+		--nf-shadow-glow-hover: 0 0 0 2px hsl(var(--foreground));
+		--edge-prereq: #3b0ca3;
+		--edge-dep: #004d40;
+		--edge-coreq: #00593d;
+		--chain-pre: #004d40;
+		--chain-desc: #8a2e00;
+		--chain-core: #1e1b93;
+	}
+
+	/* --- Alto contraste, tema escuro: branco no preto, amarelo como ação (padrão de SO) --- */
+	html.dark.a11y-high-contrast {
+		--background: 0 0% 0%;
+		--foreground: 0 0% 100%;
+		--card: 0 0% 0%;
+		--card-foreground: 0 0% 100%;
+		--popover: 0 0% 0%;
+		--popover-foreground: 0 0% 100%;
+		--primary: 55 100% 50%;
+		--primary-foreground: 0 0% 0%;
+		--secondary: 0 0% 12%;
+		--secondary-foreground: 0 0% 100%;
+		--muted: 0 0% 12%;
+		--muted-foreground: 0 0% 85%;
+		--accent: 55 100% 14%;
+		--accent-foreground: 55 100% 75%;
+		--destructive: 0 100% 70%;
+		--destructive-foreground: 0 0% 0%;
+		--border: 0 0% 100%;
+		--input: 0 0% 100%;
+		--border-strong: 0 0% 100%;
+		--ring: 55 100% 50%;
+		--ai: 55 100% 70%;
+		--ai-soft: 55 100% 12%;
+		--nf-shadow-card: 0 0 0 1px hsl(var(--foreground));
+		--nf-shadow-card-lg: 0 0 0 2px hsl(var(--foreground));
+		--nf-shadow-pill: 0 0 0 1px hsl(var(--foreground));
+		--nf-shadow-glow: 0 0 0 1px hsl(var(--foreground));
+		--nf-shadow-glow-hover: 0 0 0 2px hsl(var(--foreground));
+		--edge-prereq: #ffe94d;
+		--edge-dep: #5eead4;
+		--edge-coreq: #6ee7b7;
+		--chain-pre: #5eead4;
+		--chain-desc: #fdba74;
+		--chain-core: #a5b4fc;
+	}
+
+	/* Vidro, transparências e brilhos deixam de existir no alto contraste. */
+	html.a11y-high-contrast .nf-glass-header,
+	html.a11y-high-contrast .nf-glass-header-floating,
+	html.a11y-high-contrast .navbar-glass {
+		background: hsl(var(--background));
+		backdrop-filter: none;
+		-webkit-backdrop-filter: none;
+	}
+	/* Brilhos decorativos do fundo somem: fundo liso é parte do contraste máximo. */
+	html.a11y-high-contrast .nofluxo-bg {
+		display: none;
+	}
+	html.a11y-high-contrast a:not([class*='btn']):not([role='menuitem']) {
+		text-decoration: underline;
+		text-underline-offset: 0.15em;
+	}
+	html.a11y-high-contrast * {
+		text-shadow: none !important;
+	}
+
+	/* --- Texto ampliado: tudo que usa rem cresce 12,5% ---------------------------------- */
+	html.a11y-large-text {
+		font-size: 112.5%;
+	}
+
+	/* --- Fonte de leitura facilitada (Lexend); preserva logotipo, código e ícones ---------- */
+	html.a11y-readable-font :where(body, body *):not(svg, svg *, code, kbd, pre, samp, .font-mono, .nf-wordmark-noflx, .nf-wordmark-unb) {
+		font-family: 'Lexend', Inter, system-ui, sans-serif !important;
+		letter-spacing: 0.01em;
+	}
+
+	/* --- Redução de movimento: preferência do sistema E interruptor manual ---------------- */
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		*::before,
+		*::after {
+			animation-duration: 0.001ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 0.001ms !important;
+			scroll-behavior: auto !important;
+		}
+	}
+	html.a11y-reduced-motion *,
+	html.a11y-reduced-motion *::before,
+	html.a11y-reduced-motion *::after {
+		animation: none !important;
+		transition: none !important;
+		scroll-behavior: auto !important;
+	}
+
+	/* --- Foco reforçado (2.4.7 / 2.4.13): anel grosso com halo, sempre visível ----------- */
+	html.a11y-focus-bold :focus-visible {
+		outline: 3px solid hsl(var(--ring)) !important;
+		outline-offset: 3px !important;
+		box-shadow: 0 0 0 6px hsl(var(--ring) / 0.3) !important;
+		border-radius: 4px;
+	}
+}
+
+@layer utilities {
+	/* Skip link (2.4.1): fora da tela até receber foco. */
+	.skip-link {
+		position: fixed;
+		top: 0.75rem;
+		left: 0.75rem;
+		z-index: 10000;
+		transform: translateY(-200%);
+		padding: 0.6rem 1rem;
+		border-radius: 0.5rem;
+		background: hsl(var(--primary));
+		color: hsl(var(--primary-foreground));
+		font-weight: 600;
+		font-size: 0.9rem;
+		box-shadow: 0 0 0 3px hsl(var(--background)), 0 0 0 5px hsl(var(--ring));
+		transition: transform 150ms ease;
+	}
+	.skip-link:focus,
+	.skip-link:focus-visible {
+		transform: translateY(0);
+		outline: none;
+	}
 }

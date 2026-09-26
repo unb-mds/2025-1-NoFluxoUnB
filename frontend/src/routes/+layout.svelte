@@ -2,8 +2,10 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
-	import { goto } from '$app/navigation';
+	import { goto, afterNavigate } from '$app/navigation';
 	import { authStore, isLoading, currentUser, isAuthenticated, isAnonymous } from '$lib/stores/auth';
+	// Importar a store já aplica as classes de acessibilidade no <html> e as mantém em dia.
+	import '$lib/stores/a11y';
 	import { authService } from '$lib/services/auth.service';
 	import { checkAuth, isPublicRoute } from '$lib/guards/authGuard';
 	import { isAuthRoute } from '$lib/config/routes';
@@ -51,6 +53,17 @@
 		!$page.url.pathname.startsWith('/conheca')
 	);
 
+	// WCAG 2.4.3: em navegação SPA o foco vai para o conteúdo principal, não fica perdido no
+	// link clicado. Só depois da primeira navegação (na carga inicial o foco fica no documento).
+	let firstNavigation = true;
+	afterNavigate(() => {
+		if (firstNavigation) {
+			firstNavigation = false;
+			return;
+		}
+		requestAnimationFrame(() => document.getElementById('main-content')?.focus({ preventScroll: true }));
+	});
+
 	// Watch for route changes and verify auth
 	$effect(() => {
 		if (browser && $page.url.pathname) {
@@ -93,6 +106,9 @@
 	<title>NoFluxo UNB</title>
 </svelte:head>
 
+<!-- WCAG 2.4.1: primeiro elemento focável da página; só aparece ao receber foco. -->
+<a href="#main-content" class="skip-link">Pular para o conteúdo</a>
+
 <LoadingBar />
 <PageTransition />
 
@@ -110,7 +126,7 @@
 		</div>
 	{/if}
 
-	<main class="flex-1">
+	<main id="main-content" tabindex="-1" class="flex-1 outline-none">
 		{#if $isLoading && !isPublicRoute($page.url.pathname)}
 			<div class="flex min-h-[60vh] items-center justify-center">
 				<div class="text-center">

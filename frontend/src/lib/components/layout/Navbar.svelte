@@ -12,6 +12,7 @@
 	import NotificationsMenu from './navbar/NotificationsMenu.svelte';
 	import MobileDrawer from './navbar/MobileDrawer.svelte';
 	import ModeToggle from './navbar/ModeToggle.svelte';
+	import A11yMenu from '$lib/components/a11y/A11yMenu.svelte';
 	import { buildNavEntries, isLinkActive } from './navbar/nav-config';
 	import type { UserModel } from '$lib/types';
 
@@ -104,6 +105,7 @@
 				class="flex min-w-0 flex-1 items-center justify-end lg:flex-initial lg:justify-end lg:gap-1"
 			>
 				<div class="hidden items-center gap-1.5 lg:flex">
+					<A11yMenu />
 					<ModeToggle />
 					{#if isAuthenticated}
 						<div class="flex items-center gap-1.5">
@@ -138,6 +140,7 @@
 				{#if isAuthenticated}
 					<NavItems {entries} {pathname} linkClass={navDesktopClass} />
 					<div class="flex items-center gap-1.5">
+						<A11yMenu />
 						<ModeToggle />
 						{#if !isAnonymous}
 							<NotificationsMenu />
@@ -160,6 +163,7 @@
 						Disciplinas
 					</a>
 					<a href={ROUTES.LOGIN} class={navDesktopClass}>Entrar</a>
+					<A11yMenu />
 					<ModeToggle />
 					<Button href={ROUTES.SIGNUP} size="sm" class="ml-1 rounded-full px-6 font-semibold"
 						>Criar conta</Button

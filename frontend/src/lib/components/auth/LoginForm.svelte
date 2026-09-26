@@ -136,7 +136,7 @@
 
 	<!-- Error banner (inclui mensagem vinda do ?error= na URL — D5 Vini) -->
 	{#if localError || $authError || queryError}
-		<div class="auth-error" data-testid="login-error">
+		<div class="auth-error" data-testid="login-error" role="alert">
 			<AlertTriangle class="h-5 w-5 shrink-0 text-amber-600" />
 			<span>{localError || $authError || queryError}</span>
 		</div>
@@ -150,13 +150,16 @@
 			id="login-email"
 			class="auth-input"
 			class:border-red-400={emailTouched && emailError}
+			aria-invalid={emailTouched && !!emailError}
+			aria-describedby={emailTouched && emailError ? 'login-email-error' : undefined}
+			autocomplete="email"
 			bind:value={email}
 			onblur={() => (emailTouched = true)}
 			placeholder="seu@email.com"
 			disabled={submitting}
 		/>
 		{#if emailTouched && emailError}
-			<p class="mt-1 text-xs text-red-700 dark:text-red-500">{emailError}</p>
+			<p id="login-email-error" class="mt-1 text-xs text-red-700 dark:text-red-500" aria-live="polite">{emailError}</p>
 		{/if}
 	</div>
 
@@ -168,6 +171,7 @@
 				type={showPassword ? 'text' : 'password'}
 				id="login-password"
 				class="auth-input pr-12"
+				autocomplete="current-password"
 				bind:value={password}
 				onblur={() => (passwordTouched = true)}
 				placeholder="••••••••"

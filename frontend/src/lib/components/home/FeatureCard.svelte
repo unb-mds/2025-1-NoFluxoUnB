@@ -115,6 +115,11 @@
 		color: hsl(var(--primary));
 	}
 
+	/* WCAG 1.4.3: o --primary do dark dá 4,24:1 sobre o card; purple-500 passa de 4,5. */
+	:global(.dark) .feature-card-title :global(.title-accent) {
+		color: #a855f7;
+	}
+
 	.feature-card-desc {
 		margin: 0;
 		font-size: 13px;
