@@ -11,6 +11,7 @@
 	import AccountMenu from './navbar/AccountMenu.svelte';
 	import NotificationsMenu from './navbar/NotificationsMenu.svelte';
 	import MobileDrawer from './navbar/MobileDrawer.svelte';
+	import ModeToggle from './navbar/ModeToggle.svelte';
 	import { buildNavEntries, isLinkActive } from './navbar/nav-config';
 	import type { UserModel } from '$lib/types';
 
@@ -47,7 +48,7 @@
 
 	const navDesktopClass = $derived(
 		variant === 'floating'
-			? 'nav-link nav-link-premium text-[11px] font-semibold uppercase tracking-[0.08em] text-white/92 lg:text-xs'
+			? 'nav-link nav-link-premium text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground/90 lg:text-xs'
 			: 'nav-link text-sm font-medium text-foreground/90 lg:text-[15px]'
 	);
 </script>
@@ -102,7 +103,8 @@
 			<div
 				class="flex min-w-0 flex-1 items-center justify-end lg:flex-initial lg:justify-end lg:gap-1"
 			>
-				<div class="hidden items-center lg:flex">
+				<div class="hidden items-center gap-1.5 lg:flex">
+					<ModeToggle />
 					{#if isAuthenticated}
 						<div class="flex items-center gap-1.5">
 							{#if !isAnonymous}
@@ -136,6 +138,7 @@
 				{#if isAuthenticated}
 					<NavItems {entries} {pathname} linkClass={navDesktopClass} />
 					<div class="flex items-center gap-1.5">
+						<ModeToggle />
 						{#if !isAnonymous}
 							<NotificationsMenu />
 						{/if}
@@ -157,6 +160,7 @@
 						Disciplinas
 					</a>
 					<a href={ROUTES.LOGIN} class={navDesktopClass}>Entrar</a>
+					<ModeToggle />
 					<Button href={ROUTES.SIGNUP} size="sm" class="ml-1 rounded-full px-6 font-semibold"
 						>Criar conta</Button
 					>
@@ -200,6 +204,13 @@
 		border-radius: 999px;
 		/* Mobile: pílula mais baixa — o espaço vertical é do fluxograma */
 		padding: 4px 20px;
+		/* Light: sombra discreta; .dark mantém o valor histórico */
+		box-shadow:
+			0 0 0 1px hsl(var(--primary) / 0.12),
+			0 8px 32px hsl(var(--foreground) / 0.08);
+	}
+
+	:global(.dark) header.navbar-floating-pill {
 		box-shadow:
 			0 0 0 1px hsl(var(--primary) / 0.12),
 			0 8px 32px hsl(0 0% 0% / 0.4);

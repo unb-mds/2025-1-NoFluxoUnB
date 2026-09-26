@@ -1,16 +1,38 @@
 <!doctype html>
-<html lang="pt-BR" class="dark">
+<html lang="pt-BR">
 	<head>
 		<meta charset="utf-8" />
-		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9fe" />
+		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#09090b" />
+		<script>
+			// Aplica o tema ANTES do primeiro paint (evita flash). Padrão sem preferência salva: dark.
+			// Mantido em sincronia com src/lib/stores/theme.ts.
+			(function () {
+				var root = document.documentElement;
+				var resolved = 'dark';
+				try {
+					var stored = localStorage.getItem('theme');
+					var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+					if (stored === 'light' || stored === 'dark') resolved = stored;
+					else if (stored === 'system') resolved = prefersDark ? 'dark' : 'light';
+				} catch (e) {
+					/* localStorage indisponível (modo privado/iframe) — fica no padrão */
+				}
+				root.classList.remove('light', 'dark');
+				root.classList.add(resolved);
+				var color = resolved === 'dark' ? '#09090b' : '#faf9fe';
+				var metas = document.querySelectorAll('meta[name="theme-color"][media]');
+				for (var i = 0; i < metas.length; i++) metas[i].setAttribute('content', color);
+			})();
+		</script>
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
 		<meta name="description" content="NoFluxo UNB - Organize seu fluxograma acadêmico de forma fácil" />
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Permanent+Marker&family=Poppins:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-		<meta name="theme-color" content="#09090b" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
-		<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/favicon.svg" />
 		%sveltekit.head%
 	</head>

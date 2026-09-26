@@ -6,6 +6,7 @@
 	import { ROUTES } from '$lib/config/routes';
 	import { X, LifeBuoy, LogOut, GitBranch, BookOpen, ShieldCheck } from 'lucide-svelte';
 	import { ticketsNaoLidas } from '$lib/stores/ticketsNaoLidas';
+	import ModeToggle from './ModeToggle.svelte';
 	import { type NavEntry, isEntryActive, isLinkActive } from './nav-config';
 	import type { UserModel } from '$lib/types';
 
@@ -52,8 +53,11 @@
 				</button>
 			</div>
 
+			<!-- Tema: segmentado (sem portal) porque o drawer fica em z-index 9999, acima do popover. -->
+			<ModeToggle layout="segmented" class="mb-3" />
+
 			{#if isAuthenticated}
-				<div class="mb-4 border-b border-white/10 pb-4">
+				<div class="mb-4 border-b border-border pb-4">
 					{#if isAnonymous}
 						<p class="text-lg font-semibold text-foreground">Visitante</p>
 						<p class="text-sm text-muted-foreground">Modo anônimo</p>
@@ -89,7 +93,7 @@
 								<span>{child.label}</span>
 								{#if child.badge}
 									<span
-										class="ml-auto rounded-full border border-purple-300/40 bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-medium text-purple-200"
+										class="ml-auto rounded-full border border-accent-foreground/40 bg-accent px-1.5 py-0.5 text-[10px] font-medium text-accent-foreground"
 									>
 										{child.badge}
 									</span>
@@ -99,7 +103,7 @@
 					{/if}
 				{/each}
 
-				<hr class="my-3 border-white/10" />
+				<hr class="my-3 border-border" />
 
 				{#if !isAnonymous}
 					<a
@@ -112,7 +116,7 @@
 						<span>Suporte</span>
 						{#if $ticketsNaoLidas > 0}
 							<span
-								class="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#25d366] px-1 text-[10px] font-bold leading-none text-[#05240f]"
+								class="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold leading-none text-white dark:bg-[#25d366] dark:text-[#05240f]"
 							>
 								{$ticketsNaoLidas > 9 ? '9+' : $ticketsNaoLidas}
 							</span>
@@ -135,13 +139,13 @@
 				{#if isAnonymous}
 					<button
 						onclick={() => { authStore.clear(); onClose(); goto(ROUTES.LOGIN); }}
-						class="mobile-nav-item text-amber-400"
+						class="mobile-nav-item text-amber-700 dark:text-amber-400"
 					>
 						<LogOut class="h-5 w-5" />
 						<span>Entrar / Criar conta</span>
 					</button>
 				{:else}
-					<button onclick={() => { onLogout(); onClose(); }} class="mobile-nav-item text-red-400">
+					<button onclick={() => { onLogout(); onClose(); }} class="mobile-nav-item text-destructive dark:text-red-400">
 						<LogOut class="h-5 w-5" />
 						<span>Sair</span>
 					</button>
@@ -165,7 +169,7 @@
 					<BookOpen class="h-5 w-5" />
 					<span>Disciplinas</span>
 				</a>
-				<hr class="my-3 border-white/10" />
+				<hr class="my-3 border-border" />
 				<a href={ROUTES.LOGIN} class="mobile-nav-item" onclick={onClose}>Entrar</a>
 				<Button href={ROUTES.SIGNUP} class="mt-2 w-full rounded-full" onclick={onClose}>
 					Criar conta
@@ -173,7 +177,7 @@
 			{/if}
 		</div>
 
-		<div class="mt-auto border-t border-white/10 p-4 text-center text-xs text-muted-foreground">
+		<div class="mt-auto border-t border-border p-4 text-center text-xs text-muted-foreground">
 			NoFluxo UNB © {new Date().getFullYear()}
 		</div>
 	</div>
@@ -193,9 +197,14 @@
 		padding-bottom: env(safe-area-inset-bottom, 0px);
 		padding-top: env(safe-area-inset-top, 0px);
 		background: hsl(var(--card) / 0.97);
-		border-left: 1px solid hsl(0 0% 100% / 0.08);
-		box-shadow: -16px 0 48px hsl(0 0% 0% / 0.4);
+		border-left: 1px solid hsl(var(--border));
+		/* Light: sombra discreta; .dark mantém o valor histórico */
+		box-shadow: -16px 0 48px hsl(var(--foreground) / 0.12);
 		animation: slideIn 200ms ease-out;
+	}
+
+	:global(.dark) .mobile-drawer-portal {
+		box-shadow: -16px 0 48px hsl(0 0% 0% / 0.4);
 	}
 
 	@keyframes slideIn {
@@ -226,7 +235,7 @@
 	}
 
 	.mobile-nav-item:hover {
-		background: hsl(0 0% 100% / 0.06);
+		background: hsl(var(--foreground) / 0.06);
 	}
 
 	.mobile-nav-item.active {
@@ -261,7 +270,7 @@
 		width: 36px;
 		border-radius: 9999px;
 		border: none;
-		background: hsl(0 0% 100% / 0.06);
+		background: hsl(var(--foreground) / 0.06);
 		color: hsl(var(--muted-foreground));
 		cursor: pointer;
 		transition:
@@ -270,7 +279,7 @@
 	}
 
 	.mobile-close-btn:hover {
-		background: hsl(0 0% 100% / 0.1);
+		background: hsl(var(--foreground) / 0.1);
 		color: hsl(var(--foreground));
 	}
 </style>

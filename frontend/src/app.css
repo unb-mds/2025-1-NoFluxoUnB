@@ -3,39 +3,61 @@
 @config '../tailwind.config.ts';
 
 /**
- * Tokens NoFluxo — dark premium (preto + roxo + lilás IA).
- * :root mantém valores para telas claras herdadas (auth legado).
+ * Tokens NoFluxo.
+ * :root  = tema claro (paleta B: neutros lilás, roxo #6d3ae6).
+ * .dark  = tema escuro premium (preto + roxo + lilás IA) — referência visual; não alterar.
+ * A classe é aplicada em app.html (script inline) e mantida por stores/theme.ts.
  */
 @layer base {
 	:root {
-		--background: 0 0% 100%;
-		--foreground: 222.2 84% 4.9%;
+		color-scheme: light;
+		--background: 255 71% 99%;
+		--foreground: 260 24% 10%;
 		--card: 0 0% 100%;
-		--card-foreground: 222.2 84% 4.9%;
+		--card-foreground: 260 24% 10%;
 		--popover: 0 0% 100%;
-		--popover-foreground: 222.2 84% 4.9%;
-		--primary: 262 83% 53%;
+		--popover-foreground: 260 24% 10%;
+		--primary: 258 77% 56%;
 		--primary-foreground: 0 0% 100%;
-		--secondary: 210 40% 96.1%;
-		--secondary-foreground: 222.2 47.4% 11.2%;
-		--muted: 210 40% 96.1%;
-		--muted-foreground: 215.4 16.3% 46.9%;
-		--accent: 210 40% 96.1%;
-		--accent-foreground: 222.2 47.4% 11.2%;
-		--destructive: 0 84.2% 60.2%;
-		--destructive-foreground: 210 40% 98%;
-		--border: 214.3 31.8% 91.4%;
-		--input: 214.3 31.8% 91.4%;
-		--ring: 262 83% 58%;
+		--secondary: 258 33% 96%;
+		--secondary-foreground: 260 24% 10%;
+		--muted: 258 33% 96%;
+		--muted-foreground: 258 12% 41%;
+		--accent: 258 100% 96%;
+		--accent-foreground: 258 63% 50%;
+		--destructive: 0 72% 45%;
+		--destructive-foreground: 0 0% 100%;
+		--border: 258 35% 91%;
+		--input: 258 35% 91%;
+		/* Borda "forte" — inputs/controles que precisam de ≥ 3:1 sobre o fundo */
+		--border-strong: 258 15% 58%;
+		--ring: 258 77% 56%;
 		--radius: 0.625rem;
 		--radius-lg: 14px;
 		--spacing-section: clamp(3rem, 6vw, 4.5rem);
-		/* IA — lilás (texto/accent suave), tint de fundo */
-		--ai: 267 92% 78%;
-		--ai-soft: 268 42% 18%;
+		/* IA — roxo escuro legível sobre claro; tint de fundo lilás */
+		--ai: 258 63% 50%;
+		--ai-soft: 258 100% 96%;
+		/* Sombra de card (shadow-nofluxo/-Lg): discreta no light, ≤ 0,06 de opacidade */
+		--nf-shadow-card: 0 1px 2px hsl(var(--foreground) / 0.04), 0 4px 16px hsl(var(--foreground) / 0.06);
+		--nf-shadow-card-lg: 0 8px 28px hsl(var(--foreground) / 0.08);
+		/* Pill/chip (hero-info-card-pill, specialties-list li): anel primary + sombra 1px */
+		--nf-shadow-pill: 0 0 0 1px hsl(var(--primary) / 0.1), 0 1px 2px hsl(var(--foreground) / 0.04);
+		/* Card com glow (hero-info-card, feature-card): sombra discreta no light; no .dark vira o glow roxo original */
+		--nf-shadow-glow: 0 1px 2px hsl(var(--foreground) / 0.04), 0 8px 24px hsl(var(--primary) / 0.06), inset 0 1px 0 hsl(var(--foreground) / 0.06);
+		--nf-shadow-glow-hover: 0 2px 6px hsl(var(--foreground) / 0.06), 0 12px 32px hsl(var(--primary) / 0.12), inset 0 1px 0 hsl(var(--foreground) / 0.08);
+		/* Linhas do fluxograma (SVG) + legenda: tons 600 para ≥ 3:1 sobre o fundo claro.
+		   No .dark valem os hex históricos (CHAIN_VISUAL em utils/curriculum-graph.ts). */
+		--edge-prereq: #7c3aed;
+		--edge-dep: #0f766e;
+		--edge-coreq: #047857;
+		--chain-pre: #0f766e;
+		--chain-desc: #c2410c;
+		--chain-core: #4f46e5;
 	}
 
 	.dark {
+		color-scheme: dark;
 		--background: 240 12% 2.4%;
 		--foreground: 240 6% 97%;
 		--card: 240 11% 6.8%;
@@ -54,9 +76,24 @@
 		--destructive-foreground: 0 0% 98%;
 		--border: 240 8% 16%;
 		--input: 240 9% 15%;
+		--border-strong: 240 8% 26%;
 		--ring: 270 91% 62%;
 		--ai: 267 92% 78%;
 		--ai-soft: 268 45% 16%;
+		/* Valores idênticos aos que shadow-nofluxo/-Lg tinham fixos no tailwind.config.ts */
+		--nf-shadow-card: 0 1px 0 hsl(0 0% 100% / 0.055) inset, 0 12px 34px hsl(0 0% 0% / 0.34);
+		--nf-shadow-card-lg: 0 16px 48px hsl(0 0% 0% / 0.42);
+		/* Glows históricos (valores que hero-info-card-pill/specialties-list li e hero-info-card/feature-card tinham fixos) */
+		--nf-shadow-pill: 0 0 0 1px hsl(var(--primary) / 0.1), 0 0 12px hsl(var(--primary) / 0.16), inset 0 1px 0 hsl(0 0% 100% / 0.08);
+		--nf-shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.12), 0 0 12px hsl(var(--primary) / 0.14), inset 0 1px 0 hsl(0 0% 100% / 0.06);
+		--nf-shadow-glow-hover: 0 0 0 1px hsl(var(--primary) / 0.26), 0 0 20px hsl(var(--primary) / 0.26), 0 0 34px hsl(var(--primary) / 0.14), inset 0 1px 0 hsl(0 0% 100% / 0.12);
+		/* Mesmos valores que PrerequisiteConnections/SubjectCard tinham fixos (dark idêntico) */
+		--edge-prereq: #a78bfa;
+		--edge-dep: #2dd4bf;
+		--edge-coreq: #10b981;
+		--chain-pre: #4fd1c5;
+		--chain-desc: #f6ad55;
+		--chain-core: #7f9cf5;
 	}
 }
 
@@ -130,15 +167,15 @@
 }
 
 .nav-link-premium {
-	color: hsl(0 0% 100% / 0.86);
+	color: hsl(var(--foreground) / 0.86);
 }
 
 .nav-link-premium:hover {
-	color: hsl(0 0% 100% / 0.98);
+	color: hsl(var(--foreground) / 0.98);
 }
 
 .nav-link-premium.active {
-	color: hsl(0 0% 100%);
+	color: hsl(var(--foreground));
 	font-weight: 600;
 }
 
@@ -164,7 +201,7 @@
 }
 
 .nf-wordmark-noflx {
-	color: hsl(0 0% 100%);
+	color: hsl(var(--foreground));
 }
 
 .nf-wordmark-unb {
@@ -234,14 +271,32 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 	opacity: 0.18;
 }
 
-/* Auth form shared styles */
+/* Auth form shared styles.
+   O card de auth é BRANCO nos dois temas (legado Flutter). No light ele usa os tokens
+   (border 1px + sombra discreta); no .dark os valores históricos são mantidos via
+   :where(.dark) (especificidade zero → a cascata autofill/focus fica igual à antiga). */
 .auth-card {
-	background: white;
+	background: hsl(var(--card));
 	border-radius: 16px;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+	box-shadow:
+		0 0 0 1px hsl(var(--border)),
+		var(--nf-shadow-card);
 	padding: 24px 20px 20px;
 	max-width: 440px;
 	width: 100%;
+}
+
+:where(.dark) .auth-card {
+	background: white;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+	/* Tokens neutros re-escopados para o card branco: os filhos que usam
+	   text-foreground / text-muted-foreground / bg-muted / bg-border / border-strong
+	   resolvem para os cinzas históricos (gray-900/500/50/200/300) sem twins dark:. */
+	--foreground: 221 39% 11%;
+	--muted-foreground: 220 9% 46%;
+	--muted: 210 20% 98%;
+	--border: 220 13% 91%;
+	--border-strong: 216 12% 84%;
 }
 
 @media (min-width: 640px) {
@@ -253,12 +308,13 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 .auth-input {
 	width: 100%;
 	padding: 18px;
-	border: 1px solid #d1d5db;
+	/* border-strong: ≥ 3:1 sobre o card no light */
+	border: 1px solid hsl(var(--border-strong));
 	border-radius: 14px;
 	font-size: 16px;
 	font-family: inherit;
-	color: #111827;
-	background: #fff;
+	color: hsl(var(--foreground));
+	background: hsl(var(--card));
 	color-scheme: light;
 	transition:
 		border-color 0.2s,
@@ -266,10 +322,25 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 	box-sizing: border-box;
 }
 
+:where(.dark) .auth-input {
+	border-color: #d1d5db;
+	color: #111827;
+	background: #fff;
+}
+
 /* Evita texto acinzentado ilegível no autofill do Chrome/Edge em SO com tema escuro */
 .auth-input:-webkit-autofill,
 .auth-input:-webkit-autofill:hover,
 .auth-input:-webkit-autofill:focus {
+	-webkit-text-fill-color: hsl(var(--foreground));
+	-webkit-box-shadow: 0 0 0 1000px hsl(var(--card)) inset;
+	box-shadow: 0 0 0 1000px hsl(var(--card)) inset;
+	caret-color: hsl(var(--foreground));
+}
+
+:where(.dark) .auth-input:-webkit-autofill,
+:where(.dark) .auth-input:-webkit-autofill:hover,
+:where(.dark) .auth-input:-webkit-autofill:focus {
 	-webkit-text-fill-color: #111827;
 	-webkit-box-shadow: 0 0 0 1000px #fff inset;
 	box-shadow: 0 0 0 1000px #fff inset;
@@ -278,11 +349,15 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 
 .auth-input:focus {
 	outline: none;
-	border-color: hsl(var(--primary));
-	box-shadow: 0 0 0 3px hsl(var(--primary) / 0.18);
+	border-color: hsl(var(--ring));
+	box-shadow: 0 0 0 3px hsl(var(--ring) / 0.18);
 }
 
 .auth-input::placeholder {
+	color: hsl(var(--muted-foreground));
+}
+
+:where(.dark) .auth-input::placeholder {
 	color: #9ca3af;
 }
 
@@ -295,7 +370,7 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 	width: 100%;
 	height: 52px;
 	background: hsl(var(--primary));
-	color: white;
+	color: hsl(var(--primary-foreground));
 	border: none;
 	border-radius: 14px;
 	font-size: 18px;
@@ -317,9 +392,9 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 .auth-btn-google {
 	width: 100%;
 	height: 52px;
-	background: white;
-	color: #333;
-	border: 1px solid #d1d5db;
+	background: hsl(var(--card));
+	color: hsl(var(--foreground));
+	border: 1px solid hsl(var(--border-strong));
 	border-radius: 14px;
 	font-size: 16px;
 	font-weight: 500;
@@ -332,15 +407,27 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 	transition: background 0.2s;
 }
 
+:where(.dark) .auth-btn-google {
+	background: white;
+	color: #333;
+	border-color: #d1d5db;
+}
+
 .auth-btn-google:hover:not(:disabled) {
+	background: hsl(var(--muted));
+}
+
+:where(.dark) .auth-btn-google:hover:not(:disabled) {
 	background: #f5f5f5;
 }
 
+/* Botão "entrar como visitante": escuro sobre o card branco legado.
+   Light usa o token de texto; .dark mantém o valor histórico. */
 .auth-btn-visitor {
 	width: 100%;
 	height: 52px;
-	background: hsl(240 12% 6%);
-	color: white;
+	background: hsl(var(--foreground));
+	color: hsl(var(--background));
 	border: none;
 	border-radius: 14px;
 	font-size: 16px;
@@ -348,6 +435,11 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 	font-family: inherit;
 	cursor: pointer;
 	transition: background 0.2s;
+}
+
+.dark .auth-btn-visitor {
+	background: hsl(240 12% 6%);
+	color: white;
 }
 
 .auth-btn-visitor:hover:not(:disabled) {
@@ -386,4 +478,31 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 
 .auth-link:hover {
 	text-decoration: underline;
+}
+
+/* Divisor "ou" dos forms de login/cadastro (dentro do .auth-card). */
+.auth-divider {
+	display: flex;
+	align-items: center;
+	margin: 1.25rem 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+	content: '';
+	flex: 1;
+	height: 1px;
+	background: hsl(var(--border));
+}
+
+.auth-divider span {
+	padding: 0 1rem;
+	color: hsl(var(--muted-foreground));
+	font-size: 0.875rem;
+}
+
+/* Card branco legado no dark: a linha já resolve para gray-200 via --border do .auth-card;
+   o texto mantém o gray-400 histórico (muted-foreground do card é gray-500). */
+:where(.dark) .auth-divider span {
+	color: #9ca3af;
 }
