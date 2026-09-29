@@ -125,6 +125,18 @@ export interface ResultadoStreamSabia {
     concluiu: boolean;
 }
 
+/**
+ * Quem perguntou e qual pergunta (contexto da requisição, ver
+ * executarComContextoIA): o mcp_agent grava junto das embeddings Gemini no
+ * ai_usage_log, e a busca entra na mesma pergunta do dashboard em vez de
+ * contar como outra. Vale para /buscar-materias, /recomendar e
+ * /recomendar-stream.
+ */
+function idsDaPergunta(): { user_id: string | null; pergunta_id: string | null } {
+    const ctx = contextoIAAtual();
+    return { user_id: ctx.userId ?? null, pergunta_id: ctx.perguntaId ?? null };
+}
+
 export class SabiaService {
     private readonly apiUrl: string;
     private readonly available: boolean;
@@ -229,6 +241,7 @@ export class SabiaService {
                 body: JSON.stringify({
                     interesse,
                     matriz_curricular: matrizCurricular,
+                    ...idsDaPergunta(),
                 }),
                 signal: AbortSignal.timeout(SABIA_TIMEOUT_MS),
             });
@@ -287,7 +300,6 @@ export class SabiaService {
                 .map((t) => t.trim().slice(0, MAX_CHARS_TERMO).trim()),
         )].slice(0, MAX_TERMOS_BUSCA);
         if (termos.length === 0) return [];
-        const ctx = contextoIAAtual();
         try {
             const response = await fetch(`${this.apiUrl}/buscar-materias`, {
                 method: 'POST',
@@ -295,11 +307,7 @@ export class SabiaService {
                 // Quem perguntou e qual pergunta: o Python grava junto das
                 // embeddings no ai_usage_log, e a busca entra na mesma pergunta
                 // do dashboard em vez de contar como outra.
-                body: JSON.stringify({
-                    termos_busca: termos,
-                    user_id: ctx.userId ?? null,
-                    pergunta_id: ctx.perguntaId ?? null,
-                }),
+                body: JSON.stringify({ termos_busca: termos, ...idsDaPergunta() }),
                 signal: AbortSignal.timeout(SABIA_BUSCA_TIMEOUT_MS),
             });
             if (!response.ok) {
@@ -381,6 +389,7 @@ export class SabiaService {
                 body: JSON.stringify({
                     interesse,
                     matriz_curricular: matrizCurricular,
+                    ...idsDaPergunta(),
                 }),
                 signal: upstream.signal,
             });

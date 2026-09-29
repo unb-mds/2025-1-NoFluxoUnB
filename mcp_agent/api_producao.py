@@ -95,6 +95,11 @@ app.add_middleware(
 class Consulta(BaseModel):
     interesse: str
     matriz_curricular: str = ""
+    # Quem perguntou e qual pergunta (o backend manda do contexto da pergunta
+    # do Darcy): as embeddings Gemini da busca feita dentro do /recomendar e do
+    # /recomendar-stream vão para o ai_usage_log na mesma pergunta.
+    user_id: str | None = None
+    pergunta_id: str | None = None
 
 
 # Prompt de ROTEAMENTO — usado na 1ª chamada, apenas para o modelo escolher a ferramenta.
@@ -284,7 +289,11 @@ def ferramenta_buscar_optativas(matriz_curricular: str) -> str:
         return json.dumps([])
 
 
-def ferramenta_buscar_materias_unb(termos_busca: list) -> str:
+def ferramenta_buscar_materias_unb(
+    termos_busca: list, estado: dict | None = None
+) -> str:
+    """Busca semântica. `estado`, se passado, recebe "ok": False quando a busca
+    falha (a função engole o erro e devolve "[]" para o modelo seguir)."""
     print(f"\n[DEBUG] 🧠 Termos recebidos da Maritaca: {termos_busca}")
     try:
         # Filtrar termos vazios/duplicados e limitar a MAX_TERMOS_BUSCA antes de
@@ -361,7 +370,36 @@ def ferramenta_buscar_materias_unb(termos_busca: list) -> str:
 
     except Exception as e:
         print(f"❌ Erro na ferramenta de busca, tente novamente mais tarde: {e}")
+        if estado is not None:
+            estado["ok"] = False
         return json.dumps([])
+
+
+def _buscar_materias_logando(
+    endpoint: str,
+    termos_busca: list,
+    user_id: str | None = None,
+    pergunta_id: str | None = None,
+) -> str:
+    """Busca semântica feita dentro do /recomendar(-stream), com as embeddings
+    Gemini registradas no ai_usage_log (antes só o /buscar-materias logava).
+
+    Sem termo válido não há chamada ao Gemini e nada é logado.
+    """
+    termos_validos = normalizar_termos_busca(termos_busca)
+    estado = {"ok": True}
+    inicio = time.time()
+    resultado = ferramenta_buscar_materias_unb(termos_busca, estado)
+    if termos_validos:
+        _log_ai_usage_embeddings(
+            endpoint,
+            termos_validos,
+            int((time.time() - inicio) * 1000),
+            estado["ok"],
+            user_id,
+            pergunta_id,
+        )
+    return resultado
 
 
 def ferramenta_explicar_materia(termo: str) -> dict:
@@ -574,7 +612,9 @@ async def recomendar_materias(consulta: Consulta):
         elif nome_ferramenta == "buscar_materias_unb":
             termos = args.get("termos_busca", [])
             print(f"\n[DEBUG] Termos enviados para o banco: {termos}\n")
-            dados_banco = ferramenta_buscar_materias_unb(termos)
+            dados_banco = _buscar_materias_logando(
+                "recomendar", termos, consulta.user_id, consulta.pergunta_id
+            )
             modo = "lista"
         else:
             dados_banco = "[]"
@@ -711,7 +751,9 @@ async def recomendar_materias_stream(consulta: Consulta):
                 yield _sse_event(
                     "searching", message="Buscando disciplinas no banco de dados..."
                 )
-                dados_banco = ferramenta_buscar_materias_unb(termos)
+                dados_banco = _buscar_materias_logando(
+                    "recomendar-stream", termos, consulta.user_id, consulta.pergunta_id
+                )
                 modo = "lista"
 
             # Stage 3: Generating (with streaming)

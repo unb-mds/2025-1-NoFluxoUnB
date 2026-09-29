@@ -72,6 +72,43 @@ describe("SabiaService.buscarMaterias — rastreabilidade da pergunta", () => {
     });
 });
 
+describe("SabiaService /recomendar(-stream) — rastreabilidade da pergunta", () => {
+    // O Python loga as embeddings Gemini da busca feita dentro do /recomendar
+    // com estes ids; sem eles as linhas ficavam fora da pergunta no dashboard.
+    test("/recomendar manda user_id e pergunta_id da pergunta corrente", async () => {
+        const fetchMock = jest.fn().mockResolvedValue(jsonResponse({ success: true, disciplinas: [], usage: [] }));
+        global.fetch = fetchMock as unknown as typeof fetch;
+
+        await executarComContextoIA({ userId: "u-1", perguntaId: "p-1" }, () =>
+            new SabiaService().analyzarInteresse("redes"),
+        );
+
+        expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/recomendar$/);
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body).toMatchObject({ interesse: "redes", user_id: "u-1", pergunta_id: "p-1" });
+    });
+
+    test("/recomendar-stream manda user_id e pergunta_id da pergunta corrente", async () => {
+        const fetchMock = jest.fn().mockResolvedValue(
+            new Response('data: {"stage":"done","resultado":""}\n\n', { status: 200, headers: { "Content-Type": "text/event-stream" } }),
+        );
+        global.fetch = fetchMock as unknown as typeof fetch;
+        const res = Object.assign(new EventEmitter(), {
+            write: jest.fn(() => true),
+            end: jest.fn(),
+            writableEnded: false,
+        }) as unknown as ExpressResponse;
+
+        await executarComContextoIA({ userId: "u-2", perguntaId: "p-2" }, () =>
+            new SabiaService().analyzarInteresseStream("redes", "", res),
+        );
+
+        expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/recomendar-stream$/);
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body).toMatchObject({ user_id: "u-2", pergunta_id: "p-2" });
+    });
+});
+
 describe("SabiaService.buscarMaterias — teto de termos (R51)", () => {
     test("manda no máximo 4 termos, sem duplicados, para o mcp_agent", async () => {
         const fetchMock = jest.fn().mockResolvedValue(jsonResponse({ materias: [] }));

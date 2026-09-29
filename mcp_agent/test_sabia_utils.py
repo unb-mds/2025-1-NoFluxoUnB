@@ -378,6 +378,65 @@ def test_buscar_materias_repassa_ids_ao_log():
     assert "busca.user_id" in args and "busca.pergunta_id" in args
 
 
+def _classe_api_producao(nome):
+    caminho = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "api_producao.py"
+    )
+    with open(caminho, encoding="utf-8") as f:
+        arvore = ast.parse(f.read())
+    for n in ast.walk(arvore):
+        if isinstance(n, ast.ClassDef) and n.name == nome:
+            return n
+    raise AssertionError(f"classe {nome} não encontrada em api_producao.py")
+
+
+def test_consulta_recebe_usuario_e_pergunta():
+    # O backend manda user_id/pergunta_id no corpo do /recomendar(-stream);
+    # sem os campos o pydantic descarta e as embeddings ficam sem pergunta.
+    consulta = _classe_api_producao("Consulta")
+    campos = {
+        n.target.id
+        for n in consulta.body
+        if isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name)
+    }
+    assert {"user_id", "pergunta_id"} <= campos, campos
+
+
+def test_recomendar_loga_embeddings_da_busca():
+    # A busca semântica dentro do /recomendar e do /recomendar-stream chamava o
+    # Gemini sem registrar nada no ai_usage_log (só o /buscar-materias logava).
+    for rota, endpoint in (
+        ("recomendar_materias", "recomendar"),
+        ("recomendar_materias_stream", "recomendar-stream"),
+    ):
+        funcao = _funcao_api_producao(rota)
+        chamadas = [
+            n
+            for n in ast.walk(funcao)
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+        ]
+        diretas = [c for c in chamadas if c.func.id == "ferramenta_buscar_materias_unb"]
+        assert not diretas, f"{rota} busca sem logar as embeddings"
+        com_log = [c for c in chamadas if c.func.id == "_buscar_materias_logando"]
+        assert com_log, f"{rota} não passa por _buscar_materias_logando"
+        args = [ast.unparse(a) for a in com_log[0].args]
+        assert args[0] == repr(endpoint), args
+        assert "consulta.user_id" in args and "consulta.pergunta_id" in args, args
+
+
+def test_busca_logada_registra_falha_e_termos_validos():
+    # _buscar_materias_logando: loga só com termo válido (sem termo não há
+    # chamada ao Gemini) e usa o "ok" que ferramenta_buscar_materias_unb marca.
+    funcao = _funcao_api_producao("_buscar_materias_logando")
+    fonte = ast.unparse(funcao)
+    assert "normalizar_termos_busca(" in fonte
+    assert "if termos_validos:" in fonte
+    assert "_log_ai_usage_embeddings(" in fonte
+    assert "estado['ok']" in fonte
+    busca = _funcao_api_producao("ferramenta_buscar_materias_unb")
+    assert "estado['ok'] = False" in ast.unparse(busca)
+
+
 if __name__ == "__main__":
     testes = [
         v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)
