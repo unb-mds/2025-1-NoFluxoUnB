@@ -48,6 +48,8 @@ jobs:
             backend:
               - 'backend/**'
               - '.github/workflows/pipelineCI.yml'
+              # tests-ts/ci-workflows.test.ts valida estes workflows
+              - '.github/workflows/deploy.yml'
             frontend:
               - 'frontend/**'
               - '.github/workflows/pipelineCI.yml'
