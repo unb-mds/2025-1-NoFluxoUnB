@@ -4,91 +4,57 @@
  * dos cards novos do dashboard admin (sem preço, saúde do log de IA, suporte).
  *
  * Regra do produto: o que existe no escuro tem que funcionar no claro. Aqui:
- *  1. os tokens HSL são lidos do app.css (`:root` = claro, `.dark` = escuro) e
- *     cada combinação texto/fundo usada nesses componentes tem que dar ≥ 4,5:1
- *     (texto) ou ≥ 3:1 (anel, ícones de status) nos DOIS temas;
+ *  1. os tokens HSL são lidos do app.css (`:root` = claro, `.dark` = escuro)
+ *     pelo helper compartilhado (lib/styles/contraste.ts), e cada combinação
+ *     texto/fundo usada nesses componentes — empilhada sobre o fundo REAL da
+ *     página (--page-background, liso e no glow) — tem que dar ≥ 4,5:1 (texto)
+ *     ou ≥ 3:1 (anel, ícones de status) nos DOIS temas;
  *  2. os arquivos desses componentes não podem usar cor fixa que só funciona
  *     num tema (text-white, bg-zinc-950, stroke-sky-400, rgba(255,…), hex…)
  *     sem o par `dark:` — é o que quebra quando alguém volta a usar a cor
  *     "que fica bonita no escuro".
  */
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { TOKEN_RODINHA } from '$lib/utils/darcy-cota';
+import {
+	TOKENS as TOKENS_POR_TEMA,
+	contraste,
+	lerSrc as ler,
+	piorContraste,
+	token,
+	type Camada,
+	type Rgb as RGB,
+	type Tema as TemaHelper
+} from './contraste';
 
-const SRC = fileURLToPath(new URL('../../', import.meta.url));
-const ler = (rel: string) => readFileSync(SRC + rel, 'utf8');
+// ─── Tokens do app.css (helper compartilhado) ────────────────────────────────
 
-// ─── Tokens do app.css ───────────────────────────────────────────────────────
-
-type HSL = [number, number, number];
 type Tema = 'claro' | 'escuro';
-
-function blocoDoSeletor(css: string, seletor: RegExp): string {
-	const m = seletor.exec(css);
-	if (!m) throw new Error(`seletor ${seletor} não encontrado no app.css`);
-	const inicio = css.indexOf('{', m.index) + 1;
-	return css.slice(inicio, css.indexOf('}', inicio));
-}
-
-function lerTokens(bloco: string): Record<string, HSL> {
-	const tokens: Record<string, HSL> = {};
-	for (const m of bloco.matchAll(/--([\w-]+):\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%\s*;/g)) {
-		tokens[m[1]] = [Number(m[2]), Number(m[3]), Number(m[4])];
-	}
-	return tokens;
-}
-
-const appCss = ler('app.css');
-const TOKENS: Record<Tema, Record<string, HSL>> = {
-	claro: lerTokens(blocoDoSeletor(appCss, /^\s*:root\s*\{/m)),
-	escuro: lerTokens(blocoDoSeletor(appCss, /^\s*\.dark\s*\{/m))
+const DO_HELPER: Record<Tema, TemaHelper> = { claro: 'light', escuro: 'dark' };
+const TOKENS: Record<Tema, Record<string, string>> = {
+	claro: TOKENS_POR_TEMA.light,
+	escuro: TOKENS_POR_TEMA.dark
 };
 const TEMAS: Tema[] = ['claro', 'escuro'];
 
-// ─── Cor / contraste (WCAG 2.x) ──────────────────────────────────────────────
-
-type RGB = [number, number, number];
-
-function hslParaRgb([h, s, l]: HSL): RGB {
-	const sat = s / 100;
-	const lum = l / 100;
-	const k = (n: number) => (n + h / 30) % 12;
-	const a = sat * Math.min(lum, 1 - lum);
-	const f = (n: number) => lum - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-	return [f(0) * 255, f(8) * 255, f(4) * 255];
+/** Cor opaca de um token no tema. */
+function cor(tema: Tema, nome: string): RGB {
+	return token(DO_HELPER[tema], nome);
 }
 
-function hexParaRgb(hex: string): RGB {
-	const n = parseInt(hex.replace('#', ''), 16);
-	return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+/** `token` ou `token/alfa` (ex. 'status-danger/0.1') como camada. */
+function camada(spec: string): Camada {
+	const [nome, alfa] = spec.split('/');
+	return { token: nome, alfa: alfa === undefined ? 1 : Number(alfa) };
 }
 
-function luminancia([r, g, b]: RGB): number {
-	const c = (v: number) => {
-		const x = v / 255;
-		return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
-	};
-	return 0.2126 * c(r) + 0.7152 * c(g) + 0.0722 * c(b);
-}
-
-function contraste(a: RGB, b: RGB): number {
-	const [x, y] = [luminancia(a), luminancia(b)].sort((p, q) => q - p);
-	return (x + 0.05) / (y + 0.05);
-}
-
-/** `token` ou `token/alfa` (ex. 'status-danger/0.1') sobre `base` → RGB final. */
-function cor(tema: Tema, spec: string, base?: string): RGB {
-	const [nome, alfaTxt] = spec.split('/');
-	const hsl = TOKENS[tema][nome];
-	if (!hsl) throw new Error(`token --${nome} não existe no tema ${tema}`);
-	const rgb = hslParaRgb(hsl);
-	const alfa = alfaTxt === undefined ? 1 : Number(alfaTxt);
-	if (alfa === 1) return rgb;
-	if (!base) throw new Error(`${spec} tem alfa e precisa de uma base`);
-	const fundo = cor(tema, base);
-	return rgb.map((v, i) => v * alfa + fundo[i] * (1 - alfa)) as RGB;
+/**
+ * Pior contraste de `frente` sobre `fundo` (e `base` por baixo dele), tudo
+ * empilhado no fundo REAL da página (--page-background liso e no glow).
+ */
+function medir(tema: Tema, frente: string, fundo: string, base?: string): number {
+	const camadas = [...(base ? [camada(base)] : []), camada(fundo)];
+	return piorContraste(DO_HELPER[tema], camada(frente), camadas);
 }
 
 // ─── Cor real de um seletor no <style> de um componente ──────────────────────
@@ -248,12 +214,12 @@ describe.each(TEMAS)('contraste no tema %s', (tema) => {
 	const frenteDo = (f: Par['frente']) => (typeof f === 'string' ? f : f[tema]);
 
 	it.each(TEXTO)('texto ≥ 4,5:1 — $onde', ({ frente, fundo, base }) => {
-		const r = contraste(cor(tema, frenteDo(frente)), cor(tema, fundo, base));
+		const r = medir(tema, frenteDo(frente), fundo, base);
 		expect(r, `${frente} sobre ${fundo}: ${r.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
 	});
 
 	it.each(GRAFICO)('gráfico ≥ 3:1 — $onde', ({ frente, fundo, base }) => {
-		const r = contraste(cor(tema, frenteDo(frente)), cor(tema, fundo, base));
+		const r = medir(tema, frenteDo(frente), fundo, base);
 		expect(r, `${frente} sobre ${fundo}: ${r.toFixed(2)}:1`).toBeGreaterThanOrEqual(3);
 	});
 });
@@ -279,10 +245,9 @@ describe('links do dashboard lidos do CSS real', () => {
 });
 
 describe('por que não dá para voltar a sky/amber/rose-400 fixos', () => {
-	it('os tons -400 do anel antigo não chegam a 3:1 sobre o fundo claro', () => {
-		const branco = cor('claro', 'background');
+	it('os tons -400 do anel antigo não chegam a 3:1 sobre o fundo claro da página', () => {
 		for (const hex of ['#38bdf8' /* sky-400 */, '#fbbf24' /* amber-400 */]) {
-			expect(contraste(hexParaRgb(hex), branco)).toBeLessThan(3);
+			expect(piorContraste('light', { cor: hex })).toBeLessThan(3);
 		}
 	});
 });
