@@ -100,10 +100,8 @@ export const AssistenteController: EndpointController = {
                 const duration = Date.now() - startTime;
                 logger.info(`Request completed in ${duration}ms`);
 
-                if (pergunta.clienteSaiu()) {
-                    await pergunta.estornar();
-                    return;
-                }
+                // O modelo já respondeu (e cobrou): quem saiu gasta a pergunta, só não recebe a resposta.
+                if (pergunta.clienteSaiu()) return;
                 return res.json({ resultado: formatted, cota: pergunta.cota });
             } catch (error) {
                 await pergunta.estornar();
@@ -181,10 +179,8 @@ export const AssistenteController: EndpointController = {
                     });
                 }
 
-                if (pergunta?.clienteSaiu()) {
-                    await pergunta.estornar();
-                    return;
-                }
+                // O modelo já respondeu (e cobrou): quem saiu gasta a pergunta, só não recebe a resposta.
+                if (pergunta?.clienteSaiu()) return;
 
                 const cota = pergunta ? pergunta.cota : await estadoCota(usuario.id).catch(() => undefined);
                 return res.status(200).json({
@@ -284,15 +280,17 @@ export const AssistenteController: EndpointController = {
 
             try {
                 logger.info(`Streaming with Sabiá: "${materia}"`);
-                const { usage, aborted, entregouConteudo, concluiu } = await sabia.analyzarInteresseStream(
+                const { usage, aborted, recebeuDoUpstream, concluiu } = await sabia.analyzarInteresseStream(
                     materia, matrizCurricular, res, clientAbort.signal,
                 );
                 if (aborted) {
                     // Sem o evento `usage` do Python: registra a request como não
                     // concluída (tokens 0) para não sumir do dashboard de custo.
                     logger.info('Cliente fechou a conexão — stream do Sabiá abortado');
-                    // Saiu antes de qualquer resposta: a pergunta não conta.
-                    if (!entregouConteudo) await pergunta.estornar();
+                    // Só não conta se saiu antes de o Python mandar qualquer
+                    // evento: depois do 1º (`thinking`) a Maritaca já foi chamada
+                    // e cobra, mesmo sem disciplina entregue.
+                    if (!recebeuDoUpstream) await pergunta.estornar();
                     logAiUsage({
                         endpoint: 'analyze-sabia-stream',
                         durationMs: Date.now() - startTime,
@@ -393,10 +391,8 @@ export const AssistenteController: EndpointController = {
                     perguntaId: pergunta.perguntaId,
                 });
 
-                if (pergunta.clienteSaiu()) {
-                    await pergunta.estornar();
-                    return;
-                }
+                // O modelo já respondeu (e cobrou): quem saiu gasta a pergunta, só não recebe a resposta.
+                if (pergunta.clienteSaiu()) return;
                 return res.json({
                     resultado: formatted,
                     disciplinas: result.disciplinas,

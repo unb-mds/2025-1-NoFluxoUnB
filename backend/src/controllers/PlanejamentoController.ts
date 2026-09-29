@@ -872,10 +872,8 @@ export const PlanejamentoController: EndpointController = {
 
                     await resolverNomesSemestreAtual(resultado.plano);
 
-                    if (pergunta?.clienteSaiu()) {
-                        await pergunta.estornar();
-                        return;
-                    }
+                    // O modelo já respondeu (e cobrou): quem saiu gasta a pergunta, só não recebe a resposta.
+                    if (pergunta?.clienteSaiu()) return;
 
                     const cota = pergunta ? pergunta.cota : await estadoCota(usuario.id).catch(() => undefined);
                     return res.status(200).json({

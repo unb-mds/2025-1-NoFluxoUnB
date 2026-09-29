@@ -177,7 +177,7 @@ beforeEach(() => {
     mockSabia.analyzarInteresseStream.mockImplementation(async (_m: string, _mc: string, res: any) => {
         res.write('data: {"stage":"done","resultado":"ok"}\n\n');
         res.end();
-        return { usage: [], aborted: false, entregouConteudo: true, concluiu: true };
+        return { usage: [], aborted: false, entregouConteudo: true, recebeuDoUpstream: true, concluiu: true };
     });
     mockRagflow.startSession.mockResolvedValue("s1");
     mockRagflow.analyzeMateria.mockResolvedValue({
@@ -370,16 +370,16 @@ describe("estorno quando a IA falha", () => {
         mockSabia.analyzarInteresseStream.mockImplementation(async (_m: string, _mc: string, r: any) => {
             r.write('data: {"stage":"error","message":"falhou"}\n\n');
             r.end();
-            return { usage: [], aborted: false, entregouConteudo: false, concluiu: false };
+            return { usage: [], aborted: false, entregouConteudo: false, recebeuDoUpstream: true, concluiu: false };
         });
         const { req, res } = mockReqRes({ body: { materia: "IA" }, token: TOKEN });
         await assistente("analyze-sabia-stream")(req, res);
         expect(estado.usadas).toBe(5);
     });
 
-    it("cliente que fecha o stream antes de qualquer resposta não gasta pergunta", async () => {
+    it("cliente que fecha o stream antes de o Python mandar qualquer evento não gasta pergunta", async () => {
         const estado = bancoCom({ usadas: 5 });
-        mockSabia.analyzarInteresseStream.mockResolvedValue({ usage: [], aborted: true, entregouConteudo: false, concluiu: false });
+        mockSabia.analyzarInteresseStream.mockResolvedValue({ usage: [], aborted: true, entregouConteudo: false, recebeuDoUpstream: false, concluiu: false });
         const { req, res } = mockReqRes({ body: { materia: "IA" }, token: TOKEN });
         await assistente("analyze-sabia-stream")(req, res);
         expect(estado.usadas).toBe(5);
@@ -387,7 +387,7 @@ describe("estorno quando a IA falha", () => {
 
     it("cliente que fecha depois de receber disciplinas gasta a pergunta", async () => {
         const estado = bancoCom({ usadas: 5 });
-        mockSabia.analyzarInteresseStream.mockResolvedValue({ usage: [], aborted: true, entregouConteudo: true, concluiu: false });
+        mockSabia.analyzarInteresseStream.mockResolvedValue({ usage: [], aborted: true, entregouConteudo: true, recebeuDoUpstream: true, concluiu: false });
         const { req, res } = mockReqRes({ body: { materia: "IA" }, token: TOKEN });
         await assistente("analyze-sabia-stream")(req, res);
         expect(estado.usadas).toBe(6);
@@ -417,6 +417,70 @@ describe("estorno quando a IA falha", () => {
         await assistente("analyze")(req, res);
         expect(res.statusCode).toBe(502);
         expect(estado.usadas).toBe(5);
+    });
+});
+
+describe("cliente que fecha a conexão depois de o modelo ser chamado", () => {
+    /** res que guarda o handler de 'close' para simular o aluno saindo. */
+    function reqResComClose(body: any) {
+        const { req, res } = mockReqRes({ body, token: TOKEN });
+        const handlers: Array<() => void> = [];
+        res.on.mockImplementation((ev: string, fn: () => void) => {
+            if (ev === "close") handlers.push(fn);
+            return res;
+        });
+        const fechar = () => handlers.forEach((h) => h());
+        return { req, res, fechar };
+    }
+
+    // Script com AbortController de ~2s: a conexão cai enquanto o LLM (pago)
+    // responde. Antes o 'close' estornava e a pergunta nunca era gasta.
+    const CASOS: Array<[string, () => any, any, (fechar: () => void) => void]> = [
+        ["/assistente/chat", () => assistente("chat"), MSG, (fechar) =>
+            mockConversar.mockImplementation(async () => {
+                fechar();
+                return { reply: "ok", restricoes: {}, usage: [{ model: "sabia-4", prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 }] };
+            })],
+        ["/assistente/analyze-sabia", () => assistente("analyze-sabia"), { materia: "IA" }, (fechar) =>
+            mockSabia.analyzarInteresse.mockImplementation(async () => {
+                fechar();
+                return { success: true, disciplinas: [], usage: [{ model: "sabia-4", prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 }] };
+            })],
+        ["/assistente/analyze", () => assistente("analyze"), { materia: "IA" }, (fechar) => {
+            const original = mockRagflow.analyzeMateria.getMockImplementation()!;
+            mockRagflow.analyzeMateria.mockImplementation(async (...a: unknown[]) => {
+                fechar();
+                return original(...a);
+            });
+        }],
+        ["/chat/send", () => chatSend(), { message: "oi" }, (fechar) =>
+            mockRun.mockImplementation(async () => {
+                fechar();
+                return { finalOutput: "ok", state: { usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 } } };
+            })],
+    ];
+
+    it.each(CASOS)("%s: a pergunta conta e não é estornada", async (_nome, rota, body, preparar) => {
+        const estado = bancoCom({ usadas: 5 });
+        const { req, res, fechar } = reqResComClose(body);
+        preparar(fechar);
+
+        await rota()(req, res);
+
+        expect(estado.usadas).toBe(6);
+        expect(rpcsChamadas("darcy_estornar_pergunta")).toHaveLength(0);
+        expect(res.json).not.toHaveBeenCalled();
+    });
+
+    it("stream: quem sai depois do 1º evento do Python (antes de qualquer disciplina) gasta a pergunta", async () => {
+        const estado = bancoCom({ usadas: 5 });
+        mockSabia.analyzarInteresseStream.mockResolvedValue({
+            usage: [], aborted: true, entregouConteudo: false, recebeuDoUpstream: true, concluiu: false,
+        });
+        const { req, res } = mockReqRes({ body: { materia: "IA" }, token: TOKEN });
+        await assistente("analyze-sabia-stream")(req, res);
+        expect(estado.usadas).toBe(6);
+        expect(rpcsChamadas("darcy_estornar_pergunta")).toHaveLength(0);
     });
 });
 

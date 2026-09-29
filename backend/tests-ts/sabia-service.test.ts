@@ -189,6 +189,8 @@ describe("SabiaService.analyzarInteresseStream — cliente fecha a conexão (R31
         const r = await new SabiaService().analyzarInteresseStream("ia", "", res as unknown as ExpressResponse, cliente.signal);
 
         expect(r.aborted).toBe(true);
+        // Um evento já veio do Python: a Maritaca foi chamada, a pergunta conta.
+        expect(r.recebeuDoUpstream).toBe(true);
         expect(stats.cancelado).toBe(true);
         expect(stats.pulls - pullsNoAbort).toBeLessThanOrEqual(1);
         expect(res.write).toHaveBeenCalledTimes(1);
@@ -202,8 +204,26 @@ describe("SabiaService.analyzarInteresseStream — cliente fecha a conexão (R31
         const r = await new SabiaService().analyzarInteresseStream("ia", "", res as unknown as ExpressResponse, new AbortController().signal);
 
         expect(r.aborted).toBe(false);
+        expect(r.recebeuDoUpstream).toBe(true);
         expect(res.write).toHaveBeenCalledTimes(3);
         expect(res.end).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("SabiaService.analyzarInteresseStream — recebeuDoUpstream", () => {
+    test("cliente que sai antes de qualquer byte do Python: recebeuDoUpstream false", async () => {
+        // fetch real: signal já abortado rejeita antes de qualquer resposta.
+        global.fetch = jest.fn(async (_url: unknown, init?: RequestInit) => {
+            if (init?.signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
+            return new Response(upstreamSse(3, 1).body, { status: 200 });
+        }) as unknown as typeof fetch;
+        const cliente = new AbortController();
+        cliente.abort();
+
+        const r = await new SabiaService().analyzarInteresseStream("ia", "", fakeRes() as unknown as ExpressResponse, cliente.signal);
+
+        expect(r.aborted).toBe(true);
+        expect(r.recebeuDoUpstream).toBe(false);
     });
 });
 

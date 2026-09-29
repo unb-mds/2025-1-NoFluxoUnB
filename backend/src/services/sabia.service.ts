@@ -114,6 +114,12 @@ export interface ResultadoStreamSabia {
     aborted: boolean;
     /** Algum evento `disciplina` ou `done` foi repassado ao cliente. */
     entregouConteudo: boolean;
+    /**
+     * Algum byte chegou do Python. O primeiro evento (`thinking`) sai antes da
+     * 1ª chamada à Maritaca; depois dele o gerador segue e o modelo cobra mesmo
+     * que o cliente saia. Só sem nada recebido a pergunta pode ser estornada.
+     */
+    recebeuDoUpstream: boolean;
     /** O stream terminou com `done` e sem evento de erro. */
     concluiu: boolean;
 }
@@ -348,12 +354,14 @@ export class SabiaService {
         let usage: SabiaUsage[] | undefined;
         // Para a cota do Darcy: a pergunta só conta se houve resposta.
         let entregouConteudo = false; // algum `disciplina`/`done` chegou ao cliente
+        let recebeuDoUpstream = false; // algum byte veio do Python (ver ResultadoStreamSabia)
         let viuDone = false;
         let viuErro = false;
         const resultado = (aborted: boolean): ResultadoStreamSabia => ({
             usage,
             aborted,
             entregouConteudo,
+            recebeuDoUpstream,
             concluiu: viuDone && !viuErro,
         });
         try {
@@ -386,6 +394,7 @@ export class SabiaService {
 
             while (true) {
                 const { done, value } = await reader.read();
+                if (value && value.length > 0) recebeuDoUpstream = true;
                 if (upstream.signal.aborted) break;
                 if (done) break;
                 rearmarIdle();

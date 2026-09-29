@@ -9,9 +9,12 @@
  *   2. teto global de custo do dia → 503 { codigo: 'TETO_GLOBAL' };
  *   3. reserva atômica de uma pergunta na cota diária → 429 { codigo: 'COTA_DIARIA' }.
  *
- * A pergunta reservada só conta se o Darcy respondeu: qualquer falha (erro,
- * timeout, sem créditos, cliente que saiu antes da resposta) chama
- * `estornar()`. Toda resposta de sucesso leva `cota` para a rodinha do chat.
+ * A pergunta reservada é devolvida (`estornar()`) quando o Darcy falha (erro,
+ * timeout, sem créditos). Cliente que fecha a conexão NÃO recebe a pergunta de
+ * volta depois que o modelo foi chamado — senão um script com timeout curto
+ * faria chamadas pagas sem nunca gastar cota. No stream, só estorna quem sai
+ * antes de o Python mandar o primeiro evento. Toda resposta de sucesso leva
+ * `cota` para a rodinha do chat.
  */
 
 import { randomUUID } from 'crypto';
@@ -98,7 +101,10 @@ export interface PerguntaIA {
     cota: CotaIA;
     /** Devolve a pergunta (a IA falhou). Idempotente. */
     estornar(): Promise<void>;
-    /** True se o cliente fechou a conexão antes de receber a resposta. */
+    /**
+     * True se o cliente fechou a conexão antes de receber a resposta. Serve só
+     * para não escrever num socket fechado: a pergunta continua contando.
+     */
     clienteSaiu(): boolean;
 }
 
@@ -137,8 +143,8 @@ export async function reservarPerguntaIA(res: Response, usuario: UsuarioIA): Pro
         return null;
     }
 
-    // Cliente que sai antes da resposta não gasta a pergunta. O guard ignora o
-    // 'close' que também dispara depois do res.end().
+    // Marca o cliente que saiu antes da resposta (não estorna: ver cabeçalho).
+    // O guard ignora o 'close' que também dispara depois do res.end().
     let saiu = false;
     if (typeof (res as { on?: unknown }).on === 'function') {
         res.on('close', () => {

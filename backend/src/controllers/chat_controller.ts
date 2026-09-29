@@ -111,10 +111,8 @@ export const ChatController: EndpointController = {
                     ...ctxIA,
                 });
 
-                if (pergunta.clienteSaiu()) {
-                    await pergunta.estornar();
-                    return;
-                }
+                // O modelo já respondeu (e cobrou): quem saiu gasta a pergunta, só não recebe a resposta.
+                if (pergunta.clienteSaiu()) return;
                 return res.status(200).json({ reply: resultado.finalOutput, cota: pergunta.cota });
             } catch (error) {
                 await pergunta.estornar();
