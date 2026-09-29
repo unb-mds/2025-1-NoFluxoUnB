@@ -77,13 +77,19 @@ export interface IntegralizacaoInput {
 }
 
 /**
- * Retorna o JSON de integralização: Exigido (matriz) vs Realizado (soma das concluídas).
+ * Percentual cumprido. Só chega a 100 quando realizado >= exigido: arredondar
+ * para cima mostrava 100% com horas ainda faltando (ex.: 3840 de 3855 h).
+ * Manter igual a `pct` em backend/src/services/integralizacao.service.ts.
  */
-function pct(exigido: number, realizado: number): number {
+export function pct(exigido: number, realizado: number): number {
 	if (exigido <= 0) return 0;
-	return Math.min(100, Math.round((realizado / exigido) * 100));
+	if (realizado >= exigido) return 100;
+	return Math.max(0, Math.min(99, Math.floor((realizado / exigido) * 100)));
 }
 
+/**
+ * Retorna o JSON de integralização: Exigido (matriz) vs Realizado (soma das concluídas).
+ */
 export async function getIntegralizacao(input: IntegralizacaoInput): Promise<IntegralizacaoResult | null> {
 	const {
 		curriculoCompleto,
