@@ -13,7 +13,7 @@ import { Request, Response } from 'express';
 import { RagflowService } from '../services/ragflow.service';
 import { SabiaService, isMensagemSabiaPublica } from '../services/sabia.service';
 import { removeAccents } from '../utils/text.utils';
-import { formatRanking } from '../utils/ranking.formatter';
+import { formatRanking, RankingFormatError } from '../utils/ranking.formatter';
 import { createControllerLogger } from '../utils/controller_logger';
 import { logAiUsage } from '../utils/ai_usage_logger';
 import { SupabaseWrapper } from '../supabase_wrapper';
@@ -62,8 +62,17 @@ export const AssistenteController: EndpointController = {
                     return res.status(502).json({ erro: ERRO_IA_GENERICO, requestId });
                 }
 
-                // Format response as Markdown ranking
-                const formatted = formatRanking(result);
+                // Format response as Markdown ranking. Resposta sem answer (ou
+                // sem bloco de ranking) é falha do provedor: 502, não um 200
+                // com texto de erro no lugar do resultado.
+                let formatted: string;
+                try {
+                    formatted = formatRanking(result);
+                } catch (error) {
+                    if (!(error instanceof RankingFormatError)) throw error;
+                    const requestId = registrarFalha(logger, 'Resposta do RAGFlow sem ranking', error);
+                    return res.status(502).json({ erro: ERRO_IA_GENERICO, requestId });
+                }
                 const duration = Date.now() - startTime;
                 logger.info(`Request completed in ${duration}ms`);
 

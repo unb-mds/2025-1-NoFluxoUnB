@@ -206,6 +206,43 @@ describe('POST /assistente/analyze (RAGFlow)', () => {
     });
 });
 
+// Pré-mortem 27/09/2026, R53: code 0 sem `answer` virava HTTP 200 com
+// "Erro ao processar o JSON: Cannot read properties of undefined" no resultado.
+describe('POST /assistente/analyze com resposta do RAGFlow sem answer', () => {
+    it('responde 502 genérico em vez de 200 com texto de erro', async () => {
+        mockRagflow.startSession.mockResolvedValue('s1');
+        mockRagflow.analyzeMateria.mockResolvedValue({ code: 0, data: { session_id: 's1' } });
+        const { req, res } = mockReqRes({ materia: 'IA' });
+        await route('analyze')(req, res);
+
+        expect(res.statusCode).toBe(502);
+        expect(res.body).toEqual({ erro: ERRO_IA_GENERICO, requestId: expect.any(String) });
+        expect(JSON.stringify(res.body)).not.toContain('Cannot read properties');
+    });
+
+    it('answer sem bloco de ranking também é 502', async () => {
+        mockRagflow.startSession.mockResolvedValue('s1');
+        mockRagflow.analyzeMateria.mockResolvedValue({ code: 0, data: { answer: `{"content": {"0": ""}}`, session_id: 's1' } });
+        const { req, res } = mockReqRes({ materia: 'IA' });
+        await route('analyze')(req, res);
+
+        expect(res.statusCode).toBe(502);
+    });
+
+    it('answer válido continua 200 com o ranking', async () => {
+        mockRagflow.startSession.mockResolvedValue('s1');
+        mockRagflow.analyzeMateria.mockResolvedValue({
+            code: 0,
+            data: { answer: `{"content": {"0": "INÍCIO DO RANKING\\n1. **Disciplina:** IA; Codigo: CIC0001; Unidade responsavel: CIC\\n**Pontuação:** 90\\n"}}`, session_id: 's1' },
+        });
+        const { req, res } = mockReqRes({ materia: 'IA' });
+        await route('analyze')(req, res);
+
+        expect(res.statusCode).toBe(200);
+        expect(res.body.resultado).toContain('`CIC0001`');
+    });
+});
+
 describe('POST /assistente/chat', () => {
     it('erro do LLM não volta cru', async () => {
         mockConversar.mockRejectedValue(new Error(`Maritaca API error: 500 upstream ${URL_INTERNA}`));
