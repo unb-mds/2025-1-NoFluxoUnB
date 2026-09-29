@@ -9,7 +9,15 @@
  */
 
 import { spawnSync } from "child_process";
+import { readFileSync } from "fs";
 import { join } from "path";
+
+const MIGRATIONS_DIR = join(__dirname, "..", "..", "..", "supabase", "migrations");
+
+/** Texto de um arquivo de supabase/migrations. */
+export function lerMigration(nome: string): string {
+    return readFileSync(join(MIGRATIONS_DIR, nome), "utf8");
+}
 
 export interface Job {
     /** SQL rodado antes da consulta, na mesma transação (catálogo, SET ROLE...). */
@@ -19,7 +27,7 @@ export interface Job {
 }
 
 export type Resultado =
-    | { rows: Record<string, any>[]; error?: undefined }
+    | { rows: Record<string, any>[]; error?: undefined; code?: undefined }
     | { rows?: undefined; error: string; code: string | null };
 
 /** Sobe o banco uma vez e roda cada job numa transação desfeita no fim. */

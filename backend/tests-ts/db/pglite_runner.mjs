@@ -69,5 +69,6 @@ for (const job of entrada.jobs) {
   }
 }
 
-process.stdout.write(JSON.stringify(saida));
+// bigint (colunas int8) não serializa em JSON; os ids do catálogo cabem em Number.
+process.stdout.write(JSON.stringify(saida, (_k, v) => (typeof v === 'bigint' ? Number(v) : v)));
 await db.close();
