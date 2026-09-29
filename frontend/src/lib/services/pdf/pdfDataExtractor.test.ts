@@ -1,5 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { extrairCargaHorariaIntegralizada, extrairDadosAcademicos } from './pdfDataExtractor';
+import {
+	extrairCargaHorariaIntegralizada,
+	extrairDadosAcademicos,
+	extrairMatrizCurricular
+} from './pdfDataExtractor';
 
 /**
  * Textos SINTÉTICOS no formato que o pdfExtractor produz a partir do histórico do
@@ -35,6 +39,23 @@ describe('fallback regex: nome de disciplina que começa com palavra de metadata
 			'\n'
 		);
 		expect(regulares(texto)[0].nome).toBe('');
+	});
+});
+
+describe('extrairMatrizCurricular (R12)', () => {
+	it('sem label, não confunde data do cabeçalho com código de currículo', () => {
+		const texto =
+			'Credenciada conforme decreto MEC Nº 500, de 15 de janeiro de 1962\nna seção 01, pág. 559, em 16/01/1962.\nCurso: ENGENHARIA DE SOFTWARE/FGA - BACHARELADO - DIURNO\nMatriz: 6360/1 - 2017.1';
+		expect(extrairMatrizCurricular(texto)).toBe('6360/1');
+	});
+
+	it('texto só com datas não tem matriz', () => {
+		expect(extrairMatrizCurricular('Emitido em 16/01/2025')).toBeNull();
+	});
+
+	it('com label continua igual', () => {
+		expect(extrairMatrizCurricular('Currículo:          6360/1 - 2017.1')).toBe('6360/1');
+		expect(extrairMatrizCurricular('Currículo:          8150/-2')).toBe('8150/-2');
 	});
 });
 

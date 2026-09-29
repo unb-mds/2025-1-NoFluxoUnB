@@ -178,8 +178,10 @@ export function extrairMatrizCurricular(texto: string): string | null {
   m = normalizedText.match(/Curr[ií]culo:\s*\n?(\d+\/-?\d+)\s*-\s*(\d{4}\.\d)/mi);
   if (m) return `${m[1].trim()} - ${m[2]}`;
 
-  // Sem label: "6360/1 - 2017.1" ou só "60810/1" no texto
-  m = normalizedText.match(/(\d+\/-?\d+)(?:\s*-\s*\d{4}\.\d)?/m);
+  // Sem label: "6360/1 - 2017.1" ou só "60810/1" no texto. Exige 3+ dígitos
+  // antes da barra e nada de dígito/barra colado antes: sem isso a data
+  // "16/01/1962" do cabeçalho virava a matriz "16/01" (pré-mortem R12).
+  m = normalizedText.match(/(?<![\d/])(\d{3,}\/-?\d+)(?:\s*-\s*\d{4}\.\d)?/m);
   if (m) return m[1].trim();
 
   return null;

@@ -68,6 +68,35 @@ describe('R4: nome de disciplina que começa com palavra de metadata', () => {
 	});
 });
 
+describe('R12: PDF que não é histórico do SIGAA', () => {
+	const mensagemDe = (p: Promise<unknown>) => p.then(() => '', (e: Error) => e.message);
+
+	test('declaração de matrícula é rejeitada em vez de "processada com sucesso"', async () => {
+		const items: Item[] = [
+			{ x: 50, y: 800, t: 'DECLARAÇÃO DE MATRÍCULA' },
+			{ x: 50, y: 780, t: 'Declaramos que o aluno está regularmente matriculado.' },
+			{ x: 50, y: 760, t: 'Emitido em 16/01/2025' }
+		];
+		const msg = await mensagemDe(parsePdf(pdfFile([items])));
+		expect(msg).toMatch(/histórico escolar do SIGAA/);
+	});
+
+	test('histórico sem nenhuma disciplina cursada nem pendente é rejeitado', async () => {
+		const msg = await mensagemDe(parsePdf(pdfFile([header(700)])));
+		expect(msg).toMatch(/histórico escolar do SIGAA/);
+	});
+
+	test('histórico sintético mínimo continua passando', async () => {
+		const items: Item[] = [
+			...header(700),
+			...dataRow(690, { per: '2024.1', code: 'FGA0138', name: 'MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE', ch: '60', sit: 'APR' })
+		];
+		const r = await parsePdf(pdfFile([items]));
+		expect(regs(r)).toHaveLength(1);
+		expect(r.matriz_curricular).toBe('6360/1');
+	});
+});
+
 describe('R38: PDF que o pdf.js não consegue abrir', () => {
 	const mensagemDe = (p: Promise<unknown>) => p.then(() => '', (e: Error) => e.message);
 

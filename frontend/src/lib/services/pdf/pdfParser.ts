@@ -237,6 +237,22 @@ function extrairDisciplinasPendentes(text: string): DisciplinaExtraida[] {
 	return disciplinas;
 }
 
+const MSG_NAO_E_HISTORICO =
+	'Este PDF não parece ser um histórico escolar do SIGAA/UnB. ' +
+	'Baixe o histórico em SIGAA > Ensino > Emitir Histórico e envie o arquivo gerado.';
+
+/**
+ * Assinatura mínima do histórico do SIGAA. Qualquer outro PDF com texto
+ * (declaração de matrícula, comprovante, ementa) era "processado com sucesso"
+ * com 0 disciplinas e uma matriz inventada (pré-mortem R12). A regra é OR entre
+ * marcadores, com espaços opcionais porque o pdf.js às vezes cola as palavras
+ * ("ComponentesCurriculares").
+ */
+function pareceHistoricoSigaa(texto: string): boolean {
+	if (/Hist[óo]rico\s*Escolar/i.test(texto)) return true;
+	return /Curr[ií]culo\s*:/i.test(texto) && /Componentes\s*Curriculares/i.test(texto);
+}
+
 /**
  * Parse a PDF file entirely in the browser.
  * Returns the same structure as the old Python endpoint `POST /upload-pdf`.
@@ -262,6 +278,11 @@ export async function parsePdf(file: File): Promise<ParsedPdfResult> {
 			'Nenhuma informação textual pôde ser extraída do PDF. ' +
 				'O PDF pode ser uma imagem de baixa qualidade, estar vazio ou corrompido.'
 		);
+	}
+
+	if (!pareceHistoricoSigaa(textoTotal)) {
+		console.error(`${LOG_PREFIX} Text does not look like a SIGAA histórico — aborting`);
+		throw new Error(MSG_NAO_E_HISTORICO);
 	}
 
 	console.log(`${LOG_PREFIX} Text extraction done — ${textoTotal.length} chars, ${positionedPages.length} pages of positioned items (${(performance.now() - startTime).toFixed(0)}ms elapsed)`);
@@ -345,6 +366,13 @@ export async function parsePdf(file: File): Promise<ParsedPdfResult> {
 	console.time(`${LOG_PREFIX} pendingDisciplines`);
 	const pendentes = extrairDisciplinasPendentes(textoTotal);
 	console.timeEnd(`${LOG_PREFIX} pendingDisciplines`);
+
+	// Histórico sem nenhuma disciplina cursada nem pendente não é um histórico
+	// que o fluxograma consiga usar: antes seguia com "sucesso" e 0 disciplinas.
+	if (disciplinas.length === 0 && pendentes.length === 0) {
+		console.error(`${LOG_PREFIX} No disciplines (regular or pending) found — aborting`);
+		throw new Error(MSG_NAO_E_HISTORICO);
+	}
 
 	// 6. Equivalências (regex)
 	console.time(`${LOG_PREFIX} equivalencias`);
