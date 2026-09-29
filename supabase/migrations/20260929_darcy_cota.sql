@@ -417,8 +417,11 @@ GRANT EXECUTE ON FUNCTION public.darcy_recusar_pedido(bigint, text) TO authentic
 --   * por_dia agrupa pelo dia de Brasília (antes era o dia UTC: o que acontecia
 --     depois das 21h caía no dia seguinte);
 --   * total_perguntas: uma pergunta = mesmo pergunta_id, ou, nas linhas antigas
---     sem pergunta_id, mesmo (endpoint, created_at) — total_requisicoes continua
---     contando chamadas ao modelo;
+--     sem pergunta_id, mesmo (endpoint, created_at) — só nos endpoints que são
+--     pergunta do aluno (chat/analyze). Linha sem pergunta_id de ferramenta
+--     interna (buscar-materias, dificuldade do plano) entra no custo e em
+--     total_requisicoes mas não é pergunta. As linhas antigas são aproximadas:
+--     antes do pergunta_id, cada chamada ao modelo com horário próprio vira uma;
 --   * por_endpoint, custo_hoje e sem_tokens (linhas sem tokens, que não custam).
 CREATE OR REPLACE FUNCTION public.get_ai_cost_metrics(p_days integer DEFAULT 30)
  RETURNS jsonb
@@ -446,7 +449,12 @@ BEGIN
 
   WITH r AS (
     SELECT l.endpoint, l.model, l.total_tokens, l.created_at,
-           COALESCE(l.pergunta_id::text, COALESCE(l.endpoint, '') || '|' || l.created_at::text) AS pergunta,
+           CASE
+             WHEN l.pergunta_id IS NOT NULL THEN l.pergunta_id::text
+             WHEN l.endpoint IN ('assistente-chat', 'planejamento-chat', 'chat-send',
+                                 'analyze-sabia', 'analyze-sabia-stream')
+               THEN l.endpoint || '|' || l.created_at::text
+           END AS pergunta,  -- NULL = não é pergunta (count DISTINCT ignora)
            (l.prompt_tokens / 1000.0) * COALESCE(p.input_per_1k, 0)
          + (l.completion_tokens / 1000.0) * COALESCE(p.output_per_1k, 0) AS custo
       FROM public.ai_usage_log l

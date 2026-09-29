@@ -7,6 +7,7 @@
 import logger from '../logger';
 import { Response } from 'express';
 import { ERRO_IA_GENERICO, registrarFalha } from '../utils/erro_publico';
+import { contextoIAAtual } from '../utils/ai_usage_logger';
 
 /**
  * Mensagens de erro que o próprio mcp_agent escreve para o usuário
@@ -286,11 +287,19 @@ export class SabiaService {
                 .map((t) => t.trim().slice(0, MAX_CHARS_TERMO).trim()),
         )].slice(0, MAX_TERMOS_BUSCA);
         if (termos.length === 0) return [];
+        const ctx = contextoIAAtual();
         try {
             const response = await fetch(`${this.apiUrl}/buscar-materias`, {
                 method: 'POST',
                 headers: this.buildHeaders(),
-                body: JSON.stringify({ termos_busca: termos }),
+                // Quem perguntou e qual pergunta: o Python grava junto das
+                // embeddings no ai_usage_log, e a busca entra na mesma pergunta
+                // do dashboard em vez de contar como outra.
+                body: JSON.stringify({
+                    termos_busca: termos,
+                    user_id: ctx.userId ?? null,
+                    pergunta_id: ctx.perguntaId ?? null,
+                }),
                 signal: AbortSignal.timeout(SABIA_BUSCA_TIMEOUT_MS),
             });
             if (!response.ok) {

@@ -26,6 +26,7 @@ except ImportError:
     sys.modules["httpx"] = types.SimpleNamespace(Timeout=_Timeout)
 
 from sabia_utils import (
+    linha_uso_embeddings,
     MARITACA_CONNECT_TIMEOUT_S,
     MARITACA_GERACAO_SEM_STREAM_TIMEOUT_S,
     MAX_TERMOS_BUSCA,
@@ -330,6 +331,51 @@ def test_api_producao_usa_config_do_cliente_maritaca():
         assert kwargs and getattr(kwargs[0].value.func, "id", None) == (
             "maritaca_client_kwargs"
         ), ast.dump(chamada)
+
+
+def test_linha_uso_embeddings_leva_usuario_e_pergunta():
+    # Sem pergunta_id, cada busca semântica feita dentro de uma pergunta do
+    # Darcy virava mais uma "pergunta" no card de custo do dashboard.
+    uid = "11111111-1111-1111-1111-111111111111"
+    pid = "aaaaaaaa-0000-0000-0000-000000000001"
+    linha = linha_uso_embeddings("buscar-materias", ["redes", "ia"], 12, True, uid, pid)
+    assert linha["user_id"] == uid
+    assert linha["pergunta_id"] == pid
+    assert linha["endpoint"] == "buscar-materias"
+    assert linha["model"] == "gemini-embedding-001"
+    assert (
+        linha["prompt_tokens"] == linha["total_tokens"] == 2
+    )  # "redes ia" = 8 chars / 4
+
+
+def test_linha_uso_embeddings_descarta_id_invalido():
+    # A coluna é uuid: valor lixo derrubaria o insert e a linha de custo sumiria.
+    linha = linha_uso_embeddings("buscar-materias", ["x"], 1, True, "nao-e-uuid", 42)
+    assert linha["user_id"] is None
+    assert linha["pergunta_id"] is None
+
+
+def test_buscar_materias_repassa_ids_ao_log():
+    # Via AST (importar api_producao conectaria em Supabase/Gemini).
+    caminho = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "api_producao.py"
+    )
+    with open(caminho, encoding="utf-8") as f:
+        arvore = ast.parse(f.read())
+    rota = next(
+        n
+        for n in ast.walk(arvore)
+        if isinstance(n, ast.AsyncFunctionDef) and n.name == "buscar_materias"
+    )
+    chamadas = [
+        n
+        for n in ast.walk(rota)
+        if isinstance(n, ast.Call)
+        and getattr(n.func, "id", None) == "_log_ai_usage_embeddings"
+    ]
+    assert chamadas, "buscar_materias não loga as embeddings"
+    args = [ast.unparse(a) for a in chamadas[0].args]
+    assert "busca.user_id" in args and "busca.pergunta_id" in args
 
 
 if __name__ == "__main__":

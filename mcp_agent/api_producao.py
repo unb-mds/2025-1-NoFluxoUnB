@@ -6,7 +6,6 @@ import os
 import json
 import re
 import time
-from math import ceil
 from pydantic import BaseModel
 from openai import OpenAI
 import google.generativeai as genai
@@ -16,6 +15,7 @@ from tool_call_utils import extrair_tool_call_texto, termo_materia
 from sabia_utils import (
     MAX_TERMOS_BUSCA,
     codigos_validos_de,
+    linha_uso_embeddings,
     maritaca_client_kwargs,
     maritaca_opcoes_geracao_sem_stream,
     maritaca_opcoes_roteamento,
@@ -439,33 +439,28 @@ async def health_check():
 # TypeScript (planejador_agente). Evita a 2ª chamada de modelo do /recomendar.
 class BuscaMaterias(BaseModel):
     termos_busca: list[str] = []
+    # Quem perguntou e qual pergunta (o backend manda quando a busca é uma
+    # ferramenta do Darcy). Vão para o ai_usage_log junto das embeddings.
+    user_id: str | None = None
+    pergunta_id: str | None = None
 
 
 def _log_ai_usage_embeddings(
-    endpoint: str, termos: list[str], duration_ms: int, success: bool
+    endpoint: str,
+    termos: list[str],
+    duration_ms: int,
+    success: bool,
+    user_id: str | None = None,
+    pergunta_id: str | None = None,
 ) -> None:
     """Loga uso de embeddings Gemini em `ai_usage_log` (tracking de custo no
-    dashboard admin). Fire-and-forget best-effort: nunca lança, não bloqueia a
-    resposta ao chamador além do próprio insert síncrono do supabase-py.
-
-    `genai.embed_content` não devolve contagem de tokens — aproxima por
-    len(texto)/4 (heurística documentada; preço real fica configurado em
-    `ai_pricing` para `gemini-embedding-001`).
+    dashboard admin). Best-effort: nunca lança. Ver linha_uso_embeddings.
     """
     try:
-        texto_concatenado = " ".join(termos)
-        tokens_estimados = max(1, ceil(len(texto_concatenado) / 4))
         supabase.table("ai_usage_log").insert(
-            {
-                "endpoint": endpoint,
-                "model": "gemini-embedding-001",
-                "prompt_tokens": tokens_estimados,
-                "completion_tokens": 0,
-                "total_tokens": tokens_estimados,
-                "duration_ms": duration_ms,
-                "success": success,
-                "request_excerpt": texto_concatenado[:120],
-            }
+            linha_uso_embeddings(
+                endpoint, termos, duration_ms, success, user_id, pergunta_id
+            )
         ).execute()
     except Exception as e:
         print(f"[WARN] Falha ao logar uso de embeddings ({endpoint}): {e}")
@@ -481,7 +476,14 @@ async def buscar_materias(busca: BuscaMaterias):
     inicio = time.time()
     resultado_json = ferramenta_buscar_materias_unb(termos)
     duration_ms = int((time.time() - inicio) * 1000)
-    _log_ai_usage_embeddings("buscar-materias", termos, duration_ms, True)
+    _log_ai_usage_embeddings(
+        "buscar-materias",
+        termos,
+        duration_ms,
+        True,
+        busca.user_id,
+        busca.pergunta_id,
+    )
     try:
         materias = json.loads(resultado_json)
     except Exception:

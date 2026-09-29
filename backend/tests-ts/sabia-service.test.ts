@@ -17,6 +17,7 @@ import {
     SABIA_STREAM_IDLE_TIMEOUT_MS,
     SABIA_TIMEOUT_MS,
 } from "../src/services/sabia.service";
+import { executarComContextoIA } from "../src/utils/ai_usage_logger";
 
 const ENV_KEYS = ["MARITACA_API_KEY", "GOOGLE_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SABIA_API_URL"];
 const envOriginal: Record<string, string | undefined> = {};
@@ -46,6 +47,30 @@ afterEach(() => {
 function jsonResponse(body: unknown): Response {
     return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
 }
+
+describe("SabiaService.buscarMaterias — rastreabilidade da pergunta", () => {
+    test("manda user_id e pergunta_id da pergunta corrente para o mcp_agent", async () => {
+        const fetchMock = jest.fn().mockResolvedValue(jsonResponse({ materias: [] }));
+        global.fetch = fetchMock as unknown as typeof fetch;
+
+        await executarComContextoIA({ userId: "u-1", perguntaId: "p-1" }, () =>
+            new SabiaService().buscarMaterias(["redes"]),
+        );
+
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body).toMatchObject({ user_id: "u-1", pergunta_id: "p-1" });
+    });
+
+    test("fora de uma pergunta manda null", async () => {
+        const fetchMock = jest.fn().mockResolvedValue(jsonResponse({ materias: [] }));
+        global.fetch = fetchMock as unknown as typeof fetch;
+
+        await new SabiaService().buscarMaterias(["redes"]);
+
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body).toMatchObject({ user_id: null, pergunta_id: null });
+    });
+});
 
 describe("SabiaService.buscarMaterias — teto de termos (R51)", () => {
     test("manda no máximo 4 termos, sem duplicados, para o mcp_agent", async () => {

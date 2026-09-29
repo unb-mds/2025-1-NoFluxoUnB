@@ -336,7 +336,12 @@
 					<div class="ticket-block">
 						<span class="block-title">Custo total</span>
 						<span class="block-big">{moedaFmt(aiCost.custo_total)}</span>
-						<span class="block-sub">
+						<span
+							class="block-sub"
+							title={aiCost.total_perguntas !== undefined
+								? 'Perguntas dos alunos ao Darcy. Buscas semânticas e a dificuldade do plano entram no custo, mas não como pergunta. Antes de 29/09/2026 (sem pergunta_id) a contagem é aproximada.'
+								: undefined}
+						>
 							{#if aiCost.total_perguntas !== undefined}
 								{aiCost.total_perguntas} perguntas · {aiCost.total_requisicoes} chamadas ao modelo
 							{:else}

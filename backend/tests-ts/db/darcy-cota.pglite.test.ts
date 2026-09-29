@@ -250,6 +250,21 @@ const CENARIOS = {
                 ('2026-09-02 12:00:00+00', 'assistente-chat', 'sabia-4', 10, 10, 20, NULL),
                 (now() - interval '1 day', 'planejamento-chat', 'desconhecido', 0, 0, 0, NULL);`
     ),
+    metricas_ferramenta_nao_e_pergunta: comoUsuario(
+        ADMIN,
+        `SELECT m->'total_requisicoes' AS req, m->'total_perguntas' AS perguntas,
+                m->'por_endpoint' AS por_endpoint,
+                (SELECT sum((d->>'perguntas')::int) FROM jsonb_array_elements(m->'por_dia') d) AS perguntas_por_dia
+           FROM get_ai_cost_metrics(30) m`,
+        `INSERT INTO admins (auth_id, role, scopes) VALUES ('${ADMIN}', 'admin', ARRAY['dashboard']);
+         INSERT INTO ai_usage_log (created_at, endpoint, model, prompt_tokens, completion_tokens, total_tokens, pergunta_id)
+         VALUES (now(), 'assistente-chat', 'sabia-4', 10, 10, 20, 'aaaaaaaa-0000-0000-0000-000000000002'),
+                (now() + interval '1 second', 'buscar-materias', 'gemini-embedding-001', 3, 0, 3, 'aaaaaaaa-0000-0000-0000-000000000002'),
+                -- legado: embeddings sem pergunta_id (antes o Python não recebia o id)
+                (now() - interval '1 hour', 'buscar-materias', 'gemini-embedding-001', 3, 0, 3, NULL),
+                (now() - interval '2 hours', 'buscar-materias', 'gemini-embedding-001', 3, 0, 3, NULL),
+                (now() - interval '3 hours', 'planejamento-gerar-plano-dificuldade', 'sabiazinho-4', 5, 5, 10, NULL);`
+    ),
     metricas_dia_brasilia: comoUsuario(
         ADMIN,
         `SELECT d->>'dia' AS dia FROM jsonb_array_elements((SELECT get_ai_cost_metrics(3650))->'por_dia') d`,
@@ -465,6 +480,16 @@ describe("dashboard", () => {
         expect(m.perguntas).toBe(3);
         expect(m.sem_tokens).toBe(1);
         expect(m.por_endpoint["analyze-sabia"]).toMatchObject({ requisicoes: 2, perguntas: 1 });
+    });
+
+    it("busca semântica e dificuldade do plano sem pergunta_id não viram pergunta", () => {
+        const m = linhas("metricas_ferramenta_nao_e_pergunta")[0];
+        expect(m.req).toBe(5);
+        // só o assistente-chat; a busca com o mesmo pergunta_id entra nele
+        expect(m.perguntas).toBe(1);
+        expect(Number(m.perguntas_por_dia)).toBe(1);
+        expect(m.por_endpoint["buscar-materias"]).toMatchObject({ requisicoes: 3, perguntas: 1 });
+        expect(m.por_endpoint["planejamento-gerar-plano-dificuldade"]).toMatchObject({ requisicoes: 1, perguntas: 0 });
     });
 
     it("agrupa o custo pelo dia de Brasília", () => {
