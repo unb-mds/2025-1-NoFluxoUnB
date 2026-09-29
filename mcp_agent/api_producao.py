@@ -13,6 +13,7 @@ import google.generativeai as genai
 from supabase import create_client
 from dotenv import load_dotenv
 from tool_call_utils import extrair_tool_call_texto, termo_materia
+from sabia_utils import codigos_validos_de, parse_resposta_sabia
 
 
 # 1. INICIALIZAÇÃO GLOBAL (Roda apenas quando o servidor liga)
@@ -176,64 +177,6 @@ TOOLS = [
         },
     },
 ]
-
-
-def parse_resposta_sabia(texto: str) -> list:
-    """Extrai as disciplinas do texto da IA bloqueando qualquer duplicação."""
-    disciplinas = []
-    codigos_vistos = set()  # O nosso rastreador de duplicatas
-
-    linhas = texto.split("\n")
-    for linha in linhas:
-        linha = linha.strip().lstrip("*").lstrip("-").lstrip("•").strip()
-        codigo_match = re.match(r"([A-Z]{3}\d{4})", linha)
-        if not codigo_match:
-            continue
-
-        try:
-            codigo = codigo_match.group(1).upper()
-
-            # Se já vimos esse código pula para a próxima linha
-            if codigo in codigos_vistos:
-                continue
-
-            codigos_vistos.add(codigo)  # Registra que já pegou essa matéria
-
-            resto = linha[len(codigo) :].strip().lstrip("-").strip()
-
-            nome = (
-                resto.split("|")[0].strip()
-                if "|" in resto
-                else (
-                    resto.split("Nota:")[0].strip()
-                    if "Nota:" in resto
-                    else resto.strip()
-                )
-            )
-            nome = nome.strip("*").strip()
-
-            nota = 7
-            if "Nota:" in linha:
-                nota_texto = re.sub(r"[^\d]", "", linha.split("Nota:")[1].split("/")[0])
-                if nota_texto:
-                    nota = int(nota_texto)
-
-            justificativa = ""
-            if "Motivo:" in linha:
-                justificativa = linha.split("Motivo:")[1].strip().strip("*").strip()
-
-            disciplinas.append(
-                {
-                    "codigo": codigo,
-                    "nome": nome,
-                    "nota": nota,
-                    "justificativa": justificativa,
-                }
-            )
-        except Exception:
-            continue
-
-    return disciplinas
 
 
 # --- NOVA FUNÇÃO: O FLUXO DIRETO PELA MATRIZ (COM LIMPEZA REGEX) ---
@@ -639,9 +582,12 @@ async def recomendar_materias(consulta: Consulta):
         resposta_texto = final_response.choices[0].message.content or ""
         print(f"\n[DEBUG] Texto bruto da IA:\n{resposta_texto}\n")
 
-        # Modo explicação é prosa: não extrai lista de disciplinas.
+        # Modo explicação é prosa: não extrai lista de disciplinas. No modo lista,
+        # só vira card o código que veio da ferramenta (não o inventado pelo modelo).
         disciplinas = (
-            [] if modo == "explicacao" else parse_resposta_sabia(resposta_texto)
+            []
+            if modo == "explicacao"
+            else parse_resposta_sabia(resposta_texto, codigos_validos_de(dados_banco))
         )
         return {
             "success": True,
@@ -768,6 +714,8 @@ async def recomendar_materias_stream(consulta: Consulta):
 
             resposta_texto = ""
             codigos_emitidos = set()
+            # Só emite card de código que veio da ferramenta (ver /recomendar).
+            codigos_validos = codigos_validos_de(dados_banco)
 
             for chunk in stream:
                 # Chunk final de usage (include_usage) vem sem choices.
@@ -789,7 +737,7 @@ async def recomendar_materias_stream(consulta: Consulta):
                         continue
                     complete_text = resposta_texto[:last_newline]
 
-                    disciplinas = parse_resposta_sabia(complete_text)
+                    disciplinas = parse_resposta_sabia(complete_text, codigos_validos)
                     for disc in disciplinas:
                         if disc["codigo"] not in codigos_emitidos:
                             codigos_emitidos.add(disc["codigo"])
@@ -797,7 +745,7 @@ async def recomendar_materias_stream(consulta: Consulta):
 
             # Parse any remaining text after stream ends (apenas no modo lista)
             if modo == "lista":
-                disciplinas = parse_resposta_sabia(resposta_texto)
+                disciplinas = parse_resposta_sabia(resposta_texto, codigos_validos)
                 for disc in disciplinas:
                     if disc["codigo"] not in codigos_emitidos:
                         codigos_emitidos.add(disc["codigo"])
