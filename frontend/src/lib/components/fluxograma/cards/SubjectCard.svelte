@@ -15,6 +15,14 @@
 		getSubjectChain
 	} from '$lib/utils/curriculum-graph';
 	import MateriaNaturezaBadge from '$lib/components/materia/MateriaNaturezaBadge.svelte';
+	import { Check, Circle, CircleDashed, Clock, Lock, X } from 'lucide-svelte';
+	import {
+		PREREQ_BADGE,
+		STATUS_CARD_BG,
+		TAG_BADGE,
+		statusTextAlpha,
+		subjectCardAriaLabel
+	} from './subject-card-colors';
 
 	interface Props {
 		materia: MateriaModel;
@@ -184,17 +192,41 @@
 		return canBeTaken(materia, store.completedCodes);
 	});
 
-	const gradientMap: Record<SubjectStatusValue, string> = {
-		[SubjectStatusEnum.COMPLETED]: 'bg-[#1f7a43]',
-		[SubjectStatusEnum.IN_PROGRESS]: 'bg-[#6b2fcf]',
-		[SubjectStatusEnum.AVAILABLE]: 'bg-[#a8671a]',
-		[SubjectStatusEnum.FAILED]: 'bg-[#991b1b]',
-		[SubjectStatusEnum.LOCKED]: 'bg-[#161625]',
-		[SubjectStatusEnum.NOT_STARTED]: 'bg-[#161625]'
+	/**
+	 * Status não pode depender só da cor (aprovado vs. disponível dá 1.18:1 de
+	 * luminância): ícone ao lado do código + status no nome acessível.
+	 */
+	const statusIcon: Record<SubjectStatusValue, typeof Check> = {
+		[SubjectStatusEnum.COMPLETED]: Check,
+		[SubjectStatusEnum.IN_PROGRESS]: Clock,
+		[SubjectStatusEnum.AVAILABLE]: Circle,
+		[SubjectStatusEnum.FAILED]: X,
+		[SubjectStatusEnum.LOCKED]: Lock,
+		[SubjectStatusEnum.NOT_STARTED]: CircleDashed
 	};
+	let StatusIcon = $derived(statusIcon[status]);
+
+	let showPrereqBadge = $derived(!store.state.isAnonymous && (hasPrereqs || dependentCount > 0));
+
+	let ariaLabel = $derived.by(() => {
+		const etiquetas: string[] = [];
+		if (naturezaBadge === 'modulo_livre') etiquetas.push('módulo livre');
+		else if (naturezaBadge === 'optatoria') etiquetas.push('optatória');
+		else if (naturezaBadge === 'optativa') etiquetas.push('optativa');
+		if (concluidaPorEquivalencia) etiquetas.push('concluída por equivalência');
+		else if (concluidaPorAproveitamento) etiquetas.push('aproveitamento de estudos');
+		return subjectCardAriaLabel({
+			codigo: materia.codigoMateria,
+			nome: materia.nomeMateria,
+			creditos: materia.creditos,
+			status,
+			prereqsCompleted: showPrereqBadge && hasPrereqs ? prereqsCompleted : undefined,
+			etiquetas
+		});
+	});
 
 	let cardClasses = $derived.by(() => {
-		const gradient = gradientMap[status];
+		const gradient = STATUS_CARD_BG[status].className;
 		const base = `subject-card relative flex w-full max-w-[220px] min-w-0 flex-col text-left cursor-pointer rounded-xl border p-2.5 transition-[opacity,box-shadow,border-color] duration-300 sm:max-w-[240px]`;
 		if (isSelected) {
 			return `${base} ${gradient} border-white/60 ring-2 ring-white/30 opacity-100`;
@@ -221,11 +253,7 @@
 		return `${base} ${gradient} ${borderExtras} ${dimmed}`;
 	});
 
-	let textColor = $derived(
-		status === SubjectStatusEnum.LOCKED || status === SubjectStatusEnum.NOT_STARTED
-			? 'text-white/80'
-			: 'text-white'
-	);
+	let textColor = $derived(statusTextAlpha(status) < 1 ? 'text-white/80' : 'text-white');
 
 	// Track if this is a touch device interaction
 	let isTouchInteraction = $state(false);
@@ -369,9 +397,11 @@
 	ontouchend={handleTouchEnd}
 	ontouchcancel={handleTouchCancel}
 	tabindex="0"
+	aria-label={ariaLabel}
 >
 	<div class="mb-1 flex shrink-0 items-center justify-between gap-1">
-		<span class="text-[length:clamp(11px,5.8cqw,13.5px)] font-semibold uppercase tracking-wider {textColor} opacity-100">
+		<span class="flex min-w-0 items-center gap-1 text-[length:clamp(11px,5.8cqw,13.5px)] font-semibold uppercase tracking-wider {textColor} opacity-100">
+			<StatusIcon class="h-3 w-3 shrink-0" strokeWidth={2.75} aria-hidden="true" />
 			{materia.codigoMateria}
 		</span>
 		<div class="flex items-center gap-1">
@@ -403,7 +433,7 @@
 			<MateriaNaturezaBadge natureza={naturezaBadge} {nomesQueExigem} />
 			{#if concluidaPorEquivalencia}
 				<span
-					class="rounded bg-purple-500/90 px-1.5 py-0.5 text-[length:clamp(9px,5cqw,11px)] font-medium text-white"
+					class="rounded {TAG_BADGE.equivalencia.className} px-1.5 py-0.5 text-[length:clamp(9px,5cqw,11px)] font-medium"
 					title="Concluída por equivalência"
 				>equiv.</span>
 			{:else if concluidaPorAproveitamento}
@@ -417,8 +447,8 @@
 	{/if}
 
 	<!-- Prerequisite indicator badge -->
-	{#if !store.state.isAnonymous && (hasPrereqs || dependentCount > 0)}
-		<div class="absolute left-0 -bottom-1.5 flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[length:clamp(9px,5cqw,11px)] font-bold {prereqsCompleted ? 'bg-green-500/72 text-white/95' : 'bg-amber-500/72 text-white/95'}">
+	{#if showPrereqBadge}
+		<div class="absolute left-0 -bottom-1.5 flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[length:clamp(9px,5cqw,11px)] font-bold text-white {prereqsCompleted ? PREREQ_BADGE.ok.className : PREREQ_BADGE.pending.className}">
 			{#if hasPrereqs}
 				<span>{prereqsCompleted ? '✓' : '!'}</span>
 			{/if}
