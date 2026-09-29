@@ -22,6 +22,7 @@ import { MateriasController } from './controllers/materias_controller';
 import { AssistenteController } from './controllers/assistente_controller';
 import { PlanejamentoController } from './controllers/PlanejamentoController';
 import { ChatController } from './controllers/chat_controller';
+import { createShutdown } from './utils/shutdown';
 
 // Log loaded environment variables (for debugging)
 logger.info('Environment variables loaded:');
@@ -31,15 +32,6 @@ logger.info(`  SUPABASE_KEY: ${!!process.env.SUPABASE_KEY}`);
 
 SupabaseWrapper.init();
 logger.info('Supabase client initialized');
-
-// Handle CTRL+C
-process.on('SIGINT', () => {
-    process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-    process.exit(0);
-});
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
@@ -177,6 +169,15 @@ app.use(bodyParser.urlencoded({ extended: true, limit: 50 * 1024 * 1024 }));
 app.use(router);
 
 const port = process.env.PORT ?? 3000;
-app.listen(port, () => {
+const server = app.listen(port, () => {
     logger.info(`Server running on port ${port}`);
 });
+
+// SIGTERM (rollout do k8s) e CTRL+C: para de aceitar conexões e espera as
+// requisições em andamento terminarem antes de sair (ver utils/shutdown.ts).
+const shutdown = createShutdown(server, {
+    exit: (code) => process.exit(code),
+    log: (message) => logger.warn(message),
+});
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
