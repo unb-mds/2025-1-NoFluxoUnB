@@ -33,6 +33,11 @@
 		/* IA — lilás (texto/accent suave), tint de fundo */
 		--ai: 267 92% 78%;
 		--ai-soft: 268 42% 18%;
+		/* Status (texto/ícone) — escuros o bastante p/ ≥ 4,5:1 sobre background/card claros */
+		--status-success: 142 72% 26%;
+		--status-warning: 26 90% 32%;
+		--status-danger: 0 74% 40%;
+		--status-info: 221 83% 40%;
 	}
 
 	.dark {
@@ -57,6 +62,10 @@
 		--ring: 270 91% 62%;
 		--ai: 267 92% 78%;
 		--ai-soft: 268 45% 16%;
+		--status-success: 142 69% 58%;
+		--status-warning: 38 92% 50%;
+		--status-danger: 0 91% 71%;
+		--status-info: 213 94% 68%;
 	}
 }
 

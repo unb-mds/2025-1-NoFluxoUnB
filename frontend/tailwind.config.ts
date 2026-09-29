@@ -51,6 +51,14 @@ const config: Config = {
 					foreground: 'hsl(var(--card-foreground) / <alpha-value>)'
 				},
 
+				// Cores de status (texto/ícone) com par light/dark em app.css
+				status: {
+					success: 'hsl(var(--status-success) / <alpha-value>)',
+					warning: 'hsl(var(--status-warning) / <alpha-value>)',
+					danger: 'hsl(var(--status-danger) / <alpha-value>)',
+					info: 'hsl(var(--status-info) / <alpha-value>)'
+				},
+
 				// NoFluxo Custom Colors (from Flutter AppColors)
 				nofluxo: {
 					primary: '#6C63FF',
