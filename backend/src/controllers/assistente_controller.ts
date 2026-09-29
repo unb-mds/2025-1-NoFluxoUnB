@@ -11,7 +11,7 @@ import { EndpointController, RequestType } from '../interfaces';
 import { Pair, Utils } from '../utils';
 import { Request, Response } from 'express';
 import { RagflowService } from '../services/ragflow.service';
-import { SabiaService } from '../services/sabia.service';
+import { SabiaService, isMensagemSabiaPublica } from '../services/sabia.service';
 import { removeAccents } from '../utils/text.utils';
 import { formatRanking } from '../utils/ranking.formatter';
 import { createControllerLogger } from '../utils/controller_logger';
@@ -21,6 +21,7 @@ import { PlanejadorAgenteService, type MensagemChat } from '../services/planejad
 import { criarContextoLeve } from '../services/agente/context';
 import { montarContextoAgente } from './PlanejamentoController';
 import { AI_SEM_CREDITOS_BODY, isMaritacaSemCreditos } from '../config/maritaca_errors';
+import { ERRO_IA_GENERICO, registrarFalha } from '../utils/erro_publico';
 
 const ragflow = new RagflowService();
 const sabia = new SabiaService();
@@ -57,9 +58,8 @@ export const AssistenteController: EndpointController = {
                 const result = await ragflow.analyzeMateria(processed, sessionId);
 
                 if (result.code !== 0) {
-                    const errorMsg = result.message || 'Erro desconhecido na API do agente.';
-                    logger.error(`RAGFlow API error: code=${result.code}, message=${errorMsg}`);
-                    return res.status(500).json({ erro: `Erro na API do agente: ${errorMsg}` });
+                    const requestId = registrarFalha(logger, `RAGFlow API error code=${result.code}`, result.message ?? 'sem mensagem');
+                    return res.status(502).json({ erro: ERRO_IA_GENERICO, requestId });
                 }
 
                 // Format response as Markdown ranking
@@ -69,10 +69,8 @@ export const AssistenteController: EndpointController = {
 
                 return res.json({ resultado: formatted });
             } catch (error) {
-                const duration = Date.now() - startTime;
-                const msg = error instanceof Error ? error.message : String(error);
-                logger.error(`Error after ${duration}ms: ${msg}`);
-                return res.status(500).json({ erro: `Ocorreu um erro interno no servidor: ${msg}` });
+                const requestId = registrarFalha(logger, `Error after ${Date.now() - startTime}ms`, error);
+                return res.status(500).json({ erro: ERRO_IA_GENERICO, requestId });
             }
         }),
 
@@ -137,8 +135,8 @@ export const AssistenteController: EndpointController = {
                     logger.error('Chat da assistente: Maritaca sem créditos ativos');
                     return res.status(503).json(AI_SEM_CREDITOS_BODY);
                 }
-                logger.error(`Erro no chat da assistente: ${err?.message || String(err)}`);
-                return res.status(500).json({ error: err?.message || 'Erro ao processar mensagem do chat.' });
+                const requestId = registrarFalha(logger, 'Erro no chat da assistente', err);
+                return res.status(500).json({ error: ERRO_IA_GENERICO, requestId });
             }
         }),
 
@@ -197,9 +195,8 @@ export const AssistenteController: EndpointController = {
                 });
                 return;
             } catch (error) {
-                const msg = error instanceof Error ? error.message : String(error);
-                logger.error(`Stream error: ${msg}`);
-                const errorEvent = `data: ${JSON.stringify({ stage: 'error', message: msg })}\n\n`;
+                const requestId = registrarFalha(logger, 'Stream error', error);
+                const errorEvent = `data: ${JSON.stringify({ stage: 'error', message: ERRO_IA_GENERICO, requestId })}\n\n`;
                 res.write(errorEvent);
                 res.end();
                 return;
@@ -222,7 +219,7 @@ export const AssistenteController: EndpointController = {
             // Check if Sabiá is configured
             if (!sabia.isAvailable()) {
                 logger.error('Sabiá service not configured');
-                return res.status(503).json({ erro: 'Serviço Sabiá indisponível. Configure MARITACA_API_KEY, SUPABASE_URL e SUPABASE_KEY.' });
+                return res.status(503).json({ erro: 'Serviço Sabiá indisponível.' });
             }
 
             try {
@@ -232,9 +229,14 @@ export const AssistenteController: EndpointController = {
                 const result = await sabia.analyzarInteresse(materia, matrizCurricular);
 
                 if (!result.success) {
-                    const errorMsg = result.error || 'Erro desconhecido no agente Sabiá.';
-                    logger.error(`Sabiá error: ${errorMsg}`);
-                    return res.status(500).json({ erro: `Erro no agente Sabiá: ${errorMsg}` });
+                    // Só as mensagens de orientação escritas no próprio mcp_agent
+                    // (ex.: "Envie o historico academico") chegam ao usuário.
+                    if (result.error && isMensagemSabiaPublica(result.error)) {
+                        logger.error(`Sabiá error: ${result.error}`);
+                        return res.status(500).json({ erro: `Erro no agente Sabiá: ${result.error}` });
+                    }
+                    const requestId = registrarFalha(logger, 'Sabiá error', result.error ?? 'sem mensagem');
+                    return res.status(502).json({ erro: ERRO_IA_GENERICO, requestId });
                 }
 
                 // Format response as Markdown
@@ -256,10 +258,8 @@ export const AssistenteController: EndpointController = {
                     agente: 'sabia'
                 });
             } catch (error) {
-                const duration = Date.now() - startTime;
-                const msg = error instanceof Error ? error.message : String(error);
-                logger.error(`Error after ${duration}ms: ${msg}`);
-                return res.status(500).json({ erro: `Ocorreu um erro interno no servidor: ${msg}` });
+                const requestId = registrarFalha(logger, `Error after ${Date.now() - startTime}ms`, error);
+                return res.status(500).json({ erro: ERRO_IA_GENERICO, requestId });
             }
         }),
 
@@ -320,9 +320,8 @@ export const AssistenteController: EndpointController = {
 
                 return res.json({ turmas, ultimaAtualizacaoTurmas });
             } catch (error) {
-                const msg = error instanceof Error ? error.message : String(error);
-                logger.error(`Erro interno ao buscar turmas: ${msg}`);
-                return res.status(500).json({ erro: `Erro interno: ${msg}` });
+                const requestId = registrarFalha(logger, 'Erro interno ao buscar turmas', error);
+                return res.status(500).json({ erro: 'Erro ao buscar turmas.', requestId });
             }
         }),
 
@@ -363,9 +362,8 @@ export const AssistenteController: EndpointController = {
 
                 return res.json({ prerequisitos: prereqRows ?? [] });
             } catch (error) {
-                const msg = error instanceof Error ? error.message : String(error);
-                logger.error(`Erro interno ao buscar pré-requisitos: ${msg}`);
-                return res.status(500).json({ erro: `Erro interno: ${msg}` });
+                const requestId = registrarFalha(logger, 'Erro interno ao buscar pré-requisitos', error);
+                return res.status(500).json({ erro: 'Erro ao buscar pré-requisitos.', requestId });
             }
         }),
     },

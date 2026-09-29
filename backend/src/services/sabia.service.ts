@@ -6,6 +6,18 @@
 
 import logger from '../logger';
 import { Response } from 'express';
+import { ERRO_IA_GENERICO, registrarFalha } from '../utils/erro_publico';
+
+/**
+ * Mensagens de erro que o próprio mcp_agent escreve para o usuário
+ * (api_producao.py). Qualquer outra — `str(e)` de exceção, corpo de erro do
+ * provedor — fica só no log (pré-mortem 27/09/2026, R34).
+ */
+const MENSAGENS_SABIA_PUBLICAS = new Set(['Envie o historico academico']);
+
+export function isMensagemSabiaPublica(msg: unknown): boolean {
+    return typeof msg === 'string' && MENSAGENS_SABIA_PUBLICAS.has(msg.trim());
+}
 
 export interface SabiaDisciplina {
     codigo: string;
@@ -127,7 +139,9 @@ export class SabiaService {
             
             // Check if it's a connection error
             if (msg.includes('ECONNREFUSED') || msg.includes('fetch failed')) {
-                throw new Error('Cannot connect to Sabiá API. Make sure api_producao.py is running on ' + this.apiUrl);
+                // A URL interna fica no log acima; a mensagem pode subir até o cliente.
+                logger.error(`[SabiaService] Cannot connect to Sabiá API at ${this.apiUrl}`);
+                throw new Error('Cannot connect to Sabiá API');
             }
             
             throw error;
@@ -219,6 +233,13 @@ export class SabiaService {
                             if (parsed.stage === 'usage' && Array.isArray(parsed.calls)) {
                                 usage = parsed.calls;
                                 continue; // evento interno — não repassa pro cliente
+                            }
+                            // O Python manda `str(e)` cru no evento de erro: troca
+                            // pela mensagem genérica, exceto as de orientação.
+                            if (parsed.stage === 'error' && !isMensagemSabiaPublica(parsed.message)) {
+                                const requestId = registrarFalha(logger, '[SabiaService] Erro no stream do FastAPI', parsed.message);
+                                forward += `data: ${JSON.stringify({ stage: 'error', message: ERRO_IA_GENERICO, requestId })}\n\n`;
+                                continue;
                             }
                         } catch {
                             // não parseou como JSON — repassa cru abaixo
