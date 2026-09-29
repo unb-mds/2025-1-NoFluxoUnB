@@ -126,6 +126,23 @@ describe('R40: seção de obrigatórias pendentes com palavras coladas pelo pdf.
 	});
 });
 
+describe('R41: contagem "Pendencias" enviada ao RPC', () => {
+	test('conta os status das disciplinas, não as siglas da legenda do rodapé', async () => {
+		const items: Item[] = [
+			...header(700),
+			...dataRow(690, { per: '2024.1', code: 'FGA0138', name: 'MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE', ch: '60', sit: 'APR' }),
+			...dataRow(675, { per: '2024.1', code: 'FGA0161', name: 'ENGENHARIA E AMBIENTE', ch: '60', sit: 'APR' }),
+			...dataRow(660, { per: '2024.2', code: 'MAT0026', name: 'CÁLCULO 2', ch: '90', sit: 'MATR' }),
+			{ x: 34, y: 100, t: 'Legenda' },
+			{ x: 34, y: 88, t: 'APR Aprovado  CANC Cancelado  DISP Dispensado  MATR Matriculado  REP Reprovado' },
+			{ x: 34, y: 76, t: 'REPF Reprovado por Falta  REPMF Reprovado por Média e Falta  TRANC Trancado  CUMP Cumpriu' }
+		];
+		const r = await parsePdf(pdfFile([items]));
+		const pend = r.extracted_data.find((d) => d.tipo_dado === 'Pendencias');
+		expect(pend?.valores).toEqual({ APR: 2, MATR: 1 });
+	});
+});
+
 describe('R38: PDF que o pdf.js não consegue abrir', () => {
 	const mensagemDe = (p: Promise<unknown>) => p.then(() => '', (e: Error) => e.message);
 

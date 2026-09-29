@@ -331,13 +331,13 @@ export async function parsePdf(file: File): Promise<ParsedPdfResult> {
 	// 7. Build the full disciplinas array with metadata entries
 	const allDisciplinas: DisciplinaExtraida[] = [...disciplinas, ...pendentes];
 
-	// Add status count entry
+	// Add status count entry. Conta sobre as disciplinas regulares já
+	// consolidadas: contar as siglas no texto inteiro somava a legenda do rodapé
+	// (+1 em cada sigla) e cada "Matriculado" da seção de pendentes (pré-mortem R41).
 	const countMap: Record<string, number> = {};
-	const rePendencias = /\b(APR|CANC|DISP|MATR|REP|REPF|REPMF|TRANC|CUMP)\b/gi;
-	let statMatch: RegExpExecArray | null;
-	while ((statMatch = rePendencias.exec(textoTotal)) !== null) {
-		const key = statMatch[1].toUpperCase();
-		countMap[key] = (countMap[key] || 0) + 1;
+	for (const d of disciplinas) {
+		const key = String(d.status ?? '').trim().toUpperCase();
+		if (key) countMap[key] = (countMap[key] || 0) + 1;
 	}
 	if (Object.keys(countMap).length > 0) {
 		allDisciplinas.push({
