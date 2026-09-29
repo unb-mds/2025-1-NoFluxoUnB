@@ -3,14 +3,17 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { SubjectStatusEnum, type SubjectStatusValue } from '$lib/types/materia';
 import {
-	WCAG_AA_NON_TEXT,
-	WCAG_AA_NORMAL_TEXT,
-	blend,
-	contrastRatio,
-	hslToRgb,
-	readThemeTokens,
-	type Rgb
-} from '$lib/utils/color-contrast';
+	MIN_GRAFICO as WCAG_AA_NON_TEXT,
+	MIN_TEXTO as WCAG_AA_NORMAL_TEXT,
+	TEMAS as NOMES_TEMAS,
+	TOKENS,
+	compor as blend,
+	contraste as contrastRatio,
+	parseCor,
+	piorContraste,
+	type Rgb,
+	type Tema
+} from '$lib/styles/contraste';
 import {
 	CARD_OUTLINE,
 	CREDIT_CHIP,
@@ -24,13 +27,13 @@ import {
 const statuses = Object.values(SubjectStatusEnum) as SubjectStatusValue[];
 
 const SRC = resolve(__dirname, '../../../..');
-const temas = readThemeTokens(readFileSync(resolve(SRC, 'app.css'), 'utf8'));
-const TEMAS = Object.entries(temas) as [keyof typeof temas, Record<string, string>][];
+const temas = TOKENS;
+const TEMAS = NOMES_TEMAS.map((t) => [t, temas[t]] as [Tema, Record<string, string>]);
 
 function cor(tema: Record<string, string>, token: string): Rgb {
 	const v = tema[token];
 	if (v === undefined) throw new Error(`token --${token} ausente do app.css`);
-	return hslToRgb(v);
+	return parseCor(v);
 }
 
 describe('tokens de status do fluxograma no app.css', () => {
@@ -57,8 +60,7 @@ describe('tokens de status do fluxograma no app.css', () => {
 	});
 });
 
-describe.each(TEMAS)('contraste do SubjectCard — tema %s (pré-mortem R28)', (_nome, tema) => {
-	const pagina = cor(tema, 'background');
+describe.each(TEMAS)('contraste do SubjectCard — tema %s (pré-mortem R28)', (nome, tema) => {
 
 	it.each(statuses)('texto do card %s >= 4.5:1', (status) => {
 		const c = STATUS_CARD[status];
@@ -89,9 +91,11 @@ describe.each(TEMAS)('contraste do SubjectCard — tema %s (pré-mortem R28)', (
 		expect(contrastRatio(cor(tema, t.fg), cor(tema, t.bg))).toBeGreaterThanOrEqual(WCAG_AA_NORMAL_TEXT);
 	});
 
-	it.each(Object.entries(CARD_OUTLINE))('contorno %s >= 3:1 contra o fundo da página', (_n, o) => {
-		const borda = blend(cor(tema, o.token), o.borderAlpha, pagina);
-		expect(contrastRatio(borda, pagina)).toBeGreaterThanOrEqual(WCAG_AA_NON_TEXT);
+	// Fundo real: --page-background do PageBackground (liso e no glow), não --background.
+	it.each(Object.entries(CARD_OUTLINE))('contorno %s >= 3:1 contra o fundo real da página', (_n, o) => {
+		expect(piorContraste(nome, { token: o.token, alfa: o.borderAlpha })).toBeGreaterThanOrEqual(
+			WCAG_AA_NON_TEXT
+		);
 	});
 });
 
@@ -99,11 +103,9 @@ describe('card bloqueado se destaca da página', () => {
 	// No claro o fundo do card é quase o da página, então a borda carrega o
 	// contorno (>= 3:1). No escuro o visual é o filete sutil herdado do tema
 	// dark premium — o texto (>= 4.5:1) é o que identifica o card.
-	it('tema claro: borda do card bloqueado >= 3:1 contra --background', () => {
+	it('tema claro: borda do card bloqueado >= 3:1 contra o fundo real da página', () => {
 		const c = STATUS_CARD[SubjectStatusEnum.LOCKED];
-		expect(contrastRatio(cor(temas.light, c.border!), cor(temas.light, 'background'))).toBeGreaterThanOrEqual(
-			WCAG_AA_NON_TEXT
-		);
+		expect(piorContraste('light', { token: c.border! })).toBeGreaterThanOrEqual(WCAG_AA_NON_TEXT);
 	});
 });
 
