@@ -10,6 +10,8 @@
 --       mais "qualquer código citado na expressão serve".
 --   R7  equivalências filtradas pelo curso/currículo do aluno (mesma precedência do
 --       front) e sem as de data_vigencia futura.
+--   R15 disciplina casada só em outra matriz do curso sai com tipo 'outra_matriz' e não
+--       conta como obrigatória concluída.
 --
 -- Reverter: rodar de novo, no SQL Editor, o bloco
 --   CREATE OR REPLACE FUNCTION public.casar_disciplinas(p_dados jsonb) ... $function$;
@@ -198,6 +200,7 @@ DECLARE
   v_match_nivel       int;
   v_match_tipo_natureza int;  -- 0=obrigatória, 1=optativa (prioridade sobre nivel)
   v_old_status        text;
+  v_match_origem      text;   -- 'matriz' | 'outra_matriz' | 'equivalencia' (R15)
 
   -- Aggregation
   v_ira               numeric;
@@ -620,6 +623,7 @@ BEGIN
     v_disc_nome   := trim(coalesce(v_item->>'nome', ''));
     v_disc_status := trim(coalesce(v_item->>'status', ''));
     v_match_id := NULL;
+    v_match_origem := 'matriz';
 
     -- Try 1: code match in main matrix (obrigatoria first, then optativa)
     SELECT id_materia, codigo, nome, nivel, tipo_natureza
@@ -654,11 +658,13 @@ BEGIN
       SELECT id_materia, codigo, nome, nivel, tipo_natureza
       INTO v_match_id, v_match_codigo, v_match_nome, v_match_nivel, v_match_tipo_natureza
       FROM _mat_x WHERE upper(trim(codigo)) = v_disc_codigo LIMIT 1;
+      IF v_match_id IS NOT NULL THEN v_match_origem := 'outra_matriz'; END IF;
     END IF;
     IF v_match_id IS NULL THEN
       SELECT id_materia, codigo, nome, nivel, tipo_natureza
       INTO v_match_id, v_match_codigo, v_match_nome, v_match_nivel, v_match_tipo_natureza
       FROM _mat_x WHERE lower(trim(nome)) = lower(v_disc_nome) LIMIT 1;
+      IF v_match_id IS NOT NULL THEN v_match_origem := 'outra_matriz'; END IF;
     END IF;
 
     -- Try 4: equivalency code map
@@ -666,6 +672,7 @@ BEGIN
       SELECT id_materia_alvo, codigo_alvo, nome_alvo, nivel_alvo, tipo_natureza_alvo
       INTO v_match_id, v_match_codigo, v_match_nome, v_match_nivel, v_match_tipo_natureza
       FROM _eq_map WHERE codigo_eq = v_disc_codigo LIMIT 1;
+      IF v_match_id IS NOT NULL THEN v_match_origem := 'equivalencia'; END IF;
     END IF;
 
     -- Handle match
@@ -702,7 +709,12 @@ BEGIN
         v_match_id, v_match_codigo, v_match_nome,
         v_item->>'nome', v_item->>'codigo',
         true, v_match_nivel,
-        CASE WHEN v_match_tipo_natureza = 1 THEN 'optativa' WHEN v_match_nivel = 0 THEN 'optativa' ELSE 'obrigatoria' END
+        -- R15 (pré-mortem 27/09/2026): disciplina achada só em OUTRA matriz do curso não
+        -- é obrigatória da matriz do aluno. Antes herdava a natureza da matriz antiga,
+        -- entrava em materias_concluidas e inflava total_obrigatorias (2 obrigatórias
+        -- viravam 3). Ela só integraliza uma obrigatória atual por equivalência (7b).
+        CASE WHEN v_match_origem = 'outra_matriz' THEN 'outra_matriz'
+             WHEN v_match_tipo_natureza = 1 THEN 'optativa' WHEN v_match_nivel = 0 THEN 'optativa' ELSE 'obrigatoria' END
       );
     ELSE
       -- No match found

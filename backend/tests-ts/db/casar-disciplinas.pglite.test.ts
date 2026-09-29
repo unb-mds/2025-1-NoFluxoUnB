@@ -178,6 +178,25 @@ const CENARIOS = {
         [disc("FIS9999", "FISICA")]
     ),
 
+    // R15 — currículo novo x antigo do mesmo curso
+    r15_outra_matriz: casar(
+        `
+      INSERT INTO cursos (id_curso, nome_curso, tipo_curso, turno) VALUES (6360, 'ENGENHARIA DE SOFTWARE', 'Bacharelado', 'DIURNO');
+      INSERT INTO matrizes (id_matriz, id_curso, versao, ano_vigor, curriculo_completo) VALUES
+        (1, 6360, '1', '2017.1', '6360/1 - 2017.1'), (2, 6360, '2', '2024.1', '6360/2 - 2024.1');
+      INSERT INTO materias (id_materia, nome_materia, codigo_materia, carga_horaria) VALUES
+        (10, 'DISCIPLINA SO DO CURRICULO ANTIGO', 'OLD0001', 60),
+        (20, 'DISCIPLINA NOVA A', 'NEW0001', 60), (21, 'DISCIPLINA NOVA B', 'NEW0002', 60);
+      INSERT INTO materias_por_curso (id_materia, nivel, id_matriz, tipo_natureza) VALUES
+        (10, 1, 1, 0), (20, 1, 2, 0), (21, 2, 2, 0);
+    `,
+        {
+            curso_extraido: "ENGENHARIA DE SOFTWARE",
+            matriz_curricular: "6360/2 - 2024.1",
+            extracted_data: [disc("OLD0001", "DISCIPLINA SO DO CURRICULO ANTIGO"), disc("NEW0002", "DISCIPLINA NOVA B")],
+        }
+    ),
+
     // R6 — paridade de avalia_equivalencia com frontend/src/lib/utils/expressao-logica.ts
     av_codigo_unico: avalia("CIC0004", null, ["CIC0004"]),
     av_e_parcial: avalia({ operador: "E", condicoes: ["FGA0001", "FGA0002"] }, null, ["FGA0001"]),
@@ -334,5 +353,20 @@ describe("R7 — equivalências do curso/currículo do aluno", () => {
         const out = r("r7_vigencia_futura");
         expect(out.materias_concluidas).toEqual([]);
         expect(codigos(out.materias_pendentes)).toEqual(["MAT0025"]);
+    });
+});
+
+describe("R15 — disciplina de outra matriz do curso", () => {
+    it("não conta como obrigatória da matriz do aluno nem infla o total", () => {
+        const out = r("r15_outra_matriz");
+        expect(out.matriz_curricular).toBe("6360/2 - 2024.1");
+        expect(codigos(out.materias_concluidas)).toEqual(["NEW0002"]);
+        expect(codigos(out.materias_pendentes)).toEqual(["NEW0001"]);
+        expect(out.resumo.total_obrigatorias).toBe(2);
+        expect(out.resumo.percentual_conclusao_obrigatorias).toBe(50);
+        const old = out.disciplinas_casadas.find((d: Json) => d.codigo === "OLD0001");
+        expect(old).toMatchObject({ tipo: "outra_matriz", encontrada_no_banco: true });
+        // nem vira optativa (inflaria a CH optativa)
+        expect(out.materias_optativas).toEqual([]);
     });
 });
