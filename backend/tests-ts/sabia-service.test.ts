@@ -2,10 +2,20 @@
  * Testes do SabiaService (cliente HTTP do mcp_agent) com `fetch` mockado —
  * nenhuma chamada de rede real.
  *
+ * R30: timeout nas chamadas ao mcp_agent.
+ * R31: abortar o stream do upstream quando o cliente fecha a conexão.
  * R51: teto de termos na busca semântica.
  */
 
-import { SabiaService } from "../src/services/sabia.service";
+import { EventEmitter } from "events";
+import type { Response as ExpressResponse } from "express";
+import {
+    SabiaService,
+    SabiaTimeoutError,
+    SABIA_BUSCA_TIMEOUT_MS,
+    SABIA_STREAM_IDLE_TIMEOUT_MS,
+    SABIA_TIMEOUT_MS,
+} from "../src/services/sabia.service";
 
 const ENV_KEYS = ["MARITACA_API_KEY", "GOOGLE_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SABIA_API_URL"];
 const envOriginal: Record<string, string | undefined> = {};
@@ -54,5 +64,144 @@ describe("SabiaService.buscarMaterias — teto de termos (R51)", () => {
         global.fetch = fetchMock as unknown as typeof fetch;
         expect(await new SabiaService().buscarMaterias(["", "  "])).toEqual([]);
         expect(fetchMock).not.toHaveBeenCalled();
+    });
+});
+
+/** fetch que só termina quando `init.signal` aborta (upstream pendurado). */
+function fetchPendurado() {
+    return jest.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal;
+        if (!signal) return; // sem signal: fica pendurado para sempre
+        signal.addEventListener("abort", () => reject(signal.reason));
+    }));
+}
+
+/** Troca AbortSignal.timeout por um signal que o teste aborta na mão. */
+function controlarAbortSignalTimeout() {
+    const pedidos: Array<{ ms: number; ac: AbortController }> = [];
+    jest.spyOn(AbortSignal, "timeout").mockImplementation((ms: number) => {
+        const ac = new AbortController();
+        pedidos.push({ ms, ac });
+        return ac.signal;
+    });
+    const estourar = () => {
+        for (const p of pedidos) p.ac.abort(new DOMException("The operation was aborted due to timeout", "TimeoutError"));
+    };
+    return { pedidos, estourar };
+}
+
+describe("SabiaService — timeout das chamadas ao mcp_agent (R30)", () => {
+    afterEach(() => jest.restoreAllMocks());
+
+    test("analyzarInteresse desiste com SabiaTimeoutError quando o upstream não responde", async () => {
+        global.fetch = fetchPendurado() as unknown as typeof fetch;
+        const { pedidos, estourar } = controlarAbortSignalTimeout();
+
+        const p = new SabiaService().analyzarInteresse("ia");
+        expect(pedidos.map((x) => x.ms)).toEqual([SABIA_TIMEOUT_MS]);
+        estourar();
+        await expect(p).rejects.toBeInstanceOf(SabiaTimeoutError);
+    });
+
+    test("buscarMaterias desiste e devolve [] quando o upstream não responde", async () => {
+        global.fetch = fetchPendurado() as unknown as typeof fetch;
+        const { pedidos, estourar } = controlarAbortSignalTimeout();
+
+        const p = new SabiaService().buscarMaterias(["redes"]);
+        expect(pedidos.map((x) => x.ms)).toEqual([SABIA_BUSCA_TIMEOUT_MS]);
+        estourar();
+        await expect(p).resolves.toEqual([]);
+    });
+
+    test("stream sem chunk por SABIA_STREAM_IDLE_TIMEOUT_MS vira SabiaTimeoutError", async () => {
+        jest.useFakeTimers();
+        global.fetch = fetchPendurado() as unknown as typeof fetch;
+        const res = fakeRes();
+
+        const p = new SabiaService().analyzarInteresseStream("ia", "", res as unknown as ExpressResponse);
+        const verificacao = expect(p).rejects.toBeInstanceOf(SabiaTimeoutError);
+        await jest.advanceTimersByTimeAsync(SABIA_STREAM_IDLE_TIMEOUT_MS + 1);
+        await verificacao;
+        // Em erro o res fica aberto para o controller escrever o evento de erro.
+        expect(res.end).not.toHaveBeenCalled();
+    });
+});
+
+/** Response do Express mínimo: EventEmitter com write/end/writableEnded. */
+function fakeRes() {
+    const res = new EventEmitter() as EventEmitter & {
+        write: jest.Mock; end: jest.Mock; writableEnded: boolean;
+    };
+    res.writableEnded = false;
+    res.write = jest.fn(() => true);
+    res.end = jest.fn(() => {
+        res.writableEnded = true;
+        res.emit("close");
+    });
+    return res;
+}
+
+/**
+ * Upstream SSE que emite `total` eventos, um a cada `intervaloMs`, e conta
+ * quantos `pull` aconteceram. NÃO reage ao signal do fetch de propósito: o
+ * service tem que cancelar o reader por conta própria.
+ */
+function upstreamSse(total: number, intervaloMs: number) {
+    const stats = { pulls: 0, cancelado: false };
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+        async pull(controller) {
+            stats.pulls++;
+            if (stats.pulls > total) {
+                controller.close();
+                return;
+            }
+            await new Promise((r) => setTimeout(r, intervaloMs));
+            controller.enqueue(encoder.encode(`data: {"stage":"disciplina","n":${stats.pulls}}\n\n`));
+        },
+        cancel() {
+            stats.cancelado = true;
+        },
+    }, { highWaterMark: 0 });
+    return { body, stats };
+}
+
+describe("SabiaService.analyzarInteresseStream — cliente fecha a conexão (R31)", () => {
+    test("aborta o upstream logo depois que o cliente sai e não escreve mais nada", async () => {
+        const { body, stats } = upstreamSse(15, 10);
+        global.fetch = jest.fn().mockResolvedValue(
+            new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } }),
+        ) as unknown as typeof fetch;
+
+        const res = fakeRes();
+        const cliente = new AbortController();
+        let pullsNoAbort = -1;
+        res.write.mockImplementation(() => {
+            // Cliente fecha a aba logo depois do 1º evento.
+            if (!cliente.signal.aborted) {
+                pullsNoAbort = stats.pulls;
+                cliente.abort();
+            }
+            return true;
+        });
+
+        const r = await new SabiaService().analyzarInteresseStream("ia", "", res as unknown as ExpressResponse, cliente.signal);
+
+        expect(r.aborted).toBe(true);
+        expect(stats.cancelado).toBe(true);
+        expect(stats.pulls - pullsNoAbort).toBeLessThanOrEqual(1);
+        expect(res.write).toHaveBeenCalledTimes(1);
+    });
+
+    test("sem abort o stream é repassado inteiro e o res é encerrado", async () => {
+        const { body } = upstreamSse(3, 1);
+        global.fetch = jest.fn().mockResolvedValue(new Response(body, { status: 200 })) as unknown as typeof fetch;
+        const res = fakeRes();
+
+        const r = await new SabiaService().analyzarInteresseStream("ia", "", res as unknown as ExpressResponse, new AbortController().signal);
+
+        expect(r.aborted).toBe(false);
+        expect(res.write).toHaveBeenCalledTimes(3);
+        expect(res.end).toHaveBeenCalledTimes(1);
     });
 });
