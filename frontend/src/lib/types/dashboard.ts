@@ -113,6 +113,11 @@ export interface AiCostMetrics {
 	requisicoes_sem_tokens?: number;
 	por_endpoint?: Record<string, AiEndpointCost>;
 	// Campos da migration 20260929b_dashboard_rastreabilidade.sql:
+	/**
+	 * Perguntas estornadas (a rota paga falhou): ficam fora de total_perguntas,
+	 * por_dia.perguntas e por_endpoint.perguntas, mas o custo delas entra no total.
+	 */
+	perguntas_com_falha?: number;
 	/** Média por pergunta (soma das chamadas), só perguntas com tokens > 0. */
 	tokens_medios_por_pergunta?: number;
 	modelos_sem_preco?: AiModeloSemPreco[];

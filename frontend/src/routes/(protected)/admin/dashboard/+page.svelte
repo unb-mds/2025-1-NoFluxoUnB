@@ -317,6 +317,14 @@
 								{aiCost.total_requisicoes} requisições
 							{/if}
 						</span>
+						{#if aiCost.perguntas_com_falha}
+							<span
+								class="block-sub"
+								title="Perguntas que falharam e foram estornadas da cota do aluno. Não entram na contagem de perguntas, mas o que o modelo cobrou está no custo."
+							>
+								{aiCost.perguntas_com_falha} com falha (estornadas, custo incluído)
+							</span>
+						{/if}
 						{#if aiCost.custo_hoje !== undefined}
 							<span class="block-sub">Hoje: {moedaFmt(aiCost.custo_hoje)}</span>
 						{/if}
