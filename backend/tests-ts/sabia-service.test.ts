@@ -17,7 +17,7 @@ import {
     SABIA_STREAM_IDLE_TIMEOUT_MS,
     SABIA_TIMEOUT_MS,
 } from "../src/services/sabia.service";
-import { executarComContextoIA } from "../src/utils/ai_usage_logger";
+import { executarComContextoIA, usageParcialDoErro } from "../src/utils/ai_usage_logger";
 
 const ENV_KEYS = ["MARITACA_API_KEY", "GOOGLE_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SABIA_API_URL"];
 const envOriginal: Record<string, string | undefined> = {};
@@ -286,6 +286,52 @@ describe("SabiaService.analyzarInteresseStream — recebeuDoUpstream", () => {
 
         expect(r.aborted).toBe(true);
         expect(r.recebeuDoUpstream).toBe(false);
+    });
+});
+
+describe("SabiaService.analyzarInteresseStream — usage que chegou antes da falha", () => {
+    const USAGE = [{ model: "sabia-4", prompt_tokens: 900, completion_tokens: 300, total_tokens: 1200 }];
+
+    /** Upstream que manda o evento `usage` e depois quebra (ou pendura). */
+    function upstreamUsageEntao(depois: "quebra" | "pendura") {
+        const encoder = new TextEncoder();
+        let enviado = false;
+        return new ReadableStream<Uint8Array>({
+            pull(controller) {
+                if (!enviado) {
+                    enviado = true;
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ stage: "usage", calls: USAGE })}\n\n`));
+                    return;
+                }
+                if (depois === "quebra") controller.error(new Error("socket hang up"));
+                return new Promise<void>(() => {});
+            },
+        }, { highWaterMark: 0 });
+    }
+
+    test("erro de conexão depois do `usage`: o erro leva o usage recebido", async () => {
+        global.fetch = jest.fn().mockResolvedValue(new Response(upstreamUsageEntao("quebra"), { status: 200 })) as unknown as typeof fetch;
+
+        const erro = await new SabiaService()
+            .analyzarInteresseStream("ia", "", fakeRes() as unknown as ExpressResponse)
+            .catch((e: unknown) => e);
+
+        expect(erro).toBeInstanceOf(Error);
+        expect(usageParcialDoErro(erro)).toEqual(USAGE);
+    });
+
+    test("timeout de inatividade depois do `usage`: SabiaTimeoutError leva o usage recebido", async () => {
+        jest.useFakeTimers();
+        global.fetch = jest.fn().mockResolvedValue(new Response(upstreamUsageEntao("pendura"), { status: 200 })) as unknown as typeof fetch;
+
+        const p = new SabiaService()
+            .analyzarInteresseStream("ia", "", fakeRes() as unknown as ExpressResponse)
+            .catch((e: unknown) => e);
+        await jest.advanceTimersByTimeAsync(SABIA_STREAM_IDLE_TIMEOUT_MS + 1);
+        const erro = await p;
+
+        expect(erro).toBeInstanceOf(SabiaTimeoutError);
+        expect(usageParcialDoErro(erro)).toEqual(USAGE);
     });
 });
 

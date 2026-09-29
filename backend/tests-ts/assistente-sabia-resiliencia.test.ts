@@ -69,13 +69,17 @@ function fakeRes() {
     return res;
 }
 
-function upstreamSse(total: number, intervaloMs: number) {
+function upstreamSse(total: number, intervaloMs: number, { comDone = false } = {}) {
     const stats = { pulls: 0, cancelado: false };
     const encoder = new TextEncoder();
     const body = new ReadableStream<Uint8Array>({
         async pull(controller) {
             stats.pulls++;
             if (stats.pulls > total) {
+                if (comDone && stats.pulls === total + 1) {
+                    controller.enqueue(encoder.encode('data: {"stage":"done"}\n\n'));
+                    return;
+                }
                 controller.close();
                 return;
             }
@@ -116,14 +120,14 @@ describe("POST /assistente/analyze-sabia-stream — cliente fecha a conexão (R3
     });
 
     test("stream completo continua sendo repassado e logado com sucesso", async () => {
-        const { body, stats } = upstreamSse(3, 1);
+        const { body, stats } = upstreamSse(3, 1, { comDone: true });
         global.fetch = jest.fn().mockResolvedValue(new Response(body, { status: 200 })) as unknown as typeof fetch;
         const res = fakeRes();
 
         await rota("analyze-sabia-stream")({ body: { materia: "ia" } }, res);
 
         expect(stats.cancelado).toBe(false);
-        expect(res.write).toHaveBeenCalledTimes(4); // cota + 3 disciplinas
+        expect(res.write).toHaveBeenCalledTimes(5); // cota + 3 disciplinas + done
         expect(res.end).toHaveBeenCalledTimes(1);
         expect(logAiUsage).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
     });

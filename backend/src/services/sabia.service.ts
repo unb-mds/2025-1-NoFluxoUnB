@@ -7,7 +7,7 @@
 import logger from '../logger';
 import { Response } from 'express';
 import { ERRO_IA_GENERICO, registrarFalha } from '../utils/erro_publico';
-import { contextoIAAtual } from '../utils/ai_usage_logger';
+import { anexarUsageParcial, contextoIAAtual } from '../utils/ai_usage_logger';
 
 /**
  * Mensagens de erro que o próprio mcp_agent escreve para o usuário
@@ -471,9 +471,12 @@ export class SabiaService {
             res.end();
             return resultado(false);
         } catch (error) {
-            if (timedOut) throw new SabiaTimeoutError();
+            // O evento `usage` pode ter chegado antes da falha (ex.: timeout
+            // depois do resumo): vai preso ao erro para o controller logar o
+            // gasto real com success=false (ver usageParcialDoErro).
+            if (timedOut) throw anexarUsageParcial(new SabiaTimeoutError(), usage ?? []);
             if (clienteSaiu()) return resultado(true);
-            throw error;
+            throw anexarUsageParcial(error, usage ?? []);
         } finally {
             clearTimeout(idleTimer);
             clientSignal?.removeEventListener('abort', onClientAbort);

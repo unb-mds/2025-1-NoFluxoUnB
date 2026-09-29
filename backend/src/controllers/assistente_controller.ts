@@ -343,6 +343,8 @@ export const AssistenteController: EndpointController = {
                     return;
                 }
                 // Terminou com evento de erro (ou sem `done`): o Darcy não respondeu.
+                // A pergunta é estornada e a linha do log vai como falha — com o
+                // usage que chegou, porque a Maritaca cobrou do mesmo jeito.
                 if (!concluiu) await pergunta.estornar();
                 // Tokens reais vêm do evento SSE "usage" que o Python emite antes do
                 // "done" (ver SabiaService.analyzarInteresseStream). Fallback: se a
@@ -351,7 +353,7 @@ export const AssistenteController: EndpointController = {
                 logAiUsage({
                     endpoint: 'analyze-sabia-stream',
                     durationMs: Date.now() - startTime,
-                    success: true,
+                    success: concluiu,
                     requestExcerpt: materia,
                     usage: usage && usage.length > 0
                         ? usage
@@ -366,7 +368,8 @@ export const AssistenteController: EndpointController = {
                     durationMs: Date.now() - startTime,
                     success: false,
                     requestExcerpt: materia,
-                    usage: [],
+                    // O evento `usage` pode ter chegado antes da falha.
+                    usage: usageParcialDoErro(error),
                     modeloPadrao: MARITACA_MODELS.AGENTE,
                     ...ctxIA,
                 });
@@ -419,11 +422,16 @@ export const AssistenteController: EndpointController = {
                     ...ctxIA,
                 });
 
+            // Usage já recebido do mcp_agent: se algo quebrar depois (ex.: na
+            // formatação), o catch loga o gasto real em vez de usage vazio.
+            let usageRecebido: LlmUsage[] | undefined;
             try {
                 logger.info(`Processing with Sabiá: "${materia}"`);
 
                 // Call Sabiá AI service (o contexto leva user_id/pergunta_id ao mcp_agent)
                 const result = await executarComContextoIA(ctxIA, () => sabia.analyzarInteresse(materia, matrizCurricular));
+
+                usageRecebido = result.usage;
 
                 if (!result.success) {
                     await pergunta.estornar();
@@ -462,7 +470,7 @@ export const AssistenteController: EndpointController = {
                 });
             } catch (error) {
                 await pergunta.estornar();
-                logarFalha([]);
+                logarFalha(usageRecebido ?? usageParcialDoErro(error));
                 if (error instanceof SabiaTimeoutError) {
                     // Mensagem própria e segura (sem detalhe interno): ver SabiaTimeoutError.
                     logger.error(`Timeout do Sabiá após ${Date.now() - startTime}ms`);

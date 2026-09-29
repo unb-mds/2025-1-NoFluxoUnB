@@ -484,6 +484,78 @@ describe("cliente que fecha a conexão depois de o modelo ser chamado", () => {
     });
 });
 
+describe("log de uso do Sabiá reflete o que aconteceu", () => {
+    const USAGE = [{ model: "sabia-4", prompt_tokens: 900, completion_tokens: 300, total_tokens: 1200 }];
+    const linhaDo = (endpoint: string) => mockLogAiUsage.mock.calls.map((c) => c[0]).filter((l: any) => l.endpoint === endpoint);
+
+    it("stream que termina com evento de erro: estorna e loga success:false com o usage recebido", async () => {
+        const estado = bancoCom({ usadas: 5 });
+        mockSabia.analyzarInteresseStream.mockImplementation(async (_m: string, _mc: string, r: any) => {
+            r.write('data: {"stage":"error","message":"falhou"}\n\n');
+            r.end();
+            return { usage: USAGE, aborted: false, entregouConteudo: false, recebeuDoUpstream: true, concluiu: false };
+        });
+        const { req, res } = mockReqRes({ body: { materia: "IA" }, token: TOKEN });
+        await assistente("analyze-sabia-stream")(req, res);
+
+        expect(estado.usadas).toBe(5);
+        expect(linhaDo("analyze-sabia-stream")).toEqual([expect.objectContaining({ success: false, usage: USAGE })]);
+    });
+
+    it("stream que termina sem `done`: loga success:false", async () => {
+        bancoCom({ usadas: 5 });
+        mockSabia.analyzarInteresseStream.mockImplementation(async (_m: string, _mc: string, r: any) => {
+            r.write('data: {"stage":"disciplina","codigo":"CIC0135"}\n\n');
+            r.end();
+            return { usage: USAGE, aborted: false, entregouConteudo: true, recebeuDoUpstream: true, concluiu: false };
+        });
+        const { req, res } = mockReqRes({ body: { materia: "IA" }, token: TOKEN });
+        await assistente("analyze-sabia-stream")(req, res);
+
+        expect(linhaDo("analyze-sabia-stream")).toEqual([expect.objectContaining({ success: false, usage: USAGE })]);
+    });
+
+    it("stream concluído loga success:true", async () => {
+        bancoCom({ usadas: 5 });
+        const { req, res } = mockReqRes({ body: { materia: "IA" }, token: TOKEN });
+        await assistente("analyze-sabia-stream")(req, res);
+
+        expect(linhaDo("analyze-sabia-stream")).toEqual([expect.objectContaining({ success: true })]);
+    });
+
+    it("stream que lança depois do evento `usage`: o catch preserva o usage parcial", async () => {
+        bancoCom({ usadas: 5 });
+        const { anexarUsageParcial } = jest.requireActual("../src/utils/ai_usage_logger");
+        mockSabia.analyzarInteresseStream.mockRejectedValue(anexarUsageParcial(new Error("socket hang up"), USAGE));
+        const { req, res } = mockReqRes({ body: { materia: "IA" }, token: TOKEN });
+        await assistente("analyze-sabia-stream")(req, res);
+
+        expect(linhaDo("analyze-sabia-stream")).toEqual([expect.objectContaining({ success: false, usage: USAGE })]);
+    });
+
+    it("analyze-sabia que quebra depois de receber o usage: o catch preserva o usage", async () => {
+        const estado = bancoCom({ usadas: 5 });
+        mockSabia.analyzarInteresse.mockResolvedValue({ success: true, disciplinas: [], usage: USAGE });
+        mockSabia.formatAsMarkdown.mockImplementationOnce(() => { throw new Error("formato inesperado"); });
+        const { req, res } = mockReqRes({ body: { materia: "IA" }, token: TOKEN });
+        await assistente("analyze-sabia")(req, res);
+
+        expect(res.statusCode).toBe(500);
+        expect(estado.usadas).toBe(5);
+        expect(linhaDo("analyze-sabia")).toEqual([expect.objectContaining({ success: false, usage: USAGE })]);
+    });
+
+    it("analyze-sabia com erro que carrega usage parcial: o catch preserva o usage", async () => {
+        bancoCom({ usadas: 5 });
+        const { anexarUsageParcial } = jest.requireActual("../src/utils/ai_usage_logger");
+        mockSabia.analyzarInteresse.mockRejectedValue(anexarUsageParcial(new Error("boom"), USAGE));
+        const { req, res } = mockReqRes({ body: { materia: "IA" }, token: TOKEN });
+        await assistente("analyze-sabia")(req, res);
+
+        expect(linhaDo("analyze-sabia")).toEqual([expect.objectContaining({ success: false, usage: USAGE })]);
+    });
+});
+
 describe("teto global diário", () => {
     it("custo do dia no teto: 503 TETO_GLOBAL sem chamar o LLM nem gastar cota", async () => {
         bancoCom({ custo: 15.2 });
