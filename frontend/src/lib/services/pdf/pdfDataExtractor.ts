@@ -328,19 +328,26 @@ export function extrairCargaHorariaIntegralizada(texto: string): {
 		}
 	}
 
-	// Estratégia C: Buscar bloco entre "Integralizado" e "Carga Horária" ou "Legenda"
-	const blocoIntegral = s.match(/Integralizado\s*\n([\s\S]{0,400}?)(?=Carga Horária|Legenda|Complementares|$)/i);
+	// Estratégia C: Buscar bloco entre "Integralizado" e o próximo rótulo da tabela.
+	// Só aceita se a soma bater com o total; antes somava os 3 primeiros números sem
+	// validar e, com Complementares em branco, cruzava para a linha seguinte e
+	// devolvia um total inventado (pré-mortem R18). Sem validação → null.
+	const blocoIntegral = s.match(
+		/Integralizado\s*\n([\s\S]{0,400}?)(?=Carga Horária|Legenda|Complementares|Pendente|Exigido|$)/i
+	);
 	if (blocoIntegral) {
 		const nums = [...blocoIntegral[1].matchAll(/(\d+)\s*h/gi)].map((m) => parseInt(m[1], 10));
-		if (nums.length >= 3) {
-			// Se 3 valores: optativa, obrigatoria, complementar (ordem do PDF)
-			const [a, b, c] = nums;
-			return {
-				obrigatoria: b ?? 0,
-				optativa: a ?? 0,
-				complementar: c ?? 0,
-				total: (a ?? 0) + (b ?? 0) + (c ?? 0)
-			};
+		if (nums.length >= 4) {
+			const [obrigatoria, optativa, complementar, total] = nums;
+			if (Math.abs(obrigatoria + optativa + complementar - total) <= 10) {
+				return { obrigatoria, optativa, complementar, total };
+			}
+		} else if (nums.length === 3) {
+			// Complementares em branco: obrigatória, optativa e total
+			const [obrigatoria, optativa, total] = nums;
+			if (Math.abs(obrigatoria + optativa - total) <= 10) {
+				return { obrigatoria, optativa, complementar: 0, total };
+			}
 		}
 	}
 
