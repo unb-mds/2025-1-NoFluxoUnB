@@ -1,6 +1,7 @@
 import { createSupabaseBrowserClient } from '$lib/supabase/client';
 import type {
 	AiCostMetrics,
+	DarcyUsoMetrics,
 	DashboardOverview,
 	GrowthBucket,
 	PeriodoLetivo,
@@ -46,6 +47,13 @@ export class DashboardService {
 		const { data, error } = await this.supabase.rpc('get_ai_cost_metrics', { p_days: days });
 		if (error) throw new Error(error.message);
 		return data as AiCostMetrics;
+	}
+
+	/** Uso das cotas do Darcy hoje (migration 20260929_darcy_cota.sql). */
+	async getDarcyUsoMetrics(): Promise<DarcyUsoMetrics> {
+		const { data, error } = await this.supabase.rpc('get_darcy_uso_metrics');
+		if (error) throw new Error(error.message);
+		return data as DarcyUsoMetrics;
 	}
 
 	async getTurmasDemanda(periodo: string | null = null): Promise<TurmasDemanda> {

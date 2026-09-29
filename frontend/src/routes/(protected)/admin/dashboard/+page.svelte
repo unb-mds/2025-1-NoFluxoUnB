@@ -13,6 +13,7 @@
 	} from '$lib/types/ticket';
 	import type {
 		AiCostMetrics,
+		DarcyUsoMetrics,
 		DashboardOverview,
 		FasePeriodo,
 		PeriodoLetivo,
@@ -46,6 +47,7 @@
 	let topCursos = $state<TopCurso[]>([]);
 	let ticketMetrics = $state<TicketMetrics | null>(null);
 	let aiCost = $state<AiCostMetrics | null>(null);
+	let darcyUso = $state<DarcyUsoMetrics | null>(null);
 	let turmas = $state<TurmasDemanda | null>(null);
 	let scraping = $state<ScrapingHealth | null>(null);
 	let security = $state<SecurityHealth | null>(null);
@@ -77,7 +79,7 @@
 		loading = true;
 		error = null;
 		try {
-			const [o, g, t, m, ai, tu, sc, se, pl] = await Promise.all([
+			const [o, g, t, m, ai, tu, sc, se, pl, du] = await Promise.all([
 				dashboardService.getOverview(),
 				dashboardService.getUserGrowth(30, 'day'),
 				dashboardService.getTopCursos(8),
@@ -87,7 +89,9 @@
 				dashboardService.getScrapingHealth(),
 				// RPC pode ainda não existir no banco — não derruba o dashboard
 				dashboardService.getSecurityHealth().catch(() => null),
-				dashboardService.getPeriodoLetivo().catch(() => null)
+				dashboardService.getPeriodoLetivo().catch(() => null),
+				// Só existe depois da migration 20260929_darcy_cota.sql
+				dashboardService.getDarcyUsoMetrics().catch(() => null)
 			]);
 			overview = o;
 			growth = g;
@@ -98,6 +102,7 @@
 			scraping = sc;
 			security = se;
 			periodo = pl;
+			darcyUso = du;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Erro ao carregar o dashboard.';
 		} finally {
@@ -106,6 +111,17 @@
 	}
 
 	function fmtDate(value: string): string {
+		// Data-só ('2026-09-02'): new Date() leria meia-noite UTC e mostraria o
+		// dia anterior no fuso de Brasília (o gráfico de custo por dia saía
+		// deslocado). Monta a data local direto.
+		const soData = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+		if (soData) {
+			const [, a, m, d] = soData;
+			return new Date(Number(a), Number(m) - 1, Number(d)).toLocaleDateString('pt-BR', {
+				day: '2-digit',
+				month: 'short'
+			});
+		}
 		try {
 			return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 		} catch {
@@ -320,7 +336,16 @@
 					<div class="ticket-block">
 						<span class="block-title">Custo total</span>
 						<span class="block-big">{moedaFmt(aiCost.custo_total)}</span>
-						<span class="block-sub">{aiCost.total_requisicoes} requisições</span>
+						<span class="block-sub">
+							{#if aiCost.total_perguntas !== undefined}
+								{aiCost.total_perguntas} perguntas · {aiCost.total_requisicoes} chamadas ao modelo
+							{:else}
+								{aiCost.total_requisicoes} requisições
+							{/if}
+						</span>
+						{#if aiCost.custo_hoje !== undefined}
+							<span class="block-sub">Hoje: {moedaFmt(aiCost.custo_hoje)}</span>
+						{/if}
 					</div>
 					<div class="ticket-block">
 						<span class="block-title">Tokens</span>
@@ -339,18 +364,75 @@
 							{/each}
 						</ul>
 					</div>
+					{#if aiCost.por_endpoint && Object.keys(aiCost.por_endpoint).length > 0}
+						<div class="ticket-block">
+							<span class="block-title">Por rota</span>
+							<ul class="kv">
+								{#each Object.entries(aiCost.por_endpoint).sort((a, b) => b[1].custo - a[1].custo) as [ep, e] (ep)}
+									<li title={`${e.perguntas} perguntas · ${e.requisicoes} chamadas`}>
+										<span>{ep}</span><strong>{moedaFmt(e.custo)}</strong>
+									</li>
+								{/each}
+							</ul>
+							{#if aiCost.requisicoes_sem_tokens}
+								<span class="block-sub">{aiCost.requisicoes_sem_tokens} chamadas sem tokens (custo 0)</span>
+							{/if}
+						</div>
+					{/if}
 				</div>
 				{#if aiCost.por_dia.length > 0}
 					<div class="mt-4">
 						<span class="block-title">Custo por dia</span>
 						<div class="bars mt-2">
 							{#each aiCost.por_dia as d}
-								<div class="bar-col" title={`${fmtDate(d.dia)}: ${moedaFmt(d.custo)}`}>
+								<div
+									class="bar-col"
+									title={`${fmtDate(d.dia)}: ${moedaFmt(d.custo)}${d.perguntas !== undefined ? ` · ${d.perguntas} perguntas` : ''}`}
+								>
 									<div class="bar" style="height: {(d.custo / maxAiDay) * 100}%"></div>
 								</div>
 							{/each}
 						</div>
 					</div>
+				{/if}
+			</section>
+		{/if}
+
+		<!-- Darcy: uso das cotas hoje -->
+		{#if darcyUso}
+			<section class="card mt-5">
+				<h2 class="card-title"><Bot class="h-4 w-4" /> Darcy hoje — cotas de perguntas</h2>
+				<div class="ticket-grid">
+					<div class="ticket-block">
+						<span class="block-title">Perguntas hoje</span>
+						<span class="block-big">{darcyUso.perguntas_hoje}</span>
+						<span class="block-sub">{darcyUso.usuarios_hoje} alunos · {moedaFmt(darcyUso.custo_hoje)}</span>
+					</div>
+					<div class="ticket-block">
+						<span class="block-title">No limite</span>
+						<span class="block-big">{darcyUso.usuarios_no_limite}</span>
+						<span class="block-sub">alunos que usaram a cota inteira</span>
+					</div>
+					<div class="ticket-block">
+						<span class="block-title">Pedidos de mais perguntas</span>
+						<span class="block-big">{darcyUso.pedidos_pendentes}</span>
+						<span class="block-sub">{darcyUso.concessoes_vigentes} concessões vigentes</span>
+					</div>
+					{#if darcyUso.top_usuarios.length > 0}
+						<div class="ticket-block">
+							<span class="block-title">Quem mais perguntou</span>
+							<ul class="kv">
+								{#each darcyUso.top_usuarios as u, i (i)}
+									<li title={u.email ?? ''}>
+										<span>{u.nome || u.email || 'sem cadastro'}</span><strong>{u.usadas}/{u.limite}</strong>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+				</div>
+				{#if darcyUso.pedidos_pendentes > 0}
+					<a class="ticket-link" href={ROUTES.ADMIN_TICKETS}>Ver pedidos nos tickets →</a>
 				{/if}
 			</section>
 		{/if}

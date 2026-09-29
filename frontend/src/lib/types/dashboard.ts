@@ -34,9 +34,18 @@ export interface AiModelCost {
 }
 
 export interface AiCostDay {
+	/** Dia de Brasília (YYYY-MM-DD). */
 	dia: string;
 	custo: number;
 	requisicoes: number;
+	/** Perguntas distintas no dia (migration 20260929_darcy_cota.sql). */
+	perguntas?: number;
+}
+
+export interface AiEndpointCost {
+	requisicoes: number;
+	perguntas: number;
+	custo: number;
 }
 
 export interface AiCostMetrics {
@@ -48,6 +57,33 @@ export interface AiCostMetrics {
 	por_modelo: Record<string, AiModelCost>;
 	por_dia: AiCostDay[];
 	precos_nao_configurados: boolean;
+	// Campos da migration 20260929_darcy_cota.sql (ausentes antes dela):
+	/** Perguntas distintas (uma pergunta pode gerar várias chamadas ao modelo). */
+	total_perguntas?: number;
+	/** Custo desde a meia-noite de Brasília. */
+	custo_hoje?: number;
+	/** Linhas com 0 tokens (não entram no custo). */
+	requisicoes_sem_tokens?: number;
+	por_endpoint?: Record<string, AiEndpointCost>;
+}
+
+export interface DarcyUsoTopUsuario {
+	nome: string | null;
+	email: string | null;
+	usadas: number;
+	limite: number;
+}
+
+/** Uso das cotas do Darcy hoje (get_darcy_uso_metrics). */
+export interface DarcyUsoMetrics {
+	dia: string;
+	perguntas_hoje: number;
+	usuarios_hoje: number;
+	usuarios_no_limite: number;
+	custo_hoje: number;
+	concessoes_vigentes: number;
+	pedidos_pendentes: number;
+	top_usuarios: DarcyUsoTopUsuario[];
 }
 
 export interface TurmaConcorrida {
