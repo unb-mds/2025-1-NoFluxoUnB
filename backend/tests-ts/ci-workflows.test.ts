@@ -49,6 +49,26 @@ describe('deploy.yml só publica com CI verde (pré-mortem 27/09/2026, R23)', ()
         expect(cond).toContain('github.event.workflow_run.head_repository.full_name == github.repository');
     });
 
+    it('o workflow CI é o pipelineCI.yml, com name exato "CI"', () => {
+        expect(ci.name).toBe('CI');
+    });
+
+    it('o job só aceita o run vindo do arquivo pipelineCI.yml, não só do nome', () => {
+        // workflow_run casa por nome; se outro workflow (ex.: o de docs, que
+        // se chamava "ci ") colidir com "CI", o deploy dispararia sem o gate
+        // de testes. O path do run é o arquivo, que não tem ambiguidade.
+        const cond = String(job.if).replace(/\s+/g, ' ');
+        expect(cond).toContain("github.event.workflow_run.path == '.github/workflows/pipelineCI.yml'");
+    });
+
+    it('nenhum outro workflow tem nome que colida com "CI" (ignorando caixa e espaços)', () => {
+        const normalizar = (n: unknown) => String(n ?? '').replace(/\s+/g, '').toLowerCase();
+        const colisoes = fs.readdirSync(WORKFLOWS)
+            .filter(f => /\.ya?ml$/.test(f) && f !== 'pipelineCI.yml')
+            .filter(f => normalizar(carregar(f).name) === normalizar(ci.name));
+        expect(colisoes).toEqual([]);
+    });
+
     it('faz checkout exatamente do SHA que passou no CI', () => {
         const checkout = job.steps.find((s: any) => String(s.uses).startsWith('actions/checkout'));
         expect(checkout.with.ref).toBe('${{ github.event.workflow_run.head_sha || github.sha }}');

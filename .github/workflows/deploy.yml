@@ -36,9 +36,14 @@ jobs:
     # event == 'push' e head_repository: `branches: [main]` também casa com um
     # PR de fork cuja branch se chama main — sem isso, código de fora rodaria
     # aqui com os segredos de produção.
+    # path: `workflows: ["CI"]` casa pelo nome do workflow, não pelo arquivo.
+    # Se outro workflow ganhar um nome que colida com "CI" (o de docs já se
+    # chamou "ci "), o deploy dispararia sem o gate de testes. O path do run
+    # identifica o arquivo sem ambiguidade.
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.path == '.github/workflows/pipelineCI.yml' &&
+       github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push' &&
        github.event.workflow_run.head_repository.full_name == github.repository)
     steps:
