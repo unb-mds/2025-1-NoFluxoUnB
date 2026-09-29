@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
+	calcularNumeroSemestre,
 	extrairCargaHorariaIntegralizada,
 	extrairDadosAcademicos,
 	extrairDisciplinasPendentes,
@@ -86,6 +87,27 @@ describe('extrairDisciplinasPendentes (R40)', () => {
 			'FGA0161:PENDENTE:60:ENGENHARIA E AMBIENTE',
 			'FGA0160:PENDENTE:60:MÉTODOS NUMÉRICOS PARA ENGENHARIA'
 		]);
+	});
+});
+
+describe('calcularNumeroSemestre (R37)', () => {
+	const disc = (ano_periodo: string, status = 'APR') =>
+		({ tipo_dado: 'Disciplina Regular', ano_periodo, status }) as Parameters<typeof calcularNumeroSemestre>[0][number];
+
+	it('não conta verão (x.3/x.4) nem período desconhecido', () => {
+		const n = calcularNumeroSemestre([disc('2023.1'), disc('2023.2'), disc('2023.4'), disc('2024.1'), disc('2020.0'), disc('')]);
+		expect(n).toBe(4); // 3 regulares + o atual
+	});
+
+	it('sem nenhum semestre cursado é o 1º', () => {
+		expect(calcularNumeroSemestre([disc('2025.1', 'MATR')])).toBe(1);
+	});
+});
+
+describe('fallback regex: período truncado (R37)', () => {
+	it('"2020." não vira "2020.0"', () => {
+		const texto = ['CÁLCULO 1', '2020.      MAT0025          90    01    100,0    MS    APR'].join('\n');
+		expect(regulares(texto)[0].ano_periodo).toBe('');
 	});
 });
 

@@ -410,7 +410,9 @@ export function calcularNumeroSemestre(
   const validStatuses = new Set(['APR', 'DISP', 'REP', 'REPF', 'REPMF', 'CUMP']);
   const uniqueSemesters = new Set<string>();
   for (const d of disciplinas) {
-    if (validStatuses.has(d.status) && d.ano_periodo) {
+    // Só semestres regulares (.1/.2): o SIGAA não conta verão (.3/.4) no
+    // Período Letivo Atual, e isto é o fallback para quando ele falta (pré-mortem R37).
+    if (validStatuses.has(d.status) && /^\d{4}\.[12]$/.test(d.ano_periodo)) {
       uniqueSemesters.add(d.ano_periodo);
     }
   }
@@ -601,8 +603,9 @@ function extrairDisciplinasDaLinha(
       // Normalize periodo
       let anoPeriodo = periodo === '--' ? '' : periodo;
       if (anoPeriodo && !/^\d{4}\.\d$/.test(anoPeriodo)) {
+        // Período truncado ("2022."): desconhecido, não "2022.0" (pré-mortem R37)
         if (/^\d{4}\.$/.test(anoPeriodo)) {
-          anoPeriodo = anoPeriodo + '0';
+          anoPeriodo = '';
         }
       }
 
@@ -645,8 +648,9 @@ function extrairDisciplinasDaLinha(
 
         let anoPeriodo = periodo === '--' ? '' : periodo;
         if (anoPeriodo && !/^\d{4}\.\d$/.test(anoPeriodo)) {
+          // Período truncado ("2022."): desconhecido, não "2022.0" (pré-mortem R37)
           if (/^\d{4}\.$/.test(anoPeriodo)) {
-            anoPeriodo = anoPeriodo + '0';
+            anoPeriodo = '';
           }
         }
 

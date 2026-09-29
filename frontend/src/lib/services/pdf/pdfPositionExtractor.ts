@@ -240,6 +240,9 @@ function classifyRow(
         // Might be a period continuation or something else
         if (/^\.\d$/.test(t)) {
           period = period + t;
+        } else if (/^\d$/.test(t) && /^\d{4}\.$/.test(period)) {
+          // "2020." + "2" em itens separados
+          period = period + t;
         }
       }
     } else if (x >= cols.symbolMin && x < cols.symbolMax) {
@@ -450,9 +453,10 @@ export function extractDisciplinasFromPositions(
     // Extract period
     let anoPeriodo = row.period === '--' ? '' : row.period;
     if (anoPeriodo && !/^\d{4}\.\d$/.test(anoPeriodo)) {
-      // Try to fix partial period like "2022" → might be missing ".X"
+      // Período truncado ("2022."): desconhecido. Antes virava "2022.0", um
+      // período que não existe no SIGAA (pré-mortem R37).
       if (/^\d{4}\.$/.test(anoPeriodo)) {
-        anoPeriodo = anoPeriodo + '0';
+        anoPeriodo = '';
       }
     }
 
