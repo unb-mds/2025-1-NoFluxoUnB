@@ -58,6 +58,26 @@ const LOG_IA = `
     (now() - interval '30 minutes', 'analyze', 'ragflow', 0, 0, 0, true, '${P2}');
 `;
 
+const P3 = "aaaaaaaa-0000-0000-0000-000000000003";
+const P4 = "aaaaaaaa-0000-0000-0000-000000000004";
+
+/** Perguntas estornadas: a linha da rota paga falhou, mas o modelo cobrou. */
+const LOG_IA_FALHAS = `
+  ${ADMIN_DASH}
+  DELETE FROM ai_pricing;
+  INSERT INTO ai_pricing (model, input_per_1k, output_per_1k) VALUES ('sabia-4', 0.005, 0.02);
+  INSERT INTO ai_usage_log (created_at, endpoint, model, prompt_tokens, completion_tokens, total_tokens, success, pergunta_id)
+  VALUES
+    -- P3 respondida; a busca de uma ferramenta falhou, mas não decide
+    (now() - interval '20 minutes', 'chat-send', 'sabia-4', 1000, 0, 1000, true, '${P3}'),
+    (now() - interval '20 minutes', 'buscar-materias', 'gemini-embedding-001', 10, 0, 10, false, '${P3}'),
+    -- P4 estornada: embeddings ok, stream terminou em erro depois de cobrar
+    (now() - interval '10 minutes', 'recomendar-stream', 'gemini-embedding-001', 10, 0, 10, true, '${P4}'),
+    (now() - interval '10 minutes', 'analyze-sabia-stream', 'sabia-4', 1000, 0, 1000, false, '${P4}'),
+    -- sem pergunta_id (antes de 29/09): a própria linha é a pergunta
+    (now() - interval '5 minutes', 'analyze-sabia', 'sabia-4', 0, 0, 0, false, NULL);
+`;
+
 // Tickets relativos a now(); horas em intervalos exatos para a mediana/P90.
 const t = (dias: number, horas = 0) => `now() - interval '${dias} days' + interval '${horas} hours'`;
 const TICKETS = `
@@ -82,6 +102,7 @@ const TICKETS = `
 
 const CENARIOS = {
     custo: comoUsuario(ADMIN, "SELECT get_ai_cost_metrics(30) AS m", LOG_IA),
+    custo_falhas: comoUsuario(ADMIN, "SELECT get_ai_cost_metrics(30) AS m", LOG_IA_FALHAS),
     custo_sem_escopo: comoUsuario(ALUNO, "SELECT get_ai_cost_metrics(30)"),
     custo_sem_log: comoUsuario(ADMIN, "SELECT get_ai_cost_metrics(30) AS m", `${ADMIN_DASH} DELETE FROM ai_usage_log;`),
     tickets: comoUsuario(ADMIN, "SELECT get_ticket_metrics() AS m", TICKETS),
@@ -145,6 +166,38 @@ describe("get_ai_cost_metrics — tokens médios", () => {
         expect(c.tokens_medios_por_req).toBe(0);
         expect(c.tokens_medios_por_pergunta).toBe(0);
         expect(c.modelos_sem_preco).toEqual([]);
+    });
+});
+
+describe("get_ai_cost_metrics — perguntas estornadas não contam como pergunta", () => {
+    const somaPerguntasPorDia = (c: any) => c.por_dia.reduce((t: number, d: any) => t + d.perguntas, 0);
+
+    it("a pergunta cuja rota paga falhou sai da contagem e vai para perguntas_com_falha", () => {
+        const c = m("custo");
+        // P1 respondida; P2 falhou no assistente-chat (a linha do RAGFlow ok não salva)
+        expect(c.total_perguntas).toBe(1);
+        expect(c.perguntas_com_falha).toBe(1);
+        expect(somaPerguntasPorDia(c)).toBe(1);
+        expect(c.por_endpoint["assistente-chat"].perguntas).toBe(0);
+        expect(c.por_endpoint["chat-send"].perguntas).toBe(1);
+    });
+
+    it("linha de ferramenta não decide; o custo das estornadas continua no total", () => {
+        const c = m("custo_falhas");
+        expect(c.total_perguntas).toBe(1); // P3
+        expect(c.perguntas_com_falha).toBe(2); // P4 e a linha sem pergunta_id
+        expect(somaPerguntasPorDia(c)).toBe(1);
+        expect(c.por_endpoint["analyze-sabia-stream"]).toMatchObject({ requisicoes: 1, perguntas: 0 });
+        expect(c.por_endpoint["recomendar-stream"].perguntas).toBe(0);
+        expect(c.por_endpoint["chat-send"].perguntas).toBe(1);
+        // 1000/1000*0.005 (P3) + 1000/1000*0.005 (P4, estornada mas cobrada)
+        expect(Number(c.custo_total)).toBeCloseTo(0.01, 4);
+        expect(Number(c.por_endpoint["analyze-sabia-stream"].custo)).toBeCloseTo(0.005, 4);
+        expect(c.total_requisicoes).toBe(5);
+    });
+
+    it("sem log: zero perguntas com falha", () => {
+        expect(m("custo_sem_log")).toMatchObject({ total_perguntas: 0, perguntas_com_falha: 0 });
     });
 });
 
@@ -231,6 +284,15 @@ describe("contrato das RPCs", () => {
             { proname: "get_ai_cost_metrics", args: "p_days integer", definer: true, config: "{search_path=public}" },
             { proname: "get_ticket_metrics", args: "", definer: true, config: "{search_path=public}" },
         ]);
+    });
+
+    it("o cabeçalho documenta a dependência de ticket_chat.sql e o gasto real no teto", () => {
+        const cabecalho = lerMigration("20260929b_dashboard_rastreabilidade.sql").split(/^BEGIN;$/m)[0];
+        expect(cabecalho).toMatch(/ticket_chat\.sql/);
+        expect(cabecalho).toMatch(/ticket_messages/);
+        expect(cabecalho).toMatch(/ticket_audit_log/);
+        expect(cabecalho).toMatch(/sub-execuções/);
+        expect(cabecalho).toMatch(/AI_TETO_DIARIO_RS/);
     });
 
     it("a migration é idempotente e transacional", () => {

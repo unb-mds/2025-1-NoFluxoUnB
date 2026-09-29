@@ -1,12 +1,32 @@
 -- Dashboard admin: rastreabilidade do custo de IA e métricas de suporte
--- (29/09/2026). Aplicar manualmente no SQL Editor do Supabase DEPOIS de
--- 20260929_darcy_cota.sql (usa ai_usage_log.pergunta_id e
--- darcy_custo_ia_hoje). Idempotente: pode ser reaplicada.
+-- (29/09/2026). Aplicar manualmente no SQL Editor do Supabase DEPOIS de:
+--   * 20260929_darcy_cota.sql (usa ai_usage_log.pergunta_id e
+--     darcy_custo_ia_hoje);
+--   * ticket_chat.sql (get_ticket_metrics lê public.ticket_messages e a ação
+--     'message_added' de public.ticket_audit_log — sem ela a função falha
+--     ao ser chamada).
+-- Idempotente: pode ser reaplicada.
+--
+-- Custo = gasto real. O ai_usage_log agora recebe também o usage das
+-- sub-execuções do orquestrador (somado na linha do chat-send) e o que o
+-- modelo cobrou em chamadas que falharam (success=false, pergunta estornada).
+-- Por isso darcy_custo_ia_hoje — e o teto global AI_TETO_DIARIO_RS, que é
+-- comparado com ela — passam a contar esse gasto: o teto pode ser atingido
+-- antes do que a contagem de perguntas respondidas sugere.
 --
 -- Mesmas assinaturas e mesmas chaves de antes; só chaves NOVAS no jsonb
 -- (o front antigo continua funcionando):
 --
 --   get_ai_cost_metrics(p_days)
+--     * total_perguntas, por_dia.perguntas e por_endpoint.perguntas contam só
+--       perguntas respondidas: a pergunta cuja linha da rota paga
+--       (assistente-chat, planejamento-chat, chat-send, analyze,
+--       analyze-sabia, analyze-sabia-stream) tem success=false foi estornada
+--       e sai da contagem — linhas de ferramenta (embeddings, dificuldade)
+--       não decidem. O custo e as requisições continuam com tudo.
+--     * perguntas_com_falha: as perguntas que ficaram de fora acima. Inclui
+--       o stream em que o aluno saiu depois de o modelo ser chamado (a
+--       pergunta é gasta, mas o log não distingue: success=false).
 --     * modelos_sem_preco: modelos presentes no log sem linha em ai_pricing
 --       ('sem_cadastro') ou com input e output = 0 ('preco_zero'). O custo
 --       deles entra como 0 no total — o dashboard mostra ALERTA em vez de um
@@ -59,6 +79,7 @@ DECLARE
   v_por_dia        jsonb;
   v_por_endpoint   jsonb;
   v_perguntas      bigint;
+  v_perguntas_falha bigint;
   v_sem_tokens     bigint;
   v_sem_preco      boolean;
   v_medio_req      numeric;
@@ -72,7 +93,7 @@ BEGIN
 
   SELECT COALESCE(max(currency), 'BRL') INTO v_moeda FROM public.ai_pricing;
 
-  WITH r AS (
+  WITH r0 AS (
     SELECT l.endpoint, COALESCE(l.model, 'desconhecido') AS model, l.total_tokens,
            l.created_at, l.success,
            CASE
@@ -90,6 +111,20 @@ BEGIN
       FROM public.ai_usage_log l
       LEFT JOIN public.ai_pricing p ON p.model = l.model
      WHERE l.created_at >= now() - (p_days || ' days')::interval
+  ), r AS (
+    -- Pergunta estornada: a linha da rota paga falhou. As chamadas dela
+    -- continuam no custo, mas não na contagem de perguntas.
+    SELECT r0.*,
+           COALESCE(bool_or(NOT r0.success) FILTER (
+             WHERE r0.endpoint IN ('assistente-chat', 'planejamento-chat', 'chat-send', 'analyze',
+                                   'analyze-sabia', 'analyze-sabia-stream')
+           ) OVER (PARTITION BY r0.pergunta), false) AS pergunta_falhou
+      FROM r0
+  ), rq AS (
+    SELECT r.*,
+           CASE WHEN NOT pergunta_falhou THEN pergunta END AS pergunta_ok,
+           CASE WHEN pergunta_falhou THEN pergunta END AS pergunta_falha
+      FROM r
   )
   SELECT
     (SELECT count(*) FROM r),
@@ -107,14 +142,15 @@ BEGIN
        FROM (SELECT (created_at AT TIME ZONE 'America/Sao_Paulo')::date AS d,
                     round(sum(custo)::numeric, 4) AS c,
                     count(*) AS q_req,
-                    count(DISTINCT pergunta) AS q
-               FROM r GROUP BY 1) s),
+                    count(DISTINCT pergunta_ok) AS q
+               FROM rq GROUP BY 1) s),
     (SELECT COALESCE(jsonb_object_agg(ep, jsonb_build_object(
               'requisicoes', q_req, 'perguntas', q, 'custo', round(c::numeric, 4))), '{}'::jsonb)
        FROM (SELECT COALESCE(endpoint, 'desconhecido') AS ep, count(*) AS q_req, sum(custo) AS c,
-                    count(DISTINCT pergunta) AS q
-               FROM r GROUP BY 1) e),
-    (SELECT count(DISTINCT pergunta) FROM r),
+                    count(DISTINCT pergunta_ok) AS q
+               FROM rq GROUP BY 1) e),
+    (SELECT count(DISTINCT pergunta_ok) FROM rq),
+    (SELECT count(DISTINCT pergunta_falha) FROM rq),
     (SELECT count(*) FROM r WHERE total_tokens = 0),
     (SELECT round(avg(total_tokens)::numeric, 0) FROM r WHERE total_tokens > 0),
     (SELECT round(avg(t)::numeric, 0)
@@ -142,7 +178,7 @@ BEGIN
                                count(*) AS q, count(*) FILTER (WHERE NOT success) AS f
                           FROM r GROUP BY 1) h), '{}'::jsonb)))
   INTO v_total_req, v_total_tokens, v_custo_total, v_por_modelo, v_por_dia,
-       v_por_endpoint, v_perguntas, v_sem_tokens, v_medio_req, v_medio_pergunta,
+       v_por_endpoint, v_perguntas, v_perguntas_falha, v_sem_tokens, v_medio_req, v_medio_pergunta,
        v_modelos_sem_preco, v_saude;
 
   SELECT bool_or(input_per_1k = 0 AND output_per_1k = 0) INTO v_sem_preco
@@ -152,6 +188,7 @@ BEGIN
     'moeda',                 v_moeda,
     'total_requisicoes',     COALESCE(v_total_req, 0),
     'total_perguntas',       COALESCE(v_perguntas, 0),
+    'perguntas_com_falha',   COALESCE(v_perguntas_falha, 0),
     'total_tokens',          COALESCE(v_total_tokens, 0),
     'custo_total',           COALESCE(v_custo_total, 0),
     'custo_hoje',            public.darcy_custo_ia_hoje(),
