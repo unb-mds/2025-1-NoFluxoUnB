@@ -9,7 +9,11 @@ import type {
 	ExpressaoLogicaJson,
 	ExpressaoLogicaRecursiva
 } from '$lib/utils/expressao-logica';
-import { evaluateExpressaoLogica, evaluateExpression } from '$lib/utils/expressao-logica';
+import {
+	evaluateExpressaoLogica,
+	evaluateExpression,
+	getCodigosFromExpressaoLogica
+} from '$lib/utils/expressao-logica';
 import { setHasCodeIgnoreCase } from '$lib/utils/subject-codes';
 
 export interface PreRequisitoModel {
@@ -117,20 +121,33 @@ export function satisfazPreRequisitos(
 	return true;
 }
 
+/**
+ * Matérias que aparecem na regra de pré-requisito da matéria (1 nível).
+ * Varre TODOS os códigos da expressao_logica — `codigoMateriaRequisito` guarda só o
+ * primeiro, então em "A OU B" a alternativa B sumia (setas do Planejador e ficha).
+ * Mesma extração da factory (getCodigosFromExpressaoLogica), sem semântica E/OU:
+ * quem precisa avaliar a regra usa satisfazPreRequisitos.
+ */
 export function getDirectPrerequisites(
 	curso: CursoModel,
 	codigoMateria: string
 ): MateriaModel[] {
-	const materiaMap = new Map(curso.materias.map((m) => [m.codigoMateria, m]));
+	const norm = (c: string) => c.trim().toUpperCase();
+	const materiaMap = new Map(curso.materias.map((m) => [norm(m.codigoMateria), m]));
 	const directPrereqs: MateriaModel[] = [];
 
 	const materia = curso.materias.find((m) => m.codigoMateria === codigoMateria);
 	if (!materia) return [];
 
 	for (const preReq of curso.preRequisitos) {
-		if (preReq.idMateria === materia.idMateria) {
-			const prerequisiteMateria = materiaMap.get(preReq.codigoMateriaRequisito);
-			if (prerequisiteMateria) {
+		if (preReq.idMateria !== materia.idMateria) continue;
+		const codigos =
+			preReq.expressaoLogica != null
+				? getCodigosFromExpressaoLogica(preReq.expressaoLogica)
+				: [preReq.codigoMateriaRequisito ?? ''];
+		for (const codigo of codigos) {
+			const prerequisiteMateria = materiaMap.get(norm(codigo));
+			if (prerequisiteMateria && !directPrereqs.includes(prerequisiteMateria)) {
 				directPrereqs.push(prerequisiteMateria);
 			}
 		}
