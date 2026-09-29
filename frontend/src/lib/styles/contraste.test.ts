@@ -171,6 +171,7 @@ describe('helper de contraste', () => {
 		);
 		expect(resolverClasse('bg-card/80 text-sm', 'bg', 'dark')!.alfa).toBeCloseTo(0.8);
 		expect(resolverClasse('text-sm font-bold', 'text', 'dark')).toBeNull();
+		expect(resolverClasse('text-[15px] text-[#050505]', 'text', 'dark')!.classe).toBe('text-[#050505]');
 	});
 
 	it('o fundo do dark é a página real (#050505), o do claro é branco; glow pesa nos dois', () => {

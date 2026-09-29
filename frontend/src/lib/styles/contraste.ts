@@ -153,7 +153,14 @@ export interface CorResolvida {
 
 function corDoNome(nome: string, tema: Tema): Rgb | null {
 	const arbitraria = /^\[(.+)\]$/.exec(nome);
-	if (arbitraria) return parseCor(arbitraria[1]);
+	if (arbitraria) {
+		// text-[#abc] é cor; text-[15px] é tamanho
+		try {
+			return parseCor(arbitraria[1]);
+		} catch {
+			return null;
+		}
+	}
 	const tok = TOKENS[tema][nome];
 	if (tok && /^-?[\d.]+\s+[\d.]+%\s+[\d.]+%$/.test(tok)) return parseCor(tok);
 	const m = /^([a-z]+)-(\d{2,3})$/.exec(nome);
