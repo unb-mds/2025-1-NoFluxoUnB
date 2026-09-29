@@ -23,7 +23,7 @@ import {
     type LlmMessage,
     type ChamarLlmFn,
 } from "./agente/context";
-import type { LlmUsage } from "../utils/ai_usage_logger";
+import { anexarUsageParcial, type LlmUsage } from "../utils/ai_usage_logger";
 import { montarSystemPrompt } from "./agente/system_prompt";
 import { consultarTurmasMateria } from "./agente/tools/materia_tools";
 import { defaultRegistry } from "./agente/tools";
@@ -169,7 +169,19 @@ export class PlanejadorAgenteService {
     ): Promise<AgenteResultado> {
         // Reseta o acumulador de tokens desta chamada (tracking de custo).
         this.usageCalls = [];
+        try {
+            return await this.conversarSemReset(historico, ctx);
+        } catch (erro) {
+            // O que já foi cobrado antes da falha vai junto do erro: o
+            // controller loga com success=false (ver usageParcialDoErro).
+            throw anexarUsageParcial(erro, this.usageCalls);
+        }
+    }
 
+    private async conversarSemReset(
+        historico: MensagemChat[],
+        ctx: AgenteContexto
+    ): Promise<AgenteResultado> {
         // Truncar histórico nas últimas MAX_HISTORICO mensagens
         const historicoTruncado = historico.slice(-MAX_HISTORICO);
 

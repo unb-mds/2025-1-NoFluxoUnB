@@ -15,11 +15,14 @@ import { EndpointController, RequestType } from '../interfaces';
 import { Pair, Utils } from '../utils';
 import { Request, Response } from 'express';
 import { RagflowService } from '../services/ragflow.service';
+import type { RagflowResponse } from '../services/ragflow.types';
 import { SabiaService, SabiaTimeoutError, isMensagemSabiaPublica } from '../services/sabia.service';
 import { removeAccents } from '../utils/text.utils';
 import { formatRanking, RankingFormatError } from '../utils/ranking.formatter';
 import { createControllerLogger } from '../utils/controller_logger';
-import { executarComContextoIA, logAiUsage } from '../utils/ai_usage_logger';
+import { executarComContextoIA, logAiUsage, usageParcialDoErro, type ContextoIA, type LlmUsage } from '../utils/ai_usage_logger';
+import { MARITACA_MODELS } from '../config/maritaca';
+import { usageDoRagflow, RAGFLOW_MODEL } from '../utils/ragflow_usage';
 import { exigirLoginIA, reservarPerguntaIA, MSG_COTA_INDISPONIVEL } from '../utils/ia_acesso';
 import { estadoCota } from '../services/darcy_cota.service';
 import { SupabaseWrapper } from '../supabase_wrapper';
@@ -67,6 +70,22 @@ export const AssistenteController: EndpointController = {
 
             const pergunta = await reservarPerguntaIA(res, usuario);
             if (!pergunta) return;
+            // Antes esta rota não deixava rastro no ai_usage_log. O RAGFlow não
+            // diz o modelo e em geral não devolve tokens: a linha sai com model
+            // 'ragflow' (o dashboard avisa "sem preço cadastrado") e os tokens
+            // só quando a resposta os trouxer (usageDoRagflow).
+            let respostaRagflow: RagflowResponse | undefined;
+            const logarRagflow = (success: boolean) =>
+                logAiUsage({
+                    endpoint: 'analyze',
+                    durationMs: Date.now() - startTime,
+                    success,
+                    requestExcerpt: materia,
+                    usage: usageDoRagflow(respostaRagflow),
+                    modeloPadrao: RAGFLOW_MODEL,
+                    userId: usuario.id,
+                    perguntaId: pergunta.perguntaId,
+                });
 
             try {
                 // Preprocess: remove accents and uppercase
@@ -78,9 +97,11 @@ export const AssistenteController: EndpointController = {
                 logger.info(`Session created: ${sessionId}`);
 
                 const result = await ragflow.analyzeMateria(processed, sessionId);
+                respostaRagflow = result;
 
                 if (result.code !== 0) {
                     await pergunta.estornar();
+                    logarRagflow(false);
                     const requestId = registrarFalha(logger, `RAGFlow API error code=${result.code}`, result.message ?? 'sem mensagem');
                     return res.status(502).json({ erro: ERRO_IA_GENERICO, requestId });
                 }
@@ -94,17 +115,20 @@ export const AssistenteController: EndpointController = {
                 } catch (error) {
                     if (!(error instanceof RankingFormatError)) throw error;
                     await pergunta.estornar();
+                    logarRagflow(false);
                     const requestId = registrarFalha(logger, 'Resposta do RAGFlow sem ranking', error);
                     return res.status(502).json({ erro: ERRO_IA_GENERICO, requestId });
                 }
                 const duration = Date.now() - startTime;
                 logger.info(`Request completed in ${duration}ms`);
+                logarRagflow(true);
 
                 // O modelo já respondeu (e cobrou): quem saiu gasta a pergunta, só não recebe a resposta.
                 if (pergunta.clienteSaiu()) return;
                 return res.json({ resultado: formatted, cota: pergunta.cota });
             } catch (error) {
                 await pergunta.estornar();
+                logarRagflow(false);
                 const requestId = registrarFalha(logger, `Error after ${Date.now() - startTime}ms`, error);
                 return res.status(500).json({ erro: ERRO_IA_GENERICO, requestId });
             }
@@ -121,6 +145,8 @@ export const AssistenteController: EndpointController = {
             if (!usuario) return;
 
             let pergunta: Awaited<ReturnType<typeof reservarPerguntaIA>> = null;
+            let ctxIA: ContextoIA = {};
+            let excerpt = '';
             try {
                 const svc = new PlanejadorAgenteService();
                 if (!svc.isAvailable()) {
@@ -144,7 +170,8 @@ export const AssistenteController: EndpointController = {
                     pergunta = await reservarPerguntaIA(res, usuario);
                     if (!pergunta) return;
                 }
-                const ctxIA = { userId: usuario.id, perguntaId: pergunta?.perguntaId };
+                ctxIA = { userId: usuario.id, perguntaId: pergunta?.perguntaId };
+                excerpt = historico.slice().reverse().find((m) => m.role === 'user')?.content ?? '';
 
                 const resultado = await executarComContextoIA(ctxIA, async () => {
                     // Contexto sob demanda.
@@ -168,12 +195,11 @@ export const AssistenteController: EndpointController = {
                 });
 
                 if (!resultado.semLlm) {
-                    const ultimaMsgUsuario = historico.slice().reverse().find((m) => m.role === 'user');
                     logAiUsage({
                         endpoint: 'assistente-chat',
                         durationMs: Date.now() - startTime,
                         success: true,
-                        requestExcerpt: ultimaMsgUsuario?.content ?? '',
+                        requestExcerpt: excerpt,
                         usage: resultado.usage,
                         ...ctxIA,
                     });
@@ -191,6 +217,19 @@ export const AssistenteController: EndpointController = {
                 });
             } catch (err: any) {
                 await pergunta?.estornar();
+                // Só pergunta que passou pela cota (comando direto não chama LLM):
+                // o que o modelo cobrou até a falha entra no custo como falha.
+                if (pergunta) {
+                    logAiUsage({
+                        endpoint: 'assistente-chat',
+                        durationMs: Date.now() - startTime,
+                        success: false,
+                        requestExcerpt: excerpt,
+                        usage: usageParcialDoErro(err),
+                        modeloPadrao: MARITACA_MODELS.AGENTE,
+                        ...ctxIA,
+                    });
+                }
                 if (isMaritacaSemCreditos(err)) {
                     logger.error('Chat da assistente: Maritaca sem créditos ativos');
                     return res.status(503).json(AI_SEM_CREDITOS_BODY);
@@ -280,8 +319,10 @@ export const AssistenteController: EndpointController = {
 
             try {
                 logger.info(`Streaming with Sabiá: "${materia}"`);
-                const { usage, aborted, recebeuDoUpstream, concluiu } = await sabia.analyzarInteresseStream(
-                    materia, matrizCurricular, res, clientAbort.signal,
+                // Contexto da pergunta: o SabiaService repassa user_id/pergunta_id
+                // ao mcp_agent, que loga as embeddings Gemini na mesma pergunta.
+                const { usage, aborted, recebeuDoUpstream, concluiu } = await executarComContextoIA(ctxIA, () =>
+                    sabia.analyzarInteresseStream(materia, matrizCurricular, res, clientAbort.signal),
                 );
                 if (aborted) {
                     // Sem o evento `usage` do Python: registra a request como não
@@ -320,6 +361,15 @@ export const AssistenteController: EndpointController = {
                 return;
             } catch (error) {
                 await pergunta.estornar();
+                logAiUsage({
+                    endpoint: 'analyze-sabia-stream',
+                    durationMs: Date.now() - startTime,
+                    success: false,
+                    requestExcerpt: materia,
+                    usage: [],
+                    modeloPadrao: MARITACA_MODELS.AGENTE,
+                    ...ctxIA,
+                });
                 if (clientAbort.signal.aborted || res.writableEnded) return;
                 const requestId = registrarFalha(logger, 'Stream error', error);
                 const errorEvent = `data: ${JSON.stringify({ stage: 'error', message: ERRO_IA_GENERICO, requestId })}\n\n`;
@@ -357,15 +407,27 @@ export const AssistenteController: EndpointController = {
 
             const pergunta = await reservarPerguntaIA(res, usuario);
             if (!pergunta) return;
+            const ctxIA = { userId: usuario.id, perguntaId: pergunta.perguntaId };
+            const logarFalha = (usage?: LlmUsage[]) =>
+                logAiUsage({
+                    endpoint: 'analyze-sabia',
+                    durationMs: Date.now() - startTime,
+                    success: false,
+                    requestExcerpt: materia,
+                    usage,
+                    modeloPadrao: MARITACA_MODELS.AGENTE,
+                    ...ctxIA,
+                });
 
             try {
                 logger.info(`Processing with Sabiá: "${materia}"`);
 
-                // Call Sabiá AI service
-                const result = await sabia.analyzarInteresse(materia, matrizCurricular);
+                // Call Sabiá AI service (o contexto leva user_id/pergunta_id ao mcp_agent)
+                const result = await executarComContextoIA(ctxIA, () => sabia.analyzarInteresse(materia, matrizCurricular));
 
                 if (!result.success) {
                     await pergunta.estornar();
+                    logarFalha(result.usage);
                     // Só as mensagens de orientação escritas no próprio mcp_agent
                     // (ex.: "Envie o historico academico") chegam ao usuário.
                     if (result.error && isMensagemSabiaPublica(result.error)) {
@@ -387,8 +449,7 @@ export const AssistenteController: EndpointController = {
                     success: true,
                     requestExcerpt: materia,
                     usage: result.usage,
-                    userId: usuario.id,
-                    perguntaId: pergunta.perguntaId,
+                    ...ctxIA,
                 });
 
                 // O modelo já respondeu (e cobrou): quem saiu gasta a pergunta, só não recebe a resposta.
@@ -401,6 +462,7 @@ export const AssistenteController: EndpointController = {
                 });
             } catch (error) {
                 await pergunta.estornar();
+                logarFalha([]);
                 if (error instanceof SabiaTimeoutError) {
                     // Mensagem própria e segura (sem detalhe interno): ver SabiaTimeoutError.
                     logger.error(`Timeout do Sabiá após ${Date.now() - startTime}ms`);

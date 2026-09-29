@@ -326,3 +326,47 @@ describe("planejador_agente — Loop de Conversa", () => {
         expect(ctx.preferencias.limiteCreditos).toBe(20);
     });
 });
+
+describe("planejador_agente — uso parcial quando a conversa falha", () => {
+    const fetchOriginal = global.fetch;
+    const keyOriginal = process.env.MARITACA_API_KEY;
+    afterEach(() => {
+        global.fetch = fetchOriginal;
+        process.env.MARITACA_API_KEY = keyOriginal;
+    });
+
+    test("erro na 3ª chamada à Maritaca leva junto o usage das duas já pagas", async () => {
+        const { usageParcialDoErro } = await import("../src/utils/ai_usage_logger");
+        process.env.MARITACA_API_KEY = "test-key";
+        const ok = (message: LlmMessage, usage: Record<string, number>) =>
+            new globalThis.Response(JSON.stringify({ choices: [{ message }], usage }), { status: 200 });
+        global.fetch = jest
+            .fn()
+            .mockResolvedValueOnce(ok(respostaComTool("consultar_plano", {}, "c1"), { prompt_tokens: 900, completion_tokens: 40, total_tokens: 940 }))
+            .mockResolvedValueOnce(ok(respostaComTool("consultar_plano", {}, "c2"), { prompt_tokens: 1200, completion_tokens: 30 }))
+            .mockResolvedValueOnce(new globalThis.Response("upstream error", { status: 500 })) as any;
+
+        const svc = new PlanejadorAgenteService();
+        const erro = await svc
+            .conversar([{ role: "user", content: "como está meu plano?" }], ctxBase())
+            .then(() => null, (e: unknown) => e);
+
+        expect(erro).toBeInstanceOf(Error);
+        expect((erro as Error).message).toMatch(/Maritaca API error: 500/);
+        expect(usageParcialDoErro(erro)).toEqual([
+            { model: "sabia-4", prompt_tokens: 900, completion_tokens: 40, total_tokens: 940 },
+            { model: "sabia-4", prompt_tokens: 1200, completion_tokens: 30, total_tokens: 1230 },
+        ]);
+    });
+
+    test("uma conversa nova não herda o parcial da anterior", async () => {
+        const { usageParcialDoErro } = await import("../src/utils/ai_usage_logger");
+        process.env.MARITACA_API_KEY = "test-key";
+        global.fetch = jest.fn().mockResolvedValue(new globalThis.Response("x", { status: 500 })) as any;
+        const svc = new PlanejadorAgenteService();
+        const e1 = await svc.conversar([{ role: "user", content: "a" }], ctxBase()).catch((e) => e);
+        const e2 = await svc.conversar([{ role: "user", content: "b" }], ctxBase()).catch((e) => e);
+        expect(usageParcialDoErro(e1)).toEqual([]);
+        expect(usageParcialDoErro(e2)).toEqual([]);
+    });
+});

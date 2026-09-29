@@ -61,7 +61,7 @@ jest.mock('../src/services/agente/context', () => ({
     criarContextoLeve: () => ({}),
 }));
 
-jest.mock('../src/utils/ai_usage_logger', () => ({ logAiUsage: jest.fn() }));
+jest.mock('../src/utils/ai_usage_logger', () => ({ ...jest.requireActual('../src/utils/ai_usage_logger'), logAiUsage: jest.fn() }));
 
 // Login/cota fora do escopo deste arquivo (ver darcy-login-cota.test.ts).
 jest.mock("../src/utils/ia_acesso", () => require("./utils/ia_acesso_liberado").iaAcessoLiberado());

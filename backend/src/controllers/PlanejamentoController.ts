@@ -23,7 +23,8 @@ import { Pair, Utils } from "../utils";
 import { Request, Response } from "express";
 import { SupabaseWrapper } from "../supabase_wrapper";
 import { createControllerLogger } from "../utils/controller_logger";
-import { executarComContextoIA, logAiUsage } from "../utils/ai_usage_logger";
+import { MARITACA_MODELS } from "../config/maritaca";
+import { executarComContextoIA, logAiUsage, usageParcialDoErro, type ContextoIA, type LlmUsage } from "../utils/ai_usage_logger";
 import { autenticarUsuarioIA, exigirLoginIA, reservarPerguntaIA } from "../utils/ia_acesso";
 import { estadoCota } from "../services/darcy_cota.service";
 import {
@@ -782,6 +783,20 @@ export const PlanejamentoController: EndpointController = {
                 if (!usuario) return;
 
                 let pergunta: Awaited<ReturnType<typeof reservarPerguntaIA>> = null;
+                let ctxIA: ContextoIA = {};
+                let excerpt = "";
+                // Pergunta reservada que falhou: entra no log como falha, com o
+                // que o modelo já tiver cobrado (0 tokens se nem chegou a ele).
+                const logarFalha = (usage: LlmUsage[]) =>
+                    logAiUsage({
+                        endpoint: "planejamento-chat",
+                        durationMs: Date.now() - startTime,
+                        success: false,
+                        requestExcerpt: excerpt,
+                        usage,
+                        modeloPadrao: MARITACA_MODELS.AGENTE,
+                        ...ctxIA,
+                    });
                 try {
                     // ========== JWT AUTHENTICATION ==========
                     if (!await Utils.checkAuthorization(req as Request)) {
@@ -840,7 +855,8 @@ export const PlanejamentoController: EndpointController = {
                         pergunta = await reservarPerguntaIA(res, usuario);
                         if (!pergunta) return;
                     }
-                    const ctxIA = { userId: usuario.id, perguntaId: pergunta?.perguntaId };
+                    ctxIA = { userId: usuario.id, perguntaId: pergunta?.perguntaId };
+                    excerpt = historico.slice().reverse().find((m) => m.role === "user")?.content ?? "";
 
                     // ========== MONTAR CONTEXTO DO AGENTE (com plano) ==========
                     const { ctx, status: statusErr, error: erroMontagem } = await executarComContextoIA(ctxIA, () =>
@@ -848,6 +864,7 @@ export const PlanejamentoController: EndpointController = {
                     );
                     if (erroMontagem || !ctx) {
                         await pergunta?.estornar();
+                        if (pergunta) logarFalha([]);
                         logger.warn(`Erro ao montar contexto: ${erroMontagem}`);
                         return res.status(statusErr || 500).json({ error: erroMontagem || "Erro interno ao montar contexto" });
                     }
@@ -859,12 +876,11 @@ export const PlanejamentoController: EndpointController = {
                     logger.info(`Conversa concluída. Resposta: ${resultado.reply.slice(0, 50)}...`);
 
                     if (!resultado.semLlm) {
-                        const ultimaMsgUsuario = historico.slice().reverse().find((m) => m.role === "user");
                         logAiUsage({
                             endpoint: "planejamento-chat",
                             durationMs: Date.now() - startTime,
                             success: true,
-                            requestExcerpt: ultimaMsgUsuario?.content ?? "",
+                            requestExcerpt: excerpt,
                             usage: resultado.usage,
                             ...ctxIA,
                         });
@@ -884,6 +900,9 @@ export const PlanejamentoController: EndpointController = {
                     });
                 } catch (err: any) {
                     await pergunta?.estornar();
+                    // Custo do que o modelo já respondeu antes da falha (a
+                    // pergunta continua estornada). Comando direto não tem pergunta.
+                    if (pergunta) logarFalha(usageParcialDoErro(err));
                     if (isMaritacaSemCreditos(err)) {
                         logger.error("Chat do planejador: Maritaca sem créditos ativos");
                         return res.status(503).json(AI_SEM_CREDITOS_BODY);

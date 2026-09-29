@@ -573,3 +573,181 @@ describe("rastreabilidade no ai_usage_log", () => {
         ]);
     });
 });
+
+describe("falhas também entram no custo (success=false)", () => {
+    const PARCIAL = [
+        { model: "sabia-4", prompt_tokens: 900, completion_tokens: 40, total_tokens: 940 },
+        { model: "sabia-4", prompt_tokens: 1200, completion_tokens: 30, total_tokens: 1230 },
+    ];
+    const { anexarUsageParcial } = jest.requireActual("../src/utils/ai_usage_logger");
+
+    function logDe(endpoint: string) {
+        return mockLogAiUsage.mock.calls.map((c) => c[0]).filter((p) => p.endpoint === endpoint);
+    }
+
+    it("/assistente/chat: o loop de tools quebra na 3ª chamada — as duas pagas vão ao log, a pergunta é estornada", async () => {
+        const estado = bancoCom({ usadas: 5 });
+        mockConversar.mockRejectedValue(anexarUsageParcial(new Error("Maritaca API error: 500"), PARCIAL));
+        const { req, res } = mockReqRes({ body: MSG, token: TOKEN });
+        await assistente("chat")(req, res);
+
+        expect(res.statusCode).toBe(500);
+        expect(estado.usadas).toBe(5);
+        expect(logDe("assistente-chat")).toEqual([
+            expect.objectContaining({
+                success: false, usage: PARCIAL, userId: ALUNO.id, perguntaId: expect.any(String),
+                requestExcerpt: "me recomenda optativas de IA",
+            }),
+        ]);
+    });
+
+    it("/assistente/chat sem nenhuma resposta do modelo: registra a falha com 0 tokens no sabia-4", async () => {
+        bancoCom();
+        mockConversar.mockRejectedValue(new Error("fetch failed"));
+        const { req, res } = mockReqRes({ body: MSG, token: TOKEN });
+        await assistente("chat")(req, res);
+        expect(logDe("assistente-chat")).toEqual([
+            expect.objectContaining({ success: false, usage: [], modeloPadrao: "sabia-4" }),
+        ]);
+    });
+
+    it("/assistente/chat: comando /turmas que falha não vira uso de IA", async () => {
+        bancoCom();
+        mockConversar.mockRejectedValue(new Error("banco fora"));
+        const { req, res } = mockReqRes({ body: { messages: [{ role: "user", content: "/turmas MAT0025" }] }, token: TOKEN });
+        await assistente("chat")(req, res);
+        expect(mockLogAiUsage).not.toHaveBeenCalled();
+    });
+
+    it("/planejamento/chat: erro depois da reserva registra a falha", async () => {
+        (Utils.checkAuthorization as jest.Mock).mockResolvedValue(true);
+        const estado = bancoCom({ usadas: 5 });
+        const { req, res } = mockReqRes({
+            // plano válido: a falha vem do banco ao montar o contexto (depois da reserva)
+            body: {
+                ...MSG,
+                planoInput: {
+                    curriculoCompleto: "8117/-2 - 2018.2", completedCodes: [], numeroPeriodo: 3,
+                    preferencias: { limiteCreditos: 24, objetivo: "equilibrado", trabalha: false },
+                },
+            },
+            token: TOKEN,
+            headers: { "user-id": "7" },
+        });
+        await planejamento("chat")(req, res);
+
+        expect(estado.usadas).toBe(5);
+        const linhas = logDe("planejamento-chat");
+        expect(linhas).toHaveLength(1);
+        expect(linhas[0]).toMatchObject({ success: false, userId: ALUNO.id, modeloPadrao: "sabia-4" });
+    });
+
+    it("/chat/send: o usage acumulado até o erro (orquestrador + atuadores) vai ao log", async () => {
+        const estado = bancoCom({ usadas: 5 });
+        mockRun.mockImplementation(async (_agente: unknown, _msg: unknown, opts: any) => {
+            // o modelo já respondeu duas vezes antes de o run quebrar
+            opts.context.usage.inputTokens += 300;
+            opts.context.usage.outputTokens += 20;
+            throw new Error("boom");
+        });
+        const { req, res } = mockReqRes({ body: { message: "oi" }, token: TOKEN });
+        await chatSend()(req, res);
+
+        expect(estado.usadas).toBe(5);
+        expect(logDe("chat-send")).toEqual([
+            expect.objectContaining({
+                success: false,
+                userId: ALUNO.id,
+                usage: [{ model: "sabia-4", prompt_tokens: 300, completion_tokens: 20, total_tokens: 320 }],
+            }),
+        ]);
+    });
+
+    it.each([
+        ["timeout", () => mockSabia.analyzarInteresse.mockRejectedValue(new Error("timeout"))],
+        ["success:false", () => mockSabia.analyzarInteresse.mockResolvedValue({ success: false, error: "KeyError", usage: PARCIAL })],
+    ])("/assistente/analyze-sabia (%s) registra a falha", async (_n, preparar) => {
+        bancoCom();
+        preparar();
+        const { req, res } = mockReqRes({ body: { materia: "IA" }, token: TOKEN });
+        await assistente("analyze-sabia")(req, res);
+        expect(logDe("analyze-sabia")).toEqual([
+            expect.objectContaining({ success: false, userId: ALUNO.id, perguntaId: expect.any(String) }),
+        ]);
+    });
+
+    it("/assistente/analyze-sabia-stream que lança registra a falha", async () => {
+        bancoCom();
+        mockSabia.analyzarInteresseStream.mockRejectedValue(new Error("ECONNRESET"));
+        const { req, res } = mockReqRes({ body: { materia: "IA" }, token: TOKEN });
+        await assistente("analyze-sabia-stream")(req, res);
+        expect(logDe("analyze-sabia-stream")).toEqual([
+            expect.objectContaining({ success: false, userId: ALUNO.id, modeloPadrao: "sabia-4" }),
+        ]);
+    });
+});
+
+describe("POST /assistente/analyze (RAGFlow) no ai_usage_log", () => {
+    const logDe = () => mockLogAiUsage.mock.calls.map((c) => c[0]).filter((p) => p.endpoint === "analyze");
+
+    it("sucesso: registra a chamada com model 'ragflow', duração e a pergunta", async () => {
+        bancoCom();
+        const { req, res } = mockReqRes({ body: { materia: "IA" }, token: TOKEN });
+        await assistente("analyze")(req, res);
+
+        expect(res.statusCode).toBe(200);
+        expect(logDe()).toEqual([
+            expect.objectContaining({
+                success: true,
+                durationMs: expect.any(Number),
+                requestExcerpt: "IA",
+                userId: ALUNO.id,
+                perguntaId: expect.any(String),
+                usage: [{ model: "ragflow", prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }],
+            }),
+        ]);
+    });
+
+    it("usa os tokens quando o RAGFlow devolve `usage`", async () => {
+        bancoCom();
+        const original = mockRagflow.analyzeMateria.getMockImplementation()!;
+        mockRagflow.analyzeMateria.mockImplementation(async (...a: unknown[]) => {
+            const r = await original(...a);
+            return { ...r, data: { ...r.data, usage: { prompt_tokens: 120, completion_tokens: 30 } } };
+        });
+        const { req, res } = mockReqRes({ body: { materia: "IA" }, token: TOKEN });
+        await assistente("analyze")(req, res);
+        expect(logDe()[0].usage).toEqual([{ model: "ragflow", prompt_tokens: 120, completion_tokens: 30, total_tokens: 150 }]);
+    });
+
+    it.each([
+        ["code != 0", () => mockRagflow.analyzeMateria.mockResolvedValue({ code: 102, message: "x", data: {} })],
+        ["sem ranking", () => mockRagflow.analyzeMateria.mockResolvedValue({ code: 0, data: { session_id: "s1" } })],
+        ["exceção", () => mockRagflow.startSession.mockRejectedValue(new Error("ECONNREFUSED"))],
+    ])("falha (%s): registra success=false", async (_n, preparar) => {
+        bancoCom();
+        preparar();
+        const { req, res } = mockReqRes({ body: { materia: "IA" }, token: TOKEN });
+        await assistente("analyze")(req, res);
+        expect(logDe()).toEqual([expect.objectContaining({ success: false, modeloPadrao: "ragflow" })]);
+    });
+});
+
+describe("Sabiá recebe a pergunta no contexto (embeddings do /recomendar no log)", () => {
+    it.each([
+        ["analyze-sabia", () => mockSabia.analyzarInteresse],
+        ["analyze-sabia-stream", () => mockSabia.analyzarInteresseStream],
+    ])("%s roda o SabiaService dentro do contexto da pergunta", async (rota, fn) => {
+        bancoCom();
+        const { contextoIAAtual } = jest.requireActual("../src/utils/ai_usage_logger");
+        let visto: unknown;
+        const original = fn().getMockImplementation();
+        fn().mockImplementation(async (...a: unknown[]) => {
+            visto = contextoIAAtual();
+            return original ? original(...a) : { success: true, disciplinas: [], usage: [] };
+        });
+        const { req, res } = mockReqRes({ body: { materia: "IA" }, token: TOKEN });
+        await assistente(rota)(req, res);
+        expect(visto).toEqual({ userId: ALUNO.id, perguntaId: expect.any(String) });
+    });
+});
