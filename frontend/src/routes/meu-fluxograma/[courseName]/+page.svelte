@@ -20,6 +20,8 @@
 	import { authStore } from '$lib/stores/auth';
 	import { getIntegralizacao } from '$lib/services/integralizacao.service';
 	import { iniciarCarregamento } from '$lib/utils/carregamento-cancelavel';
+	import { escolherCargaFluxograma } from '$lib/utils/fluxograma-carga';
+	import { ROUTES } from '$lib/config/routes';
 	import { supabaseDataService } from '$lib/services/supabase-data.service';
 	import { onMount, tick } from 'svelte';
 	import { Loader2, AlertTriangle, ArrowRightLeft, ListChecks, ChevronDown } from 'lucide-svelte';
@@ -241,34 +243,34 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 		};
 	});
 
-	function normalizarChaveNome(valor: string | null | undefined): string {
-		return (valor ?? '').trim().toLowerCase();
+	/** Já pedimos algum carregamento? Evita mostrar "Curso não encontrado" antes do onMount. */
+	let cargaIniciada = $state(false);
+
+	/**
+	 * Carrega a matriz certa (a do aluno, a do ?matriz= ou a padrão pelo nome).
+	 * Lê $page e o usuário na hora da chamada: o "Tentar novamente" repete a mesma
+	 * escolha do carregamento inicial em vez de cair sempre na matriz padrão.
+	 */
+	function carregar() {
+		const carga = escolherCargaFluxograma(
+			authStore.getUser(),
+			courseName,
+			$page.url.searchParams.get('matriz')
+		);
+		cargaIniciada = true;
+		if (!carga) return;
+		if (carga.tipo === 'curriculo') {
+			store.loadCourseDataByCurriculoCompleto(carga.valor, carga.anonymous);
+		} else {
+			store.loadCourseData(carga.valor, carga.anonymous);
+		}
 	}
 
 	onMount(() => {
 		if (courseName) {
 			store.setConnectionMode(matchesFluxogramCompactTouchMode() ? 'direct' : 'all');
-			const user = authStore.getUser();
-			const anonymous = !user?.dadosFluxograma;
-			const matrizParam = $page.url.searchParams.get('matriz');
-
-		const matrizDoAluno = user?.dadosFluxograma?.matrizCurricular;
-		const mesmoCurso =
-			!!matrizDoAluno &&
-			normalizarChaveNome(user?.dadosFluxograma?.nomeCurso) === normalizarChaveNome(courseName);
-
-		if (mesmoCurso) {
-			// 1) É o curso da própria pessoa e já temos a matriz dela (veio do histórico) — usa direto.
-			store.loadCourseDataByCurriculoCompleto(matrizDoAluno!, anonymous);
-		} else if (matrizParam) {
-			// 2) Veio de um card específico em /fluxogramas — respeita a escolha.
-			store.loadCourseDataByCurriculoCompleto(matrizParam, anonymous);
-		} else {
-			// 3) Sem contexto — carrega uma matriz padrão; a pessoa pode trocar
-			//    pelo seletor "Trocar matriz" que já existe no header.
-			store.loadCourseData(courseName, anonymous);
 		}
-		}
+		carregar();
 
 		return () => {
 			store.reset();
@@ -415,12 +417,7 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 			<h2 class="mb-2 text-lg font-semibold text-white">Erro ao carregar fluxograma</h2>
 			<p class="mb-4 text-sm text-red-300/80">{store.state.error}</p>
 			<button
-				onclick={() => {
-				if (courseName) {
-					const u = authStore.getUser();
-					store.loadCourseData(courseName, !u?.dadosFluxograma);
-				}
-			}}
+				onclick={carregar}
 				class="rounded-full bg-white/10 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20"
 			>
 				Tentar novamente
@@ -610,5 +607,18 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 				onclose={() => (showMateriasConcluidasModal = false)}
 			/>
 		{/if}
+	{:else if cargaIniciada || !courseName}
+		<!-- Nada carregando, sem erro e sem curso (ex.: URL sem curso): não deixa a tela em branco. -->
+		<div class="mx-auto max-w-md rounded-2xl border border-white/10 bg-white/5 p-8 text-center backdrop-blur-md">
+			<AlertTriangle class="mx-auto mb-3 h-8 w-8 text-amber-400" />
+			<h2 class="mb-2 text-lg font-semibold text-white">Curso não encontrado</h2>
+			<p class="mb-4 text-sm text-white/60">Escolha um curso na lista de fluxogramas.</p>
+			<a
+				href={ROUTES.FLUXOGRAMAS}
+				class="inline-block rounded-full bg-white/10 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20"
+			>
+				Ver fluxogramas
+			</a>
+		</div>
 	{/if}
 </div>
