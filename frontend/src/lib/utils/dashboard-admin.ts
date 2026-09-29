@@ -14,9 +14,11 @@ export const TAXA_FALHA_ALERTA = 20;
 
 const FUSO = 'America/Sao_Paulo';
 
+const fmtHora = new Intl.DateTimeFormat('en-US', { timeZone: FUSO, hour: 'numeric', hourCycle: 'h23' });
+
 /** Hora (0–23) de `agora` no fuso de Brasília. */
 export function horaBrasilia(agora: Date): number {
-	const h = new Intl.DateTimeFormat('en-US', { timeZone: FUSO, hour: 'numeric', hourCycle: 'h23' })
+	const h = fmtHora
 		.formatToParts(agora)
 		.find((p) => p.type === 'hour')?.value;
 	return Number(h) % 24;
@@ -40,10 +42,36 @@ export function haQuanto(iso: string | null | undefined, agora: Date): string {
 	return `há ${Math.floor(h / 24)} dias`;
 }
 
+const HORA_MS = 3_600_000;
+
+/**
+ * Horas de `desde` até `ate` que caem dentro do horário de uso (Brasília).
+ * Anda de hora cheia em hora cheia (o fuso de Brasília tem offset de horas
+ * inteiras); `limiteMs` encerra cedo quando o total já passou do que importa.
+ */
+export function msEmHorarioDeUso(
+	desde: Date,
+	ate: Date,
+	horario = HORARIO_USO,
+	limiteMs = Number.POSITIVE_INFINITY
+): number {
+	let t = desde.getTime();
+	const fim = ate.getTime();
+	if (!Number.isFinite(t) || !Number.isFinite(fim)) return 0;
+	let total = 0;
+	while (t < fim && total <= limiteMs) {
+		const proximaHora = Math.min(fim, (Math.floor(t / HORA_MS) + 1) * HORA_MS);
+		if (emHorarioDeUso(new Date(t), horario)) total += proximaHora - t;
+		t = proximaHora;
+	}
+	return total;
+}
+
 /**
  * O log parou? Em horário de uso, nenhuma linha há mais de `horas` (ou nenhuma
  * no período) indica que o logger quebrou ou o Darcy caiu — de madrugada é
- * normal ficar parado, então fora do horário não alerta.
+ * normal ficar parado, então fora do horário não alerta. Só contam as horas
+ * dentro do horário de uso: às 8h30 a noite sem perguntas não dispara alerta.
  */
 export function logParado(
 	ultimoRegistro: string | null | undefined,
@@ -53,7 +81,8 @@ export function logParado(
 ): boolean {
 	if (!emHorarioDeUso(agora, horario)) return false;
 	if (!ultimoRegistro) return true;
-	return agora.getTime() - new Date(ultimoRegistro).getTime() > horas * 3_600_000;
+	const limite = horas * HORA_MS;
+	return msEmHorarioDeUso(new Date(ultimoRegistro), agora, horario, limite) > limite;
 }
 
 export interface LinhaSaudeEndpoint extends AiSaudeEndpoint {

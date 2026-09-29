@@ -49,6 +49,25 @@ describe('logParado', () => {
 	it('N horas configurável', () => {
 		expect(logParado('2026-09-29T16:30:00Z', TARDE, 1)).toBe(true);
 	});
+
+	it('de manhã não conta a noite: só as horas dentro do horário de uso', () => {
+		// 08:30 em Brasília; última linha às 22:50 da véspera (9h40 de relógio,
+		// mas só 10 min + 30 min em horário de uso)
+		const MANHA = new Date('2026-09-29T11:30:00Z');
+		expect(logParado('2026-09-29T01:50:00Z', MANHA)).toBe(false);
+		// 11:30 em Brasília com a última linha às 22:50: 10 min + 3h30 → alerta
+		expect(logParado('2026-09-29T01:50:00Z', new Date('2026-09-29T14:30:00Z'))).toBe(true);
+	});
+
+	it('a noite inteira parada não soma: 22:00 → 10:00 são 1h + 2h de uso', () => {
+		expect(logParado('2026-09-29T01:00:00Z', new Date('2026-09-29T13:00:00Z'))).toBe(false);
+		// 22:00 → 10:30: 1h + 2h30 passa das 3 h
+		expect(logParado('2026-09-29T01:00:00Z', new Date('2026-09-29T13:30:00Z'))).toBe(true);
+	});
+
+	it('dias sem linha nenhuma continuam alertando', () => {
+		expect(logParado('2026-09-26T18:00:00Z', TARDE)).toBe(true);
+	});
 });
 
 describe('haQuanto', () => {
