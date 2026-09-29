@@ -197,6 +197,21 @@ const CENARIOS = {
         }
     ),
 
+    // R17 — obrigatória reprovada/em curso + equivalente aprovada
+    r17_rep_optativa_equivalente: engsoftAluno(
+        `INSERT INTO equivalencias (id_materia, expressao_original) VALUES (20, '(OPT0001)');`,
+        [disc("MAT0025", "CALCULO 1", "REP"), disc("OPT0001", "OPTATIVA")]
+    ),
+    r17_matr_equivalente_fora_da_matriz: engsoftAluno(
+        `INSERT INTO equivalencias (id_materia, expressao_original) VALUES (20, '(FIS9999)');`,
+        [disc("MAT0025", "CALCULO 1", "MATR"), disc("FIS9999", "FISICA")]
+    ),
+    r17_rep_sem_equivalencia: engsoftAluno("", [disc("MAT0025", "CALCULO 1", "REP")]),
+    r17_rep_equivalencia_incompleta: engsoftAluno(EQ_A_E_B_TEXTO, [
+        disc("MAT0025", "CALCULO 1", "REP"),
+        disc("AAA0001", "A"),
+    ]),
+
     // R6 — paridade de avalia_equivalencia com frontend/src/lib/utils/expressao-logica.ts
     av_codigo_unico: avalia("CIC0004", null, ["CIC0004"]),
     av_e_parcial: avalia({ operador: "E", condicoes: ["FGA0001", "FGA0002"] }, null, ["FGA0001"]),
@@ -368,5 +383,47 @@ describe("R15 — disciplina de outra matriz do curso", () => {
         expect(old).toMatchObject({ tipo: "outra_matriz", encontrada_no_banco: true });
         // nem vira optativa (inflaria a CH optativa)
         expect(out.materias_optativas).toEqual([]);
+    });
+});
+
+describe("R17 — obrigatória reprovada + equivalente aprovada", () => {
+    it("REP da obrigatória + optativa equivalente APR: integraliza por equivalência, sem duplicar", () => {
+        const out = r("r17_rep_optativa_equivalente");
+        expect(out.materias_concluidas).toHaveLength(1);
+        expect(out.materias_concluidas[0]).toMatchObject({
+            codigo: "MAT0025",
+            status_fluxograma: "concluida_equivalencia",
+            codigo_equivalente: "OPT0001",
+        });
+        expect(out.materias_pendentes).toEqual([]);
+        expect(out.materias_optativas).toEqual([]);
+        expect(out.resumo).toMatchObject({
+            total_obrigatorias: 1,
+            total_obrigatorias_concluidas: 1,
+            total_obrigatorias_pendentes: 0,
+            percentual_conclusao_obrigatorias: 100,
+        });
+    });
+
+    it("MATR da obrigatória + equivalente APR fora da matriz: integraliza", () => {
+        const out = r("r17_matr_equivalente_fora_da_matriz");
+        expect(codigos(out.materias_concluidas)).toEqual(["MAT0025"]);
+        expect(out.materias_concluidas[0].codigo_equivalente).toBe("FIS9999");
+        expect(out.materias_pendentes).toEqual([]);
+        expect(out.resumo.total_obrigatorias).toBe(1);
+    });
+
+    it("regressão: REP sem equivalência continua pendente, uma vez só", () => {
+        const out = r("r17_rep_sem_equivalencia");
+        expect(out.materias_pendentes).toHaveLength(1);
+        expect(out.materias_pendentes[0]).toMatchObject({ codigo: "MAT0025", status_fluxograma: "pendente" });
+        expect(out.resumo.total_obrigatorias).toBe(1);
+    });
+
+    it("REP + equivalência 'A E B' incompleta continua pendente, uma vez só", () => {
+        const out = r("r17_rep_equivalencia_incompleta");
+        expect(out.materias_concluidas).toEqual([]);
+        expect(out.materias_pendentes).toHaveLength(1);
+        expect(out.resumo.total_obrigatorias).toBe(1);
     });
 });

@@ -12,6 +12,7 @@
 --       front) e sem as de data_vigencia futura.
 --   R15 disciplina casada só em outra matriz do curso sai com tipo 'outra_matriz' e não
 --       conta como obrigatória concluída.
+--   R17 obrigatória reprovada/em curso + equivalente aprovada: integraliza por equivalência.
 --
 -- Reverter: rodar de novo, no SQL Editor, o bloco
 --   CREATE OR REPLACE FUNCTION public.casar_disciplinas(p_dados jsonb) ... $function$;
@@ -766,13 +767,17 @@ BEGIN
     id_materia bigint, codigo text, nome text, nivel int
   ) ON COMMIT DROP;
 
+  -- R17 (pré-mortem 27/09/2026): "faltando" é não INTEGRALIZADA, não "ausente do
+  -- histórico". Antes a obrigatória reprovada (REP) ou em curso ficava fora daqui, o 7b
+  -- nunca procurava equivalência para ela e a equivalente aprovada não contava.
   INSERT INTO _missing
   SELECT mb.id_materia, mb.codigo, mb.nome, mb.nivel
   FROM _mat mb
   WHERE (mb.tipo_natureza IS NULL OR mb.tipo_natureza != 1)
     AND mb.nivel > 0
     AND mb.id_materia NOT IN (
-      SELECT c.id_materia FROM _casadas c WHERE c.id_materia IS NOT NULL
+      SELECT c.id_materia FROM _casadas c
+      WHERE c.id_materia IS NOT NULL AND upper(c.status) IN ('APR','CUMP','DISP')
     );
 
   -- 7b. Check equivalencies for missing mandatory subjects (SET-BASED)
@@ -830,6 +835,17 @@ BEGIN
   DELETE FROM _casadas
   WHERE tipo = 'optativa'
     AND idx IN (SELECT idx_usada FROM _equiv_concl WHERE tipo_usada = 'optativa');
+
+  -- 7d. R17: a tentativa REP/MATR da obrigatória que acabou integralizada por
+  --     equivalência sai das pendentes (senão a matéria conta como pendente E concluída
+  --     e o total dobra). As que seguem sem equivalência já estão em _casadas como
+  --     obrigatória pendente; tirá-las de _missing evita listá-las duas vezes.
+  UPDATE _casadas SET tipo = 'obrigatoria_substituida'
+  WHERE tipo = 'obrigatoria'
+    AND id_materia IN (SELECT id_materia FROM _equiv_concl);
+
+  DELETE FROM _missing
+  WHERE id_materia IN (SELECT id_materia FROM _casadas WHERE tipo = 'obrigatoria');
 
   -- ═══════════════════════════════════════════════════════════════
   -- 8. BUILD RESULT JSON
