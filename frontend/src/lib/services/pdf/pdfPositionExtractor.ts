@@ -173,7 +173,9 @@ const RE_VALID_STATUS = /^(APR|REP|REPF|REPMF|CANC|DISP|TRANC|MATR|CUMP)$/;
 const RE_PERIOD = /^(\d{4}\.?\d?|--)$/;
 const RE_CODE = /^[A-Z]{2,}\d{3,}$/;
 const RE_PROFESSOR_START = /(?:^|\b)(?:Dr\.|Dra\.|MSc\.|Prof\.)\s/i;
-const RE_PROFESSOR_HOURS = /\(\d+h\)/;
+// Nome de disciplina do SIGAA nunca tem "(NNh)": qualquer linha com isso é sobra
+// da lista de professores da linha de cima, não importa o tamanho (pré-mortem R36).
+const RE_PROFESSOR_HOURS = /\(\d+\s*h\)/;
 
 // Rótulos que também abrem nome de disciplina ("TRABALHO DE CONCLUSÃO DE CURSO 1",
 // "ATENÇÃO PRIMÁRIA À SAÚDE", "CURRÍCULO", "CAMPUS MULTIMÍDIA"...) são testados SEM
@@ -307,7 +309,7 @@ function classifyRow(
   // Name-only row: only content column items, no data columns
   else if (content && !period && !code && !ch && !turma && !situacao) {
     // Is this a continuation (professor leftover like "(30h)") or a discipline name?
-    if (RE_PROFESSOR_HOURS.test(content) && content.length < 20) {
+    if (RE_PROFESSOR_HOURS.test(content)) {
       rowType = 'continuation';
     } else if (RE_PROFESSOR_START.test(content)) {
       rowType = 'continuation';

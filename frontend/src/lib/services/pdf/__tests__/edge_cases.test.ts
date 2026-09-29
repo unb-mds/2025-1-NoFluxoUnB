@@ -67,3 +67,24 @@ describe('R4: nome de disciplina que começa com palavra de metadata', () => {
 		expect(regs(r).map((d) => d.codigo)).toEqual(['FGA0138']);
 	});
 });
+
+describe('R36: sobra de quebra de linha da lista de professores', () => {
+	test('"NOME (12h)" longo não vira nome da próxima disciplina', async () => {
+		const items: Item[] = [
+			...header(700),
+			{ x: 129, y: 680, t: 'VIGILÂNCIA EPIDEMIOLÓGICA COMUNITÁRIA E PARTICIPATIVA' },
+			...dataRow(668, { per: '2020.2', code: 'DEG0204', ch: '60', sit: 'APR' }),
+			{ x: 129, y: 668, t: 'Dra. ANA (12h), Dr. BRUNO (12h), Dr.' },
+			// sobra da quebra de linha: o nome do 3º professor cai na linha de baixo
+			{ x: 129, y: 656, t: 'JONAS LOTUFO BRANT DE CARVALHO (12h)' },
+			{ x: 129, y: 644, t: 'ENGENHARIA E AMBIENTE' },
+			...dataRow(632, { per: '2020.2', code: 'FGA0161', ch: '60', sit: 'APR' }),
+			{ x: 129, y: 632, t: 'Dra. CARLA (60h)' }
+		];
+		const r = await parsePdf(pdfFile([items]));
+		const porCodigo = Object.fromEntries(regs(r).map((d) => [d.codigo, d]));
+		expect(porCodigo.FGA0161.nome).toBe('ENGENHARIA E AMBIENTE');
+		expect(porCodigo.DEG0204.nome).toBe('VIGILÂNCIA EPIDEMIOLÓGICA COMUNITÁRIA E PARTICIPATIVA');
+		expect(porCodigo.DEG0204.professor).toContain('JONAS LOTUFO BRANT DE CARVALHO');
+	});
+});
