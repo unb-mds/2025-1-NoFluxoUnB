@@ -18,11 +18,35 @@ export interface TopCurso {
 	usuarios: number;
 }
 
+export interface TicketMetricsJanela {
+	dias: number;
+	/** Tickets criados na janela. */
+	abertos: number;
+	/** Tickets resolvidos na janela (resolved_at). */
+	resolvidos: number;
+	tempo_mediana_horas: number;
+	tempo_p90_horas: number;
+	primeira_resposta_mediana_horas: number;
+}
+
 export interface TicketMetrics {
 	total: number;
 	por_status: Record<string, number>;
 	por_categoria: Record<string, number>;
 	tempo_medio_horas: number;
+	// Campos da migration 20260929b_dashboard_rastreabilidade.sql (ausentes antes dela):
+	/** status <> 'resolvido' (aberto, em andamento, aguardando info). */
+	nao_resolvidos?: number;
+	tempo_mediana_horas?: number;
+	tempo_p90_horas?: number;
+	/** Da abertura à 1ª mensagem do suporte. */
+	primeira_resposta_mediana_horas?: number;
+	primeira_resposta_p90_horas?: number;
+	/** Não resolvidos sem nenhuma resposta do suporte. */
+	sem_resposta?: number;
+	/** Não resolvidos com a última fala do usuário (a vez é do suporte). */
+	aguardando_suporte?: number;
+	ultimos_30d?: TicketMetricsJanela;
 }
 
 export type GrowthBucket = 'day' | 'week' | 'month';
@@ -31,6 +55,29 @@ export interface AiModelCost {
 	requisicoes: number;
 	tokens: number;
 	custo: number;
+	/** Sem linha em ai_pricing ou com preço 0 (migration 20260929b). */
+	sem_preco?: boolean;
+}
+
+/** Modelo do log sem preço: o custo dele entra como 0 no total. */
+export interface AiModeloSemPreco {
+	model: string;
+	motivo: 'sem_cadastro' | 'preco_zero';
+	requisicoes: number;
+	tokens: number;
+}
+
+export interface AiSaudeEndpoint {
+	ultimo_registro: string | null;
+	requisicoes: number;
+	falhas: number;
+	/** 0..100 */
+	taxa_falha: number;
+}
+
+/** Saúde do ai_usage_log no período (migration 20260929b). */
+export interface AiSaudeLog extends AiSaudeEndpoint {
+	por_endpoint: Record<string, AiSaudeEndpoint>;
 }
 
 export interface AiCostDay {
@@ -65,6 +112,11 @@ export interface AiCostMetrics {
 	/** Linhas com 0 tokens (não entram no custo). */
 	requisicoes_sem_tokens?: number;
 	por_endpoint?: Record<string, AiEndpointCost>;
+	// Campos da migration 20260929b_dashboard_rastreabilidade.sql:
+	/** Média por pergunta (soma das chamadas), só perguntas com tokens > 0. */
+	tokens_medios_por_pergunta?: number;
+	modelos_sem_preco?: AiModeloSemPreco[];
+	saude_log?: AiSaudeLog;
 }
 
 export interface DarcyUsoTopUsuario {

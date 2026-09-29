@@ -1,6 +1,7 @@
 /**
  * Contraste light/dark dos componentes do Darcy (login, rodinha de uso, card de
- * limite, pedido de mais perguntas, painel de aprovação) e do card "Darcy hoje".
+ * limite, pedido de mais perguntas, painel de aprovação), do card "Darcy hoje" e
+ * dos cards novos do dashboard admin (sem preço, saúde do log de IA, suporte).
  *
  * Regra do produto: o que existe no escuro tem que funcionar no claro. Aqui:
  *  1. os tokens HSL são lidos do app.css (`:root` = claro, `.dark` = escuro) e
@@ -146,6 +147,22 @@ const TEXTO: Par[] = [
 		base: 'card'
 	},
 	{ onde: 'painel: <option>', frente: 'popover-foreground', fundo: 'popover' },
+	// Dashboard admin (bg-card): alerta de modelo sem preço / log parado,
+	// taxa de falha alta, backlog aguardando o suporte, "sem preço" por modelo
+	{
+		onde: 'dashboard: texto do alerta sem preço / log parado',
+		frente: 'card-foreground',
+		fundo: 'status-warning/0.1',
+		base: 'card'
+	},
+	{ onde: 'dashboard: "sem preço" na lista por modelo', frente: 'status-warning', fundo: 'card' },
+	{ onde: 'saúde do log: taxa de falha alta', frente: 'status-danger', fundo: 'card' },
+	{ onde: 'suporte: aguardando o suporte', frente: 'status-warning', fundo: 'card' },
+	{
+		onde: 'suporte: "Ver todos os tickets"',
+		frente: { claro: 'primary', escuro: 'ai' },
+		fundo: 'card'
+	},
 	// Tooltip da rodinha
 	{ onde: 'rodinha: tooltip', frente: 'popover-foreground', fundo: 'popover' }
 ];
@@ -168,6 +185,12 @@ const GRAFICO: Par[] = [
 		base: 'card'
 	},
 	{ onde: 'modal: ícone do Darcy', frente: 'primary', fundo: 'primary/0.1', base: 'background' },
+	{
+		onde: 'dashboard: ícone do alerta sem preço / log parado',
+		frente: 'status-warning',
+		fundo: 'status-warning/0.1',
+		base: 'card'
+	},
 	{ onde: 'pedido enviado: ícone', frente: 'status-success', fundo: 'background' },
 	{ onde: 'pedido: borda do radio', frente: 'muted-foreground', fundo: 'background' },
 	{ onde: 'pedido: radio marcado', frente: 'primary', fundo: 'primary/0.1', base: 'background' }
@@ -218,7 +241,10 @@ const ARQUIVOS = [
 	'lib/components/chat/DarcyUsoRing.svelte',
 	'lib/components/chat/DarcyLimiteCard.svelte',
 	'lib/components/chat/DarcyPedidoMaisPerguntas.svelte',
-	'lib/components/tickets/DarcyPedidoAdminPanel.svelte'
+	'lib/components/tickets/DarcyPedidoAdminPanel.svelte',
+	'lib/components/admin/dashboard/IaSemPrecoAlerta.svelte',
+	'lib/components/admin/dashboard/IaSaudeLogCard.svelte',
+	'lib/components/admin/dashboard/SuporteCard.svelte'
 ];
 
 const PALETA =

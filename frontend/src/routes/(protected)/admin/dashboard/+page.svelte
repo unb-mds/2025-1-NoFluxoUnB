@@ -3,14 +3,11 @@
 	import PageMeta from '$lib/components/seo/PageMeta.svelte';
 	import PageBackground from '$lib/components/effects/PageBackground.svelte';
 	import AdminNav from '$lib/components/admin/AdminNav.svelte';
+	import IaSaudeLogCard from '$lib/components/admin/dashboard/IaSaudeLogCard.svelte';
+	import IaSemPrecoAlerta from '$lib/components/admin/dashboard/IaSemPrecoAlerta.svelte';
+	import SuporteCard from '$lib/components/admin/dashboard/SuporteCard.svelte';
 	import { ROUTES } from '$lib/config/routes';
 	import { dashboardService } from '$lib/services/dashboard.service';
-	import {
-		CATEGORY_LABELS,
-		STATUS_LABELS,
-		type TicketCategory,
-		type TicketStatus
-	} from '$lib/types/ticket';
 	import type {
 		AiCostMetrics,
 		DarcyUsoMetrics,
@@ -212,7 +209,8 @@
 			<div class="stat">
 				<LifeBuoy class="h-5 w-5 text-primary" />
 				<span class="stat-value">{overview.tickets_abertos}</span>
-				<span class="stat-label">Tickets abertos</span>
+				<span class="stat-label">Tickets não resolvidos</span>
+				<span class="stat-sub">aberto, em andamento ou aguardando info</span>
 			</div>
 		</section>
 
@@ -283,39 +281,9 @@
 
 		<!-- Tickets -->
 		{#if ticketMetrics}
-			<section class="card mt-5">
-				<h2 class="card-title">Suporte</h2>
-				<div class="ticket-grid">
-					<div class="ticket-block">
-						<span class="block-title">Total</span>
-						<span class="block-big">{ticketMetrics.total}</span>
-						<span class="block-sub">
-							Tempo médio resolução: {ticketMetrics.tempo_medio_horas}h
-						</span>
-					</div>
-					<div class="ticket-block">
-						<span class="block-title">Por status</span>
-						<ul class="kv">
-							{#each Object.entries(ticketMetrics.por_status) as [k, v]}
-								<li>
-									<span>{STATUS_LABELS[k as TicketStatus] ?? k}</span><strong>{v}</strong>
-								</li>
-							{/each}
-						</ul>
-					</div>
-					<div class="ticket-block">
-						<span class="block-title">Por categoria</span>
-						<ul class="kv">
-							{#each Object.entries(ticketMetrics.por_categoria) as [k, v]}
-								<li>
-									<span>{CATEGORY_LABELS[k as TicketCategory] ?? k}</span><strong>{v}</strong>
-								</li>
-							{/each}
-						</ul>
-					</div>
-				</div>
-				<a class="ticket-link" href={ROUTES.ADMIN_TICKETS}>Ver todos os tickets →</a>
-			</section>
+			<div class="mt-5">
+				<SuporteCard metricas={ticketMetrics} hrefTickets={ROUTES.ADMIN_TICKETS} />
+			</div>
 		{/if}
 
 		<!-- Custos de IA -->
@@ -332,6 +300,7 @@
 						</span>
 					</div>
 				{/if}
+				<IaSemPrecoAlerta modelos={aiCost.modelos_sem_preco} />
 				<div class="ticket-grid">
 					<div class="ticket-block">
 						<span class="block-title">Custo total</span>
@@ -355,14 +324,29 @@
 					<div class="ticket-block">
 						<span class="block-title">Tokens</span>
 						<span class="block-big">{aiCost.total_tokens.toLocaleString('pt-BR')}</span>
-						<span class="block-sub">~{aiCost.tokens_medios_por_req} por requisição</span>
+						{#if aiCost.tokens_medios_por_pergunta !== undefined}
+							<span
+								class="block-sub"
+								title="Soma das chamadas ao modelo de cada pergunta; perguntas e chamadas sem tokens (falhas, sem usage) ficam fora da média."
+							>
+								~{aiCost.tokens_medios_por_pergunta.toLocaleString('pt-BR')} por pergunta ·
+								~{aiCost.tokens_medios_por_req.toLocaleString('pt-BR')} por chamada
+							</span>
+						{:else}
+							<span class="block-sub">~{aiCost.tokens_medios_por_req} por requisição</span>
+						{/if}
 					</div>
 					<div class="ticket-block">
 						<span class="block-title">Por modelo</span>
 						<ul class="kv">
 							{#each Object.entries(aiCost.por_modelo) as [model, m]}
 								<li>
-									<span>{model}</span><strong>{moedaFmt(m.custo)}</strong>
+									<span>{model}</span>
+									{#if m.sem_preco}
+										<strong class="sem-preco" title="Sem preço em ai_pricing: custo não calculado">sem preço</strong>
+									{:else}
+										<strong>{moedaFmt(m.custo)}</strong>
+									{/if}
 								</li>
 							{:else}
 								<li><span>Sem dados</span></li>
@@ -401,6 +385,12 @@
 					</div>
 				{/if}
 			</section>
+		{/if}
+
+		{#if aiCost?.saude_log}
+			<div class="mt-5">
+				<IaSaudeLogCard saude={aiCost.saude_log} dias={30} />
+			</div>
 		{/if}
 
 		<!-- Darcy: uso das cotas hoje -->
@@ -832,6 +822,9 @@
 	}
 	.kv strong {
 		color: hsl(var(--foreground));
+	}
+	.kv strong.sem-preco {
+		color: hsl(var(--status-warning));
 	}
 	.ticket-link {
 		display: inline-block;
