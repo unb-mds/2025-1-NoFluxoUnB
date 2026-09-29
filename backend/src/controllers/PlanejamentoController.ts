@@ -23,14 +23,16 @@ import { Pair, Utils } from "../utils";
 import { Request, Response } from "express";
 import { SupabaseWrapper } from "../supabase_wrapper";
 import { createControllerLogger } from "../utils/controller_logger";
-import { logAiUsage } from "../utils/ai_usage_logger";
+import { executarComContextoIA, logAiUsage } from "../utils/ai_usage_logger";
+import { autenticarUsuarioIA, exigirLoginIA, reservarPerguntaIA } from "../utils/ia_acesso";
+import { estadoCota } from "../services/darcy_cota.service";
 import {
     gerarPlanoCompletov2,
     construirSubstitutosPorCodigo,
     expandirOfertaComEquivalencias,
     calcularSemestreAtualStr,
 } from "../services/plano_formatura.service";
-import { PlanejadorAgenteService, type MensagemChat, type AgenteContexto } from "../services/planejador_agente.service";
+import { PlanejadorAgenteService, ehComandoDireto, type MensagemChat, type AgenteContexto } from "../services/planejador_agente.service";
 import { AI_SEM_CREDITOS_BODY, isMaritacaSemCreditos } from "../config/maritaca_errors";
 import { sugerirModuloLivre } from "../services/chat/actuators/modulo_livre_actuator";
 import { DificuldadeAgenteService } from "../services/dificuldade_agente.service";
@@ -726,7 +728,14 @@ export const PlanejamentoController: EndpointController = {
                     }
 
                     // ========== MONTAR DADOS DO PLANO ==========
-                    const { dados, status, error } = await montarDadosPlano(id_user as string, input!);
+                    // A avaliação de dificuldade (lazy load) pode chamar o LLM: o
+                    // contexto leva o user_id até o ai_usage_log. Não gasta cota
+                    // (não é pergunta do aluno ao Darcy).
+                    const usuarioIA = await autenticarUsuarioIA(req as Request);
+                    const { dados, status, error } = await executarComContextoIA(
+                        { userId: usuarioIA?.id },
+                        () => montarDadosPlano(id_user as string, input!)
+                    );
                     if (error) {
                         logger.warn(`Erro ao montar dados: ${error}`);
                         return res.status(status || 500).json({ error });
@@ -768,6 +777,11 @@ export const PlanejamentoController: EndpointController = {
                 const logger = createControllerLogger("PlanejamentoController", "chat");
                 const startTime = Date.now();
 
+                // Login obrigatório na IA: 401 LOGIN_NECESSARIO antes de tudo.
+                const usuario = await exigirLoginIA(req as Request, res);
+                if (!usuario) return;
+
+                let pergunta: Awaited<ReturnType<typeof reservarPerguntaIA>> = null;
                 try {
                     // ========== JWT AUTHENTICATION ==========
                     if (!await Utils.checkAuthorization(req as Request)) {
@@ -817,40 +831,61 @@ export const PlanejamentoController: EndpointController = {
                         (m: any) => ({ role: m.role, content: m.content })
                     );
 
+                    // ========== COTA DIÁRIA ==========
+                    // Comando direto (/turmas COD) responde do banco, sem LLM: não
+                    // gasta cota nem entra no ai_usage_log (antes gravava
+                    // model='desconhecido' com 0 tokens).
+                    const semLlm = ehComandoDireto(historico);
+                    if (!semLlm) {
+                        pergunta = await reservarPerguntaIA(res, usuario);
+                        if (!pergunta) return;
+                    }
+                    const ctxIA = { userId: usuario.id, perguntaId: pergunta?.perguntaId };
+
                     // ========== MONTAR CONTEXTO DO AGENTE (com plano) ==========
-                    const { ctx, status: statusErr, error: erroMontagem } = await montarContextoAgente(
-                        id_user as string,
-                        body.planoInput,
-                        body.restricoes
+                    const { ctx, status: statusErr, error: erroMontagem } = await executarComContextoIA(ctxIA, () =>
+                        montarContextoAgente(id_user as string, body.planoInput, body.restricoes)
                     );
                     if (erroMontagem || !ctx) {
+                        await pergunta?.estornar();
                         logger.warn(`Erro ao montar contexto: ${erroMontagem}`);
                         return res.status(statusErr || 500).json({ error: erroMontagem || "Erro interno ao montar contexto" });
                     }
 
                     // ========== CONVERSAR COM AGENTE ==========
                     logger.info(`Iniciando conversa com agente. Histórico: ${historico.length} mensagens`);
-                    const resultado = await svc.conversar(historico, ctx);
+                    const resultado = await executarComContextoIA(ctxIA, () => svc.conversar(historico, ctx));
 
                     logger.info(`Conversa concluída. Resposta: ${resultado.reply.slice(0, 50)}...`);
 
-                    const ultimaMsgUsuario = historico.slice().reverse().find((m) => m.role === "user");
-                    logAiUsage({
-                        endpoint: "planejamento-chat",
-                        durationMs: Date.now() - startTime,
-                        success: true,
-                        requestExcerpt: ultimaMsgUsuario?.content ?? "",
-                        usage: resultado.usage,
-                    });
+                    if (!resultado.semLlm) {
+                        const ultimaMsgUsuario = historico.slice().reverse().find((m) => m.role === "user");
+                        logAiUsage({
+                            endpoint: "planejamento-chat",
+                            durationMs: Date.now() - startTime,
+                            success: true,
+                            requestExcerpt: ultimaMsgUsuario?.content ?? "",
+                            usage: resultado.usage,
+                            ...ctxIA,
+                        });
+                    }
 
                     await resolverNomesSemestreAtual(resultado.plano);
 
+                    if (pergunta?.clienteSaiu()) {
+                        await pergunta.estornar();
+                        return;
+                    }
+
+                    const cota = pergunta ? pergunta.cota : await estadoCota(usuario.id).catch(() => undefined);
                     return res.status(200).json({
                         reply: resultado.reply,
                         plano: resultado.plano ?? undefined,
                         restricoes: resultado.restricoes,
+                        cota,
                     });
                 } catch (err: any) {
+                    await pergunta?.estornar();
                     if (isMaritacaSemCreditos(err)) {
                         logger.error("Chat do planejador: Maritaca sem créditos ativos");
                         return res.status(503).json(AI_SEM_CREDITOS_BODY);

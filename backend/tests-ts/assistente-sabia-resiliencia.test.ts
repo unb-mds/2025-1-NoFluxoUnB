@@ -9,6 +9,9 @@ import { EventEmitter } from "events";
 
 jest.mock("../src/utils/ai_usage_logger", () => ({ logAiUsage: jest.fn() }));
 
+// Login/cota fora do escopo deste arquivo (ver darcy-login-cota.test.ts).
+jest.mock("../src/utils/ia_acesso", () => require("./utils/ia_acesso_liberado").iaAcessoLiberado());
+
 const ENV = {
     MARITACA_API_KEY: "fake",
     GOOGLE_API_KEY: "fake",
@@ -93,7 +96,10 @@ describe("POST /assistente/analyze-sabia-stream — cliente fecha a conexão (R3
 
         const res = fakeRes();
         let pullsNoClose = -1;
-        res.write.mockImplementation(() => {
+        res.write.mockImplementation((chunk: string) => {
+            // O primeiro write é o evento `cota` (antes do upstream); o aluno
+            // fecha a aba ao receber a primeira disciplina.
+            if (String(chunk).includes('"stage":"cota"')) return true;
             if (pullsNoClose === -1) {
                 pullsNoClose = stats.pulls;
                 res.emit("close"); // aluno fechou a aba (sem res.end)
@@ -105,7 +111,7 @@ describe("POST /assistente/analyze-sabia-stream — cliente fecha a conexão (R3
 
         expect(stats.cancelado).toBe(true);
         expect(stats.pulls - pullsNoClose).toBeLessThanOrEqual(1);
-        expect(res.write).toHaveBeenCalledTimes(1);
+        expect(res.write).toHaveBeenCalledTimes(2); // cota + 1 disciplina
         expect(logAiUsage).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
     });
 
@@ -117,7 +123,7 @@ describe("POST /assistente/analyze-sabia-stream — cliente fecha a conexão (R3
         await rota("analyze-sabia-stream")({ body: { materia: "ia" } }, res);
 
         expect(stats.cancelado).toBe(false);
-        expect(res.write).toHaveBeenCalledTimes(3);
+        expect(res.write).toHaveBeenCalledTimes(4); // cota + 3 disciplinas
         expect(res.end).toHaveBeenCalledTimes(1);
         expect(logAiUsage).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
     });
@@ -137,6 +143,8 @@ describe("POST /assistente/analyze-sabia — upstream pendurado (R30)", () => {
 
         const res = fakeRes();
         const p = rota("analyze-sabia")({ body: { materia: "ia" } }, res);
+        // Login e reserva da cota rodam antes do fetch (assíncronos).
+        for (let i = 0; i < 20 && timeouts.length === 0; i++) await new Promise((r) => setImmediate(r));
         expect(timeouts).toHaveLength(1);
         timeouts[0].abort(new DOMException("timeout", "TimeoutError"));
         await p;

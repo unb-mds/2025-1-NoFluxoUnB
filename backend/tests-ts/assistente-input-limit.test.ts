@@ -6,6 +6,9 @@
 
 import type { Request, Response } from "express";
 
+// Login/cota fora do escopo deste arquivo (ver darcy-login-cota.test.ts).
+jest.mock("../src/utils/ia_acesso", () => require("./utils/ia_acesso_liberado").iaAcessoLiberado());
+
 // Serviços de IA sempre "indisponíveis" aqui: nenhum teste pode gerar chamada paga.
 jest.mock("../src/services/ragflow.service", () => ({
     RagflowService: jest.fn().mockImplementation(() => ({ isAvailable: () => false })),

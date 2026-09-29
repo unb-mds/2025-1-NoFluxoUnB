@@ -63,6 +63,9 @@ jest.mock('../src/services/agente/context', () => ({
 
 jest.mock('../src/utils/ai_usage_logger', () => ({ logAiUsage: jest.fn() }));
 
+// Login/cota fora do escopo deste arquivo (ver darcy-login-cota.test.ts).
+jest.mock("../src/utils/ia_acesso", () => require("./utils/ia_acesso_liberado").iaAcessoLiberado());
+
 jest.mock('../src/supabase_wrapper', () => ({
     SupabaseWrapper: { get: jest.fn() },
 }));

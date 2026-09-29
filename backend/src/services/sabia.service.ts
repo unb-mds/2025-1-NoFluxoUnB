@@ -108,6 +108,16 @@ export interface SabiaResponse {
 export const SABIA_PING_TIMEOUT_MS = 2000;
 export const SABIA_PING_CACHE_MS = 30_000;
 
+export interface ResultadoStreamSabia {
+    usage?: SabiaUsage[];
+    /** O cliente fechou a conexão antes do fim. */
+    aborted: boolean;
+    /** Algum evento `disciplina` ou `done` foi repassado ao cliente. */
+    entregouConteudo: boolean;
+    /** O stream terminou com `done` e sem evento de erro. */
+    concluiu: boolean;
+}
+
 export class SabiaService {
     private readonly apiUrl: string;
     private readonly available: boolean;
@@ -311,7 +321,7 @@ export class SabiaService {
         matrizCurricular: string = '',
         res: Response,
         clientSignal?: AbortSignal,
-    ): Promise<{ usage?: SabiaUsage[]; aborted: boolean }> {
+    ): Promise<ResultadoStreamSabia> {
         if (!this.available) {
             throw new Error('Sabiá service is not configured');
         }
@@ -336,6 +346,16 @@ export class SabiaService {
         const clienteSaiu = () => clientSignal?.aborted === true;
 
         let usage: SabiaUsage[] | undefined;
+        // Para a cota do Darcy: a pergunta só conta se houve resposta.
+        let entregouConteudo = false; // algum `disciplina`/`done` chegou ao cliente
+        let viuDone = false;
+        let viuErro = false;
+        const resultado = (aborted: boolean): ResultadoStreamSabia => ({
+            usage,
+            aborted,
+            entregouConteudo,
+            concluiu: viuDone && !viuErro,
+        });
         try {
             rearmarIdle();
             const response = await fetch(`${this.apiUrl}/recomendar-stream`, {
@@ -385,6 +405,12 @@ export class SabiaService {
                                 usage = parsed.calls;
                                 continue; // evento interno — não repassa pro cliente
                             }
+                            if (parsed.stage === 'disciplina') entregouConteudo = true;
+                            if (parsed.stage === 'done') {
+                                entregouConteudo = true;
+                                viuDone = true;
+                            }
+                            if (parsed.stage === 'error') viuErro = true;
                             // O Python manda `str(e)` cru no evento de erro: troca
                             // pela mensagem genérica, exceto as de orientação.
                             if (parsed.stage === 'error' && !isMensagemSabiaPublica(parsed.message)) {
@@ -408,7 +434,7 @@ export class SabiaService {
                 }
             }
             if (timedOut) throw new SabiaTimeoutError();
-            if (clienteSaiu()) return { usage, aborted: true };
+            if (clienteSaiu()) return resultado(true);
 
             // Sobra sem `\n\n` final (não deveria conter o evento usage, que sempre
             // fecha com o delimitador) — repassa como está.
@@ -416,10 +442,10 @@ export class SabiaService {
                 res.write(buffer);
             }
             res.end();
-            return { usage, aborted: false };
+            return resultado(false);
         } catch (error) {
             if (timedOut) throw new SabiaTimeoutError();
-            if (clienteSaiu()) return { usage, aborted: true };
+            if (clienteSaiu()) return resultado(true);
             throw error;
         } finally {
             clearTimeout(idleTimer);
