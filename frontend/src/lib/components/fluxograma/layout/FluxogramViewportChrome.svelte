@@ -18,7 +18,7 @@
 	import { getTotalCreditsCompleted } from '$lib/types/user';
 	import { isOptativa } from '$lib/types/materia';
 	import type { IntegralizacaoResult } from '$lib/types/matriz';
-	import { formatarIraParaExibicao } from '$lib/utils/ira';
+	import { formatarIraParaExibicao, IRA_NAO_ENCONTRADO } from '$lib/utils/ira';
 	import { portal } from '$lib/actions/portal';
 	import {
 		matchesFluxogramCompactTouchMode,
@@ -255,15 +255,17 @@
 						<span class="hidden text-white/50 sm:inline">sem.</span></span
 					>
 				</div>
-				{#if userFluxograma.ira != null}
-					<div class="h-3 w-px bg-white/20"></div>
-					<div class="flex items-center gap-1.5 text-white">
-						<TrendingUp class="h-4 w-4 text-purple-400" />
+				<div class="h-3 w-px bg-white/20"></div>
+				<div class="flex items-center gap-1.5 text-white">
+					<TrendingUp class="h-4 w-4 text-purple-400" />
+					{#if formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}
 						<span class="font-medium"
 							>IRA: {formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}</span
 						>
-					</div>
-				{/if}
+					{:else}
+						<span class="font-medium text-white/60">{IRA_NAO_ENCONTRADO}</span>
+					{/if}
+				</div>
 			</div>
 		</div>
 	{/if}

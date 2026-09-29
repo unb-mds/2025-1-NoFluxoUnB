@@ -5,7 +5,7 @@
 	import type { DadosFluxogramaUser } from '$lib/types/user';
 	import { getTotalCreditsCompleted, getCurrentSubjectCodes } from '$lib/types/user';
 	import { GraduationCap, Calendar, X, Loader2 } from 'lucide-svelte';
-	import { formatarIraParaExibicao } from '$lib/utils/ira';
+	import { formatarIraParaExibicao, IRA_NAO_ENCONTRADO } from '$lib/utils/ira';
 	import IntegralizacaoSection from '$lib/components/fluxograma/dashboard/IntegralizacaoSection.svelte';
 	import { portal } from '$lib/actions/portal';
 
@@ -226,14 +226,16 @@
 			</div>
 			<p class="mt-2 text-2xl font-bold text-white sm:text-3xl">{currentSemester}º</p>
 			<p class="text-xs text-white/50">semestre</p>
-			{#if userFluxograma.ira != null}
-				<div class="mt-2 rounded-lg bg-white/5 px-2.5 py-1.5 sm:mt-3">
+			<div class="mt-2 rounded-lg bg-white/5 px-2.5 py-1.5 sm:mt-3">
+				{#if formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}
 					<span class="text-xs text-white/50">IRA: </span>
 					<span class="text-sm font-semibold text-white sm:text-base"
 						>{formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}</span
 					>
-				</div>
-			{/if}
+				{:else}
+					<span class="text-xs text-white/50">{IRA_NAO_ENCONTRADO}</span>
+				{/if}
+			</div>
 		</div>
 	</div>
 

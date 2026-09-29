@@ -5,7 +5,7 @@
 	import type { DadosFluxogramaUser } from '$lib/types/user';
 	import { getTotalCreditsCompleted } from '$lib/types/user';
 	import { GraduationCap, Calendar, Loader2 } from 'lucide-svelte';
-	import { formatarIraParaExibicao } from '$lib/utils/ira';
+	import { formatarIraParaExibicao, IRA_NAO_ENCONTRADO } from '$lib/utils/ira';
 
 	interface Props {
 		courseData: CursoModel | null;
@@ -89,15 +89,17 @@
 			</span>
 		{/if}
 
-		{#if userFluxograma.ira != null}
-			<span
-				class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/40 px-3 py-1 text-white/80 backdrop-blur-md"
-			>
+		<span
+			class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/40 px-3 py-1 text-white/80 backdrop-blur-md"
+		>
+			{#if formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}
 				<span class="text-white/45">IRA</span>
 				<span class="font-semibold text-white"
 					>{formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}</span
 				>
-			</span>
-		{/if}
+			{:else}
+				<span class="text-white/45">{IRA_NAO_ENCONTRADO}</span>
+			{/if}
+		</span>
 	</div>
 {/if}

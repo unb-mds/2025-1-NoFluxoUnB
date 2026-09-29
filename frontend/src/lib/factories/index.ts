@@ -12,6 +12,7 @@ import type {
 	EquivalenciaPdf
 } from '$lib/types/user';
 import { isMateriaAprovada } from '$lib/types/user';
+import { iraOuNull } from '$lib/utils/ira';
 import type {
 	CursoModel,
 	MinimalCursoModel,
@@ -130,7 +131,7 @@ export function createDadosFluxogramaUserFromJson(
 
 	return {
 		nomeCurso: String(json.nome_curso ?? ''),
-		ira: Number(json.ira ?? 0),
+		ira: iraOuNull(json.ira),
 		iraTexto:
 			json.ira_texto != null && String(json.ira_texto).trim() !== ''
 				? String(json.ira_texto).trim()
@@ -311,7 +312,7 @@ export function normalizeDadosFluxogramaFromStored(
 		);
 		return {
 			nomeCurso: String(raw.nomeCurso ?? ''),
-			ira: Number(raw.ira ?? 0),
+			ira: iraOuNull(raw.ira),
 			matricula: String(raw.matricula ?? ''),
 			horasIntegralizadas: Number(raw.horasIntegralizadas ?? 0),
 			suspensoes: Array.isArray(raw.suspensoes) ? (raw.suspensoes as string[]) : [],
@@ -447,7 +448,7 @@ export function buildDadosFluxogramaUserFromCasarResponse(
 		null;
 	return {
 		nomeCurso: meta.nomeCurso,
-		ira: Number(response.dados_validacao?.ira ?? 0),
+		ira: iraOuNull(response.dados_validacao?.ira),
 		iraTexto:
 			iraTextoResolved != null && String(iraTextoResolved).trim() !== ''
 				? String(iraTextoResolved).trim()

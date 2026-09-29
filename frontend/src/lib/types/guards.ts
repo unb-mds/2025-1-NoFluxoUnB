@@ -46,7 +46,7 @@ export function isDadosFluxogramaUser(value: unknown): value is DadosFluxogramaU
 	if (!isObject(value)) return false;
 	return (
 		isString(value.nomeCurso) &&
-		isNumber(value.ira) &&
+		(value.ira === null || isNumber(value.ira)) &&
 		isString(value.matricula) &&
 		isNumber(value.horasIntegralizadas) &&
 		isArray(value.suspensoes) &&
