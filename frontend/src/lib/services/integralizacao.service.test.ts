@@ -95,3 +95,33 @@ describe('getIntegralizacao com CH do PDF', () => {
 		expect(r?.pctTotal).toBe(100);
 	});
 });
+
+describe('getIntegralizacao com grade vazia (R44)', () => {
+	it('sem recálculo, usa a CH do PDF mesmo sem grade', async () => {
+		matriz = criarMatriz({ obr: 3000, opt: 855, total: 3855 });
+		grade = [];
+		const r = await getIntegralizacao({
+			curriculoCompleto: '6360/1 - 2017.1',
+			dadosFluxograma: null,
+			cargaHorariaIntegralizada: { obrigatoria: 990, optativa: 120, complementar: 0, total: 1110 }
+		});
+		expect(r?.realizado.chTotal).toBe(1110);
+		expect(r?.realizado.chObrigatoria).toBe(990);
+		expect(r?.pctTotal).toBeGreaterThan(0);
+		expect(r?.faltam.chTotal).toBe(3855 - 1110);
+	});
+
+	it('com recálculo, grade vazia continua dando realizado 0', async () => {
+		matriz = criarMatriz({ obr: 3000, opt: 855, total: 3855 });
+		grade = [];
+		const r = await getIntegralizacao({
+			curriculoCompleto: '6360/1 - 2017.1',
+			dadosFluxograma: alunoCom(['A']),
+			cargaHorariaIntegralizada: { obrigatoria: 990, optativa: 120, complementar: 0, total: 1110 },
+			recalcularPorDisciplinas: true
+		});
+		expect(r?.realizado.chTotal).toBe(0);
+		expect(r?.pctTotal).toBe(0);
+		expect(r?.faltam.chTotal).toBe(3855);
+	});
+});

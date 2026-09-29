@@ -5,7 +5,7 @@
  */
 
 import { supabaseDataService } from '$lib/services/supabase-data.service';
-import type { IntegralizacaoResult, MatrizModel } from '$lib/types/matriz';
+import type { IntegralizacaoResult } from '$lib/types/matriz';
 import type { DadosFluxogramaUser } from '$lib/types/user';
 import type { CargaHorariaIntegralizada } from '$lib/types/user';
 import { getCompletedSubjectCodes } from '$lib/types/user';
@@ -105,12 +105,10 @@ export async function getIntegralizacao(input: IntegralizacaoInput): Promise<Int
 	const matriz = await supabaseDataService.getMatrizByCurriculoCompleto(cc);
 	if (!matriz) return null;
 
+	// Grade vazia não zera o realizado: sem recálculo, a CH do PDF continua valendo.
+	// Só no modo de recálculo o loop sobre a grade vazia resulta em 0.
 	const gradeRaw = await supabaseDataService.getGradeByMatriz(matriz.idMatriz);
-	if (!gradeRaw || gradeRaw.length === 0) {
-		return buildResultZeroRealizado(matriz, [], []);
-	}
-
-	const grade = dedupeGradePorCodigoENatureza(gradeRaw);
+	const grade = dedupeGradePorCodigoENatureza(gradeRaw ?? []);
 
 	const codigosObrigatorios = grade.filter((g) => g.categoria === 'obrigatoria').map((g) => g.codigoMateria);
 	const completedCodes = dadosFluxograma ? getCompletedSubjectCodes(dadosFluxograma) : new Set<string>();
@@ -352,35 +350,5 @@ export async function getIntegralizacao(input: IntegralizacaoInput): Promise<Int
 		chOptativaPlanejada,
 		pctOptativaComPlanejamento,
 		faltamChOptativaAposPlanejamento
-	};
-}
-
-function buildResultZeroRealizado(
-	matriz: MatrizModel,
-	codigosObrigatorios: string[],
-	codigosConcluidos: string[]
-): IntegralizacaoResult {
-	const exigido = {
-		chObrigatoria: matriz.chObrigatoriaExigida ?? 0,
-		chOptativa: matriz.chOptativaExigida ?? 0,
-		chComplementar: matriz.chComplementarExigida ?? 0,
-		chTotal: matriz.chTotalExigida ?? 0
-	};
-	return {
-		curriculoCompleto: matriz.curriculoCompleto,
-		idMatriz: matriz.idMatriz,
-		idCurso: matriz.idCurso,
-		exigido,
-		realizado: { chObrigatoria: 0, chOptativa: 0, chComplementar: 0, chTotal: 0 },
-		faltam: { ...exigido },
-		codigosObrigatorios,
-		codigosConcluidos,
-		pctObrigatoria: 0,
-		pctOptativa: 0,
-		pctComplementar: 0,
-		pctTotal: 0,
-		chOptativaPlanejada: 0,
-		pctOptativaComPlanejamento: 0,
-		faltamChOptativaAposPlanejamento: exigido.chOptativa
 	};
 }
