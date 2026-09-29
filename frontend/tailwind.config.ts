@@ -50,6 +50,60 @@ const config: Config = {
 					DEFAULT: 'hsl(var(--card) / <alpha-value>)',
 					foreground: 'hsl(var(--card-foreground) / <alpha-value>)'
 				},
+				// Fundo real da página (PageBackground); no .dark = #050505
+				'page-background': 'hsl(var(--page-background) / <alpha-value>)',
+
+				// Status com par light/dark (tokens --status-* em app.css, :root e .dark)
+				status: {
+					// genéricos: texto/ícone/anel sobre página e card
+					success: 'hsl(var(--status-success) / <alpha-value>)',
+					warning: 'hsl(var(--status-warning) / <alpha-value>)',
+					danger: 'hsl(var(--status-danger) / <alpha-value>)',
+					info: 'hsl(var(--status-info) / <alpha-value>)',
+					// fluxograma: fundos sólidos dos cards de disciplina
+					completed: 'hsl(var(--status-completed) / <alpha-value>)',
+					'in-progress': 'hsl(var(--status-in-progress) / <alpha-value>)',
+					available: 'hsl(var(--status-available) / <alpha-value>)',
+					failed: {
+						DEFAULT: 'hsl(var(--status-failed) / <alpha-value>)',
+						ring: 'hsl(var(--status-failed-ring) / <alpha-value>)'
+					},
+					locked: {
+						DEFAULT: 'hsl(var(--status-locked) / <alpha-value>)',
+						foreground: 'hsl(var(--status-locked-foreground) / <alpha-value>)',
+						border: 'hsl(var(--status-locked-border) / <alpha-value>)'
+					},
+					'on-solid': 'hsl(var(--status-on-solid) / <alpha-value>)',
+					'prereq-ok': 'hsl(var(--status-prereq-ok) / <alpha-value>)',
+					'prereq-pending': 'hsl(var(--status-prereq-pending) / <alpha-value>)'
+				},
+				tag: {
+					equivalencia: {
+						DEFAULT: 'hsl(var(--tag-equivalencia) / <alpha-value>)',
+						foreground: 'hsl(var(--tag-equivalencia-foreground) / <alpha-value>)'
+					},
+					aproveitamento: {
+						DEFAULT: 'hsl(var(--tag-aproveitamento) / <alpha-value>)',
+						foreground: 'hsl(var(--tag-aproveitamento-foreground) / <alpha-value>)'
+					},
+					optativa: {
+						DEFAULT: 'hsl(var(--tag-optativa) / <alpha-value>)',
+						foreground: 'hsl(var(--tag-optativa-foreground) / <alpha-value>)'
+					},
+					optatoria: {
+						DEFAULT: 'hsl(var(--tag-optatoria) / <alpha-value>)',
+						foreground: 'hsl(var(--tag-optatoria-foreground) / <alpha-value>)'
+					},
+					'modulo-livre': {
+						DEFAULT: 'hsl(var(--tag-modulo-livre) / <alpha-value>)',
+						foreground: 'hsl(var(--tag-modulo-livre-foreground) / <alpha-value>)'
+					}
+				},
+				chain: {
+					focus: 'hsl(var(--chain-focus) / <alpha-value>)',
+					precursor: 'hsl(var(--chain-precursor) / <alpha-value>)',
+					descendant: 'hsl(var(--chain-descendant) / <alpha-value>)'
+				},
 
 				// NoFluxo Custom Colors (from Flutter AppColors)
 				nofluxo: {
