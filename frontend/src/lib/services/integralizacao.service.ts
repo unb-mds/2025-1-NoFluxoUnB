@@ -302,10 +302,19 @@ export async function getIntegralizacao(input: IntegralizacaoInput): Promise<Int
 		chTotal: matriz.chTotalExigida ?? 0
 	};
 
+	// No recálculo, cada categoria só conta até o exigido dela: optativa excedente
+	// não pode esconder obrigatória pendente no total. Exigido 0 = matriz sem o dado,
+	// aí não há teto. (Módulo livre não entra aqui; ver card "FIX: Módulo Livre".)
+	const ateOExigido = (realizadoCat: number, exigidoCat: number) =>
+		exigidoCat > 0 ? Math.min(realizadoCat, exigidoCat) : realizadoCat;
 	const chTotalRealizado =
 		!recalcularPorDisciplinas && cargaHorariaIntegralizada && cargaHorariaIntegralizada.total > 0
 			? cargaHorariaIntegralizada.total
-			: chObrigatoriaRealizado + chOptativaRealizado + chComplementarRealizado;
+			: recalcularPorDisciplinas
+				? ateOExigido(chObrigatoriaRealizado, exigido.chObrigatoria) +
+					ateOExigido(chOptativaRealizado, exigido.chOptativa) +
+					ateOExigido(chComplementarRealizado, exigido.chComplementar)
+				: chObrigatoriaRealizado + chOptativaRealizado + chComplementarRealizado;
 
 	const realizado = {
 		chObrigatoria: chObrigatoriaRealizado,

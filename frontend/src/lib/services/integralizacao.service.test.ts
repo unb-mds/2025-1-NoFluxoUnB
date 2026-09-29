@@ -96,6 +96,43 @@ describe('getIntegralizacao com CH do PDF', () => {
 	});
 });
 
+describe('getIntegralizacao recalculando por disciplinas (R46)', () => {
+	it('optativa excedente não esconde obrigatória pendente no total', async () => {
+		matriz = criarMatriz({ obr: 60, opt: 60, total: 120 });
+		grade = [
+			{ codigoMateria: 'OB', cargaHoraria: 60, categoria: 'obrigatoria' },
+			{ codigoMateria: 'O1', cargaHoraria: 60, categoria: 'optativa' },
+			{ codigoMateria: 'O2', cargaHoraria: 60, categoria: 'optativa' }
+		];
+		const r = await getIntegralizacao({
+			curriculoCompleto: '6360/1 - 2017.1',
+			dadosFluxograma: alunoCom(['O1', 'O2']),
+			recalcularPorDisciplinas: true
+		});
+		// Realizado por categoria continua bruto; só o total é limitado.
+		expect(r?.realizado.chOptativa).toBe(120);
+		expect(r?.realizado.chTotal).toBe(60);
+		expect(r?.faltam.chTotal).toBe(60);
+		expect(r?.faltam.chObrigatoria).toBe(60);
+		expect(r?.pctTotal).toBe(50);
+	});
+
+	it('sem exigido por categoria (0), não aplica teto', async () => {
+		matriz = criarMatriz({ obr: 0, opt: 0, total: 120 });
+		grade = [
+			{ codigoMateria: 'O1', cargaHoraria: 60, categoria: 'optativa' },
+			{ codigoMateria: 'O2', cargaHoraria: 60, categoria: 'optativa' }
+		];
+		const r = await getIntegralizacao({
+			curriculoCompleto: '6360/1 - 2017.1',
+			dadosFluxograma: alunoCom(['O1', 'O2']),
+			recalcularPorDisciplinas: true
+		});
+		expect(r?.realizado.chTotal).toBe(120);
+		expect(r?.pctTotal).toBe(100);
+	});
+});
+
 describe('getIntegralizacao com grade vazia (R44)', () => {
 	it('sem recálculo, usa a CH do PDF mesmo sem grade', async () => {
 		matriz = criarMatriz({ obr: 3000, opt: 855, total: 3855 });
