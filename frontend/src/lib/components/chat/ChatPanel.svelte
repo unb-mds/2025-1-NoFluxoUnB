@@ -1,5 +1,9 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
+	import { authStore } from '$lib/stores/auth';
+	import { darcyCotaStore } from '$lib/stores/darcy-cota.store.svelte';
+	import DarcyUsoRing from '$lib/components/chat/DarcyUsoRing.svelte';
+	import DarcyLimiteCard from '$lib/components/chat/DarcyLimiteCard.svelte';
 	import { Sparkles, SendHorizontal, Bot, CalendarPlus } from 'lucide-svelte';
 	import { formatHorarioSigaa, compactarFaixasHorarias, formatLocalSigaa } from '$lib/utils/sigaa';
 	import ChatWrapper from '$lib/components/chat/ChatWrapper.svelte';
@@ -41,7 +45,8 @@
 		nomesMaterias,
 		emptyState,
 		prefillText,
-		prefillNonce
+		prefillNonce,
+		controleDeUso = true
 	}: {
 		messages: ChatMsg[];
 		loading?: boolean;
@@ -73,7 +78,33 @@
 		 */
 		prefillText?: string;
 		prefillNonce?: number;
+		/**
+		 * Chat do Darcy (padrão): exige login, mostra a rodinha de uso diário ao
+		 * lado do enviar e troca o campo pelo aviso de limite quando a cota acaba.
+		 */
+		controleDeUso?: boolean;
 	} = $props();
+
+	// ─── Login obrigatório + cota diária ──────────────────────────────────────
+	// Visitante (login anônimo) ou sem sessão: enviar abre o modal de login em
+	// vez de chamar a IA (o texto digitado fica no campo).
+	const precisaLogin = $derived(controleDeUso && !($authStore.isAuthenticated && $authStore.user));
+	const bloqueio = $derived(controleDeUso ? darcyCotaStore.bloqueio : null);
+	const cotaAtual = $derived(controleDeUso ? darcyCotaStore.cota : null);
+	const PLACEHOLDER_BLOQUEADO = 'Volta amanhã às 00h';
+
+	onMount(() => {
+		if (controleDeUso && !precisaLogin) void darcyCotaStore.carregar();
+	});
+
+	/** True se pode seguir para a IA; senão abre o modal de login. */
+	function liberadoParaIA(): boolean {
+		if (precisaLogin) {
+			darcyCotaStore.abrirLogin();
+			return false;
+		}
+		return bloqueio === null;
+	}
 
 	/** "INTRODUÇÃO A COMPUTAÇÃO GRÁFICA" → "Introdução A Computação Gráfica". */
 	function nomeBonito(nome: string): string {
@@ -135,6 +166,7 @@
 
 	function enviar() {
 		if (messageInput.trim() === '' || loading) return;
+		if (!liberadoParaIA()) return;
 		const msg = messageInput.trim();
 		messageInput = '';
 		onSend(msg);
@@ -143,6 +175,7 @@
 	// Envio direto (botões/badges) — não mexe no que o usuário está digitando.
 	function enviarTexto(text: string) {
 		if (!text.trim() || loading) return;
+		if (!liberadoParaIA()) return;
 		onSend(text.trim());
 	}
 
@@ -549,20 +582,30 @@
 
 		<!-- Input -->
 		<div class="relative z-10 bg-transparent p-5 pt-3 pb-6">
+			{#if bloqueio}
+				<DarcyLimiteCard tipo={bloqueio} />
+			{/if}
 			<div class="relative flex w-full items-center shadow-2xl">
 				<input
 					type="text"
 					bind:value={messageInput}
 					bind:this={inputRef}
-					{placeholder}
-					disabled={loading}
+					placeholder={bloqueio ? PLACEHOLDER_BLOQUEADO : placeholder}
+					disabled={loading || bloqueio !== null}
 					onkeydown={handleKeydown}
-					class="w-full rounded-full border border-white/20 bg-white/10 py-3.5 pr-12 pl-5 text-[14.5px] text-white shadow-inner backdrop-blur-2xl transition-all placeholder:text-white/50 focus:border-white/30 focus:bg-white/15 focus:outline-none disabled:opacity-50"
+					class="w-full rounded-full border border-white/20 bg-white/10 py-3.5 pl-5 text-[14.5px] text-white shadow-inner backdrop-blur-2xl transition-all placeholder:text-white/50 focus:border-white/30 focus:bg-white/15 focus:outline-none disabled:opacity-50 {cotaAtual
+						? 'pr-21'
+						: 'pr-12'}"
 				/>
+				{#if cotaAtual}
+					<span class="absolute right-12 flex items-center">
+						<DarcyUsoRing cota={cotaAtual} />
+					</span>
+				{/if}
 				<button
 					type="button"
 					onclick={enviar}
-					disabled={loading || messageInput.trim() === ''}
+					disabled={loading || bloqueio !== null || messageInput.trim() === ''}
 					class="absolute right-2 cursor-pointer rounded-full border border-white/10 bg-white/10 p-2 text-white shadow-sm transition-all hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-white/40"
 					aria-label="Enviar"
 				>

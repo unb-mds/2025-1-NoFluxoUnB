@@ -100,8 +100,11 @@
 
 		if (result.success) {
 			success = true;
+			// Preserva o ?redirect= (ex.: veio do modal "Faça login" do Darcy).
+			const redirect = new URLSearchParams(window.location.search).get('redirect');
+			const destino = redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : '/login';
 			setTimeout(() => {
-				goto('/login');
+				goto(destino);
 			}, 3000);
 		} else {
 			localError = result.error;

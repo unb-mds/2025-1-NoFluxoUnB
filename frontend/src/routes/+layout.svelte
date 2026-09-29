@@ -12,6 +12,8 @@
 	import PageTransition from '$lib/components/layout/PageTransition.svelte';
 	import SuporteFab from '$lib/components/support/SuporteFab.svelte';
 	import ReleaseNotesModal from '$lib/components/layout/ReleaseNotesModal.svelte';
+	import DarcyLoginModal from '$lib/components/chat/DarcyLoginModal.svelte';
+	import DarcyPedidoMaisPerguntas from '$lib/components/chat/DarcyPedidoMaisPerguntas.svelte';
 	import { Toaster } from 'svelte-sonner';
 	import '../app.css';
 
@@ -131,6 +133,12 @@
 <!-- Novidades do release: 1x por usuário; pede reenvio do histórico se o dado for antigo -->
 {#if $isAuthenticated && showNavbar}
 	<ReleaseNotesModal />
+{/if}
+
+<!-- Darcy: login obrigatório (visitante/401) e pedido de mais perguntas (vira ticket) -->
+<DarcyLoginModal />
+{#if $isAuthenticated && !$isAnonymous}
+	<DarcyPedidoMaisPerguntas />
 {/if}
 
 <Toaster richColors position="top-right" />
