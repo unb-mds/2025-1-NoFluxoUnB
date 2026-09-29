@@ -28,6 +28,7 @@ import {
 	calcularNumeroSemestre,
 	extrairDadosAcademicos,
 	extrairPeriodoLetivoAtual,
+	extrairDisciplinasPendentes,
 	type DisciplinaExtraida,
 	type EquivalenciaExtraida,
 	type DadosAcademicos
@@ -170,73 +171,6 @@ function extrairEquivalencias(text: string): EquivalenciaExtraida[] {
 	return equivalencias;
 }
 
-function extrairDisciplinasPendentes(text: string): DisciplinaExtraida[] {
-	const disciplinas: DisciplinaExtraida[] = [];
-
-	const pendMatch = text.match(
-		/Componentes Curriculares Obrigat[óo]rios Pendentes:\s*(\d+)/i
-	);
-	if (!pendMatch) return disciplinas;
-
-	const pendIdx = text.indexOf(pendMatch[0]);
-	const pendSection = text.substring(pendIdx);
-	const linhas = pendSection.split('\n');
-
-	const reHeader = /^C[óo]digo\s+Componente/i;
-	let started = false;
-
-	for (const linha of linhas) {
-		if (reHeader.test(linha.trim())) {
-			started = true;
-			continue;
-		}
-		if (!started) continue;
-
-		if (
-			/^(Observações|Equivalências|Para verificar|Atenção|SIGAA|Componentes Curriculares Optativos)/i.test(
-				linha.trim()
-			)
-		) {
-			break;
-		}
-
-		const m = linha.match(
-			/^\s*([A-Z]{2,}\d{3,}|ENADE|-)\s+(.+?)\s+(?:(Matriculado(?:\s+em\s+Equivalente)?)\s+)?(\d+)\s*h/i
-		);
-		if (m) {
-			const [, codigo, nome, matriculado, chStr] = m;
-			if (codigo === '-') continue;
-			if (/^(?:Dr\.|Dra\.|MSc\.|Prof\.)\s/i.test(nome.trim())) continue;
-			if (/\(\d+h\)/i.test(nome)) continue;
-
-			const cleanNome = nome
-				.replace(/^[^a-zA-ZÀ-ÿ0-9]+/, '')
-				.replace(/[^a-zA-ZÀ-ÿ0-9]+$/, '')
-				.replace(/\s{2,}/g, ' ')
-				.trim();
-
-			disciplinas.push({
-				tipo_dado: 'Disciplina Pendente',
-				nome: cleanNome,
-				status: matriculado ? 'MATR' : 'PENDENTE',
-				mencao: '-',
-				creditos: Math.floor(parseInt(chStr) / 15),
-				codigo: codigo === 'ENADE' ? 'ENADE' : codigo,
-				carga_horaria: parseInt(chStr),
-				ano_periodo: '',
-				prefixo: '',
-				professor: '',
-				turma: '',
-				frequencia: null,
-				nota: null,
-				...(matriculado ? { observacao: matriculado } : {}),
-			});
-		}
-	}
-
-	return disciplinas;
-}
-
 const MSG_NAO_E_HISTORICO =
 	'Este PDF não parece ser um histórico escolar do SIGAA/UnB. ' +
 	'Baixe o histórico em SIGAA > Ensino > Emitir Histórico e envie o arquivo gerado.';
@@ -364,7 +298,19 @@ export async function parsePdf(file: File): Promise<ParsedPdfResult> {
 
 	// 5. Pending disciplines (regex on flat text — these are in a separate section)
 	console.time(`${LOG_PREFIX} pendingDisciplines`);
+	// Usa o extrator do pdfDataExtractor, que tolera o cabeçalho colado
+	// ("ComponentesCurriculares ObrigatóriosPendentes:29"), "MatriculadoemEquivalente"
+	// e o formato detalhado (código na linha da EMENTA). A cópia simplificada que
+	// ficava aqui devolvia 0 pendentes nesses layouts (pré-mortem R40).
 	const pendentes = extrairDisciplinasPendentes(textoTotal);
+	const pendentesDeclarados = textoTotal.match(
+		/Componentes\s*Curriculares\s*Obrigat[óo]rios\s*Pendentes:\s*(\d+)/i
+	);
+	if (pendentesDeclarados && Number(pendentesDeclarados[1]) !== pendentes.length) {
+		console.warn(
+			`${LOG_PREFIX} Pending disciplines: PDF declares ${pendentesDeclarados[1]}, extracted ${pendentes.length}`
+		);
+	}
 	console.timeEnd(`${LOG_PREFIX} pendingDisciplines`);
 
 	// Histórico sem nenhuma disciplina cursada nem pendente não é um histórico

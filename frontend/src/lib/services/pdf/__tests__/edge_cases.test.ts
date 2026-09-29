@@ -97,6 +97,35 @@ describe('R12: PDF que não é histórico do SIGAA', () => {
 	});
 });
 
+describe('R40: seção de obrigatórias pendentes com palavras coladas pelo pdf.js', () => {
+	test('cabeçalho "ComponentesCurriculares ObrigatóriosPendentes" não zera os pendentes', async () => {
+		const pend = (y: number, code: string, name: string, ch: string, obs?: string): Item[] => [
+			{ x: 34, y, t: code },
+			{ x: 91, y, t: name },
+			...(obs ? [{ x: 290, y, t: obs }] : []),
+			{ x: 417, y, t: ch }
+		];
+		const items: Item[] = [
+			...header(700),
+			...dataRow(690, { per: '2024.1', code: 'FGA0138', name: 'MÉTODOS DE DESENVOLVIMENTO DE SOFTWARE', ch: '60', sit: 'APR' }),
+			{ x: 34, y: 500, t: 'ComponentesCurriculares ObrigatóriosPendentes:3' },
+			{ x: 34, y: 488, t: 'Código' },
+			{ x: 91, y: 488, t: 'ComponenteCurricular' },
+			{ x: 417, y: 488, t: 'CH' },
+			...pend(476, 'FGA0168', 'DESENHO INDUSTRIAL ASSISTIDO PORCOMPUTADOR', '90h'),
+			...pend(464, 'FGA0172', 'REQUISITOS DESOFTWARE', '60h', 'MatriculadoemEquivalente'),
+			...pend(452, 'IFD0171', 'FISICA1', '60h')
+		];
+		const r = await parsePdf(pdfFile([items]));
+		const pendentes = r.extracted_data.filter((d) => d.tipo_dado === 'Disciplina Pendente');
+		expect(pendentes.map((d) => `${d.codigo}:${d.status}:${d.carga_horaria}`)).toEqual([
+			'FGA0168:PENDENTE:90',
+			'FGA0172:MATR:60',
+			'IFD0171:PENDENTE:60'
+		]);
+	});
+});
+
 describe('R38: PDF que o pdf.js não consegue abrir', () => {
 	const mensagemDe = (p: Promise<unknown>) => p.then(() => '', (e: Error) => e.message);
 

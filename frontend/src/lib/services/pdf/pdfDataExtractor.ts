@@ -739,7 +739,7 @@ function extrairDisciplinasDetalhado(
 /**
  * Extract pending disciplines from "Componentes Curriculares Obrigatórios Pendentes" section.
  */
-function extrairDisciplinasPendentes(text: string): DisciplinaExtraida[] {
+export function extrairDisciplinasPendentes(text: string): DisciplinaExtraida[] {
   const disciplinas: DisciplinaExtraida[] = [];
 
   // Find ALL occurrences of the pending header (handles page breaks and concatenated text)

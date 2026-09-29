@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import {
 	extrairCargaHorariaIntegralizada,
 	extrairDadosAcademicos,
+	extrairDisciplinasPendentes,
 	extrairMatrizCurricular
 } from './pdfDataExtractor';
 
@@ -39,6 +40,52 @@ describe('fallback regex: nome de disciplina que começa com palavra de metadata
 			'\n'
 		);
 		expect(regulares(texto)[0].nome).toBe('');
+	});
+});
+
+describe('extrairDisciplinasPendentes (R40)', () => {
+	const resumo = (texto: string) =>
+		extrairDisciplinasPendentes(texto).map((d) => `${d.codigo}:${d.status}:${d.carga_horaria}:${d.nome}`);
+
+	it('layout padrão', () => {
+		const texto = [
+			'Componentes Curriculares Obrigatórios Pendentes:2',
+			'Código          Componente Curricular          CH',
+			'MAT0026    CÁLCULO 2          90 h',
+			'FGA0142    FUNDAMENTOS DE ARQUITETURA DE COMPUTADORES          Matriculado       60 h',
+			'Observações:'
+		].join('\n');
+		expect(resumo(texto)).toEqual([
+			'MAT0026:PENDENTE:90:CÁLCULO 2',
+			'FGA0142:MATR:60:FUNDAMENTOS DE ARQUITETURA DE COMPUTADORES'
+		]);
+	});
+
+	it('cabeçalho e "Matriculado em Equivalente" com as palavras coladas', () => {
+		const texto = [
+			'ComponentesCurriculares ObrigatóriosPendentes:2',
+			'Código          ComponenteCurricular          CH',
+			'FGA0172    REQUISITOS DESOFTWARE          MatriculadoemEquivalente       60h',
+			'IFD0171    FISICA1          60h'
+		].join('\n');
+		expect(resumo(texto)).toEqual(['FGA0172:MATR:60:REQUISITOS DESOFTWARE', 'IFD0171:PENDENTE:60:FISICA 1']);
+	});
+
+	it('formato detalhado: nome e CH numa linha, código colado na linha da ementa', () => {
+		const texto = [
+			'Componentes Curriculares Obrigatórios Pendentes:2',
+			'Código          Componente Curricular          CH',
+			'ENGENHARIA E AMBIENTE          60 h',
+			'EMENTA: Engenharia e Ambiente1 - Conceitos básicos 2 - A terra com um sistema',
+			'FGA0161ambiente e sociedade',
+			'MÉTODOS NUMÉRICOS PARA ENGENHARIA          60 h',
+			'EMENTA: Fontes de erros em métodos numéricos',
+			'FGA0160quadrados mínimos'
+		].join('\n');
+		expect(resumo(texto)).toEqual([
+			'FGA0161:PENDENTE:60:ENGENHARIA E AMBIENTE',
+			'FGA0160:PENDENTE:60:MÉTODOS NUMÉRICOS PARA ENGENHARIA'
+		]);
 	});
 });
 
