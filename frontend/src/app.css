@@ -33,6 +33,15 @@
 		/* IA — lilás (texto/accent suave), tint de fundo */
 		--ai: 267 92% 78%;
 		--ai-soft: 268 42% 18%;
+		/*
+		 * Status (anel de uso do Darcy, avisos, aprovar/recusar). Mesmo papel nos
+		 * dois temas, tom ajustado ao fundo: aqui ~700/800 do Tailwind (≥ 4,5:1
+		 * sobre branco), no .dark ~400. Contraste verificado em theme-contrast.test.ts.
+		 */
+		--status-info: 201 96% 32%;
+		--status-warning: 26 90% 37%;
+		--status-danger: 345 83% 41%;
+		--status-success: 164 88% 20%;
 	}
 
 	.dark {
@@ -57,6 +66,10 @@
 		--ring: 270 91% 62%;
 		--ai: 267 92% 78%;
 		--ai-soft: 268 45% 16%;
+		--status-info: 198 93% 60%;
+		--status-warning: 43 96% 56%;
+		--status-danger: 351 95% 71%;
+		--status-success: 158 64% 52%;
 	}
 }
 
