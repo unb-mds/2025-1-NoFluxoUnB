@@ -17,10 +17,10 @@
 	import MateriaNaturezaBadge from '$lib/components/materia/MateriaNaturezaBadge.svelte';
 	import { Check, Circle, CircleDashed, Clock, Lock, X } from 'lucide-svelte';
 	import {
+		CARD_OUTLINE,
 		PREREQ_BADGE,
-		STATUS_CARD_BG,
+		STATUS_CARD,
 		TAG_BADGE,
-		statusTextAlpha,
 		subjectCardAriaLabel
 	} from './subject-card-colors';
 
@@ -226,34 +226,27 @@
 	});
 
 	let cardClasses = $derived.by(() => {
-		const gradient = STATUS_CARD_BG[status].className;
+		const cores = STATUS_CARD[status];
 		const base = `subject-card relative flex w-full max-w-[220px] min-w-0 flex-col text-left cursor-pointer rounded-xl border p-2.5 transition-[opacity,box-shadow,border-color] duration-300 sm:max-w-[240px]`;
 		if (isSelected) {
-			return `${base} ${gradient} border-white/60 ring-2 ring-white/30 opacity-100`;
+			return `${base} ${cores.className} ${CARD_OUTLINE.selected.className} opacity-100`;
 		}
-		let borderExtras = 'border-white/10';
+		let borderExtras = cores.borderClass;
 		if (destaqueReprovacao) {
-			borderExtras = 'border-red-300/85 ring-2 ring-red-400/45 shadow-md shadow-red-700/20';
+			borderExtras = CARD_OUTLINE.failedHighlight.className;
 		}
 		const role = highlightRole;
-		// Cores alinhadas a CHAIN_VISUAL (tailwind precisa do literal no fonte)
-		if (role === 'focus') {
-			borderExtras = 'border-[#7f9cf5]/80 ring-2 ring-[#7f9cf5]/35 shadow-md';
-		} else if (role === 'precursor') {
-			borderExtras = 'border-[#4fd1c5]/80 ring-2 ring-[#4fd1c5]/35 shadow-md';
-		} else if (role === 'descendant') {
-			borderExtras = 'border-[#f6ad55]/80 ring-2 ring-[#f6ad55]/35 shadow-md';
-		} else if (role === 'corequisite') {
-			borderExtras = 'border-[#7f9cf5]/80 ring-2 ring-[#7f9cf5]/32 shadow-md';
-		}
+		// Cores alinhadas a CHAIN_VISUAL; tokens --chain-* têm valor por tema (app.css)
+		if (role) borderExtras = CARD_OUTLINE[role].className;
 		const dimmed =
 			chainHighlightActive && role === null
 				? 'opacity-[0.14] saturate-[0.35]'
 				: 'opacity-100';
-		return `${base} ${gradient} ${borderExtras} ${dimmed}`;
+		return `${base} ${cores.className} ${borderExtras} ${dimmed}`;
 	});
 
-	let textColor = $derived(statusTextAlpha(status) < 1 ? 'text-white/80' : 'text-white');
+	let textColor = $derived(STATUS_CARD[status].textClass);
+	let textSoftColor = $derived(STATUS_CARD[status].textSoftClass);
 
 	// Track if this is a touch device interaction
 	let isTouchInteraction = $state(false);
@@ -421,7 +414,7 @@
 	</div>
 
 	{#if highlightRole === 'focus' && chainHighlightActive && directDependents}
-		<p class="mt-1 text-[length:clamp(9px,4.8cqw,11px)] font-medium leading-snug text-white/75" aria-live="polite">
+		<p class="mt-1 text-[length:clamp(9px,4.8cqw,11px)] font-medium leading-snug {textSoftColor}" aria-live="polite">
 			libera {directDependents.size}
 		</p>
 	{/if}
@@ -439,7 +432,7 @@
 			{:else if concluidaPorAproveitamento}
 				<!-- Branco com texto escuro: o verde-esmeralda sumia sobre o card verde de Aprovado. -->
 				<span
-					class="rounded bg-zinc-50/95 px-1.5 py-0.5 text-[length:clamp(9px,5cqw,11px)] font-semibold text-emerald-900"
+					class="rounded {TAG_BADGE.aproveitamento.className} px-1.5 py-0.5 text-[length:clamp(9px,5cqw,11px)] font-semibold"
 					title="Aproveitamento de estudos: componente ganho por disciplina de outra instituição/curso"
 				>aprov.</span>
 			{/if}
@@ -448,12 +441,12 @@
 
 	<!-- Prerequisite indicator badge -->
 	{#if showPrereqBadge}
-		<div class="absolute left-0 -bottom-1.5 flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[length:clamp(9px,5cqw,11px)] font-bold text-white {prereqsCompleted ? PREREQ_BADGE.ok.className : PREREQ_BADGE.pending.className}">
+		<div class="absolute left-0 -bottom-1.5 flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[length:clamp(9px,5cqw,11px)] font-bold {prereqsCompleted ? PREREQ_BADGE.ok.className : PREREQ_BADGE.pending.className}">
 			{#if hasPrereqs}
 				<span>{prereqsCompleted ? '✓' : '!'}</span>
 			{/if}
 			{#if dependentCount > 0}
-				<span class="border-l border-white/30 pl-0.5">{dependentCount}</span>
+				<span class="border-l border-current/30 pl-0.5">{dependentCount}</span>
 			{/if}
 		</div>
 	{/if}

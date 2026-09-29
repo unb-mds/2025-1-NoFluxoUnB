@@ -2,10 +2,12 @@
  * Cores do SubjectCard e das etiquetas que ele renderiza, num só lugar para os
  * testes de contraste (subject-card-colors.test.ts) medirem o que vai para a tela.
  *
- * `className` precisa ser o literal completo (Tailwind só gera o que acha no
- * fonte); `hex` é a mesma cor, usada no cálculo WCAG. Fundos opacos de propósito:
- * com `/72` o badge de pré-requisito misturava com o card e caía para ~2.5:1
- * (pré-mortem R28).
+ * Tudo sai de tokens do design system (app.css, `:root` = claro e `.dark` =
+ * escuro; utilitários registrados no tailwind.config.ts). `token` é o nome da
+ * variável CSS — o teste lê o valor dela em cada tema — e `className` precisa
+ * ser o literal completo (Tailwind só gera o que acha no fonte). Fundos opacos
+ * de propósito: com `/72` o badge de pré-requisito misturava com o card e caía
+ * para ~2.5:1 (pré-mortem R28).
  */
 import {
 	SubjectStatusEnum,
@@ -13,44 +15,164 @@ import {
 	type SubjectStatusValue
 } from '$lib/types/materia';
 
-export interface SolidColor {
-	hex: string;
+/** Cor de fundo sólida + cor do texto por cima, ambas como tokens. */
+export interface TokenPair {
+	/** Variável CSS do fundo (sem `--`). */
+	bg: string;
+	/** Variável CSS do texto (sem `--`). */
+	fg: string;
 	className: string;
 }
 
-/** Fundo do card por status (texto branco por cima). */
-export const STATUS_CARD_BG: Record<SubjectStatusValue, SolidColor> = {
-	[SubjectStatusEnum.COMPLETED]: { hex: '#1f7a43', className: 'bg-[#1f7a43]' },
-	[SubjectStatusEnum.IN_PROGRESS]: { hex: '#6b2fcf', className: 'bg-[#6b2fcf]' },
-	[SubjectStatusEnum.AVAILABLE]: { hex: '#a8671a', className: 'bg-[#a8671a]' },
-	[SubjectStatusEnum.FAILED]: { hex: '#991b1b', className: 'bg-[#991b1b]' },
-	[SubjectStatusEnum.LOCKED]: { hex: '#161625', className: 'bg-[#161625]' },
-	[SubjectStatusEnum.NOT_STARTED]: { hex: '#161625', className: 'bg-[#161625]' }
+export interface StatusCardColors extends TokenPair {
+	/** Opacidade aplicada ao texto (bloqueado/não iniciado fica mais apagado). */
+	textAlpha: number;
+	/** Classe do texto principal (já com a opacidade de `textAlpha`). */
+	textClass: string;
+	/** Opacidade do texto secundário ("libera N"). */
+	textSoftAlpha: number;
+	/** Classe do texto secundário (já com `textSoftAlpha`). */
+	textSoftClass: string;
+	/** Variável CSS da borda em repouso; `null` = filete branco translúcido sobre fundo saturado. */
+	border: string | null;
+	borderClass: string;
+}
+
+const SOLID_TEXT = {
+	fg: 'status-on-solid',
+	textAlpha: 1,
+	textClass: 'text-status-on-solid',
+	// Opaco: branco a 75% caía para ~3.5:1 no Aprovado e no Disponível.
+	textSoftAlpha: 1,
+	textSoftClass: 'text-status-on-solid',
+	border: null,
+	borderClass: 'border-white/10'
+} as const;
+
+const LOCKED: StatusCardColors = {
+	bg: 'status-locked',
+	fg: 'status-locked-foreground',
+	className: 'bg-status-locked',
+	textAlpha: 0.8,
+	textClass: 'text-status-locked-foreground/80',
+	textSoftAlpha: 0.75,
+	textSoftClass: 'text-status-locked-foreground/75',
+	border: 'status-locked-border',
+	borderClass: 'border-status-locked-border'
 };
 
-/** Opacidade do texto branco do card: bloqueado/não iniciado fica mais apagado. */
+/** Fundo, texto e borda do card por status. */
+export const STATUS_CARD: Record<SubjectStatusValue, StatusCardColors> = {
+	[SubjectStatusEnum.COMPLETED]: { ...SOLID_TEXT, bg: 'status-completed', className: 'bg-status-completed' },
+	[SubjectStatusEnum.IN_PROGRESS]: { ...SOLID_TEXT, bg: 'status-in-progress', className: 'bg-status-in-progress' },
+	[SubjectStatusEnum.AVAILABLE]: { ...SOLID_TEXT, bg: 'status-available', className: 'bg-status-available' },
+	[SubjectStatusEnum.FAILED]: { ...SOLID_TEXT, bg: 'status-failed', className: 'bg-status-failed' },
+	[SubjectStatusEnum.LOCKED]: LOCKED,
+	[SubjectStatusEnum.NOT_STARTED]: LOCKED
+};
+
+/** Opacidade do texto do card: bloqueado/não iniciado fica mais apagado. */
 export function statusTextAlpha(status: SubjectStatusValue): number {
-	return status === SubjectStatusEnum.LOCKED || status === SubjectStatusEnum.NOT_STARTED ? 0.8 : 1;
+	return STATUS_CARD[status].textAlpha;
 }
 
 /** Chip de créditos: `bg-black/25` sobre o card, texto com `opacity-90`. */
 export const CREDIT_CHIP = { overlayAlpha: 0.25, textOpacity: 0.9 } as const;
 
-/** Badge de pré-requisito (canto inferior esquerdo), texto branco. */
-export const PREREQ_BADGE: Record<'ok' | 'pending', SolidColor> = {
-	ok: { hex: '#166534', className: 'bg-[#166534]' },
-	pending: { hex: '#92400e', className: 'bg-[#92400e]' }
+/** Badge de pré-requisito (canto inferior esquerdo). */
+export const PREREQ_BADGE: Record<'ok' | 'pending', TokenPair> = {
+	ok: {
+		bg: 'status-prereq-ok',
+		fg: 'status-on-solid',
+		className: 'bg-status-prereq-ok text-status-on-solid'
+	},
+	pending: {
+		bg: 'status-prereq-pending',
+		fg: 'status-on-solid',
+		className: 'bg-status-prereq-pending text-status-on-solid'
+	}
 };
 
 /** Etiquetas de conquista/natureza (canto inferior direito). */
 export const TAG_BADGE: Record<
-	'equivalencia' | 'optativa' | 'optatoria' | 'modulo_livre',
-	SolidColor & { text: '#ffffff' | '#000000' }
+	'equivalencia' | 'aproveitamento' | 'optativa' | 'optatoria' | 'modulo_livre',
+	TokenPair
 > = {
-	equivalencia: { hex: '#7e22ce', className: 'bg-[#7e22ce] text-white', text: '#ffffff' },
-	optativa: { hex: '#1d4ed8', className: 'bg-[#1d4ed8] text-white', text: '#ffffff' },
-	optatoria: { hex: '#f59e0b', className: 'bg-[#f59e0b] text-black', text: '#000000' },
-	modulo_livre: { hex: '#2dd4bf', className: 'bg-[#2dd4bf] text-black', text: '#000000' }
+	equivalencia: {
+		bg: 'tag-equivalencia',
+		fg: 'tag-equivalencia-foreground',
+		className: 'bg-tag-equivalencia text-tag-equivalencia-foreground'
+	},
+	/** Claro com texto escuro: o verde sumia sobre o card verde de Aprovado. */
+	aproveitamento: {
+		bg: 'tag-aproveitamento',
+		fg: 'tag-aproveitamento-foreground',
+		className: 'bg-tag-aproveitamento text-tag-aproveitamento-foreground'
+	},
+	optativa: {
+		bg: 'tag-optativa',
+		fg: 'tag-optativa-foreground',
+		className: 'bg-tag-optativa text-tag-optativa-foreground'
+	},
+	optatoria: {
+		bg: 'tag-optatoria',
+		fg: 'tag-optatoria-foreground',
+		className: 'bg-tag-optatoria text-tag-optatoria-foreground'
+	},
+	modulo_livre: {
+		bg: 'tag-modulo-livre',
+		fg: 'tag-modulo-livre-foreground',
+		className: 'bg-tag-modulo-livre text-tag-modulo-livre-foreground'
+	}
+};
+
+/**
+ * Contornos de destaque do card. Ficam na borda, encostados no fundo da página,
+ * então o teste exige >= 3:1 (elemento gráfico) contra `--background` nos dois temas.
+ */
+export interface OutlineColors {
+	/** Variável CSS da cor do contorno. */
+	token: string;
+	/** Opacidade da borda (`border-x/80` → 0.8). */
+	borderAlpha: number;
+	className: string;
+}
+
+export const CARD_OUTLINE: Record<
+	'selected' | 'failedHighlight' | 'focus' | 'precursor' | 'descendant' | 'corequisite',
+	OutlineColors
+> = {
+	selected: {
+		token: 'foreground',
+		borderAlpha: 0.6,
+		className: 'border-foreground/60 ring-2 ring-foreground/30'
+	},
+	failedHighlight: {
+		token: 'status-failed-ring',
+		borderAlpha: 0.85,
+		className: 'border-status-failed-ring/85 ring-2 ring-status-failed-ring/45 shadow-md shadow-red-700/20'
+	},
+	// Alinhadas a CHAIN_VISUAL (mesma família de cor nas linhas de conexão).
+	focus: {
+		token: 'chain-focus',
+		borderAlpha: 0.8,
+		className: 'border-chain-focus/80 ring-2 ring-chain-focus/35 shadow-md'
+	},
+	precursor: {
+		token: 'chain-precursor',
+		borderAlpha: 0.8,
+		className: 'border-chain-precursor/80 ring-2 ring-chain-precursor/35 shadow-md'
+	},
+	descendant: {
+		token: 'chain-descendant',
+		borderAlpha: 0.8,
+		className: 'border-chain-descendant/80 ring-2 ring-chain-descendant/35 shadow-md'
+	},
+	corequisite: {
+		token: 'chain-focus',
+		borderAlpha: 0.8,
+		className: 'border-chain-focus/80 ring-2 ring-chain-focus/32 shadow-md'
+	}
 };
 
 export interface SubjectCardA11yInput {
