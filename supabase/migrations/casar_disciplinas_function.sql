@@ -1,3 +1,7 @@
+-- DESATUALIZADO: a versão vigente de casar_disciplinas está em
+-- 20260928_casar_disciplinas_premortem.sql (correções R5/R6/R7/R15/R17 do pré-mortem de
+-- 27/09/2026). Não rode este arquivo no SQL Editor: ele desfaz essas correções.
+--
 -- Migration: casar_disciplinas PostgreSQL function
 -- Replaces the Supabase Edge Function with a single database round-trip.
 -- Called via: supabase.rpc('casar_disciplinas', { p_dados: {...} })
