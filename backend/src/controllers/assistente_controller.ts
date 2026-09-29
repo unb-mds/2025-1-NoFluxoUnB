@@ -23,6 +23,12 @@ import { montarContextoAgente } from './PlanejamentoController';
 import { AI_SEM_CREDITOS_BODY, isMaritacaSemCreditos } from '../config/maritaca_errors';
 import { ERRO_IA_GENERICO, registrarFalha } from '../utils/erro_publico';
 
+/**
+ * Teto do texto livre enviado ao LLM pago. Pré-mortem R8: sem isso, um body
+ * de 2 MB era repassado inteiro à Maritaca (custo por token de entrada).
+ */
+export const MAX_MATERIA_CHARS = 300;
+
 const ragflow = new RagflowService();
 const sabia = new SabiaService();
 
@@ -38,6 +44,10 @@ export const AssistenteController: EndpointController = {
             if (!materia || typeof materia !== 'string' || !materia.trim()) {
                 logger.error('Missing or empty "materia" field');
                 return res.status(400).json({ erro: "O campo 'materia' é obrigatório no corpo da requisição JSON." });
+            }
+            if (materia.length > MAX_MATERIA_CHARS) {
+                logger.error(`"materia" com ${materia.length} caracteres (máx. ${MAX_MATERIA_CHARS})`);
+                return res.status(413).json({ erro: `Descreva seu interesse em até ${MAX_MATERIA_CHARS} caracteres.` });
             }
 
             // Check if RAGFlow is configured
@@ -177,6 +187,10 @@ export const AssistenteController: EndpointController = {
                 logger.error('Missing or empty "materia" field');
                 return res.status(400).json({ erro: "O campo 'materia' é obrigatório no corpo da requisição JSON." });
             }
+            if (materia.length > MAX_MATERIA_CHARS) {
+                logger.error(`"materia" com ${materia.length} caracteres (máx. ${MAX_MATERIA_CHARS})`);
+                return res.status(413).json({ erro: `Descreva seu interesse em até ${MAX_MATERIA_CHARS} caracteres.` });
+            }
 
             const matrizCurricular = typeof matriz_curricular === 'string' ? matriz_curricular : '';
 
@@ -251,6 +265,10 @@ export const AssistenteController: EndpointController = {
             if (!materia || typeof materia !== 'string' || !materia.trim()) {
                 logger.error('Missing or empty "materia" field');
                 return res.status(400).json({ erro: "O campo 'materia' é obrigatório no corpo da requisição JSON." });
+            }
+            if (materia.length > MAX_MATERIA_CHARS) {
+                logger.error(`"materia" com ${materia.length} caracteres (máx. ${MAX_MATERIA_CHARS})`);
+                return res.status(413).json({ erro: `Descreva seu interesse em até ${MAX_MATERIA_CHARS} caracteres.` });
             }
 
             const matrizCurricular = typeof matriz_curricular === 'string' ? matriz_curricular : '';
