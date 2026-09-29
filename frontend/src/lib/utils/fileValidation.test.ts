@@ -8,8 +8,8 @@ import { validatePdfFile } from './fileValidation';
  */
 
 const PDF_MINIMO = '%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n';
-const arquivo = (conteudo: string | Uint8Array, nome: string, type: string) =>
-	new File([conteudo as BlobPart], nome, { type });
+const arquivo = (conteudo: string, nome: string, type: string) =>
+	new File([conteudo], nome, { type });
 
 describe('validatePdfFile', () => {
 	it('aceita PDF quando o navegador não informa MIME', async () => {

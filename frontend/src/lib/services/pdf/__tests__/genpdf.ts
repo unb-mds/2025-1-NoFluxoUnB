@@ -15,7 +15,7 @@ function esc(s: string) {
 }
 
 /** Monta um PDF com uma página por array de itens. `encrypt` gera um PDF que pede senha. */
-export function makePdf(pages: Item[][], opts: { encrypt?: boolean } = {}): Uint8Array {
+export function makePdf(pages: Item[][], opts: { encrypt?: boolean } = {}): Uint8Array<ArrayBuffer> {
 	const objs: string[] = [];
 	const add = (s: string) => {
 		objs.push(s);
@@ -97,5 +97,5 @@ export const header = (y: number): Item[] => [
 
 /** Embrulha as páginas num File como o navegador entregaria no upload. */
 export function pdfFile(pages: Item[][], opts: { encrypt?: boolean } = {}, name = 'historico_200000000.pdf'): File {
-	return new File([makePdf(pages, opts) as BlobPart], name, { type: 'application/pdf' });
+	return new File([makePdf(pages, opts)], name, { type: 'application/pdf' });
 }
