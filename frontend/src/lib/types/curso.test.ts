@@ -4,7 +4,7 @@ import { determineSubjectStatus, SubjectStatusEnum } from './materia';
 import { getDirectPrerequisites, satisfazPreRequisitos } from './curso';
 
 /** C0001 exige A0001 OU B0001 (formato recursivo, sem expressao_original). */
-function cursoComOu(expressaoLogica: unknown) {
+function cursoComOu(expressaoLogica: unknown, codigoMateriaRequisito?: string) {
 	return createCursoModelFromJson({
 		nome_curso: 'X',
 		id_curso: 1,
@@ -13,7 +13,14 @@ function cursoComOu(expressaoLogica: unknown) {
 			{ id_materia: 2, nivel: 1, tipo_natureza: 0, materias: { id_materia: 2, codigo_materia: 'B0001', nome_materia: 'B' } },
 			{ id_materia: 3, nivel: 2, tipo_natureza: 0, materias: { id_materia: 3, codigo_materia: 'C0001', nome_materia: 'C' } }
 		],
-		pre_requisitos: [{ id_pre_requisito: 9, id_materia: 3, expressao_logica: expressaoLogica }]
+		pre_requisitos: [
+			{
+				id_pre_requisito: 9,
+				id_materia: 3,
+				expressao_logica: expressaoLogica,
+				codigo_materia_requisito: codigoMateriaRequisito
+			}
+		]
 	});
 }
 
@@ -38,5 +45,22 @@ describe('getDirectPrerequisites — pré-requisito com OU (pré-mortem R43)', (
 		expect(determineSubjectStatus(c, new Set(['B0001']), new Set(), new Set(), curso)).toBe(
 			SubjectStatusEnum.AVAILABLE
 		);
+	});
+
+	it('expressão longa (> 64 chars, sem códigos extraídos) mantém codigoMateriaRequisito', () => {
+		const longa = '(A0001 E B0001) OU (CCC0001 E DDD0001) OU (EEE0001 E FFF0001) OU GGG0001';
+		expect(longa.length).toBeGreaterThan(64);
+		const curso = cursoComOu(longa, 'A0001');
+		expect(codigos(getDirectPrerequisites(curso, 'C0001'))).toEqual(['A0001']);
+	});
+
+	it('objeto sem materias/condicoes mantém codigoMateriaRequisito', () => {
+		const curso = cursoComOu({ operador: 'E' }, 'b0001');
+		expect(codigos(getDirectPrerequisites(curso, 'C0001'))).toEqual(['B0001']);
+	});
+
+	it('une expressão e codigoMateriaRequisito sem duplicar', () => {
+		const curso = cursoComOu({ operador: 'OU', condicoes: ['A0001', 'B0001'] }, 'A0001');
+		expect(codigos(getDirectPrerequisites(curso, 'C0001'))).toEqual(['A0001', 'B0001']);
 	});
 });

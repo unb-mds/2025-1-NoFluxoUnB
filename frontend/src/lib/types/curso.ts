@@ -125,7 +125,8 @@ export function satisfazPreRequisitos(
  * Matérias que aparecem na regra de pré-requisito da matéria (1 nível).
  * Varre TODOS os códigos da expressao_logica — `codigoMateriaRequisito` guarda só o
  * primeiro, então em "A OU B" a alternativa B sumia (setas do Planejador e ficha).
- * Mesma extração da factory (getCodigosFromExpressaoLogica), sem semântica E/OU:
+ * Mesma extração da factory (getCodigosFromExpressaoLogica), unida a
+ * `codigoMateriaRequisito` (deduplicado), sem semântica E/OU:
  * quem precisa avaliar a regra usa satisfazPreRequisitos.
  */
 export function getDirectPrerequisites(
@@ -141,10 +142,15 @@ export function getDirectPrerequisites(
 
 	for (const preReq of curso.preRequisitos) {
 		if (preReq.idMateria !== materia.idMateria) continue;
-		const codigos =
-			preReq.expressaoLogica != null
+		// União: a expressão traz as alternativas do OU; codigoMateriaRequisito segue
+		// como fallback quando ela não rende códigos (texto > 64 chars, objeto sem
+		// materias/condicoes) — senão a matéria perderia todas as setas.
+		const codigos = [
+			...(preReq.expressaoLogica != null
 				? getCodigosFromExpressaoLogica(preReq.expressaoLogica)
-				: [preReq.codigoMateriaRequisito ?? ''];
+				: []),
+			preReq.codigoMateriaRequisito ?? ''
+		].filter((c) => c.trim() !== '');
 		for (const codigo of codigos) {
 			const prerequisiteMateria = materiaMap.get(norm(codigo));
 			if (prerequisiteMateria && !directPrereqs.includes(prerequisiteMateria)) {
