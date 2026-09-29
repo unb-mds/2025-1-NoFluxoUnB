@@ -43,6 +43,31 @@ export interface SabiaDisciplina {
     justificativa: string;
 }
 
+const CODIGO_DISCIPLINA = /^[A-Z]{3}\d{4}$/;
+
+/**
+ * Validação em runtime do que vem do mcp_agent (o tipo SabiaDisciplina é só
+ * compile-time): descarta código fora do padrão AAA9999 e limita a nota a 0-10.
+ * Antes uma nota "8.5" parseada como 85 chegava ao front como "85/10".
+ */
+export function sanitizarDisciplinas(disciplinas: unknown): SabiaDisciplina[] {
+    if (!Array.isArray(disciplinas)) return [];
+    const out: SabiaDisciplina[] = [];
+    for (const d of disciplinas) {
+        if (!d || typeof d !== 'object') continue;
+        const { codigo, nome, nota, justificativa } = d as Record<string, unknown>;
+        if (typeof codigo !== 'string' || !CODIGO_DISCIPLINA.test(codigo)) continue;
+        const notaNum = typeof nota === 'number' && Number.isFinite(nota) ? nota : 7;
+        out.push({
+            codigo,
+            nome: typeof nome === 'string' ? nome : '',
+            nota: Math.min(10, Math.max(0, notaNum)),
+            justificativa: typeof justificativa === 'string' ? justificativa : '',
+        });
+    }
+    return out;
+}
+
 export interface SabiaUsage {
     model: string;
     prompt_tokens: number;
@@ -141,6 +166,9 @@ export class SabiaService {
             }
 
             const result = await response.json() as SabiaResponse;
+            if (result.disciplinas !== undefined) {
+                result.disciplinas = sanitizarDisciplinas(result.disciplinas);
+            }
             const duration = Date.now() - startTime;
 
             if (result.success) {

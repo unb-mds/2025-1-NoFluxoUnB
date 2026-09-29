@@ -4,6 +4,7 @@
  *
  * R30: timeout nas chamadas ao mcp_agent.
  * R31: abortar o stream do upstream quando o cliente fecha a conexão.
+ * R32: nota fora de 0-10 / código fora do padrão não chegam ao front.
  * R51: teto de termos na busca semântica.
  */
 
@@ -203,5 +204,29 @@ describe("SabiaService.analyzarInteresseStream — cliente fecha a conexão (R31
         expect(r.aborted).toBe(false);
         expect(res.write).toHaveBeenCalledTimes(3);
         expect(res.end).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("SabiaService.analyzarInteresse — validação das disciplinas (R32)", () => {
+    test("limita a nota a 0-10 e descarta código fora do padrão", async () => {
+        global.fetch = jest.fn().mockResolvedValue(jsonResponse({
+            success: true,
+            disciplinas: [
+                { codigo: "CIC0004", nome: "ALG", nota: 85, justificativa: "x" },
+                { codigo: "ZZZ99", nome: "INVENTADA", nota: 9, justificativa: "y" },
+                { codigo: "MAT0025", nome: "CALCULO 1", nota: 8.5, justificativa: "z" },
+            ],
+        })) as unknown as typeof fetch;
+
+        const service = new SabiaService();
+        const r = await service.analyzarInteresse("ia");
+
+        expect(r.disciplinas).toEqual([
+            { codigo: "CIC0004", nome: "ALG", nota: 10, justificativa: "x" },
+            { codigo: "MAT0025", nome: "CALCULO 1", nota: 8.5, justificativa: "z" },
+        ]);
+        const md = service.formatAsMarkdown(r);
+        expect(md).not.toContain("85/10");
+        expect(md).toContain("8.5/10");
     });
 });
