@@ -164,6 +164,13 @@ function createFluxogramaStore() {
 		isCapturingScreenshot: false
 	});
 
+	/**
+	 * Geração do carregamento de curso/matriz. Só a chamada mais recente (e não
+	 * invalidada por reset) escreve courseData/error/loading: trocar de matriz
+	 * rápido fazia a resposta lenta da anterior sobrescrever a nova.
+	 */
+	let loadSeq = 0;
+
 	let optativasAdicionadas = $state<OptativaAdicionada[]>([]);
 	/** Alterações locais de optativas manuais ainda não enviadas ao Supabase. */
 	let historicoManualPendenteSalvar = $state(false);
@@ -875,12 +882,14 @@ function createFluxogramaStore() {
 		},
 
 		async loadCourseData(courseName: string, anonymous = false) {
+			const seq = ++loadSeq;
 			state.loading = true;
 			state.error = null;
 			state.isAnonymous = anonymous;
 
 			try {
 				const data = await fluxogramaService.getCourseData(courseName);
+				if (seq !== loadSeq) return;
 				state.courseData = data;
 				optativasAdicionadas = hydrateOptativasFromManuais(
 					authStore.getUser()?.optativasManuais,
@@ -888,21 +897,24 @@ function createFluxogramaStore() {
 					data
 				);
 			} catch (err) {
+				if (seq !== loadSeq) return;
 				const message =
 					err instanceof Error ? err.message : 'Erro ao carregar dados do curso';
 				state.error = message;
 				toast.error(message);
 			} finally {
-				state.loading = false;
+				if (seq === loadSeq) state.loading = false;
 			}
 		},
 
 		async loadCourseDataByCurriculoCompleto(curriculoCompleto: string, anonymous = false) {
+			const seq = ++loadSeq;
 			state.loading = true;
 			state.error = null;
 			state.isAnonymous = anonymous;
 			try {
 				const data = await fluxogramaService.getCourseDataByCurriculoCompleto(curriculoCompleto);
+				if (seq !== loadSeq) return;
 				state.courseData = data;
 				optativasAdicionadas = hydrateOptativasFromManuais(
 					authStore.getUser()?.optativasManuais,
@@ -910,12 +922,13 @@ function createFluxogramaStore() {
 					data
 				);
 			} catch (err) {
+				if (seq !== loadSeq) return;
 				const message =
 					err instanceof Error ? err.message : 'Erro ao carregar dados da matriz';
 				state.error = message;
 				toast.error(message);
 			} finally {
-				state.loading = false;
+				if (seq === loadSeq) state.loading = false;
 			}
 		},
 
@@ -1029,6 +1042,8 @@ function createFluxogramaStore() {
 		},
 
 		reset() {
+			// Invalida carregamentos em voo: a resposta deles não pode repopular o store.
+			loadSeq++;
 			state.courseData = null;
 			state.loading = false;
 			state.error = null;
