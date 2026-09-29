@@ -8,7 +8,9 @@ Rodar a partir de mcp_agent/:
 """
 
 from sabia_utils import (
+    MAX_TERMOS_BUSCA,
     codigos_validos_de,
+    normalizar_termos_busca,
     parse_resposta_sabia,
 )
 
@@ -99,6 +101,21 @@ def test_codigo_citado_no_meio_do_texto_nao_vira_item():
 def test_nao_duplica_codigo():
     texto = "1. **CIC0004 - A | Nota: 9/10\n2. **CIC0004 - A | Nota: 8/10"
     assert _codigos(parse_resposta_sabia(texto)) == ["CIC0004"]
+
+
+# --- R51: teto de termos expandidos ----------------------------------------
+
+
+def test_limita_termos_a_4():
+    termos = normalizar_termos_busca(["t%d" % i for i in range(200)])
+    assert termos == ["t0", "t1", "t2", "t3"], termos
+    assert MAX_TERMOS_BUSCA == 4
+
+
+def test_termos_dedup_vazios_e_tamanho():
+    assert normalizar_termos_busca(["a", " a ", "", "  ", None, 3, "b"]) == ["a", "b"]
+    assert len(normalizar_termos_busca(["x" * 500])[0]) == 80
+    assert normalizar_termos_busca("nao e lista") == []
 
 
 if __name__ == "__main__":

@@ -7,6 +7,10 @@
 import logger from '../logger';
 import { Response } from 'express';
 
+/** Teto de termos por busca semântica (espelha MAX_TERMOS_BUSCA do mcp_agent). */
+export const MAX_TERMOS_BUSCA = 4;
+const MAX_CHARS_TERMO = 80;
+
 export interface SabiaDisciplina {
     codigo: string;
     nome: string;
@@ -142,11 +146,19 @@ export class SabiaService {
      */
     async buscarMaterias(termosBusca: string[]): Promise<Array<{ codigo: string; nome: string; similaridade: number }>> {
         if (!this.available) return [];
+        // Cada termo vira 1 embedding Gemini + 1 RPC no Supabase lá no Python:
+        // dedup + teto de MAX_TERMOS_BUSCA para o LLM não expandir sem limite.
+        const termos = [...new Set(
+            termosBusca
+                .filter((t) => typeof t === 'string' && t.trim().length > 0)
+                .map((t) => t.trim().slice(0, MAX_CHARS_TERMO).trim()),
+        )].slice(0, MAX_TERMOS_BUSCA);
+        if (termos.length === 0) return [];
         try {
             const response = await fetch(`${this.apiUrl}/buscar-materias`, {
                 method: 'POST',
                 headers: this.buildHeaders(),
-                body: JSON.stringify({ termos_busca: termosBusca }),
+                body: JSON.stringify({ termos_busca: termos }),
             });
             if (!response.ok) {
                 logger.error(`[SabiaService] /buscar-materias retornou ${response.status}`);

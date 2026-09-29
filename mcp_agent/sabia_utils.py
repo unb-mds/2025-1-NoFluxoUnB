@@ -9,11 +9,31 @@ resposta do Sabiá e a normalização dos termos de busca isoladamente.
 import json
 import re
 
+# Teto de termos expandidos por busca semântica: cada termo vira 1 embedding
+# Gemini + 1 RPC match_materias no Supabase. O prompt pede "EXATAMENTE 4".
+MAX_TERMOS_BUSCA = 4
+MAX_CHARS_TERMO = 80
+
 # Prefixos de item de lista que o modelo usa antes do código: "1. ", "2) ",
 # "- ", "* ", "• ", "**" (negrito), inclusive combinados ("1. **CIC0004").
 _PREFIXO_LISTA = re.compile(r"^\s*(?:\d+[.)]\s*|[*\-•]\s*)+")
 _CODIGO = re.compile(r"([A-Z]{3}\d{4})")
 _NOTA = re.compile(r"Nota:\s*\**\s*(\d+(?:[.,]\d+)?)")
+
+
+def normalizar_termos_busca(termos_busca) -> list:
+    """Limpa os termos vindos do LLM: descarta vazios/não-string, corta cada um
+    em MAX_CHARS_TERMO, remove duplicados (mantendo a ordem) e fica com no
+    máximo MAX_TERMOS_BUSCA. Sem o teto, o modelo podia mandar 200 termos e
+    gerar 200 embeddings + 200 RPCs numa só request."""
+    if not isinstance(termos_busca, list):
+        return []
+    termos = (
+        t.strip()[:MAX_CHARS_TERMO].strip()
+        for t in termos_busca
+        if isinstance(t, str) and t.strip()
+    )
+    return list(dict.fromkeys(termos))[:MAX_TERMOS_BUSCA]
 
 
 def codigos_validos_de(dados_banco):

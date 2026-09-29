@@ -13,7 +13,12 @@ import google.generativeai as genai
 from supabase import create_client
 from dotenv import load_dotenv
 from tool_call_utils import extrair_tool_call_texto, termo_materia
-from sabia_utils import codigos_validos_de, parse_resposta_sabia
+from sabia_utils import (
+    MAX_TERMOS_BUSCA,
+    codigos_validos_de,
+    normalizar_termos_busca,
+    parse_resposta_sabia,
+)
 
 
 # 1. INICIALIZAÇÃO GLOBAL (Roda apenas quando o servidor liga)
@@ -135,6 +140,7 @@ TOOLS = [
                     "termos_busca": {
                         "type": "array",
                         "items": {"type": "string"},
+                        "maxItems": MAX_TERMOS_BUSCA,
                         "description": "Lista com EXATAMENTE 4 strings obrigatórias: [termo_principal, sinônimo1, sinônimo2, termo_relacionado]. SEMPRE preencha os 4 campos, mesmo que repita termos similares.",
                     }
                 },
@@ -276,8 +282,9 @@ def ferramenta_buscar_optativas(matriz_curricular: str) -> str:
 def ferramenta_buscar_materias_unb(termos_busca: list) -> str:
     print(f"\n[DEBUG] 🧠 Termos recebidos da Maritaca: {termos_busca}")
     try:
-        # Filtrar termos vazios antes de enviar para o Gemini
-        termos_validos = [t.strip() for t in termos_busca if t and t.strip()]
+        # Filtrar termos vazios/duplicados e limitar a MAX_TERMOS_BUSCA antes de
+        # enviar para o Gemini: cada termo custa 1 embedding + 1 RPC no Supabase.
+        termos_validos = normalizar_termos_busca(termos_busca)
 
         if not termos_validos:
             print("⚠️ Nenhum termo válido para busca.")
