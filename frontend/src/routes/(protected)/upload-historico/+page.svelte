@@ -56,14 +56,18 @@
 <main
 	class="relative z-10 flex min-h-[calc(100vh-64px)] flex-col items-center overflow-hidden px-3 pb-10 sm:px-4 sm:pb-14"
 >
+	<!--
+		Glows roxos decorativos: só no escuro. No claro o roxo a 32% escurece a página
+		atrás do cabeçalho e do "Preencha manualmente" e derruba o contraste.
+	-->
 	<div
 		aria-hidden="true"
-		class="pointer-events-none absolute -top-40 -left-40 h-[700px] w-[700px] rounded-full"
+		class="pointer-events-none absolute -top-40 -left-40 hidden h-[700px] w-[700px] rounded-full dark:block"
 		style="background: radial-gradient(circle, rgba(108,38,220,0.32) 0%, rgba(88,22,180,0.13) 42%, transparent 68%); z-index:0;"
 	></div>
 	<div
 		aria-hidden="true"
-		class="pointer-events-none absolute right-0 -bottom-20 h-[400px] w-[400px] rounded-full"
+		class="pointer-events-none absolute right-0 -bottom-20 hidden h-[400px] w-[400px] rounded-full dark:block"
 		style="background: radial-gradient(circle, rgba(80,20,160,0.18) 0%, transparent 65%); z-index:0;"
 	></div>
 	<div class="relative z-[1] w-full max-w-2xl min-w-0">
