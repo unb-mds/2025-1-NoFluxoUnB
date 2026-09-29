@@ -19,15 +19,15 @@
 		if (!v) darcyCotaStore.fecharLogin();
 	}}
 >
-	<Dialog.Content class="border-white/10 bg-zinc-950 text-white sm:max-w-sm">
+	<Dialog.Content class="text-foreground sm:max-w-sm">
 		<Dialog.Header>
 			<div
-				class="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-pink-500/50 bg-pink-500/10 shadow-[0_0_24px_rgba(236,72,153,0.15)]"
+				class="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/40 bg-primary/10"
 			>
-				<Bot class="h-6 w-6 text-pink-400" />
+				<Bot class="h-6 w-6 text-primary" />
 			</div>
-			<Dialog.Title class="text-base text-white">Faça login para usar o assistente</Dialog.Title>
-			<Dialog.Description class="text-sm text-white/60">
+			<Dialog.Title class="text-base text-foreground">Faça login para usar o assistente</Dialog.Title>
+			<Dialog.Description class="text-sm text-muted-foreground">
 				O Darcy é gratuito para quem tem conta no NoFluxo. Fluxogramas e disciplinas continuam
 				abertos para visitantes.
 			</Dialog.Description>
@@ -37,14 +37,14 @@
 			<a
 				href={`/login?redirect=${redirect}`}
 				onclick={() => darcyCotaStore.fecharLogin()}
-				class="inline-flex items-center justify-center rounded-full bg-pink-500 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-pink-400 focus-visible:ring-2 focus-visible:ring-pink-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 focus-visible:outline-none"
+				class="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
 			>
 				Entrar
 			</a>
 			<a
 				href={`/signup?redirect=${redirect}`}
 				onclick={() => darcyCotaStore.fecharLogin()}
-				class="inline-flex items-center justify-center rounded-full border border-white/15 px-5 py-2 text-sm font-semibold text-white/80 transition-colors hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:outline-none"
+				class="inline-flex items-center justify-center rounded-full border border-border px-5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 			>
 				Criar conta
 			</a>

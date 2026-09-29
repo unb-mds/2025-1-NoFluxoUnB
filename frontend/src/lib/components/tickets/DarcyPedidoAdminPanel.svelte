@@ -139,19 +139,22 @@
 </section>
 
 <style>
-	/* Mesma linguagem visual do painel de tickets (escuro, brancos com alfa). */
+	/*
+	 * Só tokens do DS (app.css :root/.dark): funciona no claro e no escuro.
+	 * Contraste das combinações verificado em theme-contrast.test.ts.
+	 */
 	.darcy-pedido {
-		border: 1px solid rgba(236, 72, 153, 0.35);
-		background: rgba(236, 72, 153, 0.06);
+		border: 1px solid hsl(var(--primary) / 0.35);
+		background: hsl(var(--card));
 		border-radius: 10px;
 		padding: 14px;
-		color: rgba(255, 255, 255, 0.85);
+		color: hsl(var(--card-foreground));
 	}
 	.section-title {
 		font-size: 11px;
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
-		color: rgba(255, 255, 255, 0.5);
+		color: hsl(var(--muted-foreground));
 		margin: 0 0 8px;
 		font-weight: 700;
 	}
@@ -163,7 +166,7 @@
 		margin-bottom: 0.75rem;
 	}
 	.resumo dt {
-		opacity: 0.6;
+		color: hsl(var(--muted-foreground));
 		font-size: 0.7rem;
 	}
 	.resumo .motivo {
@@ -183,7 +186,7 @@
 		flex-direction: column;
 		gap: 0.25rem;
 		font-size: 0.7rem;
-		opacity: 0.95;
+		color: hsl(var(--muted-foreground));
 	}
 	.campo-qtd {
 		width: 6.5rem;
@@ -192,33 +195,40 @@
 		flex-basis: 100%;
 	}
 	.input {
-		background: rgba(255, 255, 255, 0.05);
-		border: 1px solid rgba(255, 255, 255, 0.1);
+		background: hsl(var(--background));
+		border: 1px solid hsl(var(--input));
 		border-radius: 6px;
-		color: white;
+		color: hsl(var(--foreground));
 		padding: 7px 10px;
 		font-size: 13px;
 		width: 100%;
 	}
+	.input::placeholder {
+		color: hsl(var(--muted-foreground));
+	}
+	.input:focus-visible {
+		outline: 2px solid hsl(var(--ring));
+		outline-offset: 1px;
+	}
 	select.input option {
-		background: #18181b;
-		color: white;
+		background: hsl(var(--popover));
+		color: hsl(var(--popover-foreground));
 	}
 	.ajuda {
 		font-size: 0.7rem;
-		opacity: 0.6;
+		color: hsl(var(--muted-foreground));
 		flex: 1;
 		min-width: 12rem;
 		padding-bottom: 0.45rem;
 	}
 	.nota {
 		font-size: 0.75rem;
-		opacity: 0.7;
+		color: hsl(var(--muted-foreground));
 	}
 	.erro {
 		margin-top: 0.5rem;
 		font-size: 0.75rem;
-		color: #fda4af;
+		color: hsl(var(--status-danger));
 	}
 	.acoes {
 		display: flex;
@@ -237,19 +247,27 @@
 		border: 1px solid transparent;
 		transition: background-color 0.15s;
 	}
+	/* Texto na cor de status sobre tinta leve do mesmo status (par light/dark). */
 	.btn-aprovar {
-		background: rgb(16 185 129 / 0.25);
-		border-color: rgb(16 185 129 / 0.45);
+		color: hsl(var(--status-success));
+		background: hsl(var(--status-success) / 0.1);
+		border-color: hsl(var(--status-success) / 0.5);
 	}
 	.btn-aprovar:hover:not(:disabled) {
-		background: rgb(16 185 129 / 0.4);
+		background: hsl(var(--status-success) / 0.18);
 	}
 	.btn-recusar {
-		background: rgb(244 63 94 / 0.15);
-		border-color: rgb(244 63 94 / 0.4);
+		color: hsl(var(--status-danger));
+		background: hsl(var(--status-danger) / 0.1);
+		border-color: hsl(var(--status-danger) / 0.5);
 	}
 	.btn-recusar:hover:not(:disabled) {
-		background: rgb(244 63 94 / 0.3);
+		background: hsl(var(--status-danger) / 0.18);
+	}
+	.btn-aprovar:focus-visible,
+	.btn-recusar:focus-visible {
+		outline: 2px solid hsl(var(--ring));
+		outline-offset: 2px;
 	}
 	button:disabled {
 		opacity: 0.5;

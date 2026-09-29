@@ -28,6 +28,17 @@ export interface EstadoRodinha {
 	esgotada: boolean;
 }
 
+/**
+ * Token de cor (app.css `--status-*`, par light/dark) do traço da rodinha.
+ * Nada de sky/amber/rose fixos: esses tons só têm contraste no tema escuro.
+ */
+export const TOKEN_RODINHA: Record<CorRodinha, 'status-info' | 'status-warning' | 'status-danger'> =
+	{
+		azul: 'status-info',
+		ambar: 'status-warning',
+		vermelho: 'status-danger'
+	};
+
 /** Fração de perguntas restantes a partir da qual a rodinha fica âmbar. */
 export const LIMIAR_AMBAR = 0.2;
 

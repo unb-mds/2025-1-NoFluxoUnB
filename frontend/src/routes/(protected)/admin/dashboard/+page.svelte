@@ -844,4 +844,8 @@
 	.ticket-link:hover {
 		text-decoration: underline;
 	}
+	/* No escuro o --primary fica em 4,2:1 sobre o card; o lilás --ai passa de 4,5:1. */
+	:global(.dark) .ticket-link {
+		color: hsl(var(--ai));
+	}
 </style>
