@@ -1,6 +1,8 @@
 <!--
   Fundo padrão NOFLX: base escura, malha técnica sutil, glows roxos via --primary.
   Componente único usado em todas as páginas (substitui GraffitiBackground e AnimatedBackground).
+  Cores só por token: --page-background (.dark = #050505 de produção; :root = --background claro)
+  e --page-glow-alpha (.dark = 0.45 de produção). É o fundo real sobre o qual os testes medem contraste.
 -->
 <div class="nofluxo-bg" aria-hidden="true">
 	<div class="nofluxo-bg-mesh"></div>
@@ -15,7 +17,7 @@
 		z-index: -1;
 		overflow: hidden;
 		pointer-events: none;
-		background: #050505;
+		background: hsl(var(--page-background));
 	}
 
 	.nofluxo-bg-mesh {
@@ -46,7 +48,7 @@
 		filter: blur(110px);
 		opacity: 0.22;
 		border-radius: 50%;
-		background: hsl(var(--primary) / 0.45);
+		background: hsl(var(--primary) / var(--page-glow-alpha));
 	}
 
 	.nofluxo-bg-glow.nw {

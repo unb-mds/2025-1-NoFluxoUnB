@@ -33,11 +33,55 @@
 		/* IA — lilás (texto/accent suave), tint de fundo */
 		--ai: 267 92% 78%;
 		--ai-soft: 268 42% 18%;
-		/* Status (texto/ícone) — escuros o bastante p/ ≥ 4,5:1 sobre background/card claros */
+		/*
+		 * Fundo da página (PageBackground). No .dark é o #050505 de produção;
+		 * aqui é o próprio --background. Os testes de contraste compõem sobre ele.
+		 */
+		--page-background: 0 0% 100%;
+		/* Opacidade do glow roxo do PageBackground (no claro fraco o bastante p/ o muted-foreground) */
+		--page-glow-alpha: 0.1;
+
+		/*
+		 * Status genérico (texto, ícone, anel, tinta /10–/18 sobre card):
+		 * tons ~700 do Tailwind aqui (≥ 4,5:1 sobre página e card claros), ~400 no .dark.
+		 * Usado no upload de histórico e nos componentes do Darcy/dashboard.
+		 */
 		--status-success: 142 72% 26%;
 		--status-warning: 26 90% 32%;
 		--status-danger: 0 74% 40%;
 		--status-info: 221 83% 40%;
+
+		/*
+		 * Fluxograma — status de disciplina e etiquetas (SubjectCard, modal, legendas).
+		 * Fundos sólidos com texto próprio: iguais nos dois temas de propósito
+		 * (o contraste do texto não depende do fundo da página).
+		 */
+		--status-completed: 143.7 59.5% 30%;
+		--status-in-progress: 262.5 63% 49.8%;
+		--status-available: 32.5 73.2% 38%;
+		--status-failed: 0 70% 35.3%;
+		--status-on-solid: 0 0% 100%;
+		--status-prereq-ok: 142.8 64.2% 24.1%;
+		--status-prereq-pending: 22.7 82.5% 31.4%;
+		--tag-equivalencia: 272.1 71.7% 47.1%;
+		--tag-equivalencia-foreground: 0 0% 100%;
+		--tag-aproveitamento: 0 0% 98%;
+		--tag-aproveitamento-foreground: 164 86% 16%;
+		--tag-optativa: 224.3 76.3% 48%;
+		--tag-optativa-foreground: 0 0% 100%;
+		--tag-optatoria: 37.7 92.1% 50.2%;
+		--tag-optatoria-foreground: 0 0% 0%;
+		--tag-modulo-livre: 172.5 66% 50.4%;
+		--tag-modulo-livre-foreground: 0 0% 0%;
+		/* Varia por tema: superfície neutra do card bloqueado e contornos de
+		   destaque (anel de cadeia, reprovação), que ficam sobre o fundo da página. */
+		--status-locked: 220 14% 93%;
+		--status-locked-foreground: 222.2 47.4% 11.2%;
+		--status-locked-border: 215 16% 47%;
+		--status-failed-ring: 0 72.2% 50.6%;
+		--chain-focus: 244.5 57.9% 50.6%;
+		--chain-precursor: 175.3 77.4% 26.1%;
+		--chain-descendant: 17.5 88.3% 40.4%;
 	}
 
 	.dark {
@@ -62,10 +106,39 @@
 		--ring: 270 91% 62%;
 		--ai: 267 92% 78%;
 		--ai-soft: 268 45% 16%;
+		/* #050505 — fundo de produção, idêntico ao que o PageBackground pintava fixo */
+		--page-background: 0 0% 1.9608%;
+		--page-glow-alpha: 0.45;
+
 		--status-success: 142 69% 58%;
 		--status-warning: 38 92% 50%;
 		--status-danger: 0 91% 71%;
 		--status-info: 213 94% 68%;
+
+		--status-completed: 143.7 59.5% 30%;
+		--status-in-progress: 262.5 63% 49.8%;
+		--status-available: 32.5 73.2% 38%;
+		--status-failed: 0 70% 35.3%;
+		--status-on-solid: 0 0% 100%;
+		--status-prereq-ok: 142.8 64.2% 24.1%;
+		--status-prereq-pending: 22.7 82.5% 31.4%;
+		--tag-equivalencia: 272.1 71.7% 47.1%;
+		--tag-equivalencia-foreground: 0 0% 100%;
+		--tag-aproveitamento: 0 0% 98%;
+		--tag-aproveitamento-foreground: 164 86% 16%;
+		--tag-optativa: 224.3 76.3% 48%;
+		--tag-optativa-foreground: 0 0% 100%;
+		--tag-optatoria: 37.7 92.1% 50.2%;
+		--tag-optatoria-foreground: 0 0% 0%;
+		--tag-modulo-livre: 172.5 66% 50.4%;
+		--tag-modulo-livre-foreground: 0 0% 0%;
+		--status-locked: 240 25.4% 11.6%;
+		--status-locked-foreground: 0 0% 100%;
+		--status-locked-border: 240 13.5% 20.4%;
+		--status-failed-ring: 0 93.5% 81.8%;
+		--chain-focus: 225.3 85.5% 72.9%;
+		--chain-precursor: 174.5 58.6% 56.5%;
+		--chain-descendant: 32.8 89.9% 64.9%;
 	}
 }
 
