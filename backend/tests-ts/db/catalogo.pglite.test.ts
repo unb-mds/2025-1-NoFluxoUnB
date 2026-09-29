@@ -49,9 +49,12 @@ const CENARIOS = {
         "UPDATE matrizes SET ch_total_exigida = 0 WHERE id_matriz = 2 RETURNING id_matriz"
     ),
     anon_apaga_matriz: comoPapel("anon", "DELETE FROM matrizes WHERE id_matriz = 2 RETURNING id_matriz"),
-    anon_insere_vetorizada: comoPapel(
+    // R11 pendente — jobs do mcp_agent podem estar com a anon key em SUPABASE_KEY
+    anon_upsert_vetorizada: comoPapel(
         "anon",
-        "INSERT INTO materias_vetorizadas (id_materia, codigo_materia) VALUES (2, 'XXX0001')"
+        `INSERT INTO materias_vetorizadas (id_materia, codigo_materia) VALUES (1, 'MAT0025')
+           ON CONFLICT (id_materia) DO UPDATE SET codigo_materia = excluded.codigo_materia
+           RETURNING id_materia`
     ),
 
     // R11 — carga de dados (service_role) continua escrevendo
@@ -115,7 +118,7 @@ describe("R11 — RLS no catálogo", () => {
         }
     );
 
-    it.each(["anon_insere_matriz", "authenticated_insere_matriz", "anon_insere_vetorizada"] as const)(
+    it.each(["anon_insere_matriz", "authenticated_insere_matriz"] as const)(
         "%s: INSERT é recusado pela RLS",
         (nome) => {
             const res = resultado(nome);
@@ -132,8 +135,14 @@ describe("R11 — RLS no catálogo", () => {
         expect(linhas("service_role_insere_matriz")).toHaveLength(1);
     });
 
-    it("nenhuma tabela do schema public fica sem RLS", () => {
-        expect(linhas("tabelas_sem_rls")).toEqual([]);
+    it("só materias_vetorizadas fica sem RLS (pendente: jobs do mcp_agent sem service_role garantida)", () => {
+        expect(linhas("tabelas_sem_rls")).toEqual([{ relname: "materias_vetorizadas" }]);
+    });
+
+    it("upsert em materias_vetorizadas com a chave que os jobs usam hoje continua funcionando", () => {
+        // databaseScript.py lê só SUPABASE_KEY e databaseScript_gemini.py cai nela sem
+        // SUPABASE_SERVICE_ROLE_KEY: se for a anon key, a RLS quebraria a carga (42501).
+        expect(linhas("anon_upsert_vetorizada")).toEqual([{ id_materia: 1 }]);
     });
 
     it("dados_users_teste perde os grants de anon/authenticated e não é apagada", () => {
