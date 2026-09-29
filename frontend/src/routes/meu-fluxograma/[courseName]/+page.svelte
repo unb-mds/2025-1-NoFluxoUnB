@@ -19,6 +19,7 @@
 	import { matchesFluxogramCompactTouchMode } from '$lib/utils/fluxogram-viewport';
 	import { authStore } from '$lib/stores/auth';
 	import { getIntegralizacao } from '$lib/services/integralizacao.service';
+	import { iniciarCarregamento } from '$lib/utils/carregamento-cancelavel';
 	import { supabaseDataService } from '$lib/services/supabase-data.service';
 	import { onMount, tick } from 'svelte';
 	import { Loader2, AlertTriangle, ArrowRightLeft, ListChecks, ChevronDown } from 'lucide-svelte';
@@ -195,33 +196,49 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 		const fluxo = userFluxograma;
 		const cc = course?.curriculoCompleto;
 		void store.diagramLayoutRevision;
+		// Fonte única do cálculo (a troca de matriz só recarrega o curso). Cada execução
+		// cancela a anterior: resposta velha não sobrescreve a nova, e erro não prende o spinner.
+		const idCurso = course?.idCurso;
+		const cancelarMatrizes = idCurso
+			? iniciarCarregamento(() => supabaseDataService.getMatrizesByCurso(idCurso), {
+					ok: (m) => {
+						matrizes = m.map((x) => ({ curriculoCompleto: x.curriculoCompleto }));
+					},
+					erro: (e) => console.warn('Erro ao carregar matrizes do curso:', e)
+				})
+			: undefined;
 		if (!cc || !fluxo) {
-			// if (course?.idCurso && !cc) {
-			if (course?.idCurso) {
-				supabaseDataService.getMatrizesByCurso(course.idCurso).then((m) => {
-					matrizes = m.map((x) => ({ curriculoCompleto: x.curriculoCompleto }));
-				});
-			}
 			integralizacao = null;
 			integralizacaoLoading = false;
-			return;
+			return () => cancelarMatrizes?.();
 		}
 		integralizacaoLoading = true;
-		getIntegralizacao({
-			curriculoCompleto: cc,
-			dadosFluxograma: fluxo,
-			cargaHorariaIntegralizada: store.cargaHorariaIntegralizada,
-			equivalencias: course?.equivalencias,
-			recalcularPorDisciplinas: eSimulacaoOutroCurso
-		}).then((r) => {
-			integralizacao = r;
-			integralizacaoLoading = false;
-		});
-		if (course?.idCurso) {
-			supabaseDataService.getMatrizesByCurso(course.idCurso).then((m) => {
-				matrizes = m.map((x) => ({ curriculoCompleto: x.curriculoCompleto }));
-			});
-		}
+		const cancelarIntegralizacao = iniciarCarregamento(
+			() =>
+				getIntegralizacao({
+					curriculoCompleto: cc,
+					dadosFluxograma: fluxo,
+					cargaHorariaIntegralizada: store.cargaHorariaIntegralizada,
+					equivalencias: course?.equivalencias,
+					recalcularPorDisciplinas: eSimulacaoOutroCurso
+				}),
+			{
+				ok: (r) => {
+					integralizacao = r;
+				},
+				erro: (e) => {
+					integralizacao = null;
+					console.error('Erro ao calcular integralização:', e);
+				},
+				fim: () => {
+					integralizacaoLoading = false;
+				}
+			}
+		);
+		return () => {
+			cancelarIntegralizacao();
+			cancelarMatrizes?.();
+		};
 	});
 
 	function normalizarChaveNome(valor: string | null | undefined): string {
@@ -259,32 +276,9 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 	});
 
 	async function handleMatrizChange(curriculoCompleto: string) {
+		// A integralização é recalculada pelo $effect quando courseData muda
+		// (com recalcularPorDisciplinas = eSimulacaoOutroCurso).
 		await store.loadCourseDataByCurriculoCompleto(curriculoCompleto);
-		if (userFluxograma) {
-			integralizacaoLoading = true;
-			try {
-				const course = store.state.courseData;
-				const recalc = course != null
-					? (() => {
-							const matrizOrigem = normalizarChaveMatriz(userFluxograma.matrizCurricular);
-							const matrizExibida = normalizarChaveMatriz(course.curriculoCompleto);
-							if (matrizOrigem && matrizExibida) return matrizOrigem !== matrizExibida;
-							return (userFluxograma.nomeCurso ?? '').trim().toLowerCase() !==
-								(course.nomeCurso ?? '').trim().toLowerCase();
-						})()
-					: false;
-				const r = await getIntegralizacao({
-					curriculoCompleto,
-					dadosFluxograma: userFluxograma,
-					cargaHorariaIntegralizada: store.cargaHorariaIntegralizada,
-					equivalencias: course?.equivalencias,
-					recalcularPorDisciplinas: recalc
-				});
-				integralizacao = r;
-			} finally {
-				integralizacaoLoading = false;
-			}
-		}
 	}
 
 	function handleSubjectClick(materia: MateriaModel) {
