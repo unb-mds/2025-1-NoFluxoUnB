@@ -65,8 +65,11 @@ export function computeInitialZoom({
 export function findFirstPendingSemester(
 	columns: ReadonlyArray<{ semester: number; completed: ReadonlyArray<boolean> }>
 ): number | null {
+	// Nível 0 é o pool de optativas: não vira coluna no FluxogramContainer
+	// (sortedSemesters filtra k > 0) e quase sempre tem pendência — se entrasse
+	// aqui, o Math.min sempre daria 0 e o alvo nunca seria encontrado.
 	const pendentes = columns
-		.filter((c) => c.completed.some((done) => !done))
+		.filter((c) => c.semester > 0 && c.completed.some((done) => !done))
 		.map((c) => c.semester);
 	return pendentes.length > 0 ? Math.min(...pendentes) : null;
 }

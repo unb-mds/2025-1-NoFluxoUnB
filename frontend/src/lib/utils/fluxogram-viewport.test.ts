@@ -92,4 +92,20 @@ describe('pickInitialFocusSemester — regra única de posicionamento inicial (R
 			})
 		).toBeNull();
 	});
+
+	it('ignora o nível 0 (pool de optativas), que não vira coluna no diagrama', () => {
+		// Dado real: getSubjectsBySemester inclui o nível 0 e ele quase sempre tem
+		// optativa não concluída. Sem o filtro, o alvo era 0 e nunca era achado.
+		expect(
+			pickInitialFocusSemester({
+				compact: true,
+				semestreAtual: null,
+				columns: [
+					{ semester: 0, completed: [false, false] },
+					{ semester: 1, completed: [true] },
+					{ semester: 3, completed: [true, false] }
+				]
+			})
+		).toBe(3);
+	});
 });
