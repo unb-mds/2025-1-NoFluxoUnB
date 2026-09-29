@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import type { MateriaModel } from '$lib/types/materia';
+	import { SubjectStatusEnum, type MateriaModel } from '$lib/types/materia';
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
 	import {
 		matchesFluxogramCompactTouchMode,
+		computeInitialZoom,
+		findFirstPendingSemester,
 		FLUXOGRAM_NARROW_QUERY,
 		FLUXOGRAM_COMPACT_LANDSCAPE_QUERY
 	} from '$lib/utils/fluxogram-viewport';
@@ -257,11 +259,11 @@
 	});
 
 	/**
-	 * Zoom inicial adaptativo (one-shot por montagem): desktop ajusta para a coluna
-	 * mais alta caber inteira na vertical (teto 1.0 — eixo de navegação é o horizontal);
-	 * modo compacto mira ~2 colunas visíveis na largura. Precisa rodar ANTES do efeito
-	 * de reancoragem e atualizar `prevZoomForAnchor`, senão a fórmula do centro com
-	 * scroll (0,0) deslocaria o viewport no primeiro frame.
+	 * Visualização inicial (one-shot por montagem): zoom adaptativo via
+	 * computeInitialZoom (desktop cabe a coluna mais alta; compacto com piso de
+	 * texto legível) e rolagem até o primeiro semestre com matéria pendente.
+	 * Precisa rodar ANTES do efeito de reancoragem e atualizar `prevZoomForAnchor`,
+	 * senão a fórmula do centro com scroll (0,0) deslocaria o viewport no primeiro frame.
 	 */
 	let initialZoomApplied = false;
 	$effect(() => {
@@ -269,19 +271,34 @@
 		const scroller = containerRef;
 		const inner = innerRef;
 		if (!scroller || !inner || sortedSemesters.length === 0) return;
-		let target: number;
-		if (useNativeTouchScroll) {
-			const pitch = 220 + 48; // w-[220px] da coluna + gap 3rem (mobile usa conexões 'direct')
-			target = Math.min(0.8, Math.max(0.5, scroller.clientWidth / (2 * pitch)));
-		} else {
+		const target = computeInitialZoom({
+			compact: useNativeTouchScroll,
+			clientWidth: scroller.clientWidth,
+			clientHeight: scroller.clientHeight,
 			// getBoundingClientRect reflete o CSS zoom; dividir pelo zoom vigente dá o tamanho natural
-			const naturalH = inner.getBoundingClientRect().height / store.state.zoomLevel;
-			if (naturalH <= 0) return;
-			target = Math.min(1.0, scroller.clientHeight / naturalH);
-		}
+			naturalH: inner.getBoundingClientRect().height / store.state.zoomLevel
+		});
+		if (target == null) return;
 		initialZoomApplied = true;
 		store.applyAdaptiveZoom(target);
 		prevZoomForAnchor = store.state.zoomLevel; // valor já clampado pelo store
+
+		const focusSemester = findFirstPendingSemester(
+			sortedSemesters.map((semester) => ({
+				semester,
+				completed: (store.subjectsBySemester.get(semester) ?? []).map(
+					(m) => store.getSubjectStatus(m) === SubjectStatusEnum.COMPLETED
+				)
+			}))
+		);
+		if (focusSemester == null || focusSemester === sortedSemesters[0]) return;
+		// Depois do layout com o zoom novo; só se o usuário ainda não rolou.
+		requestAnimationFrame(() => {
+			const col = inner.querySelector<HTMLElement>(`[data-semester="${focusSemester}"]`);
+			if (!col || scroller.scrollLeft !== 0) return;
+			const delta = col.getBoundingClientRect().left - scroller.getBoundingClientRect().left;
+			scroller.scrollLeft = Math.max(0, delta - 16); // 16px = scroll-ml-4 da coluna
+		});
 	});
 
 	/**
