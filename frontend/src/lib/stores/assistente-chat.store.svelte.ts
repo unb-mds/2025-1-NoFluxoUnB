@@ -16,6 +16,7 @@ import { AssistenteService, type AssistentePlanoInput } from '$lib/services/assi
 import { chatService } from '$lib/services/chat.service';
 import { planoFormaturaService } from '$lib/services/plano-formatura.service';
 import { mensagemErroChat } from '$lib/utils/ai-errors';
+import { darcyCotaStore } from '$lib/stores/darcy-cota.store.svelte';
 import type { PlannerChatMessage } from '$lib/types/plano-formatura';
 import type { AuthState } from '$lib/types/auth';
 
@@ -120,13 +121,23 @@ function createAssistenteChatStore() {
 						codigosNaGrade: opts.codigosNaGrade
 					});
 					reply = resposta.reply;
+					darcyCotaStore.atualizar(resposta.cota);
 				} else {
 					const planoInput = await buildPlanoInput();
 					const resposta = await service.chatAgente(chatMessages, planoInput, undefined, opts?.contexto);
 					reply = resposta.reply;
+					darcyCotaStore.atualizar(resposta.cota);
 				}
 				chatMessages = [...chatMessages, { role: 'assistant', content: reply }];
 			} catch (err) {
+				// Login (401), cota (429) e teto global (503) viram modal/card, não
+				// bolha de erro — a pergunta volta pro aluno reenviar depois.
+				const tipo = darcyCotaStore.tratarErro(err);
+				if (tipo !== 'outro') {
+					chatMessages = chatMessages.slice(0, -1);
+					error = null;
+					return;
+				}
 				// Bolha amigável: "sem créditos" da Maritaca ganha texto próprio;
 				// o resto cai no fallback genérico (ver $lib/utils/ai-errors).
 				const bolha = mensagemErroChat(err);

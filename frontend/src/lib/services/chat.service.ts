@@ -4,6 +4,7 @@
  * /assistente/chat) — os dois convivem até a migração completa.
  */
 import { apiRequest } from '$lib/utils/api';
+import { ErroIA, type CotaIA } from '$lib/utils/darcy-cota';
 
 export interface EnviarMensagemOrquestradorOpts {
 	contexto?: 'montador';
@@ -16,6 +17,8 @@ export interface EnviarMensagemOrquestradorOpts {
 
 export interface OrquestradorChatResponse {
 	reply: string;
+	/** Cota diária do aluno já contando esta pergunta (rodinha do chat). */
+	cota?: CotaIA;
 }
 
 export class ChatService {
@@ -37,7 +40,7 @@ export class ChatService {
 		});
 
 		if (error || !data) {
-			throw new Error(`Erro ${status} ao chamar /chat/send: ${error ?? 'Resposta inválida'}`);
+			throw new ErroIA(status, error ?? '', '/chat/send');
 		}
 		return data;
 	}
