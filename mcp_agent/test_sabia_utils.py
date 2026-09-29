@@ -9,11 +9,31 @@ Rodar a partir de mcp_agent/:
 
 import ast
 import os
+import re
+import sys
+import types
+
+try:
+    import httpx  # noqa: F401
+except ImportError:
+    # Sem as dependências instaladas: um httpx.Timeout mínimo basta para
+    # conferir os valores (read/connect) montados por sabia_utils.
+    class _Timeout:
+        def __init__(self, timeout, *, connect=None):
+            self.read = timeout
+            self.connect = connect
+
+    sys.modules["httpx"] = types.SimpleNamespace(Timeout=_Timeout)
 
 from sabia_utils import (
+    MARITACA_CONNECT_TIMEOUT_S,
+    MARITACA_GERACAO_SEM_STREAM_TIMEOUT_S,
     MAX_TERMOS_BUSCA,
     codigos_validos_de,
     maritaca_client_kwargs,
+    maritaca_opcoes_geracao_sem_stream,
+    maritaca_opcoes_roteamento,
+    pior_caso_recomendar_s,
     normalizar_termos_busca,
     parse_resposta_sabia,
 )
@@ -130,8 +150,95 @@ def test_cliente_maritaca_tem_timeout_e_poucos_retries():
     assert kw["api_key"] == "chave"
     assert kw["base_url"] == "https://chat.maritaca.ai/api"
     # Padrão do SDK OpenAI é 600s e 2 retries (até ~30 min pendurado).
-    assert 0 < kw["timeout"] <= 120, kw
-    assert kw["max_retries"] <= 1, kw
+    # O padrão do cliente vale para o stream: read = inatividade entre chunks.
+    assert 0 < kw["timeout"].read <= 120, vars(kw["timeout"])
+    assert kw["timeout"].connect == MARITACA_CONNECT_TIMEOUT_S <= 15
+    assert kw["max_retries"] == 0, kw
+
+
+def test_geracao_sem_stream_tem_read_timeout_de_geracao_inteira():
+    # Sem stream a Maritaca só manda o 1º byte ao fim da geração: o read
+    # timeout é o teto da geração inteira do sabia-4 (max_tokens=5000), então
+    # não pode ser o de inatividade (90s), que cortava respostas longas.
+    op = maritaca_opcoes_geracao_sem_stream()
+    assert op["timeout"].read >= 180, vars(op["timeout"])
+    assert op["timeout"].read > maritaca_client_kwargs("k")["timeout"].read
+    # connect continua curto: provedor fora do ar falha rápido.
+    assert op["timeout"].connect == MARITACA_CONNECT_TIMEOUT_S
+    # Retry após timeout re-geraria (e cobraria) tudo de novo.
+    assert op["max_retries"] == 0, op
+    rot = maritaca_opcoes_roteamento()
+    assert rot["max_retries"] == 0 and rot["timeout"].read < op["timeout"].read
+
+
+def _ler_constante_ms(nome):
+    caminho = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..", "backend", "src", "services", "sabia.service.ts",
+    )
+    with open(caminho, encoding="utf-8") as f:
+        m = re.search(
+            r"export const " + nome + r"\s*=\s*([\d_]+)\s*;", f.read()
+        )
+    assert m, nome
+    return int(m.group(1).replace("_", ""))
+
+
+def test_teto_do_backend_cobre_o_pior_caso_do_recomendar():
+    # Se o backend desistir antes do Python, devolve 504 enquanto a Maritaca
+    # ainda gera (e cobra). Margem de 30s para embeddings/RPC da ferramenta.
+    teto_backend_s = _ler_constante_ms("SABIA_TIMEOUT_MS") / 1000
+    assert teto_backend_s >= pior_caso_recomendar_s() + 30, (
+        teto_backend_s,
+        pior_caso_recomendar_s(),
+    )
+    assert pior_caso_recomendar_s() >= MARITACA_GERACAO_SEM_STREAM_TIMEOUT_S
+
+
+def test_teto_de_inatividade_do_stream_cobre_o_python():
+    # No stream, a maior espera sem evento é o roteamento ou o intervalo entre
+    # chunks; o backend precisa esperar mais que isso (sem retries no Python).
+    idle_s = _ler_constante_ms("SABIA_STREAM_IDLE_TIMEOUT_MS") / 1000
+    rot = maritaca_opcoes_roteamento()["timeout"]
+    padrao = maritaca_client_kwargs("k")["timeout"]
+    assert idle_s > rot.read + rot.connect, idle_s
+    assert idle_s > padrao.read + padrao.connect, idle_s
+
+
+def test_chamadas_sem_stream_do_api_producao_usam_teto_proprio():
+    # Toda chamada .create(...) sem stream=True precisa passar por
+    # client_maritaca.with_options(**maritaca_opcoes_*()); a geração final do
+    # /recomendar (sabia-4) usa o teto de geração inteira.
+    caminho = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "api_producao.py"
+    )
+    with open(caminho, encoding="utf-8") as f:
+        arvore = ast.parse(f.read())
+    creates = [
+        n
+        for n in ast.walk(arvore)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and n.func.attr == "create"
+    ]
+    assert len(creates) == 4, len(creates)
+    opcoes_por_modelo = []
+    for c in creates:
+        kws = {k.arg: k.value for k in c.keywords}
+        stream = kws.get("stream")
+        if isinstance(stream, ast.Constant) and stream.value is True:
+            continue
+        alvo = c.func.value.value.value  # client.with_options(...).chat.completions
+        assert isinstance(alvo, ast.Call) and alvo.func.attr == "with_options", (
+            ast.dump(c.func)
+        )
+        opcoes = alvo.keywords[0].value.func.id
+        opcoes_por_modelo.append((kws["model"].value, opcoes))
+    assert sorted(opcoes_por_modelo) == [
+        ("sabia-4", "maritaca_opcoes_geracao_sem_stream"),
+        ("sabiazinho-4", "maritaca_opcoes_roteamento"),
+        ("sabiazinho-4", "maritaca_opcoes_roteamento"),
+    ], opcoes_por_modelo
 
 
 def test_api_producao_usa_config_do_cliente_maritaca():

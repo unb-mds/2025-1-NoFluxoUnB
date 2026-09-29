@@ -9,12 +9,20 @@ import { Response } from 'express';
 
 /**
  * Tetos das chamadas ao mcp_agent. Sem `signal`, um upstream pendurado (Python
- * ou Maritaca) deixava a request do aluno esperando sem limite. /recomendar faz
- * 2 chamadas de LLM (cada uma com timeout de 90s no cliente Maritaca do Python);
+ * ou Maritaca) deixava a request do aluno esperando sem limite.
+ *
+ * /recomendar é SEM stream: faz o roteamento (sabiazinho-4, até 60s) e a geração
+ * final (sabia-4, até 240s — sem stream o read timeout do httpx é o teto da
+ * geração inteira), cada uma com connect de 10s e sem retry (ver
+ * mcp_agent/sabia_utils.py). O teto aqui fica ACIMA dessa soma (320s) mais a
+ * busca no banco, para o backend não devolver 504 enquanto o Python ainda gera
+ * (e a Maritaca cobra). test_sabia_utils.py confere essa relação.
+ *
  * /buscar-materias é só embedding + RPC. O stream usa timeout de INATIVIDADE
- * (tempo máximo sem chegar chunk), não total, para não cortar geração longa.
+ * (tempo máximo sem chegar chunk), não total, para não cortar geração longa; ele
+ * fica acima dos 90s de inatividade / 60s do roteamento do lado Python.
  */
-export const SABIA_TIMEOUT_MS = 120_000;
+export const SABIA_TIMEOUT_MS = 360_000;
 export const SABIA_BUSCA_TIMEOUT_MS = 15_000;
 export const SABIA_STREAM_IDLE_TIMEOUT_MS = 120_000;
 

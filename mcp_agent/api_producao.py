@@ -17,6 +17,8 @@ from sabia_utils import (
     MAX_TERMOS_BUSCA,
     codigos_validos_de,
     maritaca_client_kwargs,
+    maritaca_opcoes_geracao_sem_stream,
+    maritaca_opcoes_roteamento,
     normalizar_termos_busca,
     parse_resposta_sabia,
 )
@@ -66,8 +68,10 @@ genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
 supabase = create_client(
     os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 )
-# Timeout e retries limitados (ver sabia_utils.MARITACA_TIMEOUT_S): o padrão do
-# SDK (600s x 3 tentativas) deixava a request presa com a Maritaca pendurada.
+# Timeout e retries limitados (ver sabia_utils): o padrão do SDK (600s x 3
+# tentativas) deixava a request presa com a Maritaca pendurada. O padrão do
+# cliente vale para o stream; as chamadas sem stream usam with_options com o
+# teto próprio (sem stream, o read timeout limita a geração inteira).
 client_maritaca = OpenAI(**maritaca_client_kwargs(os.environ.get("MARITACA_API_KEY")))
 
 # Configuração do FastAPI
@@ -519,7 +523,9 @@ async def recomendar_materias(consulta: Consulta):
 
     try:
         # 1ª chamada: só para o modelo ESCOLHER a ferramenta (roteamento).
-        response = client_maritaca.chat.completions.create(
+        response = client_maritaca.with_options(
+            **maritaca_opcoes_roteamento()
+        ).chat.completions.create(
             model="sabiazinho-4",
             messages=[
                 {"role": "system", "content": ROUTING_PROMPT},
@@ -574,7 +580,9 @@ async def recomendar_materias(consulta: Consulta):
 
         # 2ª chamada: geração final com o prompt certo para cada modo.
         final_prompt = EXPLICACAO_PROMPT if modo == "explicacao" else SYSTEM_PROMPT
-        final_response = client_maritaca.chat.completions.create(
+        final_response = client_maritaca.with_options(
+            **maritaca_opcoes_geracao_sem_stream()
+        ).chat.completions.create(
             model="sabia-4",
             messages=[
                 {"role": "system", "content": final_prompt},
@@ -650,7 +658,9 @@ async def recomendar_materias_stream(consulta: Consulta):
             yield _sse_event("thinking", message="Analisando seu interesse...")
 
             # 1ª chamada: só para o modelo ESCOLHER a ferramenta (roteamento).
-            response = client_maritaca.chat.completions.create(
+            response = client_maritaca.with_options(
+                **maritaca_opcoes_roteamento()
+            ).chat.completions.create(
                 model="sabiazinho-4",
                 messages=[
                     {"role": "system", "content": ROUTING_PROMPT},
