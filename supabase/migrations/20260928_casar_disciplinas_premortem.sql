@@ -6,15 +6,156 @@
 --   R5  resolução de matriz: o código do currículo ("8117/-2") filtra os candidatos
 --       por id_curso antes da versão; empate de versão vira COURSE_SELECTION em vez
 --       de LIMIT 1 sem ORDER BY (PEDAGOGIA diurno x noturno, ENGENHARIA x ENG. SOFTWARE).
+--   R6  equivalência "A E B": a expressão é avaliada inteira (avalia_equivalencia), e não
+--       mais "qualquer código citado na expressão serve".
 --
 -- Reverter: rodar de novo, no SQL Editor, o bloco
 --   CREATE OR REPLACE FUNCTION public.casar_disciplinas(p_dados jsonb) ... $function$;
--- de supabase/migrations/latest_init_from_export.sql (linhas 488-1246).
+-- de supabase/migrations/latest_init_from_export.sql (linhas 488-1246) e depois
+--   DROP FUNCTION IF EXISTS public.avalia_equivalencia(jsonb, text, text[]);
+--   DROP FUNCTION IF EXISTS public.avalia_expressao(jsonb, text[]);
+--   DROP FUNCTION IF EXISTS public.avalia_expressao_texto(text, text[]);
 --
 -- Testes: backend/tests-ts/db/casar-disciplinas.pglite.test.ts (PGlite, aplica o
 -- baseline + este arquivo e roda cada cenário numa transação com ROLLBACK).
 
 BEGIN;
+
+-- ═══════════════════════════════════════════════════════════════
+-- Avaliação de expressões de equivalência (R6)
+-- Mesma semântica de frontend/src/lib/utils/expressao-logica.ts:
+--   expressao_logica = "COD" | {"operador": "E"|"OU", "condicoes": [...]}   (recursivo)
+--                    | {"materias": [...], "operador": "E"|"OU"|null}        (legado)
+--   expressao_original = texto SIGAA, "( A E B ) OU C"; E liga mais forte que OU.
+-- p_cursadas: códigos já em maiúsculas e sem espaços (quem chama normaliza).
+-- ═══════════════════════════════════════════════════════════════
+
+-- Texto SIGAA. Cada token vira literal SQL (código → true/false, E → AND, OU → OR,
+-- parênteses) e o Postgres avalia com a mesma precedência do parser do DBA. Só entram
+-- tokens da lista fechada abaixo, então o EXECUTE não recebe texto do banco.
+-- NULL quando não há código ou a expressão é malformada.
+CREATE OR REPLACE FUNCTION public.avalia_expressao_texto(p_expr text, p_cursadas text[])
+ RETURNS boolean
+ LANGUAGE plpgsql
+ IMMUTABLE PARALLEL SAFE
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_tok   text;
+  v_sql   text := '';
+  v_tem_codigo boolean := false;
+  v_res   boolean;
+BEGIN
+  IF p_expr IS NULL OR trim(p_expr) = '' THEN
+    RETURN NULL;
+  END IF;
+
+  FOR v_tok IN
+    SELECT upper(t[1])
+    FROM regexp_matches(p_expr, '(\(|\)|[A-Za-z]{2,}\d{3,}|\m[Oo][Uu]\M|\m[Ee]\M)', 'g') t
+  LOOP
+    IF v_tok = '(' OR v_tok = ')' THEN
+      v_sql := v_sql || v_tok;
+    ELSIF v_tok = 'OU' THEN
+      v_sql := v_sql || ' OR ';
+    ELSIF v_tok = 'E' THEN
+      v_sql := v_sql || ' AND ';
+    ELSE
+      v_tem_codigo := true;
+      v_sql := v_sql || CASE WHEN v_tok = ANY(p_cursadas) THEN 'true' ELSE 'false' END;
+    END IF;
+  END LOOP;
+
+  IF NOT v_tem_codigo THEN
+    RETURN NULL;
+  END IF;
+
+  BEGIN
+    EXECUTE 'SELECT ' || v_sql INTO v_res;
+  EXCEPTION WHEN others THEN
+    RETURN NULL;
+  END;
+  RETURN v_res;
+END;
+$function$;
+
+-- JSONB (expressao_logica). NULL quando a estrutura não é avaliável ('{}' é o default
+-- da coluna), para quem chama cair no texto original.
+CREATE OR REPLACE FUNCTION public.avalia_expressao(p_expr jsonb, p_cursadas text[])
+ RETURNS boolean
+ LANGUAGE plpgsql
+ IMMUTABLE PARALLEL SAFE
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_txt   text;
+  v_op    text;
+  v_itens jsonb;
+  v_item  jsonb;
+  v_res   boolean;
+  v_algum boolean := false;
+  v_todos boolean := true;
+BEGIN
+  IF p_expr IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  IF jsonb_typeof(p_expr) = 'string' THEN
+    v_txt := upper(trim(p_expr #>> '{}'));
+    IF v_txt = '' THEN
+      RETURN NULL;
+    ELSIF v_txt ~ '^[A-Z]{2,}\d{3,}$' THEN
+      RETURN v_txt = ANY(p_cursadas);
+    END IF;
+    RETURN public.avalia_expressao_texto(v_txt, p_cursadas);
+  END IF;
+
+  IF jsonb_typeof(p_expr) <> 'object' THEN
+    RETURN NULL;
+  END IF;
+
+  IF jsonb_typeof(p_expr->'condicoes') = 'array' THEN
+    v_itens := p_expr->'condicoes';
+    IF jsonb_array_length(v_itens) = 0 THEN
+      RETURN false;  -- igual ao front: nó sem condições não se satisfaz
+    END IF;
+    v_op := upper(coalesce(p_expr->>'operador', 'OU'));
+  ELSIF jsonb_typeof(p_expr->'materias') = 'array'
+        AND jsonb_array_length(p_expr->'materias') > 0 THEN
+    v_itens := p_expr->'materias';
+    v_op := upper(p_expr->>'operador');
+    IF v_op IS NULL THEN
+      -- legado sem operador: vale a primeira matéria
+      RETURN public.avalia_expressao(v_itens->0, p_cursadas);
+    END IF;
+  ELSE
+    RETURN NULL;
+  END IF;
+
+  FOR v_item IN SELECT value FROM jsonb_array_elements(v_itens) LOOP
+    v_res := coalesce(public.avalia_expressao(v_item, p_cursadas), false);
+    v_algum := v_algum OR v_res;
+    v_todos := v_todos AND v_res;
+  END LOOP;
+
+  RETURN CASE WHEN v_op = 'E' THEN v_todos ELSE v_algum END;
+END;
+$function$;
+
+-- Uma linha de equivalencias está satisfeita? expressao_logica primeiro; se ela não for
+-- avaliável, o texto original.
+CREATE OR REPLACE FUNCTION public.avalia_equivalencia(p_logica jsonb, p_texto text, p_cursadas text[])
+ RETURNS boolean
+ LANGUAGE sql
+ IMMUTABLE PARALLEL SAFE
+ SET search_path TO 'public'
+AS $function$
+  SELECT coalesce(
+    public.avalia_expressao(p_logica, p_cursadas),
+    public.avalia_expressao_texto(p_texto, p_cursadas),
+    false
+  );
+$function$;
 
 CREATE OR REPLACE FUNCTION public.casar_disciplinas(p_dados jsonb)
  RETURNS jsonb
@@ -73,6 +214,9 @@ DECLARE
   v_total_obrig       int;
   v_total_opt         int;
   v_percentual        numeric;
+
+  -- Códigos aprovados do histórico (APR/CUMP/DISP), para avaliar equivalências (R6)
+  v_cursadas          text[];
 BEGIN
   -- ═══════════════════════════════════════════════════════════════
   -- 1. PARSE INPUT
@@ -372,16 +516,20 @@ BEGIN
   -- 4. EQUIVALENCIES + PRE-COMPUTE CODE MAP
   -- ═══════════════════════════════════════════════════════════════
   CREATE TEMP TABLE _eq (
-    id_eq bigint, id_materia bigint, codigo_origem text, expressao text
+    id_eq bigint, id_materia bigint, codigo_origem text, expressao text, expressao_logica jsonb
   ) ON COMMIT DROP;
 
   INSERT INTO _eq
-  SELECT e.id_equivalencia, e.id_materia, m.codigo_materia, e.expressao_original
+  SELECT e.id_equivalencia, e.id_materia, m.codigo_materia, e.expressao_original, e.expressao_logica
   FROM equivalencias e
   JOIN materias m ON m.id_materia = e.id_materia
   WHERE e.id_materia IN (SELECT id_materia FROM _mat);
 
   -- Map: equivalent_code → target subject in our matrix
+  -- R6: só entra o código que SOZINHO satisfaz a expressão (código único ou ramo de OU).
+  -- Num "A E B", nem A nem B substituem a matéria isolados: antes os dois entravam no
+  -- mapa e o aluno com só A ganhava a obrigatória. O caso "A E B" completo é resolvido
+  -- em 7b, que avalia a expressão contra tudo o que o aluno aprovou.
   CREATE TEMP TABLE _eq_map (
     codigo_eq text, id_materia_alvo bigint,
     codigo_alvo text, nome_alvo text, nivel_alvo int, tipo_natureza_alvo int
@@ -393,10 +541,11 @@ BEGIN
   FROM _eq eq
   CROSS JOIN LATERAL (
     SELECT m[1] AS code
-    FROM regexp_matches(eq.expressao, '([A-Za-z]{2,}\d{3,})', 'g') m
+    FROM regexp_matches(coalesce(nullif(eq.expressao, ''), eq.expressao_logica::text),
+                        '([A-Za-z]{2,}\d{3,})', 'g') m
   ) codes
   JOIN _mat mb ON mb.codigo = eq.codigo_origem
-  WHERE eq.expressao IS NOT NULL AND eq.expressao != '';
+  WHERE public.avalia_equivalencia(eq.expressao_logica, eq.expressao, ARRAY[upper(codes.code)]);
 
   RAISE NOTICE 'casar_disciplinas: built eq_map with % entries', (SELECT count(*) FROM _eq_map);
 
@@ -425,6 +574,15 @@ BEGIN
       v_pendencias := coalesce(v_item->'valores', '[]'::jsonb);
     END IF;
   END LOOP;
+
+  -- Tudo o que o aluno aprovou, pelo código do histórico (não o código casado na matriz:
+  -- equivalência não é transitiva, ver getCompletedByEquivalenceCodes no front).
+  SELECT coalesce(array_agg(DISTINCT upper(trim(d->>'codigo'))), '{}')
+  INTO v_cursadas
+  FROM jsonb_array_elements(v_extracted_data) d
+  WHERE d->>'tipo_dado' IN ('Disciplina Regular', 'Disciplina CUMP')
+    AND upper(trim(coalesce(d->>'status', ''))) IN ('APR','CUMP','DISP')
+    AND trim(coalesce(d->>'codigo', '')) <> '';
 
   -- Main matching loop
   FOR v_i IN 0..v_len - 1 LOOP
@@ -581,32 +739,44 @@ BEGIN
     );
 
   -- 7b. Check equivalencies for missing mandatory subjects (SET-BASED)
-  --     Replaces the old nested FOR loop with a single INSERT ... SELECT
+  --     R6 (pré-mortem 27/09/2026): a expressão é avaliada INTEIRA contra tudo o que o
+  --     aluno aprovou (avalia_equivalencia). Antes bastava qualquer código citado nela
+  --     estar aprovado, e "(AAA0001 E BBB0001)" com só AAA0001 integralizava a
+  --     obrigatória. A disciplina exibida como aproveitamento é a aprovada mais recente
+  --     entre as citadas na expressão.
   CREATE TEMP TABLE _equiv_concl (
     id_materia bigint, codigo text, nome text, nivel int,
     codigo_equivalente text, nome_equivalente text,
-    professor text, mencao text, status text, ano_periodo text
+    professor text, mencao text, status text, ano_periodo text,
+    idx_usada int, tipo_usada text
   ) ON COMMIT DROP;
 
   INSERT INTO _equiv_concl
   SELECT DISTINCT ON (m.id_materia)
     m.id_materia, m.codigo, m.nome, m.nivel,
-    coalesce(c.codigo, m.codigo),
+    coalesce(c.codigo_historico, c.codigo, m.codigo),
     coalesce(c.nome, m.nome),
     coalesce(c.professor, ''),
     coalesce(c.mencao, '-'),
     coalesce(c.status, 'CUMP'),
-    c.ano_periodo
+    c.ano_periodo,
+    c.idx, c.tipo
   FROM _missing m
   JOIN _eq eq ON eq.codigo_origem = m.codigo
-  CROSS JOIN LATERAL (
-    SELECT upper(rm[1]) AS code
-    FROM regexp_matches(eq.expressao, '([A-Za-z]{2,}\d{3,})', 'g') rm
-  ) codes
-  JOIN _casadas c ON upper(trim(c.codigo)) = codes.code
-    AND upper(c.status) IN ('APR','CUMP','DISP')
-  WHERE eq.expressao IS NOT NULL AND eq.expressao != ''
-  ORDER BY m.id_materia, c.ano_periodo DESC NULLS LAST;
+  LEFT JOIN LATERAL (
+    SELECT cc.*
+    FROM _casadas cc
+    WHERE upper(cc.status) IN ('APR','CUMP','DISP')
+      AND upper(trim(cc.codigo_historico)) IN (
+        SELECT upper(rm[1])
+        FROM regexp_matches(coalesce(nullif(eq.expressao, ''), eq.expressao_logica::text),
+                            '([A-Za-z]{2,}\d{3,})', 'g') rm
+      )
+    ORDER BY cc.ano_periodo DESC NULLS LAST, cc.idx
+    LIMIT 1
+  ) c ON true
+  WHERE public.avalia_equivalencia(eq.expressao_logica, eq.expressao, v_cursadas)
+  ORDER BY m.id_materia, c.ano_periodo DESC NULLS LAST, eq.id_eq;
 
   -- Remove resolved subjects from _missing
   DELETE FROM _missing
@@ -615,66 +785,14 @@ BEGIN
   RAISE NOTICE 'casar_disciplinas: equivalency resolution found % additional completions, % still missing',
     (SELECT count(*) FROM _equiv_concl), (SELECT count(*) FROM _missing);
 
-  -- 7c. Check if completed optativas can fulfill still-missing mandatory via equivalency (SET-BASED)
-  --     For each completed optativa, check if its code appears in any equivalency expression
-  --     that targets a still-missing mandatory subject.
-  <<opt_equiv_block>>
-  DECLARE
-    v_opt_equiv_count int;
-  BEGIN
-    -- Find optativas that can fulfill missing mandatory via equivalencies
-    CREATE TEMP TABLE _opt_fulfills (
-      id_materia_missing bigint, codigo_missing text, nome_missing text, nivel_missing int,
-      codigo_equivalente text, nome_equivalente text,
-      professor text, mencao text, status text, ano_periodo text,
-      id_materia_opt bigint
-    ) ON COMMIT DROP;
-
-    INSERT INTO _opt_fulfills
-    SELECT DISTINCT ON (m.id_materia)
-      m.id_materia, m.codigo, m.nome, m.nivel,
-      coalesce(c.codigo, opt.codigo),
-      coalesce(c.nome, opt.nome),
-      coalesce(c.professor, ''),
-      coalesce(c.mencao, '-'),
-      coalesce(c.status, 'CUMP'),
-      c.ano_periodo,
-      opt.id_materia AS id_materia_opt
-    FROM _missing m
-    JOIN _eq eq ON eq.codigo_origem = m.codigo
-    CROSS JOIN LATERAL (
-      SELECT upper(rm[1]) AS code
-      FROM regexp_matches(eq.expressao, '([A-Za-z]{2,}\d{3,})', 'g') rm
-    ) codes
-    JOIN _casadas opt ON opt.tipo = 'optativa'
-      AND upper(opt.status) IN ('APR','CUMP','DISP')
-      AND upper(trim(opt.codigo)) = codes.code
-    JOIN _casadas c ON upper(trim(c.codigo)) = codes.code
-      AND upper(c.status) IN ('APR','CUMP','DISP')
-    WHERE eq.expressao IS NOT NULL AND eq.expressao != ''
-    ORDER BY m.id_materia, c.ano_periodo DESC NULLS LAST;
-
-    GET DIAGNOSTICS v_opt_equiv_count = ROW_COUNT;
-
-    IF v_opt_equiv_count > 0 THEN
-      -- Add to equiv_concl
-      INSERT INTO _equiv_concl
-      SELECT id_materia_missing, codigo_missing, nome_missing, nivel_missing,
-             codigo_equivalente, nome_equivalente, professor, mencao, status, ano_periodo
-      FROM _opt_fulfills;
-
-      -- Remove from _missing
-      DELETE FROM _missing
-      WHERE id_materia IN (SELECT id_materia_missing FROM _opt_fulfills);
-
-      -- Remove these optativas from _casadas
-      DELETE FROM _casadas
-      WHERE id_materia IN (SELECT id_materia_opt FROM _opt_fulfills)
-        AND tipo = 'optativa';
-
-      RAISE NOTICE 'casar_disciplinas: % optativas fulfilled missing mandatory subjects', v_opt_equiv_count;
-    END IF;
-  END opt_equiv_block;
+  -- 7c. Optativa aprovada que integralizou uma obrigatória por equivalência não conta
+  --     também como optativa. A versão anterior fazia isso numa segunda busca por regex
+  --     que nunca achava nada (7b já tinha consumido os mesmos casos) e, ao ser corrigida
+  --     junto com o R6, voltaria a aceitar "A E B" com só A; agora usa a disciplina que
+  --     7b escolheu.
+  DELETE FROM _casadas
+  WHERE tipo = 'optativa'
+    AND idx IN (SELECT idx_usada FROM _equiv_concl WHERE tipo_usada = 'optativa');
 
   -- ═══════════════════════════════════════════════════════════════
   -- 8. BUILD RESULT JSON

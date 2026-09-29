@@ -65,6 +65,39 @@ const PEDAGOGIA_DOIS_ANOS_MESMA_VERSAO = `
   INSERT INTO materias_por_curso (id_materia, nivel, id_matriz, tipo_natureza) VALUES (20, 1, 1, 0), (20, 1, 2, 0);
 `;
 
+/** ENGSOFT 6360/2 com MAT0025 (obrigatória) e OPT0001 (optativa) + o SQL extra. */
+function engsoft(extra = ""): string {
+    return `
+      INSERT INTO cursos (id_curso, nome_curso, tipo_curso, turno) VALUES
+        (6360, 'ENGENHARIA DE SOFTWARE', 'Bacharelado', 'DIURNO'), (1000, 'FISICA', 'Licenciatura', 'NOTURNO');
+      INSERT INTO matrizes (id_matriz, id_curso, versao, ano_vigor, curriculo_completo) VALUES
+        (2, 6360, '2', '2024.1', '6360/2 - 2024.1');
+      INSERT INTO materias (id_materia, nome_materia, codigo_materia, carga_horaria) VALUES
+        (20, 'CALCULO 1', 'MAT0025', 60), (21, 'OPTATIVA', 'OPT0001', 60),
+        (30, 'A', 'AAA0001', 60), (31, 'B', 'BBB0001', 60), (32, 'FISICA', 'FIS9999', 60);
+      INSERT INTO materias_por_curso (id_materia, nivel, id_matriz, tipo_natureza) VALUES
+        (20, 1, 2, 0), (21, 0, 2, 1);
+      ${extra}
+    `;
+}
+
+function engsoftAluno(extra: string, historico: Json[]): Job {
+    return casar(engsoft(extra), {
+        curso_extraido: "ENGENHARIA DE SOFTWARE",
+        matriz_curricular: "6360/2 - 2024.1",
+        extracted_data: historico,
+    });
+}
+
+function avalia(logica: unknown, texto: string | null, cursadas: string[]): Job {
+    return {
+        query: "SELECT public.avalia_equivalencia($1::jsonb, $2, $3::text[]) AS r",
+        params: [JSON.stringify(logica), texto, cursadas],
+    };
+}
+
+const EQ_A_E_B_TEXTO = `INSERT INTO equivalencias (id_materia, expressao_original) VALUES (20, '(AAA0001 E BBB0001)');`;
+
 const CENARIOS = {
     r5_sem_ano: casar(PEDAGOGIA, {
         curso_extraido: "PEDAGOGIA",
@@ -91,6 +124,44 @@ const CENARIOS = {
         matriz_curricular: "8150/-2 - 2018.2",
         extracted_data: [disc("PED0001", "X")],
     }),
+
+    // R6 — equivalência "A E B"
+    r6_texto_so_a: engsoftAluno(EQ_A_E_B_TEXTO, [disc("AAA0001", "A")]),
+    r6_texto_a_e_b: engsoftAluno(EQ_A_E_B_TEXTO, [disc("AAA0001", "A"), disc("BBB0001", "B")]),
+    r6_logica_so_a: engsoftAluno(
+        `INSERT INTO equivalencias (id_materia, expressao_original, expressao_logica) VALUES
+           (20, '(AAA0001 E BBB0001)', '{"operador":"E","condicoes":["AAA0001","BBB0001"]}');`,
+        [disc("AAA0001", "A")]
+    ),
+    r6_ou_um_basta: engsoftAluno(
+        `INSERT INTO equivalencias (id_materia, expressao_original, expressao_logica) VALUES
+           (20, '(AAA0001 OU BBB0001)', '{"operador":"OU","condicoes":["AAA0001","BBB0001"]}');`,
+        [disc("BBB0001", "B")]
+    ),
+    r6_optativa_parte_de_e: engsoftAluno(
+        `INSERT INTO equivalencias (id_materia, expressao_original) VALUES (20, '(OPT0001 E AAA0001)');`,
+        [disc("OPT0001", "OPTATIVA")]
+    ),
+    r6_optativa_integraliza: engsoftAluno(
+        `INSERT INTO equivalencias (id_materia, expressao_original) VALUES (20, '(OPT0001)');`,
+        [disc("OPT0001", "OPTATIVA")]
+    ),
+
+    // R6 — paridade de avalia_equivalencia com frontend/src/lib/utils/expressao-logica.ts
+    av_codigo_unico: avalia("CIC0004", null, ["CIC0004"]),
+    av_e_parcial: avalia({ operador: "E", condicoes: ["FGA0001", "FGA0002"] }, null, ["FGA0001"]),
+    av_e_completo: avalia({ operador: "E", condicoes: ["FGA0001", "FGA0002"] }, null, ["FGA0001", "FGA0002"]),
+    av_aninhado: avalia(
+        { operador: "OU", condicoes: [{ operador: "E", condicoes: ["AAA0001", "BBB0002"] }, "CCC0003"] },
+        null,
+        ["CCC0003"]
+    ),
+    av_legado_e: avalia({ materias: ["MAT0001", "MAT0002"], operador: "E" }, null, ["MAT0001"]),
+    av_legado_ou: avalia({ materias: ["MAT0001", "MAT0002"], operador: "OU" }, null, ["MAT0002"]),
+    av_vazio_cai_no_texto: avalia({}, "( ( MAT0001 E MAT0002 ) OU MAT0003 )", ["MAT0003"]),
+    av_texto_precedencia: avalia({}, "MAT0001 OU MAT0002 E MAT0003", ["MAT0002"]),
+    av_texto_malformado: avalia({}, "( MAT0001 E", ["MAT0001"]),
+    av_nada: avalia({}, null, ["MAT0001"]),
 };
 
 let resultado: ReturnType<typeof rodarCenarios<keyof typeof CENARIOS>>;
@@ -98,6 +169,8 @@ let resultado: ReturnType<typeof rodarCenarios<keyof typeof CENARIOS>>;
 beforeAll(() => {
     resultado = rodarCenarios(MIGRATIONS, CENARIOS);
 }, 180_000);
+
+const codigos = (arr: Json[]) => arr.map((m) => m.codigo).sort();
 
 function r(nome: keyof typeof CENARIOS): Json {
     const res = resultado(nome);
@@ -133,5 +206,70 @@ describe("R5 — resolução de curso/matriz", () => {
 
     it("regressão: PDF com ano continua resolvendo pelo curriculo_completo exato", () => {
         expect(r("r5_com_ano").matriz_curricular).toBe("8150/-2 - 2018.2");
+    });
+});
+
+describe("R6 — equivalência avaliada inteira", () => {
+    it("'(A E B)' com só A NÃO integraliza a obrigatória", () => {
+        const out = r("r6_texto_so_a");
+        expect(codigos(out.materias_concluidas)).toEqual([]);
+        expect(codigos(out.materias_pendentes)).toEqual(["MAT0025"]);
+        expect(out.resumo.percentual_conclusao_obrigatorias).toBe(0);
+    });
+
+    it("'(A E B)' com A e B integraliza como concluida_equivalencia", () => {
+        const out = r("r6_texto_a_e_b");
+        expect(out.materias_concluidas).toHaveLength(1);
+        expect(out.materias_concluidas[0]).toMatchObject({
+            codigo: "MAT0025",
+            status_fluxograma: "concluida_equivalencia",
+        });
+        expect(["AAA0001", "BBB0001"]).toContain(out.materias_concluidas[0].codigo_equivalente);
+        expect(out.materias_pendentes).toEqual([]);
+    });
+
+    it("expressao_logica recursiva com E também exige todas as condições", () => {
+        const out = r("r6_logica_so_a");
+        expect(out.materias_concluidas).toEqual([]);
+        expect(codigos(out.materias_pendentes)).toEqual(["MAT0025"]);
+    });
+
+    it("regressão: com OU, uma das disciplinas basta", () => {
+        const out = r("r6_ou_um_basta");
+        expect(out.materias_concluidas).toHaveLength(1);
+        expect(out.materias_concluidas[0]).toMatchObject({
+            codigo: "MAT0025",
+            status_fluxograma: "concluida_equivalencia",
+            codigo_equivalente: "BBB0001",
+        });
+    });
+
+    it("optativa que é só parte de um 'E' continua optativa e não integraliza nada", () => {
+        const out = r("r6_optativa_parte_de_e");
+        expect(out.materias_concluidas).toEqual([]);
+        expect(codigos(out.materias_optativas)).toEqual(["OPT0001"]);
+    });
+
+    it("optativa que integraliza a obrigatória sozinha sai de materias_optativas (não conta duas vezes)", () => {
+        const out = r("r6_optativa_integraliza");
+        expect(out.materias_concluidas).toHaveLength(1);
+        expect(out.materias_concluidas[0]).toMatchObject({ codigo: "MAT0025", codigo_equivalente: "OPT0001" });
+        expect(out.materias_optativas).toEqual([]);
+        expect(out.resumo.total_optativas).toBe(0);
+    });
+
+    it.each([
+        ["av_codigo_unico", true],
+        ["av_e_parcial", false],
+        ["av_e_completo", true],
+        ["av_aninhado", true],
+        ["av_legado_e", false],
+        ["av_legado_ou", true],
+        ["av_vazio_cai_no_texto", true],
+        ["av_texto_precedencia", false],
+        ["av_texto_malformado", false],
+        ["av_nada", false],
+    ] as const)("avalia_equivalencia: %s → %s", (nome, esperado) => {
+        expect(r(nome)).toBe(esperado);
     });
 });
