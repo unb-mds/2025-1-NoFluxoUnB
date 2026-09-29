@@ -257,7 +257,11 @@ function createUploadStore() {
 					...currentState.extractedData,
 					curso_extraido: courseName,
 					curso_selecionado: courseName,
-					...(selected?.id_curso != null && { id_curso_selecionado: selected.id_curso })
+					...(selected?.id_curso != null && { id_curso_selecionado: selected.id_curso }),
+					// A matriz escolhida no modal. Sem ela, um PDF sem ano ("8117/-2")
+					// empata de novo entre as mesmas matrizes e o RPC devolve outro
+					// COURSE_SELECTION. matriz_curricular fica com o que veio do PDF.
+					...(selected?.matriz_curricular && { matriz_selecionada: selected.matriz_curricular })
 				};
 				const result = await uploadService.casarDisciplinas(dataWithCourse);
 				stopProgressSimulation();
