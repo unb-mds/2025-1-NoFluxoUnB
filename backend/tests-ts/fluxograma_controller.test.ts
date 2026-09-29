@@ -92,8 +92,9 @@ describe('FluxogramaController', () => {
         }
       ];
 
-      // Mock select().like() para cursos
-      const mockLike = jest.fn().mockResolvedValue({ data: mockCursosData, error: null });
+      // Mock select().like().limit() para cursos
+      const mockLimit = jest.fn().mockResolvedValue({ data: mockCursosData, error: null });
+      const mockLike = jest.fn(() => ({ limit: mockLimit }));
       const mockSelectCursos = jest.fn(() => ({ like: mockLike }));
       mockFrom.mockImplementationOnce(() => ({ select: mockSelectCursos }));
 
@@ -123,8 +124,9 @@ describe('FluxogramaController', () => {
       mockRequest.query = { nome_curso: 'Administração' };
       const mockError = { message: 'Database error' };
 
-      // Mock select().like() para cursos (erro)
-      const mockLike = jest.fn().mockResolvedValue({ data: null, error: mockError });
+      // Mock select().like().limit() para cursos (erro)
+      const mockLimit = jest.fn().mockResolvedValue({ data: null, error: mockError });
+      const mockLike = jest.fn(() => ({ limit: mockLimit }));
       const mockSelectCursos = jest.fn(() => ({ like: mockLike }));
       mockFrom.mockImplementationOnce(() => ({ select: mockSelectCursos }));
 
@@ -132,7 +134,8 @@ describe('FluxogramaController', () => {
       await handler(mockRequest as Request, mockResponse as Response);
 
       expect(statusSpy).toHaveBeenCalledWith(500);
-      expect(jsonSpy).toHaveBeenCalledWith({ error: mockError.message });
+      // Mensagem do banco fica só no log (pré-mortem 27/09/2026, R21).
+      expect(jsonSpy).toHaveBeenCalledWith({ error: "Erro ao buscar fluxograma" });
     });
   });
 }); 

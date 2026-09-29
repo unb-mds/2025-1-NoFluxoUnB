@@ -50,6 +50,7 @@ function createMockQueryBuilder(resolvedValue: { data: any; error: any }) {
     const builder: any = {
         select: jest.fn().mockReturnThis(),
         like: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
@@ -124,7 +125,35 @@ describe('ROTA fluxograma (GET)', () => {
         }));
         await handler(req, res);
         expect(status).toHaveBeenCalledWith(500);
-        expect(json).toHaveBeenCalledWith(expect.objectContaining({ error: 'DB connection failed' }));
+        // Mensagem crua do banco fica só no log (pré-mortem 27/09/2026, R21).
+        expect(json).toHaveBeenCalledWith({ error: 'Erro ao buscar fluxograma' });
+    });
+
+    // Pré-mortem 27/09/2026, R21: rota pública concatenava a query direto no
+    // LIKE, então `nome_curso=%` casava todos os cursos (e cada um dispara
+    // mais 3 queries).
+    it('CAIXA-PRETA P4: nome_curso "%" (curto demais) -> 400 sem tocar no banco', async () => {
+        const { req, res, status } = mockReqRes({ query: { nome_curso: '%' } });
+        await handler(req, res);
+        expect(status).toHaveBeenCalledWith(400);
+        expect(mockFromFn).not.toHaveBeenCalled();
+    });
+
+    it('CAIXA-PRETA P5: nome_curso com mais de 120 caracteres -> 400', async () => {
+        const { req, res, status } = mockReqRes({ query: { nome_curso: 'A'.repeat(121) } });
+        await handler(req, res);
+        expect(status).toHaveBeenCalledWith(400);
+        expect(mockFromFn).not.toHaveBeenCalled();
+    });
+
+    it('CAIXA-BRANCA: curingas do termo sao escapados e a busca tem limit', async () => {
+        const builder = createMockQueryBuilder({ data: [], error: null });
+        mockFromFn.mockReturnValue(builder);
+        const { req, res, status } = mockReqRes({ query: { nome_curso: 'ENG%_X*\\' } });
+        await handler(req, res);
+        expect(status).toHaveBeenCalledWith(200);
+        expect(builder.like).toHaveBeenCalledWith('nome_curso', '%ENG\\%\\_X\\\\%');
+        expect(builder.limit).toHaveBeenCalledWith(10);
     });
 
     it('CAIXA-PRETA P3: curso valido sem sub-materias -> 200 com data vazia', async () => {
@@ -348,6 +377,16 @@ describe('ROTA casar_disciplinas (POST)', () => {
         });
         await handler(req, res);
         expect(status).toHaveBeenCalledWith(500);
+    });
+
+    it('CAIXA-BRANCA: curso_extraido do PDF tem curingas escapados no LIKE', async () => {
+        const builder = createMockQueryBuilder({ data: null, error: { message: 'x' } });
+        mockFromFn.mockReturnValue(builder);
+        const { req, res } = mockReqRes({
+            body: { dados_extraidos: { curso_extraido: '%', extracted_data: [] } },
+        });
+        await handler(req, res);
+        expect(builder.like).toHaveBeenCalledWith('nome_curso', '%\\%%');
     });
 
     it('CAIXA-PRETA P3: curso nao encontrado no banco -> 404', async () => {
