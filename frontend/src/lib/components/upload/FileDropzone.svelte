@@ -194,7 +194,7 @@
 		border-radius: 9999px;
 		background: hsl(var(--primary));
 		border: 2px solid hsl(var(--primary) / 0.55);
-		color: #ffffff;
+		color: hsl(var(--primary-foreground));
 		margin-bottom: 0.5rem;
 		transition: transform 0.2s ease;
 		box-shadow:
@@ -203,8 +203,8 @@
 	}
 
 	.icon-wrap :global(svg) {
-		color: #ffffff;
-		stroke: #ffffff;
+		color: hsl(var(--primary-foreground));
+		stroke: currentColor;
 	}
 
 	.dropzone--drag .icon-wrap {
@@ -234,10 +234,14 @@
 		background: hsl(var(--primary) / 0.3);
 	}
 
+	/*
+	 * --muted-foreground puro fica em 4,45:1 sobre o tint roxo do dropzone no tema
+	 * claro (e 4,03:1 arrastando). O foreground a 72% passa nos dois temas.
+	 */
 	.divider-text {
 		font-size: 0.8125rem;
 		font-weight: 500;
-		color: hsl(var(--muted-foreground));
+		color: hsl(var(--foreground) / 0.72);
 	}
 
 	.select-btn {
@@ -280,6 +284,6 @@
 		text-align: center;
 		font-size: 0.8125rem;
 		line-height: 1.45;
-		color: hsl(var(--muted-foreground));
+		color: hsl(var(--foreground) / 0.72);
 	}
 </style>

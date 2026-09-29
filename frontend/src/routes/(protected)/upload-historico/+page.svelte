@@ -81,7 +81,7 @@
 			<div class="mb-6 flex justify-center">
 				<button
 					type="button"
-					class="flex w-full items-center justify-center gap-2 rounded-xl border border-purple-500/30 bg-purple-500/10 px-6 py-3.5 text-[15px] font-semibold text-purple-300 shadow-sm transition-all hover:border-purple-500/50 hover:bg-purple-500/20 hover:text-purple-200 sm:w-auto sm:py-2.5 sm:text-sm sm:font-medium"
+					class="flex w-full items-center justify-center gap-2 rounded-xl border border-purple-500/30 bg-purple-500/10 px-6 py-3.5 text-[15px] font-semibold text-purple-700 shadow-sm transition-all hover:border-purple-500/50 hover:bg-purple-500/20 hover:text-purple-800 dark:text-purple-300 dark:hover:text-purple-200 sm:w-auto sm:py-2.5 sm:text-sm sm:font-medium"
 					onclick={openManualMode}
 				>
 					Preencha manualmente
@@ -111,8 +111,8 @@
 					aluno subir o PDF de novo por causa de um clique fora do modal.
 				-->
 				<div class="error-state">
-					<div class="error-icon">
-						<AlertTriangle class="size-10 text-amber-400" stroke-width="2" />
+					<div class="error-icon error-icon--warning">
+						<AlertTriangle class="text-status-warning size-10" stroke-width="2" />
 					</div>
 					<div class="error-copy">
 						<h3 class="error-title">Falta escolher seu curso</h3>
@@ -136,7 +136,7 @@
 			{:else if $uploadStore.state === 'error'}
 				<div class="error-state">
 					<div class="error-icon">
-						<AlertTriangle class="size-10 text-red-400" stroke-width="2" />
+						<AlertTriangle class="text-status-danger size-10" stroke-width="2" />
 					</div>
 					<div class="error-copy">
 						<h3 class="error-title">Não foi possível processar</h3>
@@ -223,8 +223,13 @@
 		align-items: center;
 		justify-content: center;
 		border-radius: 9999px;
-		background: hsl(0 72% 51% / 0.1);
-		border: 1px solid hsl(0 72% 51% / 0.22);
+		background: hsl(var(--status-danger) / 0.1);
+		border: 1px solid hsl(var(--status-danger) / 0.3);
+	}
+
+	.error-icon--warning {
+		background: hsl(var(--status-warning) / 0.1);
+		border-color: hsl(var(--status-warning) / 0.3);
 	}
 
 	.error-copy {
@@ -256,7 +261,7 @@
 		font-weight: 600;
 		color: hsl(var(--foreground));
 		background: hsl(var(--secondary) / 0.55);
-		border: 1px solid hsl(0 0% 100% / 0.12);
+		border: 1px solid hsl(var(--border));
 		cursor: pointer;
 		transition:
 			background 0.15s ease,
@@ -265,7 +270,7 @@
 
 	.retry-btn:hover {
 		background: hsl(var(--secondary) / 0.85);
-		border-color: hsl(0 0% 100% / 0.18);
+		border-color: hsl(var(--foreground) / 0.25);
 	}
 
 	/* Saída secundária: descartar o histórico lido é a opção menos provável. */
