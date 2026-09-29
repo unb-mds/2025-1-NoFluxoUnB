@@ -42,9 +42,15 @@ export interface SabiaResponse {
     usage?: SabiaUsage[];
 }
 
+/** Ping do /health do mcp_agent: timeout e validade do resultado em cache. */
+export const SABIA_PING_TIMEOUT_MS = 2000;
+export const SABIA_PING_CACHE_MS = 30_000;
+
 export class SabiaService {
     private readonly apiUrl: string;
     private readonly available: boolean;
+    private pingCache: { ok: boolean; expiraEm: number } | null = null;
+    private pingEmVoo: Promise<boolean> | null = null;
 
     constructor() {
         this.apiUrl = process.env.SABIA_API_URL ?? 'http://localhost:8000';
@@ -77,6 +83,36 @@ export class SabiaService {
     /** Whether the Sabiá service is properly configured */
     isAvailable(): boolean {
         return this.available;
+    }
+
+    /**
+     * O mcp_agent responde de verdade? isAvailable() só olha env vars, então o
+     * /assistente/health dizia 'healthy' com o Python fora do ar (pré-mortem
+     * 27/09/2026, R52). Timeout curto e cache em memória para o health não
+     * virar amplificador de carga; pings simultâneos compartilham a mesma
+     * requisição. Nunca lança.
+     */
+    async ping(timeoutMs: number = SABIA_PING_TIMEOUT_MS): Promise<boolean> {
+        if (!this.available) return false;
+        if (this.pingCache && this.pingCache.expiraEm > Date.now()) return this.pingCache.ok;
+        if (this.pingEmVoo) return this.pingEmVoo;
+
+        this.pingEmVoo = (async () => {
+            let ok = false;
+            try {
+                const response = await fetch(`${this.apiUrl}/health`, { signal: AbortSignal.timeout(timeoutMs) });
+                ok = response.ok;
+                if (!ok) logger.warn(`[SabiaService] /health respondeu ${response.status}`);
+            } catch (error) {
+                const msg = error instanceof Error ? error.message : String(error);
+                logger.warn(`[SabiaService] /health falhou: ${msg}`);
+            }
+            this.pingCache = { ok, expiraEm: Date.now() + SABIA_PING_CACHE_MS };
+            return ok;
+        })().finally(() => {
+            this.pingEmVoo = null;
+        });
+        return this.pingEmVoo;
     }
 
     /**

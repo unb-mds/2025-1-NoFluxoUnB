@@ -154,9 +154,15 @@ export const AssistenteController: EndpointController = {
             // provedores estavam configurados (ragflowConfigured / sabiaConfigured)
             // para qualquer um sem autenticação. Resposta resumida agora:
             // só 'healthy' | 'degraded' | 'down' — sem revelar a infra interna.
-            const anyUp = ragflow.isAvailable() || sabia.isAvailable();
-            return res.json({
-                status: anyUp ? 'healthy' : 'degraded',
+            // O Sabiá (motor usado pelo frontend) é pingado de verdade, com
+            // timeout curto e cache (ver SabiaService.ping); antes o status só
+            // olhava env vars e dizia 'healthy' com o Python fora do ar.
+            const sabiaUp = sabia.isAvailable() && await sabia.ping();
+            const status = sabiaUp
+                ? 'healthy'
+                : (ragflow.isAvailable() || sabia.isAvailable()) ? 'degraded' : 'down';
+            return res.status(status === 'down' ? 503 : 200).json({
+                status,
                 service: 'AI Assistant',
                 timestamp: new Date().toISOString(),
             });
