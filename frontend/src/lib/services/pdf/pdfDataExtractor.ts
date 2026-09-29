@@ -412,8 +412,19 @@ export function calcularNumeroSemestre(
 // ─── Helpers for name/professor line detection ───
 
 /** Full metadata exclusion pattern — used both for skipping data lines and for prevLine name checks */
-const RE_METADATA_LINE =
-  /^(SIGAA|UnB|DEG|SAA|Campus|Credenciada|na seção|Histórico|Dados|Nome:|Data de|Nacionalidade|Nº do|Curso:|Status:|Índices|Ênfase|IRA:|Currículo|Reconhecimento|Ano \/|Forma de|Período Letivo Atual|Suspensões|Prorrogações|Tipo Saída|Data de Saída|Trabalho|Data da|Componentes Curriculares|Ano\/Período|Letivo\s+Componente|Legenda|SIGLA|Para verificar|Página|e o código|Carga Horária|Obrigatórias|Exigido|Integralizado|Pendente\s|Código\s+Componente|Observações|Atenção|Menções|Equivalências|Matrícula|Perfil|INGRESSANTE|Optativos|Complementares|Total|REP\s|REPF\s|REPMF\s|TRANC\s|CUMP\s|APR\s|CANC\s|DISP\s|MATR\s|Nenhum|Descrição|Fecha|Turma|Frequência|\d+\s*h\s*$)/i;
+const RE_METADATA_LINE_CI =
+  /^(SIGAA|UnB|DEG|SAA|Credenciada|na seção|Histórico|Dados|Nome:|Data de|Nacionalidade|Nº do|Curso:|Status:|Índices|Ênfase|IRA:|Reconhecimento|Ano \/|Forma de|Período Letivo Atual|Suspensões|Prorrogações|Tipo Saída|Data de Saída|Data da|Componentes Curriculares|Ano\/Período|Letivo\s+Componente|Legenda|SIGLA|Para verificar|Página|e o código|Carga Horária|Obrigatórias|Exigido|Integralizado|Pendente\s|Código\s+Componente|Observações|Menções|Equivalências|Matrícula|Perfil|INGRESSANTE|Optativos|Complementares|Total|REP\s|REPF\s|REPMF\s|TRANC\s|CUMP\s|APR\s|CANC\s|DISP\s|MATR\s|Nenhum|Fecha|Turma|Frequência|\d+\s*h\s*$)/i;
+
+/**
+ * Rótulos que também abrem nome de disciplina ("TRABALHO DE CONCLUSÃO DE CURSO 1",
+ * "ATENÇÃO PRIMÁRIA À SAÚDE", "CURRÍCULO", "CAMPUS MULTIMÍDIA"): sem /i, porque no
+ * SIGAA o rótulo vem em Title Case e o nome da disciplina em CAIXA ALTA (pré-mortem R4).
+ */
+const RE_METADATA_LINE_CS = /^(Campus|Currículo|Trabalho|Atenção|Descrição)/;
+
+function isMetadataLine(line: string): boolean {
+  return RE_METADATA_LINE_CI.test(line) || RE_METADATA_LINE_CS.test(line);
+}
 
 /** Detects professor lines: starts with Dr./Dra./MSc./Prof. or contains "(XXh)" pattern */
 function isProfessorLine(line: string): boolean {
@@ -434,7 +445,7 @@ function isValidNameLine(
   if (!/^[A-ZÀ-ÿ]/.test(line)) return false;
   if (reDataLine.test(line)) return false;
   if (reSituacao.test(line)) return false;
-  if (RE_METADATA_LINE.test(line)) return false;
+  if (isMetadataLine(line)) return false;
   if (/^\d{4}\.\d/.test(line)) return false;
   if (isProfessorLine(line)) return false;
   // Skip lines that look like pending discipline entries: "CODE  NAME  CH h" or "CODE-NAME..."
@@ -481,7 +492,7 @@ function extrairDisciplinasDaLinha(
     const line = linhas[i];
 
     // Skip header/footer/legend lines
-    if (RE_METADATA_LINE.test(line.trim())) {
+    if (isMetadataLine(line.trim())) {
       continue;
     }
 
