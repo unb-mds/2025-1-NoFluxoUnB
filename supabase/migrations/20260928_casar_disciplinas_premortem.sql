@@ -14,7 +14,8 @@
 --   R7  equivalências filtradas pelo curso/currículo do aluno (mesma precedência do
 --       front) e sem as de data_vigencia futura.
 --   R15 disciplina casada só em outra matriz do curso sai com tipo 'outra_matriz' e não
---       conta como obrigatória concluída.
+--       conta como obrigatória concluída; se for equivalente sozinha a uma disciplina
+--       da matriz atual, casa com ela (optativa antiga ≡ optativa atual segue optativa).
 --   R17 obrigatória reprovada/em curso + equivalente aprovada: integraliza por equivalência.
 --
 -- Reverter: rodar de novo, no SQL Editor, o bloco
@@ -692,6 +693,13 @@ BEGIN
       INTO v_match_id, v_match_codigo, v_match_nome, v_match_nivel, v_match_tipo_natureza
       FROM _mat_x WHERE lower(trim(nome)) = lower(v_disc_nome) LIMIT 1;
       IF v_match_id IS NOT NULL THEN v_match_origem := 'outra_matriz'; END IF;
+    END IF;
+
+    -- R15: achada só em outra matriz, mas equivalente sozinha a uma disciplina da matriz
+    -- atual: vale a da matriz atual (optativa antiga ≡ optativa nova segue optativa, em
+    -- vez de virar 'outra_matriz' e sumir de materias_optativas; 7b só olha obrigatórias).
+    IF v_match_origem = 'outra_matriz' AND EXISTS (SELECT 1 FROM _eq_map WHERE codigo_eq = v_disc_codigo) THEN
+      v_match_id := NULL;
     END IF;
 
     -- Try 4: equivalency code map

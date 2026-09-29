@@ -96,6 +96,20 @@ function avalia(logica: unknown, texto: string | null, cursadas: string[]): Job 
     };
 }
 
+/** ENGSOFT 6360/1 (antiga) e 6360/2 (atual), cada uma com uma obrigatória e uma optativa
+ *  próprias, e as equivalências antiga → atual das duas. */
+const ENGSOFT_DUAS_MATRIZES = `
+  INSERT INTO cursos (id_curso, nome_curso, tipo_curso, turno) VALUES (6360, 'ENGENHARIA DE SOFTWARE', 'Bacharelado', 'DIURNO');
+  INSERT INTO matrizes (id_matriz, id_curso, versao, ano_vigor, curriculo_completo) VALUES
+    (1, 6360, '1', '2017.1', '6360/1 - 2017.1'), (2, 6360, '2', '2024.1', '6360/2 - 2024.1');
+  INSERT INTO materias (id_materia, nome_materia, codigo_materia, carga_horaria) VALUES
+    (10, 'OBRIGATORIA ANTIGA', 'OLD0001', 60), (11, 'OPTATIVA ANTIGA', 'OPT0001', 60),
+    (20, 'OBRIGATORIA NOVA', 'NEW0001', 60), (21, 'OPTATIVA NOVA', 'OPT0002', 60);
+  INSERT INTO materias_por_curso (id_materia, nivel, id_matriz, tipo_natureza) VALUES
+    (10, 1, 1, 0), (11, 0, 1, 1), (20, 1, 2, 0), (21, 0, 2, 1);
+  INSERT INTO equivalencias (id_materia, expressao_original) VALUES (20, '(OLD0001)'), (21, '(OPT0001)');
+`;
+
 const EQ_A_E_B_TEXTO = `INSERT INTO equivalencias (id_materia, expressao_original) VALUES (20, '(AAA0001 E BBB0001)');`;
 
 const CENARIOS = {
@@ -196,6 +210,17 @@ const CENARIOS = {
             extracted_data: [disc("OLD0001", "DISCIPLINA SO DO CURRICULO ANTIGO"), disc("NEW0002", "DISCIPLINA NOVA B")],
         }
     ),
+
+    r15_optativa_antiga_equivalente: casar(ENGSOFT_DUAS_MATRIZES, {
+        curso_extraido: "ENGENHARIA DE SOFTWARE",
+        matriz_curricular: "6360/2 - 2024.1",
+        extracted_data: [disc("OPT0001", "OPTATIVA ANTIGA")],
+    }),
+    r15_obrigatoria_antiga_equivalente: casar(ENGSOFT_DUAS_MATRIZES, {
+        curso_extraido: "ENGENHARIA DE SOFTWARE",
+        matriz_curricular: "6360/2 - 2024.1",
+        extracted_data: [disc("OLD0001", "OBRIGATORIA ANTIGA")],
+    }),
 
     // R17 — obrigatória reprovada/em curso + equivalente aprovada
     r17_rep_optativa_equivalente: engsoftAluno(
@@ -383,6 +408,33 @@ describe("R15 — disciplina de outra matriz do curso", () => {
         expect(old).toMatchObject({ tipo: "outra_matriz", encontrada_no_banco: true });
         // nem vira optativa (inflaria a CH optativa)
         expect(out.materias_optativas).toEqual([]);
+    });
+});
+
+describe("R15 — disciplina de outra matriz com equivalência na matriz atual", () => {
+    it("optativa da matriz antiga equivalente a optativa da atual continua contando como optativa", () => {
+        const out = r("r15_optativa_antiga_equivalente");
+        expect(out.resumo.total_optativas).toBe(1);
+        expect(codigos(out.materias_optativas)).toEqual(["OPT0002"]);
+        expect(out.materias_optativas[0].status_fluxograma).toBe("concluida");
+        const casada = out.disciplinas_casadas.find((d: Json) => d.codigo_historico === "OPT0001");
+        expect(casada).toMatchObject({ tipo: "optativa", codigo_materia: "OPT0002" });
+        // e não vira obrigatória
+        expect(out.materias_concluidas).toEqual([]);
+        expect(out.resumo.total_obrigatorias).toBe(1);
+    });
+
+    it("regressão: obrigatória antiga equivalente integraliza a atual uma vez só", () => {
+        const out = r("r15_obrigatoria_antiga_equivalente");
+        expect(out.materias_concluidas).toHaveLength(1);
+        expect(out.materias_concluidas[0]).toMatchObject({
+            codigo: "NEW0001",
+            status_fluxograma: "concluida_equivalencia",
+            codigo_equivalente: "OLD0001",
+        });
+        expect(out.materias_pendentes).toEqual([]);
+        expect(out.materias_optativas).toEqual([]);
+        expect(out.resumo).toMatchObject({ total_obrigatorias: 1, percentual_conclusao_obrigatorias: 100 });
     });
 });
 
