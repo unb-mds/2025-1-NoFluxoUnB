@@ -6,6 +6,9 @@
 --   R5  resolução de matriz: o código do currículo ("8117/-2") filtra os candidatos
 --       por id_curso antes da versão; empate de versão vira COURSE_SELECTION em vez
 --       de LIMIT 1 sem ORDER BY (PEDAGOGIA diurno x noturno, ENGENHARIA x ENG. SOFTWARE).
+--       O retry do modal manda matriz_selecionada (curriculo_completo escolhido), que tem
+--       precedência sobre matriz_curricular; sem ela (bundle antigo), id_curso_selecionado
+--       com empate resolve na matriz de ano_vigor mais recente, para não voltar ao modal.
 --   R6  equivalência "A E B": a expressão é avaliada inteira (avalia_equivalencia), e não
 --       mais "qualquer código citado na expressão serve".
 --   R7  equivalências filtradas pelo curso/currículo do aluno (mesma precedência do
@@ -177,6 +180,7 @@ DECLARE
   v_frequencia_geral  numeric;
   v_id_curso_sel      bigint;
   v_curso_sel         text;
+  v_matriz_sel        text;   -- curriculo_completo escolhido no modal (R5)
 
   -- Course resolution
   v_id_curso          bigint;
@@ -234,6 +238,14 @@ BEGIN
   v_frequencia_geral  := (p_dados->>'frequencia_geral')::numeric;
   v_id_curso_sel      := (p_dados->>'id_curso_selecionado')::bigint;
   v_curso_sel         := p_dados->>'curso_selecionado';
+  v_matriz_sel        := trim(coalesce(p_dados->>'matriz_selecionada', ''));
+
+  -- R5: a matriz escolhida no COURSE_SELECTION vale mais que a do PDF. O PDF pode vir
+  -- sem ano ("8117/-2") e empatar de novo entre as mesmas matrizes; a escolha é o
+  -- curriculo_completo exato, que o passo 2c casa sozinho.
+  IF v_matriz_sel <> '' THEN
+    v_matriz_curricular := v_matriz_sel;
+  END IF;
 
   IF v_extracted_data IS NULL
      OR jsonb_array_length(coalesce(v_extracted_data, '[]'::jsonb)) = 0
@@ -464,6 +476,20 @@ BEGIN
           END IF;
         END resolve_versao;
       END IF;
+    END IF;
+
+    -- R5: o aluno já escolheu o curso no modal, mas o cliente não mandou a matriz
+    -- (bundle anterior a matriz_selecionada). Devolver COURSE_SELECTION de novo prenderia
+    -- o upload num loop; resolve pela matriz mais recente entre as empatadas.
+    IF v_id_matriz IS NULL AND v_id_curso_sel IS NOT NULL AND v_matriz_sel = ''
+       AND (SELECT count(DISTINCT id_curso) FROM _cand) = 1
+    THEN
+      SELECT ca.id_curso, ca.nome_curso, ca.id_matriz, ca.curriculo
+      INTO v_id_curso, v_nome_curso, v_id_matriz, v_curriculo
+      FROM _cand ca
+      JOIN matrizes m ON m.id_matriz = ca.id_matriz
+      ORDER BY m.ano_vigor DESC NULLS LAST, ca.id_matriz DESC
+      LIMIT 1;
     END IF;
 
     IF v_id_matriz IS NULL THEN

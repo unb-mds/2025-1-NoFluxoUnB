@@ -7,7 +7,7 @@
  * esperando o resultado certo.
  */
 
-import { Job, rodarCenarios } from "./pglite_supabase";
+import { Job, rodarCenarios, rodarNoBanco } from "./pglite_supabase";
 
 const MIGRATIONS = ["20260928_casar_disciplinas_premortem.sql"];
 
@@ -426,4 +426,53 @@ describe("R17 — obrigatória reprovada + equivalente aprovada", () => {
         expect(out.materias_pendentes).toHaveLength(1);
         expect(out.resumo.total_obrigatorias).toBe(1);
     });
+});
+
+describe("R5 — retry do COURSE_SELECTION (uploadStore.retryWithSelectedCourse)", () => {
+    // O que o extrator devolve quando o PDF não traz o ano da matriz.
+    const extraido = {
+        curso_extraido: "PEDAGOGIA",
+        matriz_curricular: "8117/-2",
+        extracted_data: [disc("PED0001", "X")],
+    };
+
+    /** Payload que o store monta depois do clique no modal (mesmos campos, mesma origem). */
+    function retry(escolhida: Json, comMatriz = true): Json {
+        return {
+            ...extraido,
+            curso_extraido: escolhida.nome_curso,
+            curso_selecionado: escolhida.nome_curso,
+            id_curso_selecionado: escolhida.id_curso,
+            ...(comMatriz && { matriz_selecionada: escolhida.matriz_curricular }),
+        };
+    }
+
+    const chamar = (payload: Json) => rodarNoBanco(MIGRATIONS, [casar(PEDAGOGIA_DOIS_ANOS_MESMA_VERSAO, payload)])[0];
+    const saida = (res: ReturnType<typeof chamar>): Json => {
+        if (res.rows === undefined) throw new Error(res.error);
+        return res.rows[0].r;
+    };
+
+    let opcoes: Json[];
+
+    beforeAll(() => {
+        const primeira = saida(chamar(extraido));
+        expect(primeira.type).toBe("COURSE_SELECTION");
+        opcoes = primeira.cursos_disponiveis;
+        expect(opcoes.map((c) => c.matriz_curricular)).toEqual(["8117/-2 - 2018.2", "8117/-2 - 2020.1"]);
+    }, 180_000);
+
+    it.each([0, 1])("2ª chamada com a matriz escolhida (opção %i) devolve o resultado daquela matriz", (i) => {
+        const out = saida(chamar(retry(opcoes[i])));
+        expect(out.type).toBeUndefined();
+        expect(out.error).toBeUndefined();
+        expect(out.matriz_curricular).toBe(opcoes[i].matriz_curricular);
+        expect(codigos(out.materias_concluidas)).toEqual(["PED0001"]);
+    }, 180_000);
+
+    it("bundle antigo (só id_curso_selecionado, sem matriz_selecionada) não fica em loop: resolve a matriz mais recente", () => {
+        const out = saida(chamar(retry(opcoes[0], false)));
+        expect(out.type).toBeUndefined();
+        expect(out.matriz_curricular).toBe("8117/-2 - 2020.1");
+    }, 180_000);
 });
