@@ -54,3 +54,28 @@ describe('deploy.yml só publica com CI verde (pré-mortem 27/09/2026, R23)', ()
         expect(checkout.with.ref).toBe('${{ github.event.workflow_run.head_sha || github.sha }}');
     });
 });
+
+describe('security-and-quality.yml audita o frontend (pré-mortem 27/09/2026, R56)', () => {
+    const arquivo = 'security-and-quality.yml';
+    const bruto = fs.readFileSync(path.join(WORKFLOWS, arquivo), 'utf8');
+    const steps: any[] = carregar(arquivo).jobs['security-scan'].steps;
+    const audit = steps.find(s => s['working-directory'] === 'frontend' && /npm audit/.test(String(s.run)));
+
+    it('roda npm audit de produção, nível high, em frontend/', () => {
+        expect(audit).toBeDefined();
+        expect(audit.run).toContain('--omit=dev');
+        expect(audit.run).toContain('--audit-level=high');
+    });
+
+    it('se não bloquear o CI, o motivo está registrado num TODO(R56)', () => {
+        if (audit?.['continue-on-error'] === true) {
+            expect(bruto).toMatch(/TODO\(R56\)/);
+        }
+    });
+
+    it('o audit do backend continua bloqueante', () => {
+        const backend = steps.find(s => s['working-directory'] === 'backend' && /npm audit/.test(String(s.run)));
+        expect(backend).toBeDefined();
+        expect(backend['continue-on-error']).toBeUndefined();
+    });
+});
