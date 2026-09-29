@@ -18,8 +18,9 @@
  * atuador segue o mesmo padrão de dois passos.
  */
 import { z } from "zod";
-import { Agent, run, tool, OutputGuardrailTripwireTriggered } from "@openai/agents";
-import type { OutputGuardrail } from "@openai/agents";
+import { Agent, tool, OutputGuardrailTripwireTriggered } from "@openai/agents";
+import type { OutputGuardrail, RunContext } from "@openai/agents";
+import { runSubAgente } from "../sub_run";
 import { SupabaseWrapper } from "../../../supabase_wrapper";
 import { montarDadosPlano } from "../../../controllers/PlanejamentoController";
 import {
@@ -530,19 +531,24 @@ function motivoDaReprovacaoGrade(erro: OutputGuardrailTripwireTriggered<any>): s
  * em vez de devolver um código não verificado ou estourar erro pro usuário — nunca
  * tenta uma terceira vez.
  */
-export async function runGradeComRevisao(agent: Agent, input: string): Promise<string> {
+export async function runGradeComRevisao(
+    agent: Agent,
+    input: string,
+    pai?: RunContext<unknown>
+): Promise<string> {
     try {
-        const resultado = await run(agent, input);
+        const resultado = await runSubAgente(agent, input, pai);
         return String(resultado.finalOutput ?? "");
     } catch (erro) {
         if (!(erro instanceof OutputGuardrailTripwireTriggered)) throw erro;
 
         const motivo = motivoDaReprovacaoGrade(erro);
         try {
-            const resultadoCorrigido = await run(
+            const resultadoCorrigido = await runSubAgente(
                 agent,
                 `${input}\n\n[Revisão automática] Sua resposta anterior foi rejeitada: ${motivo}. ` +
-                    "Responda de novo, citando só códigos que vieram da tool recomendar_por_horario_livre."
+                    "Responda de novo, citando só códigos que vieram da tool recomendar_por_horario_livre.",
+                pai
             );
             return String(resultadoCorrigido.finalOutput ?? "");
         } catch (segundoErro) {

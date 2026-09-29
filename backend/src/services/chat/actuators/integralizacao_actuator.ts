@@ -10,8 +10,9 @@
  */
 
 import { z } from "zod";
-import { Agent, run, tool, OutputGuardrailTripwireTriggered } from "@openai/agents";
-import type { OutputGuardrail } from "@openai/agents";
+import { Agent, tool, OutputGuardrailTripwireTriggered } from "@openai/agents";
+import type { OutputGuardrail, RunContext } from "@openai/agents";
+import { runSubAgente } from "../sub_run";
 import { SupabaseWrapper } from "../../../supabase_wrapper";
 import { createMaritacaModel } from "../model_provider";
 
@@ -148,19 +149,24 @@ function motivoDaReprovacao(erro: OutputGuardrailTripwireTriggered<any>): string
  * usuário. Não roda em toda mensagem — só no caminho raro em que a 1ª tentativa já
  * falhou a revisão.
  */
-export async function runIntegralizacaoComRevisao(agent: Agent, input: string): Promise<string> {
+export async function runIntegralizacaoComRevisao(
+    agent: Agent,
+    input: string,
+    pai?: RunContext<unknown>
+): Promise<string> {
     try {
-        const resultado = await run(agent, input);
+        const resultado = await runSubAgente(agent, input, pai);
         return String(resultado.finalOutput ?? "");
     } catch (erro) {
         if (!(erro instanceof OutputGuardrailTripwireTriggered)) throw erro;
 
         const motivo = motivoDaReprovacao(erro);
         try {
-            const resultadoCorrigido = await run(
+            const resultadoCorrigido = await runSubAgente(
                 agent,
                 `${input}\n\n[Revisão automática] Sua resposta anterior foi rejeitada: ${motivo}. ` +
-                    "Responda de novo, usando exatamente os números retornados pela tool consultar_integralizacao."
+                    "Responda de novo, usando exatamente os números retornados pela tool consultar_integralizacao.",
+                pai
             );
             return String(resultadoCorrigido.finalOutput ?? "");
         } catch (segundoErro) {

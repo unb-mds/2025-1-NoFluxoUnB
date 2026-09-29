@@ -109,7 +109,7 @@ jest.mock("../src/controllers/PlanejamentoController", () => ({
 import { maskLivre, slotMaskFromHorario } from "../src/utils/horario_slots";
 import { recomendarPorHorarioLivre } from "../src/services/chat/actuators/grade_actuator";
 import { montarDadosPlano } from "../src/controllers/PlanejamentoController";
-import { run, OutputGuardrailTripwireTriggered } from "@openai/agents";
+import { run, OutputGuardrailTripwireTriggered, RunContext } from "@openai/agents";
 import { createGradeAgent, runGradeComRevisao, RESPOSTA_ESCALONAMENTO_GRADE } from "../src/services/chat/actuators/grade_actuator";
 
 const mockCreate = jest.fn();
@@ -918,5 +918,37 @@ describe("recomendarPorHorarioLivre — turma achada via equivalência", () => {
         );
 
         expect((resultado as any).candidatos).toEqual([]);
+    });
+});
+
+describe("runGradeComRevisao — custo somado ao run do orquestrador", () => {
+    it("reprovou, reexecutou e corrigiu: as duas execuções entram no usage do pai", async () => {
+        mockCreate.mockClear();
+        let tentativa = 0;
+        const usage = { prompt_tokens: 7, completion_tokens: 3, total_tokens: 10 };
+        mockCreate.mockImplementation(async (req: any) => {
+            const jaTemTool = req.messages.some((m: any) => m.role === "tool");
+            if (!jaTemTool) {
+                return {
+                    choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "recomendar_por_horario_livre", arguments: "{}" } }] } }],
+                    usage,
+                };
+            }
+            tentativa++;
+            const codigo = tentativa === 1 ? "FGA9999" : "FGA0001";
+            return { choices: [{ message: { role: "assistant", content: `Beleza! [MONTAR_GRADE|${codigo}]` } }], usage };
+        });
+        db.turmas.push({ id_materia: 1, ano_periodo: "2026.2", horario: "2M12" });
+
+        const pai = new RunContext<unknown>();
+        const freeMaskTotal = (1n << 96n) - 1n;
+        const agente = createGradeAgent("aluno@unb.br", "8117/-2 - 2018.2", freeMaskTotal.toString(), "2026.2");
+        await runGradeComRevisao(agente, "me recomenda algo pro horário livre", pai);
+
+        // 1ª execução (reprovada pelo revisor, mas já paga) + reexecução = 4 chamadas.
+        expect(mockCreate).toHaveBeenCalledTimes(4);
+        expect(pai.usage.requests).toBe(4);
+        expect(pai.usage.inputTokens).toBe(28);
+        expect(pai.usage.outputTokens).toBe(12);
     });
 });
