@@ -17,6 +17,7 @@ import {
 	injetarEquivalenciasDoPdf
 } from '$lib/factories';
 import { FLUXOGRAMA_SCHEMA_VERSION } from '$lib/config/release';
+import { matrizResolvidaParaSalvar } from '$lib/utils/matriz-resolvida';
 import { supabaseDataService } from '$lib/services/supabase-data.service';
 
 export type UploadState = 'initial' | 'uploading' | 'processing' | 'success' | 'error';
@@ -314,7 +315,8 @@ function createUploadStore() {
 					nomeCurso: ext?.curso_extraido ?? '',
 					matricula: ext?.matricula ?? '',
 					anoAtual: ext?.semestre_atual ?? '',
-					matrizCurricular: ext?.matriz_curricular ?? '',
+					// Matriz que o RPC usou (inclui a escolhida no COURSE_SELECTION), não a do PDF.
+					matrizCurricular: matrizResolvidaParaSalvar(cd as { matriz_curricular?: unknown }, ext?.matriz_curricular),
 					semestreAtual: ext?.numero_semestre ?? 0,
 					suspensoes: ext?.suspensoes ?? []
 				};

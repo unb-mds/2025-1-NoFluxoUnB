@@ -5,12 +5,16 @@ vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
 vi.mock('svelte-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('$lib/stores/plano-formatura.store.svelte', () => ({ planoFormaturaStore: { reset: vi.fn() } }));
 vi.mock('$lib/stores/auth', () => ({ authStore: { getUser: vi.fn(), updateDadosFluxograma: vi.fn() } }));
-vi.mock('$lib/services/supabase-data.service', () => ({ supabaseDataService: {} }));
+vi.mock('$lib/services/supabase-data.service', () => ({
+	supabaseDataService: { saveFluxogramaData: vi.fn().mockResolvedValue(undefined) }
+}));
 vi.mock('$lib/services/upload.service', () => ({
 	uploadService: { parsePdfLocally: vi.fn(), casarDisciplinas: vi.fn() }
 }));
 
 import { uploadService } from '$lib/services/upload.service';
+import { supabaseDataService } from '$lib/services/supabase-data.service';
+import { authStore } from '$lib/stores/auth';
 import { uploadStore } from './uploadStore';
 
 const EXTRAIDO = {
@@ -80,5 +84,21 @@ describe('uploadStore.retryWithSelectedCourse — matriz escolhida no COURSE_SEL
 
 		const payload = vi.mocked(uploadService.casarDisciplinas).mock.calls[1][0] as Record<string, unknown>;
 		expect(payload).not.toHaveProperty('matriz_selecionada');
+	});
+
+	it('ao salvar, grava a matriz escolhida (devolvida pelo RPC), não a do PDF', async () => {
+		vi.mocked(uploadService.casarDisciplinas).mockResolvedValueOnce({
+			...SUCESSO,
+			matriz_curricular: '8117/-2 - 2020.1'
+		} as never);
+		await uploadStore.retryWithSelectedCourse(OPCOES[1].nome_curso, OPCOES[1]);
+		vi.mocked(authStore.getUser).mockReturnValue({ idUser: 1 } as never);
+
+		await uploadStore.saveAndNavigate();
+
+		const save = vi.mocked(supabaseDataService.saveFluxogramaData);
+		expect(save).toHaveBeenCalled();
+		const salvo = JSON.stringify(save.mock.calls.at(-1)![1]);
+		expect(salvo).toContain('8117/-2 - 2020.1');
 	});
 });
