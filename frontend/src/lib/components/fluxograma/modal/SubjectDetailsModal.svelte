@@ -9,7 +9,7 @@
 		import { portal } from '$lib/actions/portal';
 import { ROUTES } from '$lib/config/routes';
 	import { formatLocalSigaa, formatVagas, horarioLegivel } from '$lib/utils/sigaa';
-	import { getLogicalCodeGroups } from '$lib/utils/expressao-logica';
+	import { getPrereqDisplay } from '$lib/utils/prereq-display';
 	import ManualStatusEditor from './ManualStatusEditor.svelte';
 	import SubjectClassesTab from './SubjectClassesTab.svelte';
 
@@ -282,9 +282,10 @@ import { ROUTES } from '$lib/config/routes';
 						</p>
 					{:else}
 						{#each prereqModels as pr}
+							{@const display = getPrereqDisplay(pr)}
 							<div class="rounded-lg bg-white/5 px-3 py-2.5">
-								{#if pr.expressaoOriginal}
-									{@const logicGroups = getLogicalCodeGroups(pr.expressaoLogica, pr.expressaoOriginal)}
+								{#if display.kind === 'groups'}
+									{@const logicGroups = display.groups}
 									{#if logicGroups.length > 0}
 										<div class="space-y-3">
 											{#if logicGroups.length > 1}
@@ -324,8 +325,11 @@ import { ROUTES } from '$lib/config/routes';
 											</div>
 										</div>
 									{/if}
+								{:else if display.kind === 'raw'}
+									<!-- Regra que não se conseguiu interpretar: texto cru em vez de card vazio. -->
+									<p class="font-mono text-xs text-white/70">{display.text}</p>
 								{:else}
-									{@const prereq = prereqs.find((p) => p.codigoMateria.toUpperCase() === (pr.codigoMateriaRequisito || '').toUpperCase())}
+									{@const prereq = prereqs.find((p) => p.codigoMateria.toUpperCase() === display.code.toUpperCase())}
 									{#if prereq}
 										{@const prereqStatus = store.getSubjectStatus(prereq)}
 										<div class="flex items-center gap-2 rounded-lg border border-[#7f9cf5]/35 bg-[#7f9cf5]/10 px-3 py-2 text-xs text-[#b8adff]">
@@ -338,7 +342,7 @@ import { ROUTES } from '$lib/config/routes';
 										</div>
 									{:else}
 										<div class="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-2.5 py-1 text-xs text-white/80">
-											<span class="font-mono font-medium">{pr.codigoMateriaRequisito}</span>
+											<span class="font-mono font-medium">{display.code}</span>
 										</div>
 									{/if}
 								{/if}
