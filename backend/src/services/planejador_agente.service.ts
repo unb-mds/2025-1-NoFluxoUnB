@@ -47,6 +47,20 @@ const logger = createControllerLogger("PlanejadorAgenteService", "conversar");
 const MAX_ITERACOES = 5;
 const MAX_HISTORICO = 20;
 
+/** Prefixo do comando direto que responde sem LLM (consulta de turmas no banco). */
+const COMANDO_TURMAS = "/turmas ";
+
+/**
+ * True quando a última mensagem do aluno é um comando direto respondido sem
+ * LLM (`/turmas COD`). Os controllers usam isso para não gastar cota nem
+ * registrar uso de IA — antes essas respostas iam para o ai_usage_log como
+ * model 'desconhecido' com 0 tokens (~1s, o tempo da consulta ao banco).
+ */
+export function ehComandoDireto(historico: MensagemChat[]): boolean {
+    const ultima = historico.slice(-MAX_HISTORICO).slice().reverse().find((m) => m.role === "user");
+    return !!ultima && ultima.content.trim().toLowerCase().startsWith(COMANDO_TURMAS);
+}
+
 // =========================================================
 // Executor de Tools — thin wrapper sobre o Tool Registry compartilhado.
 // Mantido para compatibilidade (testes e chamadas internas via /planejamento/chat).
@@ -122,7 +136,17 @@ export class PlanejadorAgenteService {
         if (!choice) throw new Error("Nenhuma resposta do LLM");
 
         const u = data.usage;
-        if (u) {
+        if (!u) {
+            // Sem `usage` na resposta: registra a chamada mesmo assim, com o
+            // modelo certo (0 tokens), em vez de sumir ou virar 'desconhecido'.
+            logger.warn("Resposta da Maritaca sem `usage` — chamada registrada com 0 tokens");
+            this.usageCalls.push({
+                model: MARITACA_MODELS.AGENTE,
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                total_tokens: 0,
+            });
+        } else {
             const prompt_tokens = u.prompt_tokens ?? 0;
             const completion_tokens = u.completion_tokens ?? 0;
             // Mesma ressalva já vista no agente Sabiá (mcp_agent/api_producao.py):
@@ -151,7 +175,7 @@ export class PlanejadorAgenteService {
 
         // Interceptar comandos diretos (Bypass do LLM)
         const lastUserMsg = historicoTruncado.slice().reverse().find(m => m.role === "user");
-        if (lastUserMsg && lastUserMsg.content.trim().toLowerCase().startsWith('/turmas ')) {
+        if (ehComandoDireto(historicoTruncado) && lastUserMsg) {
             const codigo = lastUserMsg.content.trim().substring(8).trim().toUpperCase();
             const turmasJson = await consultarTurmasMateria({ codigo });
             const turmasData = JSON.parse(turmasJson);
@@ -160,7 +184,8 @@ export class PlanejadorAgenteService {
                 return {
                     reply: turmasData.erro,
                     restricoes: ctx.restricoes,
-                    usage: this.usageCalls
+                    usage: this.usageCalls,
+                    semLlm: true,
                 };
             }
 
@@ -169,7 +194,8 @@ export class PlanejadorAgenteService {
             return {
                 reply,
                 restricoes: ctx.restricoes,
-                usage: this.usageCalls
+                usage: this.usageCalls,
+                semLlm: true,
             };
         }
 
