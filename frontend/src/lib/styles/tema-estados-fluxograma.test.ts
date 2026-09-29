@@ -8,34 +8,28 @@
  * Se alguém voltar para `text-white`, `bg-black/40` ou `text-green-400` sem par
  * `dark:`, o teste de varredura ou o de contraste falha.
  *
- * Premissa: o fundo da página é o `--background` do tema. Hoje o `PageBackground`
- * ainda pinta #050505 fixo (o light mode do app inteiro é outro card); as superfícies
- * daqui usam tokens, então ficam certas quando esse fundo seguir o tema.
+ * Fundo: as superfícies são empilhadas sobre o fundo REAL da página — o
+ * `--page-background` que o PageBackground pinta (no escuro, o #050505 de
+ * produção), liso e no pico do glow roxo — via helper compartilhado
+ * (lib/styles/contraste.ts). Medir contra `--background` supunha um fundo que
+ * não é o que aparece atrás das pílulas translúcidas (bg-background/80).
  */
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import colors from 'tailwindcss/colors';
 import {
 	MIN_GRAFICO,
 	MIN_TEXTO,
+	PALETA,
+	TEMAS,
 	compor,
 	contraste,
-	fundoEfetivo,
-	lerTokens,
+	empilhar,
+	fundosDaPagina,
+	lerSrc as ler,
 	parseCor,
+	piorContraste,
 	resolverClasse,
-	type Paleta,
-	type Propriedade,
-	type Tema
-} from './contraste-tema';
-
-const SRC = resolve(__dirname, '..', '..');
-const ler = (rel: string) => readFileSync(resolve(SRC, rel), 'utf8');
-
-const tokens = lerTokens(ler('app.css'));
-const paleta = colors as unknown as Paleta;
-const TEMAS: Tema[] = ['light', 'dark'];
+	type Propriedade
+} from './contraste';
 
 const ARQ = {
 	barra: 'lib/components/fluxograma/dashboard/ProgressSummaryBar.svelte',
@@ -114,38 +108,35 @@ describe('tema dos estados do fluxograma — contraste nos dois temas', () => {
 					expect(ler(ARQ[arq]), `classe "${caso.fg}" sumiu de ${ARQ[arq]}`).toContain(caso.fg);
 					for (const s of caso.superficies) expect(ler(ARQ[arq])).toContain(s);
 				}
-				const bg = fundoEfetivo(caso.superficies, tema, tokens, paleta);
-				const cor = resolverClasse(caso.fg, caso.prop ?? 'text', tema, tokens, paleta);
-				expect(cor, `sem cor de ${caso.prop ?? 'text'} em "${caso.fg}"`).not.toBeNull();
-				const fg = compor(cor!.rgb, cor!.alfa, bg);
-				expect(contraste(fg, bg)).toBeGreaterThanOrEqual(caso.min);
+				const prop = caso.prop ?? 'text';
+				expect(resolverClasse(caso.fg, prop, tema), `sem cor de ${prop} em "${caso.fg}"`).not.toBeNull();
+				expect(piorContraste(tema, caso.fg, caso.superficies, prop)).toBeGreaterThanOrEqual(caso.min);
 			});
 		}
 	}
 
 	it.each(TEMAS)('anel de progresso se distingue do trilho (%s) >= 3:1', (tema) => {
 		expect(ler(ARQ.secao)).toContain('class="stroke-foreground/10"');
-		const bg = fundoEfetivo([CARD, CIRCULO], tema, tokens, paleta);
-		const trilho = resolverClasse('stroke-foreground/10', 'stroke', tema, tokens, paleta)!;
-		const arco = resolverClasse('stroke-green-700 dark:stroke-green-500', 'stroke', tema, tokens, paleta)!;
-		expect(contraste(arco.rgb, compor(trilho.rgb, trilho.alfa, bg))).toBeGreaterThanOrEqual(MIN_GRAFICO);
+		const trilho = resolverClasse('stroke-foreground/10', 'stroke', tema)!;
+		const arco = resolverClasse('stroke-green-700 dark:stroke-green-500', 'stroke', tema)!;
+		for (const pagina of fundosDaPagina(tema)) {
+			const bg = empilhar(tema, [CARD, CIRCULO], pagina);
+			expect(contraste(arco.rgb, compor(trilho.rgb, trilho.alfa, bg))).toBeGreaterThanOrEqual(MIN_GRAFICO);
+		}
 	});
 
 	it('CTA azul "Enviar/Importar histórico": texto branco >= 4,5:1 nas duas pontas do gradiente', () => {
 		expect(ler(ARQ.meu)).toContain('from-blue-600 to-blue-700');
 		const branco = parseCor('#fff');
-		const azul = paleta.blue as Record<string, string>;
+		const azul = PALETA.blue as Record<string, string>;
 		for (const tom of ['600', '700']) {
 			expect(contraste(branco, parseCor(azul[tom]))).toBeGreaterThanOrEqual(MIN_TEXTO);
 		}
 	});
 
 	it('sanidade: a cor que só funciona no escuro reprova no claro', () => {
-		const bg = fundoEfetivo([PILL], 'light', tokens, paleta);
-		const branco = resolverClasse('text-white', 'text', 'light', tokens, paleta)!;
-		const verde = resolverClasse('text-green-400', 'text', 'light', tokens, paleta)!;
-		expect(contraste(branco.rgb, bg)).toBeLessThan(MIN_GRAFICO);
-		expect(contraste(verde.rgb, bg)).toBeLessThan(MIN_GRAFICO);
+		expect(piorContraste('light', 'text-white', [PILL])).toBeLessThan(MIN_GRAFICO);
+		expect(piorContraste('light', 'text-green-400', [PILL])).toBeLessThan(MIN_GRAFICO);
 	});
 });
 
