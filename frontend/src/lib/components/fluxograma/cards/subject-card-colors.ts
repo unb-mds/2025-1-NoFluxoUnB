@@ -128,7 +128,8 @@ export const TAG_BADGE: Record<
 
 /**
  * Contornos de destaque do card. Ficam na borda, encostados no fundo da página,
- * então o teste exige >= 3:1 (elemento gráfico) contra `--background` nos dois temas.
+ * então o teste exige >= 3:1 (elemento gráfico) contra o fundo real da página
+ * (`--page-background` do PageBackground) nos dois temas.
  */
 export interface OutlineColors {
 	/** Variável CSS da cor do contorno. */
@@ -142,10 +143,12 @@ export const CARD_OUTLINE: Record<
 	'selected' | 'failedHighlight' | 'focus' | 'precursor' | 'descendant' | 'corequisite',
 	OutlineColors
 > = {
+	// /65: com o --foreground do escuro (97%, não branco puro) o /60 ficava abaixo
+	// da borda branca a 60% que estava em produção.
 	selected: {
 		token: 'foreground',
-		borderAlpha: 0.6,
-		className: 'border-foreground/60 ring-2 ring-foreground/30'
+		borderAlpha: 0.65,
+		className: 'border-foreground/65 ring-2 ring-foreground/30'
 	},
 	failedHighlight: {
 		token: 'status-failed-ring',

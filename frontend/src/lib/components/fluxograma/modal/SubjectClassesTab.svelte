@@ -46,14 +46,14 @@
 
 <div class="space-y-2">
 	{#if turmasLoading}
-		<div class="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+		<div class="flex items-center justify-center gap-2 py-6 text-sm text-foreground/75">
 			<Loader2 class="h-4 w-4 animate-spin" />
 			Carregando turmas...
 		</div>
 	{:else if turmasError}
 		<p class="py-4 text-center text-sm text-red-700 dark:text-red-300/80">{turmasError}</p>
 	{:else if turmas.length === 0}
-		<p class="py-4 text-center text-sm text-muted-foreground">
+		<p class="py-4 text-center text-sm text-foreground/75">
 			Nenhuma turma ofertada no período letivo atual.
 		</p>
 	{:else}
@@ -70,15 +70,15 @@
 			<div class="rounded-lg bg-muted/50 px-3 py-2.5">
 				<div class="flex items-center justify-between gap-2">
 					<span class="text-sm font-semibold text-foreground">Turma {t.turma}</span>
-					<span class="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+					<span class="rounded-full bg-muted px-2 py-0.5 text-xs text-foreground/75">
 						{formatVagas(t.vagas_sobrando, t.vagas_ofertadas, t.vagas_ocupadas)} vaga(s)
 					</span>
 				</div>
 				{#if t.docente}
-					<p class="mt-1 text-xs text-muted-foreground">{t.docente}</p>
+					<p class="mt-1 text-xs text-foreground/75">{t.docente}</p>
 				{/if}
-				<p class="mt-1 text-xs text-muted-foreground">{horarioLegivel(t.horario)}</p>
-				<p class="text-xs text-muted-foreground">{localLegivel(t.local)}</p>
+				<p class="mt-1 text-xs text-foreground/75">{horarioLegivel(t.horario)}</p>
+				<p class="text-xs text-foreground/75">{localLegivel(t.local)}</p>
 				<div class="mt-2">
 					<SeguirVagaButton turma={t} />
 				</div>

@@ -102,20 +102,20 @@ import { ROUTES } from '$lib/config/routes';
 			<div class="flex items-start justify-between gap-2 sm:gap-3">
 				<div class="min-w-0 flex-1">
 					<div class="mb-1 flex items-center gap-2">
-						<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+						<span class="text-xs font-semibold uppercase tracking-wider text-foreground/75">
 							{materia.codigoMateria}
 						</span>
 						<div class="flex items-center gap-1.5">
 							<div class="h-2 w-2 rounded-full {statusDotColor[status]}"></div>
-							<span class="text-xs text-muted-foreground">{getStatusLabel(status)}</span>
+							<span class="text-xs text-foreground/75">{getStatusLabel(status)}</span>
 						</div>
 					</div>
-					<h2 class="text-base font-bold text-foreground sm:text-lg">{materia.nomeMateria}</h2>
-					<p class="mt-1 text-sm text-muted-foreground">{materia.creditos > 0 ? `${materia.creditos} créditos` : 'Créditos não informados'}</p>
+					<h2 class="text-base font-bold text-foreground sm:text-lg dark:text-white">{materia.nomeMateria}</h2>
+					<p class="mt-1 text-sm text-foreground/75">{materia.creditos > 0 ? `${materia.creditos} créditos` : 'Créditos não informados'}</p>
 					{#if materia.idMateria < 0}
 						<!-- Componente fora da matriz (monitoria, eletiva de outro curso). -->
 						<span
-							class="mt-2 inline-block rounded-full bg-teal-500/25 px-2.5 py-0.5 text-xs font-medium text-teal-800 dark:text-teal-200"
+							class="mt-2 inline-block rounded-full bg-teal-500/25 px-2.5 py-0.5 text-xs font-medium text-teal-900 dark:text-teal-200"
 						>
 							Módulo livre: cursada fora da matriz do curso
 						</span>
@@ -128,7 +128,7 @@ import { ROUTES } from '$lib/config/routes';
 									(m) => m.codigoMateria.trim().toUpperCase() === cod.trim().toUpperCase()
 								)?.nomeMateria ?? cod}
 							<div class="mt-2 rounded-lg border border-amber-600/40 dark:border-amber-400/40 bg-amber-500/10 px-3 py-2">
-								<p class="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+								<p class="text-xs font-semibold uppercase tracking-wider text-amber-800 dark:text-amber-300">
 									Optatória
 								</p>
 								<p class="mt-1 text-xs leading-relaxed text-foreground/85">
@@ -152,7 +152,7 @@ import { ROUTES } from '$lib/config/routes';
 				</div>
 				<button
 					onclick={onclose}
-					class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+					class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-foreground/75 transition-colors hover:bg-accent hover:text-foreground"
 					aria-label="Fechar"
 				>
 					<X class="h-4 w-4" />
@@ -175,7 +175,7 @@ import { ROUTES } from '$lib/config/routes';
 								</p>
 							{/if}
 							{#if userData.anoPeriodo}
-								<p class="mt-0.5 text-xs text-muted-foreground">Período: {userData.anoPeriodo}</p>
+								<p class="mt-0.5 text-xs text-foreground/75">Período: {userData.anoPeriodo}</p>
 							{/if}
 						</div>
 					{:else if String(userData.status ?? '').toUpperCase() === 'CUMP'}
@@ -227,7 +227,7 @@ import { ROUTES } from '$lib/config/routes';
 			{#each tabs as tab}
 				<button
 					onclick={() => (activeTab = tab.id)}
-					class="flex flex-1 items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-medium transition-colors {activeTab === tab.id ? 'border-b-2 border-primary text-primary dark:text-purple-300' : 'text-muted-foreground hover:text-foreground/80'}"
+					class="flex flex-1 items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-medium transition-colors {activeTab === tab.id ? 'border-b-2 border-primary text-primary dark:text-purple-300' : 'text-foreground/75 hover:text-foreground'}"
 				>
 					<tab.icon class="h-3.5 w-3.5" />
 					{tab.label}
@@ -241,7 +241,7 @@ import { ROUTES } from '$lib/config/routes';
 				<div class="space-y-4">
 					{#if materia.ementa}
 						<div>
-							<h3 class="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+							<h3 class="mb-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/75">
 								Ementa
 							</h3>
 							<p class="text-sm leading-relaxed text-foreground/85">{materia.ementa}</p>
@@ -250,26 +250,26 @@ import { ROUTES } from '$lib/config/routes';
 
 					<div class="grid grid-cols-2 gap-3">
 						<div class="rounded-lg bg-muted/50 p-3">
-							<span class="text-xs text-muted-foreground">Semestre</span>
+							<span class="text-xs text-foreground/75">Semestre</span>
 							<p class="text-sm font-semibold text-foreground">
 								{materia.nivel > 0 ? `${materia.nivel}º` : '—'}
 							</p>
 						</div>
 						<div class="rounded-lg bg-muted/50 p-3">
-							<span class="text-xs text-muted-foreground">Créditos</span>
+							<span class="text-xs text-foreground/75">Créditos</span>
 							<p class="text-sm font-semibold text-foreground">{materia.creditos > 0 ? materia.creditos : '—'}</p>
 						</div>
 					</div>
 
 					{#if coreqs.length > 0}
 						<div>
-							<h3 class="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+							<h3 class="mb-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/75">
 								Co-requisitos
 							</h3>
 							<div class="space-y-1">
 								{#each coreqs as coreq}
 									<div class="rounded-lg bg-muted/50 px-3 py-2 text-sm text-foreground/85">
-										<span class="text-muted-foreground">{coreq.codigoMateria}</span> — {coreq.nomeMateria}
+										<span class="text-foreground/75">{coreq.codigoMateria}</span> — {coreq.nomeMateria}
 									</div>
 								{/each}
 							</div>
@@ -279,7 +279,7 @@ import { ROUTES } from '$lib/config/routes';
 			{:else if activeTab === 'prereqs'}
 				<div class="space-y-3">
 					{#if prereqModels.length === 0}
-						<p class="py-4 text-center text-sm text-muted-foreground">
+						<p class="py-4 text-center text-sm text-foreground/75">
 							Esta matéria não possui pré-requisitos.
 						</p>
 					{:else}
@@ -291,15 +291,15 @@ import { ROUTES } from '$lib/config/routes';
 									{#if logicGroups.length > 0}
 										<div class="space-y-3">
 											{#if logicGroups.length > 1}
-												<p class="text-xs text-muted-foreground">Você precisa cumprir <strong class="font-semibold text-foreground">uma das opções</strong> abaixo:</p>
+												<p class="text-xs text-foreground/75">Você precisa cumprir <strong class="font-semibold text-foreground">uma das opções</strong> abaixo:</p>
 											{:else}
-												<p class="text-xs text-muted-foreground">Você precisa cumprir todas as matérias desta regra:</p>
+												<p class="text-xs text-foreground/75">Você precisa cumprir todas as matérias desta regra:</p>
 											{/if}
 											<div class="flex flex-col gap-2">
 												{#each logicGroups as group, i}
-													<div class="rounded-xl border border-border bg-muted/40 p-2.5">
+													<div class="rounded-xl border border-border bg-muted/40 dark:bg-black/20 p-2.5">
 														{#if logicGroups.length > 1}
-															<p class="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Opção {i + 1}</p>
+															<p class="mb-2 text-[10px] font-bold uppercase tracking-wider text-foreground/75">Opção {i + 1}</p>
 														{/if}
 														<div class="flex flex-wrap gap-2">
 															{#each group as cod}
@@ -311,9 +311,9 @@ import { ROUTES } from '$lib/config/routes';
 																		title={cod}
 																	>
 																		<span class="h-1.5 w-1.5 shrink-0 rounded-full {statusDotColor[prereqStatus]}"></span>
-																		<span class="min-w-0 truncate text-foreground/85">{prereqMateria.nomeMateria}</span>
+																		<span class="min-w-0 truncate text-foreground/90">{prereqMateria.nomeMateria}</span>
 																		<span class="hidden shrink-0 font-mono font-medium sm:inline">· {cod}</span>
-																		<span class="shrink-0 text-muted-foreground">· {getStatusLabel(prereqStatus)}</span>
+																		<span class="shrink-0 text-foreground/75">· {getStatusLabel(prereqStatus)}</span>
 																	</div>
 																{:else}
 																	<div class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1 text-xs text-foreground/85">
@@ -329,7 +329,7 @@ import { ROUTES } from '$lib/config/routes';
 									{/if}
 								{:else if display.kind === 'raw'}
 									<!-- Regra que não se conseguiu interpretar: texto cru em vez de card vazio. -->
-									<p class="font-mono text-xs text-muted-foreground">{display.text}</p>
+									<p class="font-mono text-xs text-foreground/75">{display.text}</p>
 								{:else}
 									{@const prereq = prereqs.find((p) => p.codigoMateria.toUpperCase() === display.code.toUpperCase())}
 									{#if prereq}
@@ -338,8 +338,8 @@ import { ROUTES } from '$lib/config/routes';
 											<div class="h-2.5 w-2.5 shrink-0 rounded-full {statusDotColor[prereqStatus]}"></div>
 											<div class="flex-1">
 												<span class="font-mono font-medium">{prereq.codigoMateria}</span>
-												<span class="text-muted-foreground"> · {prereq.nomeMateria}</span>
-												<span class="ml-1 text-muted-foreground">· {getStatusLabel(prereqStatus)}</span>
+												<span class="text-foreground/75"> · {prereq.nomeMateria}</span>
+												<span class="ml-1 text-foreground/75">· {getStatusLabel(prereqStatus)}</span>
 											</div>
 										</div>
 									{:else}
@@ -355,7 +355,7 @@ import { ROUTES } from '$lib/config/routes';
 			{:else if activeTab === 'equivalencias'}
 				<div class="space-y-2">
 					{#if equivalencias.length === 0}
-						<p class="py-4 text-center text-sm text-muted-foreground">
+						<p class="py-4 text-center text-sm text-foreground/75">
 							Nenhuma equivalência registrada.
 						</p>
 					{:else}
@@ -363,7 +363,7 @@ import { ROUTES } from '$lib/config/routes';
 							<div class="rounded-lg bg-muted/50 px-3 py-2.5">
 								<div class="flex flex-wrap items-center gap-1.5">
 									{#if eq.idCurso != null || (eq.curriculo != null && eq.curriculo !== '')}
-										<span class="rounded bg-amber-500/20 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+										<span class="rounded bg-amber-500/20 px-1.5 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-300">
 											Específica para seu currículo
 										</span>
 									{:else}
@@ -377,7 +377,7 @@ import { ROUTES } from '$lib/config/routes';
 									<p class="mt-1 text-xs text-purple-700 dark:text-purple-300/70">Expressão: {eq.expressao}</p>
 								{/if}
 								{#if eq.curriculo}
-									<p class="mt-0.5 text-xs text-muted-foreground">Currículo: {eq.curriculo}</p>
+									<p class="mt-0.5 text-xs text-foreground/75">Currículo: {eq.curriculo}</p>
 								{/if}
 							</div>
 						{/each}
@@ -393,8 +393,8 @@ import { ROUTES } from '$lib/config/routes';
 			{/if}
 
 			{#if !store.state.isAnonymous && optativaPlanejada}
-				<div class="mt-4 rounded-xl border border-border bg-muted/40 p-4">
-					<p class="mb-2 text-center text-xs text-muted-foreground">Disciplina planejada no fluxograma.</p>
+				<div class="mt-4 rounded-xl border border-border bg-muted/40 dark:bg-black/20 p-4">
+					<p class="mb-2 text-center text-xs text-foreground/75">Disciplina planejada no fluxograma.</p>
 					<button
 						type="button"
 						disabled={removendoPlanejada}
@@ -422,7 +422,7 @@ import { ROUTES } from '$lib/config/routes';
 				<div class="mt-4">
 					<a
 						href={ROUTES.PLANO_FORMATURA}
-						class="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+						class="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:from-purple-500 hover:to-purple-600"
 					>
 						<GraduationCap class="h-4 w-4" />
 						Adicionar à previsão de formatura
