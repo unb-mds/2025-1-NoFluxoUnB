@@ -9,6 +9,14 @@ resposta do Sabiá e a normalização dos termos de busca isoladamente.
 import json
 import re
 
+# Cliente da Maritaca (SDK OpenAI). O padrão do SDK é 600s de timeout e 2
+# retries: com o provedor pendurado, uma única request do aluno ficava presa por
+# até ~30 min segurando worker do uvicorn. O timeout do httpx vale por operação
+# (conectar / esperar o próximo byte), não para a resposta inteira, então 90s
+# ainda comporta a geração longa do sabia-4 (max_tokens=5000) sem stream.
+MARITACA_TIMEOUT_S = 90.0
+MARITACA_MAX_RETRIES = 1
+
 # Teto de termos expandidos por busca semântica: cada termo vira 1 embedding
 # Gemini + 1 RPC match_materias no Supabase. O prompt pede "EXATAMENTE 4".
 MAX_TERMOS_BUSCA = 4
@@ -19,6 +27,16 @@ MAX_CHARS_TERMO = 80
 _PREFIXO_LISTA = re.compile(r"^\s*(?:\d+[.)]\s*|[*\-•]\s*)+")
 _CODIGO = re.compile(r"([A-Z]{3}\d{4})")
 _NOTA = re.compile(r"Nota:\s*\**\s*(\d+(?:[.,]\d+)?)")
+
+
+def maritaca_client_kwargs(api_key):
+    """Argumentos do `OpenAI(...)` da Maritaca, com timeout e retries limitados."""
+    return {
+        "api_key": api_key,
+        "base_url": "https://chat.maritaca.ai/api",
+        "timeout": MARITACA_TIMEOUT_S,
+        "max_retries": MARITACA_MAX_RETRIES,
+    }
 
 
 def normalizar_termos_busca(termos_busca) -> list:

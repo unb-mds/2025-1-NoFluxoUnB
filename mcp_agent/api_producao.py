@@ -16,6 +16,7 @@ from tool_call_utils import extrair_tool_call_texto, termo_materia
 from sabia_utils import (
     MAX_TERMOS_BUSCA,
     codigos_validos_de,
+    maritaca_client_kwargs,
     normalizar_termos_busca,
     parse_resposta_sabia,
 )
@@ -65,9 +66,9 @@ genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
 supabase = create_client(
     os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 )
-client_maritaca = OpenAI(
-    api_key=os.environ.get("MARITACA_API_KEY"), base_url="https://chat.maritaca.ai/api"
-)
+# Timeout e retries limitados (ver sabia_utils.MARITACA_TIMEOUT_S): o padrão do
+# SDK (600s x 3 tentativas) deixava a request presa com a Maritaca pendurada.
+client_maritaca = OpenAI(**maritaca_client_kwargs(os.environ.get("MARITACA_API_KEY")))
 
 # Configuração do FastAPI
 app = FastAPI(title="Darcy AI - API da UnB", version="1.0")

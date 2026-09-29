@@ -7,9 +7,13 @@ Rodar a partir de mcp_agent/:
     python -m pytest test_sabia_utils.py
 """
 
+import ast
+import os
+
 from sabia_utils import (
     MAX_TERMOS_BUSCA,
     codigos_validos_de,
+    maritaca_client_kwargs,
     normalizar_termos_busca,
     parse_resposta_sabia,
 )
@@ -116,6 +120,38 @@ def test_termos_dedup_vazios_e_tamanho():
     assert normalizar_termos_busca(["a", " a ", "", "  ", None, 3, "b"]) == ["a", "b"]
     assert len(normalizar_termos_busca(["x" * 500])[0]) == 80
     assert normalizar_termos_busca("nao e lista") == []
+
+
+# --- R30: cliente Maritaca com timeout e retries limitados -----------------
+
+
+def test_cliente_maritaca_tem_timeout_e_poucos_retries():
+    kw = maritaca_client_kwargs("chave")
+    assert kw["api_key"] == "chave"
+    assert kw["base_url"] == "https://chat.maritaca.ai/api"
+    # Padrão do SDK OpenAI é 600s e 2 retries (até ~30 min pendurado).
+    assert 0 < kw["timeout"] <= 120, kw
+    assert kw["max_retries"] <= 1, kw
+
+
+def test_api_producao_usa_config_do_cliente_maritaca():
+    # Confere via AST (importar api_producao conectaria em Supabase/Gemini).
+    caminho = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "api_producao.py"
+    )
+    with open(caminho, encoding="utf-8") as f:
+        arvore = ast.parse(f.read())
+    chamadas_openai = [
+        n
+        for n in ast.walk(arvore)
+        if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "OpenAI"
+    ]
+    assert chamadas_openai, "OpenAI(...) não encontrado em api_producao.py"
+    for chamada in chamadas_openai:
+        kwargs = [k for k in chamada.keywords if k.arg is None]
+        assert kwargs and getattr(kwargs[0].value.func, "id", None) == (
+            "maritaca_client_kwargs"
+        ), ast.dump(chamada)
 
 
 if __name__ == "__main__":
