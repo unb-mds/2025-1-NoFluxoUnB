@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import { SubjectStatusEnum, type MateriaModel } from '$lib/types/materia';
+	import type { MateriaModel } from '$lib/types/materia';
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
 	import {
 		matchesFluxogramCompactTouchMode,
 		computeInitialZoom,
-		findFirstPendingSemester,
 		FLUXOGRAM_NARROW_QUERY,
 		FLUXOGRAM_COMPACT_LANDSCAPE_QUERY
 	} from '$lib/utils/fluxogram-viewport';
@@ -261,7 +260,8 @@
 	/**
 	 * Visualização inicial (one-shot por montagem): zoom adaptativo via
 	 * computeInitialZoom (desktop cabe a coluna mais alta; compacto com piso de
-	 * texto legível) e rolagem até o primeiro semestre com matéria pendente.
+	 * texto legível). Só zoom: a rolagem inicial é de centerFluxogramaViewport
+	 * (utils/fluxogram-initial-focus.ts), chamado pelas páginas — um mecanismo só.
 	 * Precisa rodar ANTES do efeito de reancoragem e atualizar `prevZoomForAnchor`,
 	 * senão a fórmula do centro com scroll (0,0) deslocaria o viewport no primeiro frame.
 	 */
@@ -282,23 +282,6 @@
 		initialZoomApplied = true;
 		store.applyAdaptiveZoom(target);
 		prevZoomForAnchor = store.state.zoomLevel; // valor já clampado pelo store
-
-		const focusSemester = findFirstPendingSemester(
-			sortedSemesters.map((semester) => ({
-				semester,
-				completed: (store.subjectsBySemester.get(semester) ?? []).map(
-					(m) => store.getSubjectStatus(m) === SubjectStatusEnum.COMPLETED
-				)
-			}))
-		);
-		if (focusSemester == null || focusSemester === sortedSemesters[0]) return;
-		// Depois do layout com o zoom novo; só se o usuário ainda não rolou.
-		requestAnimationFrame(() => {
-			const col = inner.querySelector<HTMLElement>(`[data-semester="${focusSemester}"]`);
-			if (!col || scroller.scrollLeft !== 0) return;
-			const delta = col.getBoundingClientRect().left - scroller.getBoundingClientRect().left;
-			scroller.scrollLeft = Math.max(0, delta - 16); // 16px = scroll-ml-4 da coluna
-		});
 	});
 
 	/**

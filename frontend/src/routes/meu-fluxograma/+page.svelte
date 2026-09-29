@@ -13,6 +13,7 @@
 	import PrerequisiteChainDialog from '$lib/components/fluxograma/modal/PrerequisiteChainDialog.svelte';
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
 	import { matchesFluxogramCompactTouchMode } from '$lib/utils/fluxogram-viewport';
+	import { scheduleCenterFluxogramaViewport as scheduleCenterFluxogramaViewportShared } from '$lib/utils/fluxogram-initial-focus';
 	import { getIntegralizacao } from '$lib/services/integralizacao.service';
 	import { supabaseDataService } from '$lib/services/supabase-data.service';
 	import { goto } from '$app/navigation';
@@ -149,47 +150,8 @@
 		chainDialogSubject = null;
 	}
 
-	function centerFluxogramaViewport() {
-		const viewport = fluxogramaViewportRef;
-		if (!viewport) return;
-		const scrollRoot = viewport.querySelector<HTMLElement>('[data-fluxogram-scroll-root]');
-		if (!scrollRoot) return;
-		const columns = [...scrollRoot.querySelectorAll<HTMLElement>('.semester-column')];
-		if (columns.length === 0) {
-			scrollRoot.scrollLeft = 0;
-			return;
-		}
-		const margemEsquerda = Math.max(16, Math.round(scrollRoot.clientWidth * 0.08));
-		// Mobile: abre no semestre atual do aluno — a pergunta nº 1 é "onde estou agora?"
-		const semestreAtual = store.userFluxograma?.semestreAtual;
-		let alvo: HTMLElement | null = null;
-		if (semestreAtual && matchesFluxogramCompactTouchMode()) {
-			alvo = scrollRoot.querySelector<HTMLElement>(`[data-semester="${semestreAtual}"]`);
-		}
-		if (!alvo) {
-			alvo = [...columns].sort((a, b) => a.offsetLeft - b.offsetLeft)[0];
-		}
-		// getBoundingClientRect independe da mecânica do zoom (CSS zoom vs transform)
-		const rootRect = scrollRoot.getBoundingClientRect();
-		const alvoRect = alvo.getBoundingClientRect();
-		const targetLeft = scrollRoot.scrollLeft + (alvoRect.left - rootRect.left) - margemEsquerda;
-		scrollRoot.scrollLeft = Math.max(0, targetLeft);
-	}
-
 	function scheduleCenterFluxogramaViewport(): () => void {
-		let cancelled = false;
-		const timers: ReturnType<typeof setTimeout>[] = [];
-		const run = () => {
-			if (cancelled) return;
-			centerFluxogramaViewport();
-		};
-		requestAnimationFrame(run);
-		timers.push(setTimeout(run, 220));
-		timers.push(setTimeout(run, 520));
-		return () => {
-			cancelled = true;
-			for (const t of timers) clearTimeout(t);
-		};
+		return scheduleCenterFluxogramaViewportShared(() => fluxogramaViewportRef, store);
 	}
 
 	$effect(() => {
@@ -205,7 +167,8 @@
 		delete document.body.dataset.fluxogramaFocusMode;
 	});
 
-	// Mobile: primeiro paint já posicionado no semestre atual do aluno (fora do modo foco).
+	// Mobile: primeiro paint já posicionado pela regra única pickInitialFocusSemester
+	// (semestre atual do aluno ou, sem ele, 1º nível pendente), fora do modo foco.
 	let didInitialMobileCenter = false;
 	$effect(() => {
 		if (didInitialMobileCenter) return;

@@ -70,3 +70,32 @@ export function findFirstPendingSemester(
 		.map((c) => c.semester);
 	return pendentes.length > 0 ? Math.min(...pendentes) : null;
 }
+
+export interface InitialFocusInput {
+	/** Modo compacto (celular retrato ou deitado) — ver matchesFluxogramCompactTouchMode. */
+	compact: boolean;
+	/** Semestre atual declarado no fluxograma do aluno (ausente para anônimo). */
+	semestreAtual: number | null | undefined;
+	/** Colunas renderizadas, com o estado de conclusão de cada matéria. */
+	columns: ReadonlyArray<{ semester: number; completed: ReadonlyArray<boolean> }>;
+}
+
+/**
+ * Decide em qual coluna o fluxograma abre — ÚNICA regra de posicionamento
+ * inicial (usada por centerFluxogramaViewport nas duas páginas do fluxograma).
+ * Retorna o semestre-alvo, ou null para abrir na primeira coluna.
+ *
+ * - Desktop: null (primeira coluna; o zoom inicial já cabe várias colunas).
+ * - Compacto: o semestre atual do aluno, se existir coluna para ele — a pergunta
+ *   nº 1 no celular é "onde estou agora?"; sem ele (anônimo, dado ausente ou
+ *   semestre fora da matriz), o primeiro nível com matéria pendente (R29).
+ */
+export function pickInitialFocusSemester({
+	compact,
+	semestreAtual,
+	columns
+}: InitialFocusInput): number | null {
+	if (!compact) return null;
+	if (semestreAtual && columns.some((c) => c.semester === semestreAtual)) return semestreAtual;
+	return findFirstPendingSemester(columns);
+}
