@@ -653,6 +653,12 @@ async def recomendar_materias_stream(consulta: Consulta):
                 }
             )
 
+        def _fim(stage: str, **kwargs) -> str:
+            # Todo fim de stream (done ou error) leva antes o evento `usage`:
+            # sem ele o backend logava a pergunta com 0 tokens (768 linhas de
+            # analyze-sabia-stream entre maio e julho de 2026).
+            return _sse_event("usage", calls=usage_calls) + _sse_event(stage, **kwargs)
+
         try:
             # Stage 1: Thinking
             yield _sse_event("thinking", message="Analisando seu interesse...")
@@ -676,13 +682,13 @@ async def recomendar_materias_stream(consulta: Consulta):
 
             # Modelo respondeu direto, sem ferramenta.
             if not nome_ferramenta:
-                yield _sse_event("done", resultado=msg_ia.content or "")
+                yield _fim("done", resultado=msg_ia.content or "")
                 return
 
             # Stage 2: Searching & Roteamento
             if nome_ferramenta == "buscar_optativas_curso":
                 if not consulta.matriz_curricular.strip():
-                    yield _sse_event("error", message="Envie o historico academico")
+                    yield _fim("error", message="Envie o historico academico")
                     return
                 yield _sse_event(
                     "searching", message="Consultando sua matriz curricular..."
@@ -728,6 +734,9 @@ async def recomendar_materias_stream(consulta: Consulta):
                 ],
                 max_tokens=5000,
                 stream=True,
+                # Sem isto a Maritaca não manda o chunk final com `usage` e os
+                # tokens da geração (a parte cara) nunca chegavam ao log.
+                stream_options={"include_usage": True},
             )
 
             resposta_texto = ""
@@ -769,13 +778,10 @@ async def recomendar_materias_stream(consulta: Consulta):
                         codigos_emitidos.add(disc["codigo"])
                         yield _sse_event("disciplina", data=disc)
 
-            # Evento de uso de tokens (para tracking de custo no dashboard)
-            yield _sse_event("usage", calls=usage_calls)
-
-            # Stage 4: Done
-            yield _sse_event("done", resultado=resposta_texto)
+            # Stage 4: Done (precedido do evento de uso de tokens)
+            yield _fim("done", resultado=resposta_texto)
 
         except Exception as e:
-            yield _sse_event("error", message=str(e))
+            yield _fim("error", message=str(e))
 
     return StreamingResponse(generate(), media_type="text/event-stream")

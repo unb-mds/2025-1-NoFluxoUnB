@@ -174,12 +174,14 @@ def test_geracao_sem_stream_tem_read_timeout_de_geracao_inteira():
 def _ler_constante_ms(nome):
     caminho = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        "..", "backend", "src", "services", "sabia.service.ts",
+        "..",
+        "backend",
+        "src",
+        "services",
+        "sabia.service.ts",
     )
     with open(caminho, encoding="utf-8") as f:
-        m = re.search(
-            r"export const " + nome + r"\s*=\s*([\d_]+)\s*;", f.read()
-        )
+        m = re.search(r"export const " + nome + r"\s*=\s*([\d_]+)\s*;", f.read())
     assert m, nome
     return int(m.group(1).replace("_", ""))
 
@@ -229,9 +231,9 @@ def test_chamadas_sem_stream_do_api_producao_usam_teto_proprio():
         if isinstance(stream, ast.Constant) and stream.value is True:
             continue
         alvo = c.func.value.value.value  # client.with_options(...).chat.completions
-        assert isinstance(alvo, ast.Call) and alvo.func.attr == "with_options", (
-            ast.dump(c.func)
-        )
+        assert (
+            isinstance(alvo, ast.Call) and alvo.func.attr == "with_options"
+        ), ast.dump(c.func)
         opcoes = alvo.keywords[0].value.func.id
         opcoes_por_modelo.append((kws["model"].value, opcoes))
     assert sorted(opcoes_por_modelo) == [
@@ -239,6 +241,75 @@ def test_chamadas_sem_stream_do_api_producao_usam_teto_proprio():
         ("sabiazinho-4", "maritaca_opcoes_roteamento"),
         ("sabiazinho-4", "maritaca_opcoes_roteamento"),
     ], opcoes_por_modelo
+
+
+def _funcao_api_producao(nome):
+    caminho = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "api_producao.py"
+    )
+    with open(caminho, encoding="utf-8") as f:
+        arvore = ast.parse(f.read())
+    for n in ast.walk(arvore):
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == nome:
+            return n
+    raise AssertionError(f"{nome} não encontrada em api_producao.py")
+
+
+def test_stream_pede_usage_a_maritaca():
+    # analyze-sabia-stream gravava 0 tokens: sem include_usage a Maritaca não
+    # manda o chunk final com `usage` da geração em stream.
+    stream = _funcao_api_producao("recomendar_materias_stream")
+    creates = [
+        n
+        for n in ast.walk(stream)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and n.func.attr == "create"
+    ]
+    com_stream = [
+        c
+        for c in creates
+        if any(
+            k.arg == "stream" and isinstance(k.value, ast.Constant) and k.value.value
+            for k in c.keywords
+        )
+    ]
+    assert com_stream, "nenhuma chamada com stream=True"
+    for c in com_stream:
+        kws = {k.arg: k.value for k in c.keywords}
+        assert "stream_options" in kws, "stream sem stream_options"
+        opcoes = ast.literal_eval(kws["stream_options"])
+        assert opcoes == {"include_usage": True}, opcoes
+
+
+def test_todo_fim_de_stream_manda_usage():
+    # Os caminhos curtos (resposta direta, "Envie o historico", exceção) saíam
+    # sem o evento `usage` e o backend logava a pergunta com 0 tokens. Todo
+    # done/error do stream passa por _fim(), que emite usage antes.
+    stream = _funcao_api_producao("recomendar_materias_stream")
+    fim = next(
+        n
+        for n in ast.walk(stream)
+        if isinstance(n, ast.FunctionDef) and n.name == "_fim"
+    )
+    dentro_do_fim = {id(n) for n in ast.walk(fim)}
+    diretos = [
+        n
+        for n in ast.walk(stream)
+        if isinstance(n, ast.Call)
+        and getattr(n.func, "id", None) == "_sse_event"
+        and n.args
+        and isinstance(n.args[0], ast.Constant)
+        and n.args[0].value in ("done", "error")
+        and id(n) not in dentro_do_fim
+    ]
+    assert not diretos, [ast.dump(n.args[0]) for n in diretos]
+    usos_do_fim = [
+        n
+        for n in ast.walk(stream)
+        if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "_fim"
+    ]
+    assert len(usos_do_fim) >= 4, len(usos_do_fim)
 
 
 def test_api_producao_usa_config_do_cliente_maritaca():
