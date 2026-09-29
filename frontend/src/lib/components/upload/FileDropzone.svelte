@@ -44,8 +44,8 @@
 		if (target) target.value = '';
 	}
 
-	function processFile(file: File) {
-		const validation = validatePdfFile(file);
+	async function processFile(file: File) {
+		const validation = await validatePdfFile(file);
 		if (!validation.valid) {
 			toast.error(validation.error ?? 'Arquivo inválido.');
 			return;
