@@ -9,9 +9,9 @@ dotenv.config({ path: envPath });
 import { SupabaseWrapper } from './supabase_wrapper'
 import express, { Express, Request, Response } from 'express';
 import { EndpointController, RequestType } from './interfaces';
-import bodyParser from 'body-parser';
 import cors from "cors";
 import { buildCorsOptions } from './config/cors';
+import { applyBodyParsers } from './config/body_limit';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { FluxogramaController } from './controllers/fluxograma_controller';
@@ -170,8 +170,8 @@ app.use(rateLimit({
     message: { error: 'Muitas requisições. Tente novamente em instantes.' },
 }));
 
-app.use(bodyParser.json({ limit: 50 * 1024 * 1024, }));
-app.use(bodyParser.urlencoded({ extended: true, limit: 50 * 1024 * 1024 }));
+// Limite de corpo (global + overrides por rota): ver src/config/body_limit.ts
+applyBodyParsers(app);
 
 
 app.use(router);
