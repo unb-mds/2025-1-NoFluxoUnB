@@ -91,6 +91,39 @@ function cor(tema: Tema, spec: string, base?: string): RGB {
 	return rgb.map((v, i) => v * alfa + fundo[i] * (1 - alfa)) as RGB;
 }
 
+// ─── Cor real de um seletor no <style> de um componente ──────────────────────
+
+/** Conteúdo do <style> de um .svelte. */
+function estiloDe(rel: string): string {
+	return /<style[^>]*>([\s\S]*?)<\/style>/.exec(ler(rel))?.[1] ?? '';
+}
+
+/** Token de `color: hsl(var(--token))` na regra cujo seletor é exatamente `seletor`. */
+function tokenDaRegra(estilo: string, seletor: string): string | undefined {
+	const semComentario = estilo.replace(/\/\*[\s\S]*?\*\//g, '');
+	for (const m of semComentario.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+		const seletores = m[1].split(',').map((x) => x.trim().replace(/\s+/g, ' '));
+		if (!seletores.includes(seletor)) continue;
+		const c = /(?:^|;|\s)color:\s*hsl\(var\(--([\w-]+)\)\)/.exec(m[2]);
+		if (c) return c[1];
+	}
+	return undefined;
+}
+
+/**
+ * Cor do texto de `.classe` nos dois temas, lida do CSS do componente:
+ * claro = `.classe`, escuro = `:global(.dark) .classe` (ou o do claro).
+ */
+function corDaClasse(rel: string, classe: string): Record<Tema, string> {
+	const estilo = estiloDe(rel);
+	const claro = tokenDaRegra(estilo, `.${classe}`);
+	if (!claro) throw new Error(`${rel}: .${classe} sem color: hsl(var(--token))`);
+	return { claro, escuro: tokenDaRegra(estilo, `:global(.dark) .${classe}`) ?? claro };
+}
+
+const PAGINA_DASHBOARD = 'routes/(protected)/admin/dashboard/+page.svelte';
+const SUPORTE_CARD = 'lib/components/admin/dashboard/SuporteCard.svelte';
+
 // ─── Combinações usadas nos componentes ──────────────────────────────────────
 
 interface Par {
@@ -125,8 +158,8 @@ const TEXTO: Par[] = [
 	{ onde: 'card: texto', frente: 'card-foreground', fundo: 'card' },
 	{ onde: 'card: texto secundário', frente: 'muted-foreground', fundo: 'card' },
 	{
-		onde: 'card "Darcy hoje": "Ver pedidos nos tickets"',
-		frente: { claro: 'primary', escuro: 'ai' },
+		onde: 'card "Darcy hoje": "Ver pedidos nos tickets" (CSS da página)',
+		frente: corDaClasse(PAGINA_DASHBOARD, 'ticket-link'),
 		fundo: 'card'
 	},
 	{ onde: 'card de limite: "Pedir mais perguntas"', frente: 'primary-foreground', fundo: 'primary' },
@@ -159,8 +192,8 @@ const TEXTO: Par[] = [
 	{ onde: 'saúde do log: taxa de falha alta', frente: 'status-danger', fundo: 'card' },
 	{ onde: 'suporte: aguardando o suporte', frente: 'status-warning', fundo: 'card' },
 	{
-		onde: 'suporte: "Ver todos os tickets"',
-		frente: { claro: 'primary', escuro: 'ai' },
+		onde: 'suporte: "Ver todos os tickets" (CSS do SuporteCard)',
+		frente: corDaClasse(SUPORTE_CARD, 'link'),
 		fundo: 'card'
 	},
 	// Tooltip da rodinha
@@ -222,6 +255,26 @@ describe.each(TEMAS)('contraste no tema %s', (tema) => {
 	it.each(GRAFICO)('gráfico ≥ 3:1 — $onde', ({ frente, fundo, base }) => {
 		const r = contraste(cor(tema, frenteDo(frente)), cor(tema, fundo, base));
 		expect(r, `${frente} sobre ${fundo}: ${r.toFixed(2)}:1`).toBeGreaterThanOrEqual(3);
+	});
+});
+
+describe('links do dashboard lidos do CSS real', () => {
+	it('o leitor acha a cor de cada tema no <style>, com token dos dois temas', () => {
+		for (const par of [corDaClasse(PAGINA_DASHBOARD, 'ticket-link'), corDaClasse(SUPORTE_CARD, 'link')]) {
+			for (const tema of TEMAS) expect(TOKENS[tema][par[tema]], `${tema}: --${par[tema]}`).toBeDefined();
+		}
+	});
+
+	it('lê a regra do escuro separada da do claro', () => {
+		const css = '.x { color: hsl(var(--primary)); } :global(.dark) .x { color: hsl(var(--ai)); }';
+		expect(tokenDaRegra(css, '.x')).toBe('primary');
+		expect(tokenDaRegra(css, ':global(.dark) .x')).toBe('ai');
+	});
+
+	it('sem o override do escuro, o --primary não passa de 4,5:1 sobre o card', () => {
+		const semDark = '.x { color: hsl(var(--primary)); }';
+		expect(tokenDaRegra(semDark, ':global(.dark) .x')).toBeUndefined();
+		expect(contraste(cor('escuro', 'primary'), cor('escuro', 'card'))).toBeLessThan(4.5);
 	});
 });
 
