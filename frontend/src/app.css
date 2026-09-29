@@ -33,9 +33,29 @@
 		/* IA — lilás (texto/accent suave), tint de fundo */
 		--ai: 267 92% 78%;
 		--ai-soft: 268 42% 18%;
-		/* Fluxograma — status de disciplina e etiquetas (SubjectCard, modal, legendas) */
-		/* Fundos sólidos com texto próprio: iguais nos dois temas de propósito
-		   (o contraste do texto não depende do fundo da página). */
+		/*
+		 * Fundo da página (PageBackground). No .dark é o #050505 de produção;
+		 * aqui é o próprio --background. Os testes de contraste compõem sobre ele.
+		 */
+		--page-background: 0 0% 100%;
+		/* Opacidade do glow roxo do PageBackground (no claro fraco o bastante p/ o muted-foreground) */
+		--page-glow-alpha: 0.1;
+
+		/*
+		 * Status genérico (texto, ícone, anel, tinta /10–/18 sobre card):
+		 * tons ~700 do Tailwind aqui (≥ 4,5:1 sobre página e card claros), ~400 no .dark.
+		 * Usado no upload de histórico e nos componentes do Darcy/dashboard.
+		 */
+		--status-success: 142 72% 26%;
+		--status-warning: 26 90% 32%;
+		--status-danger: 0 74% 40%;
+		--status-info: 221 83% 40%;
+
+		/*
+		 * Fluxograma — status de disciplina e etiquetas (SubjectCard, modal, legendas).
+		 * Fundos sólidos com texto próprio: iguais nos dois temas de propósito
+		 * (o contraste do texto não depende do fundo da página).
+		 */
 		--status-completed: 143.7 59.5% 30%;
 		--status-in-progress: 262.5 63% 49.8%;
 		--status-available: 32.5 73.2% 38%;
@@ -86,9 +106,15 @@
 		--ring: 270 91% 62%;
 		--ai: 267 92% 78%;
 		--ai-soft: 268 45% 16%;
-		/* Fluxograma — status de disciplina e etiquetas (SubjectCard, modal, legendas) */
-		/* Fundos sólidos com texto próprio: iguais nos dois temas de propósito
-		   (o contraste do texto não depende do fundo da página). */
+		/* #050505 — fundo de produção, idêntico ao que o PageBackground pintava fixo */
+		--page-background: 0 0% 1.9608%;
+		--page-glow-alpha: 0.45;
+
+		--status-success: 142 69% 58%;
+		--status-warning: 38 92% 50%;
+		--status-danger: 0 91% 71%;
+		--status-info: 213 94% 68%;
+
 		--status-completed: 143.7 59.5% 30%;
 		--status-in-progress: 262.5 63% 49.8%;
 		--status-available: 32.5 73.2% 38%;

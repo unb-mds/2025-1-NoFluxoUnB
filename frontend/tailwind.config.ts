@@ -50,9 +50,17 @@ const config: Config = {
 					DEFAULT: 'hsl(var(--card) / <alpha-value>)',
 					foreground: 'hsl(var(--card-foreground) / <alpha-value>)'
 				},
+				// Fundo real da página (PageBackground); no .dark = #050505
+				'page-background': 'hsl(var(--page-background) / <alpha-value>)',
 
-				// Fluxograma: status de disciplina e etiquetas (tokens em app.css, :root e .dark)
+				// Status com par light/dark (tokens --status-* em app.css, :root e .dark)
 				status: {
+					// genéricos: texto/ícone/anel sobre página e card
+					success: 'hsl(var(--status-success) / <alpha-value>)',
+					warning: 'hsl(var(--status-warning) / <alpha-value>)',
+					danger: 'hsl(var(--status-danger) / <alpha-value>)',
+					info: 'hsl(var(--status-info) / <alpha-value>)',
+					// fluxograma: fundos sólidos dos cards de disciplina
 					completed: 'hsl(var(--status-completed) / <alpha-value>)',
 					'in-progress': 'hsl(var(--status-in-progress) / <alpha-value>)',
 					available: 'hsl(var(--status-available) / <alpha-value>)',
