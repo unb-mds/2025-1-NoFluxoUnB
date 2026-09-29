@@ -147,6 +147,37 @@ const CENARIOS = {
         [disc("OPT0001", "OPTATIVA")]
     ),
 
+    // R7 — equivalências de outro curso / fora de vigência
+    r7_outro_curso: engsoftAluno(
+        `INSERT INTO equivalencias (id_materia, id_curso, curriculo, data_vigencia, expressao_original)
+           VALUES (20, 1000, '1000/1', '2010-01-01', '(FIS9999)');`,
+        [disc("FIS9999", "FISICA")]
+    ),
+    r7_mesmo_curso: engsoftAluno(
+        `INSERT INTO equivalencias (id_materia, id_curso, expressao_original) VALUES (20, 6360, '(FIS9999)');`,
+        [disc("FIS9999", "FISICA")]
+    ),
+    r7_mesmo_curriculo: engsoftAluno(
+        `INSERT INTO equivalencias (id_materia, id_curso, curriculo, expressao_original)
+           VALUES (20, 6360, '6360/2 - 2024.1', '(FIS9999)');`,
+        [disc("FIS9999", "FISICA")]
+    ),
+    r7_especifica_sombreia_global: engsoftAluno(
+        `INSERT INTO equivalencias (id_materia, id_curso, curriculo, expressao_original) VALUES
+           (20, NULL, NULL, '(AAA0001)'), (20, 6360, '6360/2 - 2024.1', '(BBB0001)');`,
+        [disc("AAA0001", "A")]
+    ),
+    r7_vigencia_futura: engsoftAluno(
+        `INSERT INTO equivalencias (id_materia, data_vigencia, expressao_original)
+           VALUES (20, current_date + 30, '(FIS9999)');`,
+        [disc("FIS9999", "FISICA")]
+    ),
+    r7_vigencia_passada: engsoftAluno(
+        `INSERT INTO equivalencias (id_materia, data_vigencia, expressao_original)
+           VALUES (20, current_date - 30, '(FIS9999)');`,
+        [disc("FIS9999", "FISICA")]
+    ),
+
     // R6 — paridade de avalia_equivalencia com frontend/src/lib/utils/expressao-logica.ts
     av_codigo_unico: avalia("CIC0004", null, ["CIC0004"]),
     av_e_parcial: avalia({ operador: "E", condicoes: ["FGA0001", "FGA0002"] }, null, ["FGA0001"]),
@@ -271,5 +302,37 @@ describe("R6 — equivalência avaliada inteira", () => {
         ["av_nada", false],
     ] as const)("avalia_equivalencia: %s → %s", (nome, esperado) => {
         expect(r(nome)).toBe(esperado);
+    });
+});
+
+describe("R7 — equivalências do curso/currículo do aluno", () => {
+    it("equivalência específica de OUTRO curso não integraliza a obrigatória", () => {
+        const out = r("r7_outro_curso");
+        expect(out.materias_concluidas).toEqual([]);
+        expect(codigos(out.materias_pendentes)).toEqual(["MAT0025"]);
+        expect(out.resumo.percentual_conclusao_obrigatorias).toBe(0);
+    });
+
+    it.each(["r7_mesmo_curso", "r7_mesmo_curriculo", "r7_vigencia_passada"] as const)(
+        "%s: integraliza por equivalência",
+        (nome) => {
+            const out = r(nome);
+            expect(out.materias_concluidas).toHaveLength(1);
+            expect(out.materias_concluidas[0]).toMatchObject({
+                codigo: "MAT0025",
+                status_fluxograma: "concluida_equivalencia",
+                codigo_equivalente: "FIS9999",
+            });
+        }
+    );
+
+    it("linha do curso+currículo tem precedência sobre a global (igual ao front)", () => {
+        expect(r("r7_especifica_sombreia_global").materias_concluidas).toEqual([]);
+    });
+
+    it("equivalência com data_vigencia futura ainda não vale", () => {
+        const out = r("r7_vigencia_futura");
+        expect(out.materias_concluidas).toEqual([]);
+        expect(codigos(out.materias_pendentes)).toEqual(["MAT0025"]);
     });
 });

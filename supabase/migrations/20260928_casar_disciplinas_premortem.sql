@@ -8,6 +8,8 @@
 --       de LIMIT 1 sem ORDER BY (PEDAGOGIA diurno x noturno, ENGENHARIA x ENG. SOFTWARE).
 --   R6  equivalência "A E B": a expressão é avaliada inteira (avalia_equivalencia), e não
 --       mais "qualquer código citado na expressão serve".
+--   R7  equivalências filtradas pelo curso/currículo do aluno (mesma precedência do
+--       front) e sem as de data_vigencia futura.
 --
 -- Reverter: rodar de novo, no SQL Editor, o bloco
 --   CREATE OR REPLACE FUNCTION public.casar_disciplinas(p_dados jsonb) ... $function$;
@@ -519,11 +521,34 @@ BEGIN
     id_eq bigint, id_materia bigint, codigo_origem text, expressao text, expressao_logica jsonb
   ) ON COMMIT DROP;
 
+  -- R7 (pré-mortem 27/09/2026): equivalencias guarda linhas de vários cursos para a
+  -- mesma matéria. Antes todas valiam para qualquer aluno (uma equivalência só da
+  -- FÍSICA integralizava Cálculo 1 da ENGSOFT). Mesma precedência do front
+  -- (supabase-data.service.ts, _fetchFlowchartByMatriz), por matéria:
+  --   1) id_curso do aluno + curriculo da matriz resolvida;
+  --   2) id_curso do aluno, sem curriculo;
+  --   3) global (id_curso e curriculo vazios).
+  -- Linha com data_vigencia no futuro ainda não vale para ninguém e fica de fora.
   INSERT INTO _eq
-  SELECT e.id_equivalencia, e.id_materia, m.codigo_materia, e.expressao_original, e.expressao_logica
-  FROM equivalencias e
-  JOIN materias m ON m.id_materia = e.id_materia
-  WHERE e.id_materia IN (SELECT id_materia FROM _mat);
+  WITH elegiveis AS (
+    SELECT e.*,
+      CASE
+        WHEN e.id_curso = v_id_curso
+             AND coalesce(trim(e.curriculo), '') <> ''
+             AND upper(trim(e.curriculo)) = upper(trim(v_curriculo)) THEN 1
+        WHEN e.id_curso = v_id_curso AND coalesce(trim(e.curriculo), '') = '' THEN 2
+        WHEN e.id_curso IS NULL AND coalesce(trim(e.curriculo), '') = '' THEN 3
+      END AS prioridade
+    FROM equivalencias e
+    WHERE e.id_materia IN (SELECT id_materia FROM _mat)
+      AND (e.data_vigencia IS NULL OR e.data_vigencia <= current_date)
+  )
+  SELECT el.id_equivalencia, el.id_materia, m.codigo_materia, el.expressao_original, el.expressao_logica
+  FROM elegiveis el
+  JOIN materias m ON m.id_materia = el.id_materia
+  WHERE el.prioridade = (
+    SELECT min(el2.prioridade) FROM elegiveis el2 WHERE el2.id_materia = el.id_materia
+  );
 
   -- Map: equivalent_code → target subject in our matrix
   -- R6: só entra o código que SOZINHO satisfaz a expressão (código único ou ramo de OU).

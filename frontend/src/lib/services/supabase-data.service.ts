@@ -42,6 +42,81 @@ function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
  * Identificador único de matriz = curriculo_completo (ex: "8117/-2 - 2018.2") ou "codigo/versao" (ex: "60810/1").
  * Grade = materias_por_curso por id_matriz. CH oficial = campos ch_* da tabela matrizes.
  */
+const normCurriculo = (v: unknown): string =>
+	String(v ?? '')
+		.trim()
+		.toUpperCase();
+
+/** Data local em YYYY-MM-DD, comparável como string com a coluna date do Postgres. */
+function dataIso(d: Date): string {
+	const mm = String(d.getMonth() + 1).padStart(2, '0');
+	const dd = String(d.getDate()).padStart(2, '0');
+	return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/**
+ * A tabela de equivalências pode conter registros de vários cursos para a mesma matéria.
+ * Para simulação de mudança de curso, precisamos considerar apenas o contexto da matriz alvo:
+ * 1) id_curso + curriculo exato da matriz
+ * 2) id_curso do curso alvo (sem curriculo)
+ * 3) global (id_curso null e curriculo null)
+ *
+ * Linha com data_vigencia no futuro ainda não vale para ninguém e sai antes da escolha
+ * do bucket (pré-mortem 27/09/2026, R7). Espelho do passo 4 de public.casar_disciplinas
+ * (supabase/migrations/20260928_casar_disciplinas_premortem.sql).
+ */
+export function filtrarEquivalenciasDoContexto(
+	eqRows: Record<string, unknown>[],
+	idCurso: number,
+	curriculoAlvo: unknown,
+	hoje: Date = new Date()
+): Record<string, unknown>[] {
+	const curriculoAlvoNorm = normCurriculo(curriculoAlvo);
+	const hojeIso = dataIso(hoje);
+	const eqByMateria = new Map<number, Record<string, unknown>[]>();
+	for (const row of eqRows) {
+		const idMateria = Number(row.id_materia);
+		if (!Number.isFinite(idMateria)) continue;
+		const vigencia = row.data_vigencia == null ? '' : String(row.data_vigencia).slice(0, 10);
+		if (vigencia !== '' && vigencia > hojeIso) continue;
+		if (!eqByMateria.has(idMateria)) eqByMateria.set(idMateria, []);
+		eqByMateria.get(idMateria)!.push(row);
+	}
+
+	const equivalenciasFiltradas: Record<string, unknown>[] = [];
+	for (const [, rows] of eqByMateria) {
+		const bucket1 = rows.filter((row) => {
+			const rowIdCurso = row.id_curso == null ? null : Number(row.id_curso);
+			const rowCurriculoNorm = normCurriculo(row.curriculo);
+			return rowIdCurso === idCurso && rowCurriculoNorm !== '' && rowCurriculoNorm === curriculoAlvoNorm;
+		});
+		if (bucket1.length > 0) {
+			equivalenciasFiltradas.push(...bucket1);
+			continue;
+		}
+
+		const bucket2 = rows.filter((row) => {
+			const rowIdCurso = row.id_curso == null ? null : Number(row.id_curso);
+			const rowCurriculoNorm = normCurriculo(row.curriculo);
+			return rowIdCurso === idCurso && rowCurriculoNorm === '';
+		});
+		if (bucket2.length > 0) {
+			equivalenciasFiltradas.push(...bucket2);
+			continue;
+		}
+
+		const bucket3 = rows.filter((row) => {
+			const rowIdCurso = row.id_curso == null ? null : Number(row.id_curso);
+			const rowCurriculoNorm = normCurriculo(row.curriculo);
+			return rowIdCurso == null && rowCurriculoNorm === '';
+		});
+		if (bucket3.length > 0) {
+			equivalenciasFiltradas.push(...bucket3);
+		}
+	}
+	return equivalenciasFiltradas;
+}
+
 export class SupabaseDataService {
 	private supabase = createSupabaseBrowserClient();
 
@@ -542,59 +617,11 @@ export class SupabaseDataService {
 			.eq('id_matriz', idMatriz)
 			.single();
 
-		const normCurriculo = (v: unknown): string =>
-			String(v ?? '')
-				.trim()
-				.toUpperCase();
-
-		/**
-		 * A tabela de equivalências pode conter registros de vários cursos para a mesma matéria.
-		 * Para simulação de mudança de curso, precisamos considerar apenas o contexto da matriz alvo:
-		 * 1) id_curso + curriculo exato da matriz
-		 * 2) id_curso do curso alvo (sem curriculo)
-		 * 3) global (id_curso null e curriculo null)
-		 */
-		const eqRows = (equivalenciasResult.data || []) as Record<string, unknown>[];
-		const curriculoAlvoNorm = normCurriculo(matrizRow?.curriculo_completo);
-		const eqByMateria = new Map<number, Record<string, unknown>[]>();
-		for (const row of eqRows) {
-			const idMateria = Number(row.id_materia);
-			if (!Number.isFinite(idMateria)) continue;
-			if (!eqByMateria.has(idMateria)) eqByMateria.set(idMateria, []);
-			eqByMateria.get(idMateria)!.push(row);
-		}
-
-		const equivalenciasFiltradas: Record<string, unknown>[] = [];
-		for (const [, rows] of eqByMateria) {
-			const bucket1 = rows.filter((row) => {
-				const rowIdCurso = row.id_curso == null ? null : Number(row.id_curso);
-				const rowCurriculoNorm = normCurriculo(row.curriculo);
-				return rowIdCurso === idCurso && rowCurriculoNorm !== '' && rowCurriculoNorm === curriculoAlvoNorm;
-			});
-			if (bucket1.length > 0) {
-				equivalenciasFiltradas.push(...bucket1);
-				continue;
-			}
-
-			const bucket2 = rows.filter((row) => {
-				const rowIdCurso = row.id_curso == null ? null : Number(row.id_curso);
-				const rowCurriculoNorm = normCurriculo(row.curriculo);
-				return rowIdCurso === idCurso && rowCurriculoNorm === '';
-			});
-			if (bucket2.length > 0) {
-				equivalenciasFiltradas.push(...bucket2);
-				continue;
-			}
-
-			const bucket3 = rows.filter((row) => {
-				const rowIdCurso = row.id_curso == null ? null : Number(row.id_curso);
-				const rowCurriculoNorm = normCurriculo(row.curriculo);
-				return rowIdCurso == null && rowCurriculoNorm === '';
-			});
-			if (bucket3.length > 0) {
-				equivalenciasFiltradas.push(...bucket3);
-			}
-		}
+		const equivalenciasFiltradas = filtrarEquivalenciasDoContexto(
+			(equivalenciasResult.data || []) as Record<string, unknown>[],
+			idCurso,
+			matrizRow?.curriculo_completo
+		);
 
 		const equivalencias = equivalenciasFiltradas.map((eq: Record<string, unknown>) => {
 			const mat = eq.materias as { codigo_materia?: string; nome_materia?: string } | null;
