@@ -68,6 +68,22 @@ describe('R4: nome de disciplina que começa com palavra de metadata', () => {
 	});
 });
 
+describe('R38: PDF que o pdf.js não consegue abrir', () => {
+	const mensagemDe = (p: Promise<unknown>) => p.then(() => '', (e: Error) => e.message);
+
+	test('PDF protegido por senha: mensagem em pt-BR, não o erro cru do pdf.js', async () => {
+		const msg = await mensagemDe(parsePdf(pdfFile([[{ x: 50, y: 800, t: 'x' }]], { encrypt: true })));
+		expect(msg).toMatch(/senha/i);
+		expect(msg).not.toMatch(/password/i);
+	});
+
+	test('bytes aleatórios com extensão .pdf: mensagem de arquivo inválido/corrompido', async () => {
+		const lixo = new Uint8Array(2048).map((_, i) => (i * 37 + 11) % 256);
+		const msg = await mensagemDe(parsePdf(new File([lixo], 'historico.pdf', { type: 'application/pdf' })));
+		expect(msg).toMatch(/inválido|corrompido/i);
+	});
+});
+
 describe('R36: sobra de quebra de linha da lista de professores', () => {
 	test('"NOME (12h)" longo não vira nome da próxima disciplina', async () => {
 		const items: Item[] = [
