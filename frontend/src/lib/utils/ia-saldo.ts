@@ -96,6 +96,14 @@ function resumoSaldo(s: AiSaldoStatus): string {
 	return `Saldo estimado: ${fmtMoeda(s.saldo_estimado, s.moeda)}${dias ? ` — dá para ${dias}` : ''}`;
 }
 
+/** Saldo ou recarga registrado depois da última recusa por falta de créditos. */
+function registrouDepoisDaRecusa(s: AiSaldoStatus): boolean {
+	const reg = s.ultimo_registro?.registrado_em;
+	const evento = s.sem_creditos.ultimo_evento;
+	if (!reg || !evento) return false;
+	return new Date(reg).getTime() > new Date(evento).getTime();
+}
+
 /**
  * Alertas do topo do dashboard, na ordem que o banco devolveu (prioridade:
  * sem créditos, urgente, atenção, desatualizado). `agora` só formata o "há X".
@@ -107,12 +115,15 @@ export function alertasSaldo(s: AiSaldoStatus | null | undefined, agora: Date): 
 		switch (nivel) {
 			case 'sem_creditos': {
 				const n = s.sem_creditos.eventos;
-				return {
-					nivel,
-					tom,
-					titulo: 'Créditos acabaram',
-					texto: `A Maritaca recusou ${plural(n, 'chamada', 'chamadas')} por falta de créditos nas últimas ${s.sem_creditos.janela_horas} h (a última ${haQuanto(s.sem_creditos.ultimo_evento, agora)}). O Darcy fica fora do ar até a recarga; depois de recarregar, registre a recarga aqui.`
-				};
+				const h = s.sem_creditos.janela_horas;
+				const recusas = `A Maritaca recusou ${plural(n, 'chamada', 'chamadas')} por falta de créditos nas últimas ${h} h (a última ${haQuanto(s.sem_creditos.ultimo_evento, agora)}).`;
+				// O banco mantém este alerta pelas `h` horas seguintes à última
+				// recusa, mesmo com recarga registrada depois: o texto não promete
+				// que registrar apaga o aviso.
+				const proximo = registrouDepoisDaRecusa(s)
+					? `Já há registro de saldo depois da última recusa; se o Darcy voltou a responder, este aviso some sozinho quando passarem ${h} h sem novas recusas.`
+					: `O Darcy fica fora do ar até a recarga em plataforma.maritaca.ai. Depois de recarregar, registre a recarga aqui para o saldo estimado ficar certo — este aviso só some quando passarem ${h} h sem novas recusas.`;
+				return { nivel, tom, titulo: 'Créditos acabaram', texto: `${recusas} ${proximo}` };
 			}
 			case 'urgente':
 				return {

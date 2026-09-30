@@ -48,6 +48,33 @@ describe('alertasSaldo', () => {
 		expect(a.texto).toContain('recusou 3 chamadas por falta de créditos nas últimas 24 h (a última há 30 min)');
 	});
 
+	it('créditos acabaram: não promete que registrar a recarga apaga o aviso', () => {
+		const [a] = alertasSaldo(
+			statusSaldo({
+				alertas: ['sem_creditos'],
+				sem_creditos: { janela_horas: 24, eventos: 1, ultimo_evento: '2026-09-30T17:30:00Z' }
+			}),
+			AGORA
+		);
+		expect(a.texto).toContain('registre a recarga aqui para o saldo estimado ficar certo');
+		expect(a.texto).toContain('só some quando passarem 24 h sem novas recusas');
+	});
+
+	it('créditos acabaram com recarga já registrada depois da recusa: explica por que o aviso segue', () => {
+		const base = statusSaldo();
+		const [a] = alertasSaldo(
+			statusSaldo({
+				alertas: ['sem_creditos'],
+				sem_creditos: { janela_horas: 24, eventos: 1, ultimo_evento: '2026-09-30T17:30:00Z' },
+				ultimo_registro: { ...base.ultimo_registro!, tipo: 'recarga', registrado_em: '2026-09-30T17:45:00Z' }
+			}),
+			AGORA
+		);
+		expect(a.texto).toContain('Já há registro de saldo depois da última recusa');
+		expect(a.texto).toContain('some sozinho quando passarem 24 h sem novas recusas');
+		expect(a.texto).not.toContain('registre a recarga');
+	});
+
 	it('urgente por reais: mostra o saldo e o limiar que disparou', () => {
 		const [a] = alertasSaldo(
 			statusSaldo({
