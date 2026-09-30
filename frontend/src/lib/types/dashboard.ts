@@ -208,3 +208,63 @@ export interface PeriodoLetivo {
 	data_fim: string | null;
 	limite_matricula_25pct: string | null;
 }
+
+// ─── Saldo da IA (migration 20260930_ai_saldo.sql) ──────────────────────────
+
+/** Nível do alerta de saldo, na ordem de prioridade. */
+export type AiSaldoNivel = 'sem_creditos' | 'urgente' | 'atencao' | 'desatualizado' | 'ok';
+
+export type AiSaldoTipoRegistro = 'saldo_atual' | 'recarga';
+
+export interface AiSaldoRegistro {
+	tipo: AiSaldoTipoRegistro;
+	valor: number;
+	registrado_em: string;
+	registrado_por: string | null;
+	nome: string | null;
+	email: string | null;
+	observacao: string | null;
+	dias_atras: number;
+}
+
+export interface AiSaldoLimiares {
+	urgente_reais: number;
+	urgente_dias: number;
+	atencao_reais: number;
+	atencao_dias: number;
+	desatualizado_dias: number;
+}
+
+/**
+ * Saldo estimado da Maritaca (RPC `get_ai_saldo_status`): último saldo
+ * informado + recargas − custo dos modelos da Maritaca desde então, com a
+ * previsão pela média dos últimos 7 dias de Brasília e os alertas já decididos
+ * no banco (limiares em ai_saldo_config).
+ */
+export interface AiSaldoStatus {
+	moeda: string;
+	agora: string;
+	configurado: boolean;
+	saldo_estimado: number | null;
+	saldo_base: number | null;
+	custo_desde_base: number;
+	base: { valor: number; registrado_em: string; recargas: number; n_recargas: number } | null;
+	ultimo_registro: AiSaldoRegistro | null;
+	previsao: {
+		janela_dias: number;
+		dias_considerados: number;
+		parcial: boolean;
+		custo_janela: number;
+		/** null = nenhum log da Maritaca; 0 = sem gasto na janela. */
+		media_diaria: number | null;
+		/** null quando não há saldo informado ou não há gasto (sem previsão). */
+		dias_restantes: number | null;
+	};
+	sem_creditos: { janela_horas: number; eventos: number; ultimo_evento: string | null };
+	modelos_maritaca: string[];
+	modelos_maritaca_sem_preco: string[];
+	limiares: AiSaldoLimiares;
+	/** Alertas ativos, do mais para o menos prioritário (sem 'ok'). */
+	alertas: Exclude<AiSaldoNivel, 'ok'>[];
+	nivel: AiSaldoNivel;
+}

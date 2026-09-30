@@ -1,7 +1,8 @@
 /**
  * Contraste light/dark dos componentes do Darcy (login, rodinha de uso, card de
- * limite, pedido de mais perguntas, painel de aprovação), do card "Darcy hoje" e
- * dos cards novos do dashboard admin (sem preço, saúde do log de IA, suporte).
+ * limite, pedido de mais perguntas, painel de aprovação), do card "Darcy hoje",
+ * dos cards novos do dashboard admin (sem preço, saúde do log de IA, suporte)
+ * e do alerta de saldo da IA (alertas do topo e card com o formulário).
  *
  * Regra do produto: o que existe no escuro tem que funcionar no claro. Aqui:
  *  1. os tokens HSL são lidos do app.css (`:root` = claro, `.dark` = escuro)
@@ -89,6 +90,15 @@ function corDaClasse(rel: string, classe: string): Record<Tema, string> {
 
 const PAGINA_DASHBOARD = 'routes/(protected)/admin/dashboard/+page.svelte';
 const SUPORTE_CARD = 'lib/components/admin/dashboard/SuporteCard.svelte';
+const SALDO_ALERTAS = 'lib/components/admin/dashboard/IaSaldoAlertas.svelte';
+const SALDO_CARD = 'lib/components/admin/dashboard/IaSaldoCard.svelte';
+
+/** Fundos dos alertas de saldo (tom sobre o bg-card do componente). */
+const FUNDOS_ALERTA_SALDO: Array<{ tom: string; fundo: string; base?: string }> = [
+	{ tom: 'créditos acabaram / urgente', fundo: 'status-danger/0.1', base: 'card' },
+	{ tom: 'atenção', fundo: 'status-warning/0.1', base: 'card' },
+	{ tom: 'desatualizado', fundo: 'muted' }
+];
 
 // ─── Combinações usadas nos componentes ──────────────────────────────────────
 
@@ -163,7 +173,32 @@ const TEXTO: Par[] = [
 		fundo: 'card'
 	},
 	// Tooltip da rodinha
-	{ onde: 'rodinha: tooltip', frente: 'popover-foreground', fundo: 'popover' }
+	{ onde: 'rodinha: tooltip', frente: 'popover-foreground', fundo: 'popover' },
+	// Saldo da IA: alertas do topo (texto e link do painel em cada tom)
+	...FUNDOS_ALERTA_SALDO.flatMap(({ tom, fundo, base }): Par[] => [
+		{ onde: `saldo: texto do alerta ${tom}`, frente: 'card-foreground', fundo, base },
+		{
+			onde: `saldo: link plataforma.maritaca.ai no alerta ${tom} (CSS do IaSaldoAlertas)`,
+			frente: corDaClasse(SALDO_ALERTAS, 'link'),
+			fundo,
+			base
+		}
+	]),
+	// Saldo da IA: card com a estimativa e o formulário (bg-card)
+	{ onde: 'saldo: valor estimado urgente', frente: 'status-danger', fundo: 'card' },
+	{ onde: 'saldo: valor estimado atenção / modelo sem preço', frente: 'status-warning', fundo: 'card' },
+	{ onde: 'saldo: rótulos, legenda, aviso de estimativa', frente: 'muted-foreground', fundo: 'card' },
+	{
+		onde: 'saldo: link do painel no card (CSS do IaSaldoCard)',
+		frente: corDaClasse(SALDO_CARD, 'link'),
+		fundo: 'card'
+	},
+	{ onde: 'saldo: opção escolhida (saldo atual / recarga)', frente: 'primary-foreground', fundo: 'primary' },
+	{ onde: 'saldo: opção não escolhida', frente: 'card-foreground', fundo: 'card' },
+	{ onde: 'saldo: opção não escolhida (hover)', frente: 'card-foreground', fundo: 'muted' },
+	{ onde: 'saldo: campos de valor e observação', frente: 'foreground', fundo: 'background' },
+	{ onde: 'saldo: erro do formulário', frente: 'status-danger', fundo: 'card' },
+	{ onde: 'saldo: "Registrado."', frente: 'status-success', fundo: 'card' }
 ];
 
 const GRAFICO: Par[] = [
@@ -191,6 +226,14 @@ const GRAFICO: Par[] = [
 		base: 'card'
 	},
 	{ onde: 'pedido enviado: ícone', frente: 'status-success', fundo: 'background' },
+	{
+		onde: 'saldo: ícone do alerta créditos acabaram / urgente',
+		frente: 'status-danger',
+		fundo: 'status-danger/0.1',
+		base: 'card'
+	},
+	{ onde: 'saldo: ícone do alerta atenção', frente: 'status-warning', fundo: 'status-warning/0.1', base: 'card' },
+	{ onde: 'saldo: ícone do alerta desatualizado', frente: 'muted-foreground', fundo: 'muted' },
 	{ onde: 'pedido: borda do radio', frente: 'muted-foreground', fundo: 'background' },
 	{ onde: 'pedido: radio marcado', frente: 'primary', fundo: 'primary/0.1', base: 'background' }
 ];
@@ -226,7 +269,12 @@ describe.each(TEMAS)('contraste no tema %s', (tema) => {
 
 describe('links do dashboard lidos do CSS real', () => {
 	it('o leitor acha a cor de cada tema no <style>, com token dos dois temas', () => {
-		for (const par of [corDaClasse(PAGINA_DASHBOARD, 'ticket-link'), corDaClasse(SUPORTE_CARD, 'link')]) {
+		for (const par of [
+			corDaClasse(PAGINA_DASHBOARD, 'ticket-link'),
+			corDaClasse(SUPORTE_CARD, 'link'),
+			corDaClasse(SALDO_ALERTAS, 'link'),
+			corDaClasse(SALDO_CARD, 'link')
+		]) {
 			for (const tema of TEMAS) expect(TOKENS[tema][par[tema]], `${tema}: --${par[tema]}`).toBeDefined();
 		}
 	});
@@ -262,7 +310,9 @@ const ARQUIVOS = [
 	'lib/components/tickets/DarcyPedidoAdminPanel.svelte',
 	'lib/components/admin/dashboard/IaSemPrecoAlerta.svelte',
 	'lib/components/admin/dashboard/IaSaudeLogCard.svelte',
-	'lib/components/admin/dashboard/SuporteCard.svelte'
+	'lib/components/admin/dashboard/SuporteCard.svelte',
+	'lib/components/admin/dashboard/IaSaldoAlertas.svelte',
+	'lib/components/admin/dashboard/IaSaldoCard.svelte'
 ];
 
 const PALETA =

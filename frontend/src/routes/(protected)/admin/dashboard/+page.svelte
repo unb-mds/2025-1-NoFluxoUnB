@@ -3,6 +3,8 @@
 	import PageMeta from '$lib/components/seo/PageMeta.svelte';
 	import PageBackground from '$lib/components/effects/PageBackground.svelte';
 	import AdminNav from '$lib/components/admin/AdminNav.svelte';
+	import IaSaldoAlertas from '$lib/components/admin/dashboard/IaSaldoAlertas.svelte';
+	import IaSaldoCard from '$lib/components/admin/dashboard/IaSaldoCard.svelte';
 	import IaSaudeLogCard from '$lib/components/admin/dashboard/IaSaudeLogCard.svelte';
 	import IaSemPrecoAlerta from '$lib/components/admin/dashboard/IaSemPrecoAlerta.svelte';
 	import SuporteCard from '$lib/components/admin/dashboard/SuporteCard.svelte';
@@ -10,6 +12,8 @@
 	import { dashboardService } from '$lib/services/dashboard.service';
 	import type {
 		AiCostMetrics,
+		AiSaldoStatus,
+		AiSaldoTipoRegistro,
 		DarcyUsoMetrics,
 		DashboardOverview,
 		FasePeriodo,
@@ -45,6 +49,7 @@
 	let ticketMetrics = $state<TicketMetrics | null>(null);
 	let aiCost = $state<AiCostMetrics | null>(null);
 	let darcyUso = $state<DarcyUsoMetrics | null>(null);
+	let saldoIa = $state<AiSaldoStatus | null>(null);
 	let turmas = $state<TurmasDemanda | null>(null);
 	let scraping = $state<ScrapingHealth | null>(null);
 	let security = $state<SecurityHealth | null>(null);
@@ -76,7 +81,7 @@
 		loading = true;
 		error = null;
 		try {
-			const [o, g, t, m, ai, tu, sc, se, pl, du] = await Promise.all([
+			const [o, g, t, m, ai, tu, sc, se, pl, du, sd] = await Promise.all([
 				dashboardService.getOverview(),
 				dashboardService.getUserGrowth(30, 'day'),
 				dashboardService.getTopCursos(8),
@@ -88,7 +93,9 @@
 				dashboardService.getSecurityHealth().catch(() => null),
 				dashboardService.getPeriodoLetivo().catch(() => null),
 				// Só existe depois da migration 20260929_darcy_cota.sql
-				dashboardService.getDarcyUsoMetrics().catch(() => null)
+				dashboardService.getDarcyUsoMetrics().catch(() => null),
+				// Só existe depois da migration 20260930_ai_saldo.sql
+				dashboardService.getAiSaldoStatus().catch(() => null)
 			]);
 			overview = o;
 			growth = g;
@@ -100,11 +107,17 @@
 			security = se;
 			periodo = pl;
 			darcyUso = du;
+			saldoIa = sd;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Erro ao carregar o dashboard.';
 		} finally {
 			loading = false;
 		}
+	}
+
+	/** Formulário do card de saldo: grava e já mostra o status recalculado. */
+	async function registrarSaldoIa(tipo: AiSaldoTipoRegistro, valor: number, observacao: string | null) {
+		saldoIa = await dashboardService.registrarAiSaldo(tipo, valor, observacao);
 	}
 
 	function fmtDate(value: string): string {
@@ -161,6 +174,9 @@
 			<span>{error}</span>
 		</div>
 	{:else if overview}
+		<!-- Saldo da IA: créditos acabaram / urgente / atenção / desatualizado -->
+		<IaSaldoAlertas status={saldoIa} />
+
 		<!-- Período letivo vigente: mesma fonte (calendario_academico) que o
 		     scraper e o filtro de turmas usam, pra não divergir do sistema. -->
 		{#if periodo}
@@ -285,6 +301,11 @@
 				<SuporteCard metricas={ticketMetrics} hrefTickets={ROUTES.ADMIN_TICKETS} />
 			</div>
 		{/if}
+
+		<!-- Saldo da IA (Maritaca): estimativa e registro do saldo/recarga -->
+		<div class="mt-5">
+			<IaSaldoCard status={saldoIa} onRegistrar={registrarSaldoIa} />
+		</div>
 
 		<!-- Custos de IA -->
 		{#if aiCost}
