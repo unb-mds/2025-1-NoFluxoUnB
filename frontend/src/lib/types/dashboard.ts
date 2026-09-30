@@ -114,8 +114,12 @@ export interface AiCostMetrics {
 	por_endpoint?: Record<string, AiEndpointCost>;
 	// Campos da migration 20260929b_dashboard_rastreabilidade.sql:
 	/**
-	 * Perguntas estornadas (a rota paga falhou): ficam fora de total_perguntas,
-	 * por_dia.perguntas e por_endpoint.perguntas, mas o custo delas entra no total.
+	 * Perguntas cuja linha da rota paga tem success=false: falhas (estornadas da
+	 * cota) e streams abandonados pelo aluno depois de o upstream responder (NÃO
+	 * estornados — contam na cota; o log ainda não tem coluna que distinga).
+	 * Ficam fora de total_perguntas, por_dia.perguntas e por_endpoint.perguntas,
+	 * mas o custo delas entra no total. Por isso total_perguntas pode ficar abaixo
+	 * do consumo real de cota.
 	 */
 	perguntas_com_falha?: number;
 	/** Média por pergunta (soma das chamadas), só perguntas com tokens > 0. */

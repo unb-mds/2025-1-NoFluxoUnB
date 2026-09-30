@@ -320,9 +320,9 @@
 						{#if aiCost.perguntas_com_falha}
 							<span
 								class="block-sub"
-								title="Perguntas que falharam e foram estornadas da cota do aluno. Não entram na contagem de perguntas, mas o que o modelo cobrou está no custo."
+								title="Perguntas cuja chamada paga terminou com success=false: falhas (estornadas da cota do aluno) e streams abandonados pelo aluno depois de o modelo responder (esses contam na cota). O log ainda não distingue os dois casos. Não entram na contagem de perguntas, mas o que o modelo cobrou está no custo."
 							>
-								{aiCost.perguntas_com_falha} com falha (estornadas, custo incluído)
+								{aiCost.perguntas_com_falha} com falha ou abandonadas (custo incluído)
 							</span>
 						{/if}
 						{#if aiCost.custo_hoje !== undefined}
