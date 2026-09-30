@@ -7,6 +7,9 @@
  * Regra do produto: o que existe no dark tem que funcionar no light. Trocar um
  * token, voltar a usar uma cor "só do escuro" (text-purple-300, #fff fixo...)
  * ou mostrar o glow roxo forte no tema claro quebra este teste.
+ *
+ * E o escuro é produção: nada aqui pode ficar menos legível nem mudar de cor em
+ * relação à main. As cores da main ficam escritas abaixo como referência fixa.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -15,6 +18,7 @@ import {
 	TEMAS,
 	lerSrc,
 	piorContraste,
+	resolverClasse,
 	type Camada,
 	type Tema
 } from '$lib/styles/contraste';
@@ -38,6 +42,27 @@ function glowsDaPagina(tema: Tema): Camada[] {
 	return glows;
 }
 
+/** Main (produção): classes e CSS do escuro antes do redesenho para tokens. */
+const MAIN = {
+	iconeAviso: 'text-amber-400',
+	iconeErro: 'text-red-400',
+	/** .error-icon: hsl(0 72% 51% / 0.1), borda / 0.22 — nos dois avisos. */
+	circulo: { cor: '0 72% 51%', alfa: 0.1 } as Camada,
+	textoDropzone: { token: 'muted-foreground' } as Camada
+};
+/** Tint do círculo atual no tema: tokens no claro, o vermelho da main no escuro. */
+const circulo = (tema: Tema, nome: string): Camada =>
+	tema === 'dark' ? MAIN.circulo : { token: nome, alfa: 0.1 };
+const ICONES = {
+	'status-warning': /<AlertTriangle class="([^"]*text-status-warning[^"]*)"/.exec(paginaSrc)?.[1] ?? '',
+	'status-danger': /<AlertTriangle class="([^"]*text-status-danger[^"]*)"/.exec(paginaSrc)?.[1] ?? ''
+};
+
+/** Regras CSS com seletor `:global(.dark) …` (sobrescritas só do escuro). */
+const REGRA_DARK = /:global\(\.dark\)[^{]*\{[^}]*\}/g;
+/** Regras CSS com seletor `:global(html:not(.dark)) …` (sobrescritas só do claro). */
+const REGRA_CLARO = /:global\(html:not\(\.dark\)\)[^{]*\{[^}]*\}/g;
+
 const BOTAO_MANUAL = /<button[^>]*class="([^"]*)"[^>]*onclick=\{openManualMode\}/.exec(paginaSrc)?.[1] ?? '';
 const soComVariante = (classes: string, variante: string) =>
 	classes
@@ -55,7 +80,9 @@ describe.each(TEMAS)('upload de histórico — tema %s, sobre o fundo real', (te
 	// .upload-shell: hsl(var(--card)) opaco
 	const card: Camada[] = [...pagina, 'bg-card'];
 	const dropzone = (alfa: number): Camada[] => [...card, { token: 'primary', alfa }];
-	const fg72: Camada = { token: 'foreground', alfa: 0.72 };
+	// "ou" e dica: foreground a 72% no claro; no escuro o --muted-foreground da main.
+	const textoDropzone: Camada =
+		tema === 'dark' ? MAIN.textoDropzone : { token: 'foreground', alfa: 0.72 };
 
 	it('cabeçalho: título e subtítulo', () => {
 		expect(paginaSrc).toContain('<h1 class="text-foreground');
@@ -80,7 +107,11 @@ describe.each(TEMAS)('upload de histórico — tema %s, sobre o fundo real', (te
 	it('dropzone: título, "ou" e dica têm contraste de texto', () => {
 		for (const alfa of [0.04, 0.07, 0.1]) {
 			expect(piorContraste(tema, { token: 'foreground' }, dropzone(alfa))).toBeGreaterThanOrEqual(MIN_TEXTO);
-			expect(piorContraste(tema, fg72, dropzone(alfa))).toBeGreaterThanOrEqual(MIN_TEXTO);
+			// No escuro o "ou"/dica da main fica abaixo de 4,5:1 no tint mais forte
+			// (pré-existente em produção, mantido idêntico); lá vale o mínimo de gráfico.
+			expect(piorContraste(tema, textoDropzone, dropzone(alfa))).toBeGreaterThanOrEqual(
+				tema === 'dark' ? MIN_GRAFICO : MIN_TEXTO
+			);
 		}
 	});
 
@@ -100,15 +131,58 @@ describe.each(TEMAS)('upload de histórico — tema %s, sobre o fundo real', (te
 		).toBeGreaterThanOrEqual(MIN_TEXTO);
 	});
 
-	it.each(['status-danger', 'status-warning'])(
+	it.each(['status-danger', 'status-warning'] as const)(
 		'ícone de erro/aviso (%s) sobre o círculo tingido e o card',
 		(nome) => {
-			expect(piorContraste(tema, { token: nome }, [...card, { token: nome, alfa: 0.1 }])).toBeGreaterThanOrEqual(
+			const icone = ICONES[nome];
+			expect(icone).not.toBe('');
+			expect(piorContraste(tema, icone, [...card, circulo(tema, nome)])).toBeGreaterThanOrEqual(
 				MIN_GRAFICO
 			);
-			expect(piorContraste(tema, { token: nome }, card)).toBeGreaterThanOrEqual(MIN_GRAFICO);
+			expect(piorContraste(tema, icone, card)).toBeGreaterThanOrEqual(MIN_GRAFICO);
 		}
 	);
+});
+
+describe('upload de histórico — escuro (produção) nunca pior que a main', () => {
+	const card: Camada[] = ['bg-card'];
+	const tema = 'dark';
+
+	it.each([
+		['status-warning', MAIN.iconeAviso],
+		['status-danger', MAIN.iconeErro]
+	] as const)('ícone %s: mesma cor e contraste ≥ main', (nome, main) => {
+		const atual = ICONES[nome];
+		for (const fundo of [card, [...card, circulo(tema, nome)]]) {
+			const prodFundo = fundo.length > 1 ? [...card, MAIN.circulo] : card;
+			expect(piorContraste(tema, atual, fundo)).toBeGreaterThanOrEqual(
+				piorContraste(tema, main, prodFundo) - 1e-9
+			);
+		}
+		expect(resolverClasse(atual, 'text', tema)?.rgb).toEqual(resolverClasse(main, 'text', tema)?.rgb);
+	});
+
+	it('círculo do aviso e do erro: tint e borda vermelhos da main no escuro', () => {
+		const dark = (paginaSrc.match(REGRA_DARK) ?? []).join('\n');
+		expect(dark).toMatch(/\.error-icon--warning/);
+		expect(dark).toContain('background: hsl(0 72% 51% / 0.1)');
+		expect(dark).toContain('border-color: hsl(0 72% 51% / 0.22)');
+	});
+
+	it('"Tentar novamente": borda translúcida da main no escuro', () => {
+		const dark = (paginaSrc.match(REGRA_DARK) ?? []).join('\n');
+		expect(dark).toContain('border-color: hsl(0 0% 100% / 0.12)');
+		expect(dark).toContain('border-color: hsl(0 0% 100% / 0.18)');
+	});
+
+	it('dropzone: "ou" e dica seguem --muted-foreground no escuro', () => {
+		const semClaro = dropzoneSrc.replace(REGRA_CLARO, '');
+		for (const cls of ['divider-text', 'dropzone-hint']) {
+			const bloco = new RegExp(`\\.${cls} \\{[^}]*\\}`).exec(semClaro)?.[0] ?? '';
+			expect(bloco).toContain('color: hsl(var(--muted-foreground))');
+		}
+		expect(dropzoneSrc.match(REGRA_CLARO)?.join('\n')).toContain('hsl(var(--foreground) / 0.72)');
+	});
 });
 
 describe('upload de histórico — glows decorativos', () => {
@@ -132,9 +206,11 @@ describe('upload de histórico — sem cor que só funciona no escuro', () => {
 		['FileDropzone.svelte', dropzoneSrc],
 		['upload-historico/+page.svelte', paginaSrc]
 	])('%s', (_nome, src) => {
+		// Sobrescritas escopadas em `:global(.dark)` são o escuro da main, de propósito.
+		const semDark = src.replace(REGRA_DARK, '');
 		expect(src.match(CLARA_SEM_DARK) ?? []).toEqual([]);
-		expect(src.match(FIXO_CSS) ?? []).toEqual([]);
-		expect(src).not.toMatch(/hsl\(0 72% 51%/); // vermelho fixo do círculo de erro
+		expect(semDark.match(FIXO_CSS) ?? []).toEqual([]);
+		expect(semDark).not.toMatch(/hsl\(0 72% 51%/); // vermelho fixo do círculo de erro
 	});
 
 	it('os ícones de erro/aviso usam os tokens de status', () => {
@@ -142,8 +218,9 @@ describe('upload de histórico — sem cor que só funciona no escuro', () => {
 		expect(paginaSrc).toContain('text-status-warning');
 	});
 
-	it('os toasts do upload (erro de PDF, sucesso) saem no tema do documento', () => {
+	it('os toasts do upload (erro de PDF, sucesso) seguem claros como em produção', () => {
+		// Toasts escuros no dark mudam produção: aguardam aceite do mantenedor.
 		const layout = lerSrc('routes/+layout.svelte');
-		expect(/<Toaster\b[^>]*>/.exec(layout)?.[0]).toMatch(/\btheme=\{temaToaster\}/);
+		expect(/<Toaster\b[^>]*>/.exec(layout)?.[0]).not.toMatch(/\btheme=/);
 	});
 });

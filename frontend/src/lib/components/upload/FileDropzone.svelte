@@ -236,12 +236,13 @@
 
 	/*
 	 * --muted-foreground puro fica em 4,45:1 sobre o tint roxo do dropzone no tema
-	 * claro (e 4,03:1 arrastando). O foreground a 72% passa nos dois temas.
+	 * claro (e 4,03:1 arrastando): lá o texto usa o foreground a 72%. No escuro
+	 * (produção) continua o --muted-foreground da main.
 	 */
 	.divider-text {
 		font-size: 0.8125rem;
 		font-weight: 500;
-		color: hsl(var(--foreground) / 0.72);
+		color: hsl(var(--muted-foreground));
 	}
 
 	.select-btn {
@@ -284,6 +285,11 @@
 		text-align: center;
 		font-size: 0.8125rem;
 		line-height: 1.45;
+		color: hsl(var(--muted-foreground));
+	}
+
+	:global(html:not(.dark)) .divider-text,
+	:global(html:not(.dark)) .dropzone-hint {
 		color: hsl(var(--foreground) / 0.72);
 	}
 </style>

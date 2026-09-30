@@ -116,7 +116,7 @@
 				-->
 				<div class="error-state">
 					<div class="error-icon error-icon--warning">
-						<AlertTriangle class="text-status-warning size-10" stroke-width="2" />
+						<AlertTriangle class="text-status-warning size-10 dark:text-amber-400" stroke-width="2" />
 					</div>
 					<div class="error-copy">
 						<h3 class="error-title">Falta escolher seu curso</h3>
@@ -140,7 +140,7 @@
 			{:else if $uploadStore.state === 'error'}
 				<div class="error-state">
 					<div class="error-icon">
-						<AlertTriangle class="text-status-danger size-10" stroke-width="2" />
+						<AlertTriangle class="text-status-danger size-10 dark:text-red-400" stroke-width="2" />
 					</div>
 					<div class="error-copy">
 						<h3 class="error-title">Não foi possível processar</h3>
@@ -236,6 +236,16 @@
 		border-color: hsl(var(--status-warning) / 0.3);
 	}
 
+	/*
+	 * Escuro (produção): o círculo mantém o tint e a borda vermelhos da main nos
+	 * dois avisos (o red-600 da main). Os tokens de status valem só no claro.
+	 */
+	:global(.dark) .error-icon,
+	:global(.dark) .error-icon--warning {
+		background: hsl(0 72% 51% / 0.1);
+		border-color: hsl(0 72% 51% / 0.22);
+	}
+
 	.error-copy {
 		text-align: center;
 	}
@@ -275,6 +285,15 @@
 	.retry-btn:hover {
 		background: hsl(var(--secondary) / 0.85);
 		border-color: hsl(var(--foreground) / 0.25);
+	}
+
+	/* Escuro (produção): a borda translúcida da main, não o --border opaco. */
+	:global(.dark) .retry-btn {
+		border-color: hsl(0 0% 100% / 0.12);
+	}
+
+	:global(.dark) .retry-btn:hover {
+		border-color: hsl(0 0% 100% / 0.18);
 	}
 
 	/* Saída secundária: descartar o histórico lido é a opção menos provável. */
