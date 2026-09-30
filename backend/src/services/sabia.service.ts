@@ -123,6 +123,11 @@ export interface ResultadoStreamSabia {
     recebeuDoUpstream: boolean;
     /** O stream terminou com `done` e sem evento de erro. */
     concluiu: boolean;
+    /**
+     * Mensagem crua do evento `error` do Python (não vai ao cliente): o
+     * controller a usa para marcar a falha por falta de créditos da Maritaca.
+     */
+    erroUpstream?: string;
 }
 
 /**
@@ -374,12 +379,14 @@ export class SabiaService {
         let recebeuDoUpstream = false; // algum byte veio do Python (ver ResultadoStreamSabia)
         let viuDone = false;
         let viuErro = false;
+        let erroUpstream: string | undefined;
         const resultado = (aborted: boolean): ResultadoStreamSabia => ({
             usage,
             aborted,
             entregouConteudo,
             recebeuDoUpstream,
             concluiu: viuDone && !viuErro,
+            ...(erroUpstream !== undefined ? { erroUpstream } : {}),
         });
         try {
             rearmarIdle();
@@ -437,7 +444,10 @@ export class SabiaService {
                                 entregouConteudo = true;
                                 viuDone = true;
                             }
-                            if (parsed.stage === 'error') viuErro = true;
+                            if (parsed.stage === 'error') {
+                                viuErro = true;
+                                erroUpstream = typeof parsed.message === 'string' ? parsed.message : JSON.stringify(parsed.message ?? '');
+                            }
                             // O Python manda `str(e)` cru no evento de erro: troca
                             // pela mensagem genérica, exceto as de orientação.
                             if (parsed.stage === 'error' && !isMensagemSabiaPublica(parsed.message)) {

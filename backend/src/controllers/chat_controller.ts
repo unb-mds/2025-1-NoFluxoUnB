@@ -122,6 +122,7 @@ export const ChatController: EndpointController = {
                     requestExcerpt: message,
                     usage: usageDoAgente(contextoRun.usage, MARITACA_MODELS.AGENTE),
                     modeloPadrao: MARITACA_MODELS.AGENTE,
+                    erro: error,
                     ...ctxIA,
                 });
                 if (isMaritacaSemCreditos(error)) {

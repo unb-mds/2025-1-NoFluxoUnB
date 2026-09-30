@@ -17,6 +17,20 @@
 
 import { AsyncLocalStorage } from 'async_hooks';
 import { SupabaseWrapper } from '../supabase_wrapper';
+import { MaritacaSemCreditosError, isMaritacaSemCreditos } from '../config/maritaca_errors';
+
+/**
+ * Marcador em ai_usage_log.erro_codigo (migration 20260930_ai_saldo.sql) da
+ * falha por falta de créditos na Maritaca. O dashboard admin mostra
+ * "Créditos acabaram" quando há uma linha dessas nas últimas 24h.
+ */
+export const ERRO_CODIGO_SEM_CREDITOS = MaritacaSemCreditosError.code;
+
+/** Código do erro para a coluna erro_codigo (null = nenhum marcador). */
+export function erroCodigoDoErro(erro: unknown): string | null {
+    if (erro === undefined || erro === null) return null;
+    return isMaritacaSemCreditos(erro) ? ERRO_CODIGO_SEM_CREDITOS : null;
+}
 
 export interface LlmUsage {
     model: string;
@@ -109,10 +123,17 @@ export function logAiUsage(params: {
     perguntaId?: string | null;
     /** Modelo da linha única gravada quando `usage` vem vazio. */
     modeloPadrao?: string;
+    /**
+     * O erro da falha (o que caiu no catch, ou a mensagem de erro do
+     * upstream). Se for o 403 de saldo da Maritaca, a linha sai com
+     * erro_codigo = 'ai_sem_creditos' — o evento que o alerta de saldo lê.
+     */
+    erro?: unknown;
 }): void {
     const ctx = contextoIAAtual();
     const userId = params.userId ?? ctx.userId ?? null;
     const perguntaId = params.perguntaId ?? ctx.perguntaId ?? null;
+    const erroCodigo = params.success ? null : erroCodigoDoErro(params.erro);
     void (async () => {
         try {
             const calls = params.usage && params.usage.length > 0
@@ -129,8 +150,17 @@ export function logAiUsage(params: {
                 request_excerpt: params.requestExcerpt.slice(0, 120),
                 user_id: userId,
                 pergunta_id: perguntaId,
+                // Só quando há marcador: sem a migration 20260930 a coluna não
+                // existe e as linhas comuns seguem sendo gravadas.
+                ...(erroCodigo ? { erro_codigo: erroCodigo } : {}),
             }));
-            const { error } = await SupabaseWrapper.get().from('ai_usage_log').insert(rows);
+            let { error } = await SupabaseWrapper.get().from('ai_usage_log').insert(rows);
+            if (error && erroCodigo) {
+                // Banco sem a coluna erro_codigo: não perde o custo da falha.
+                console.error('[logAiUsage] insert com erro_codigo falhou, gravando sem ele:', error.message);
+                ({ error } = await SupabaseWrapper.get().from('ai_usage_log')
+                    .insert(rows.map(({ erro_codigo: _e, ...r }) => r)));
+            }
             if (error) console.error('[logAiUsage] insert falhou:', error.message);
         } catch (e) {
             console.error('[logAiUsage] erro inesperado:', e);

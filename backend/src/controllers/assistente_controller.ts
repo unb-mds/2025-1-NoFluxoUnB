@@ -75,11 +75,12 @@ export const AssistenteController: EndpointController = {
             // 'ragflow' (o dashboard avisa "sem preço cadastrado") e os tokens
             // só quando a resposta os trouxer (usageDoRagflow).
             let respostaRagflow: RagflowResponse | undefined;
-            const logarRagflow = (success: boolean) =>
+            const logarRagflow = (success: boolean, erro?: unknown) =>
                 logAiUsage({
                     endpoint: 'analyze',
                     durationMs: Date.now() - startTime,
                     success,
+                    erro,
                     requestExcerpt: materia,
                     usage: usageDoRagflow(respostaRagflow),
                     modeloPadrao: RAGFLOW_MODEL,
@@ -101,7 +102,7 @@ export const AssistenteController: EndpointController = {
 
                 if (result.code !== 0) {
                     await pergunta.estornar();
-                    logarRagflow(false);
+                    logarRagflow(false, result.message);
                     const requestId = registrarFalha(logger, `RAGFlow API error code=${result.code}`, result.message ?? 'sem mensagem');
                     return res.status(502).json({ erro: ERRO_IA_GENERICO, requestId });
                 }
@@ -128,7 +129,7 @@ export const AssistenteController: EndpointController = {
                 return res.json({ resultado: formatted, cota: pergunta.cota });
             } catch (error) {
                 await pergunta.estornar();
-                logarRagflow(false);
+                logarRagflow(false, error);
                 const requestId = registrarFalha(logger, `Error after ${Date.now() - startTime}ms`, error);
                 return res.status(500).json({ erro: ERRO_IA_GENERICO, requestId });
             }
@@ -227,6 +228,7 @@ export const AssistenteController: EndpointController = {
                         requestExcerpt: excerpt,
                         usage: usageParcialDoErro(err),
                         modeloPadrao: MARITACA_MODELS.AGENTE,
+                        erro: err,
                         ...ctxIA,
                     });
                 }
@@ -321,9 +323,10 @@ export const AssistenteController: EndpointController = {
                 logger.info(`Streaming with Sabiá: "${materia}"`);
                 // Contexto da pergunta: o SabiaService repassa user_id/pergunta_id
                 // ao mcp_agent, que loga as embeddings Gemini na mesma pergunta.
-                const { usage, aborted, recebeuDoUpstream, concluiu } = await executarComContextoIA(ctxIA, () =>
+                const resultadoStream = await executarComContextoIA(ctxIA, () =>
                     sabia.analyzarInteresseStream(materia, matrizCurricular, res, clientAbort.signal),
                 );
+                const { usage, aborted, recebeuDoUpstream, concluiu } = resultadoStream;
                 if (aborted) {
                     // Sem o evento `usage` do Python: registra a request como não
                     // concluída (tokens 0) para não sumir do dashboard de custo.
@@ -346,6 +349,7 @@ export const AssistenteController: EndpointController = {
                 // A pergunta é estornada e a linha do log vai como falha — com o
                 // usage que chegou, porque a Maritaca cobrou do mesmo jeito.
                 if (!concluiu) await pergunta.estornar();
+                const { erroUpstream } = resultadoStream;
                 // Tokens reais vêm do evento SSE "usage" que o Python emite antes do
                 // "done" (ver SabiaService.analyzarInteresseStream). Fallback: se a
                 // Maritaca não mandar include_usage em algum caminho, o evento não
@@ -358,6 +362,7 @@ export const AssistenteController: EndpointController = {
                     usage: usage && usage.length > 0
                         ? usage
                         : [{ model: 'sabia-4', prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }],
+                    erro: erroUpstream,
                     ...ctxIA,
                 });
                 return;
@@ -371,6 +376,7 @@ export const AssistenteController: EndpointController = {
                     // O evento `usage` pode ter chegado antes da falha.
                     usage: usageParcialDoErro(error),
                     modeloPadrao: MARITACA_MODELS.AGENTE,
+                    erro: error,
                     ...ctxIA,
                 });
                 if (clientAbort.signal.aborted || res.writableEnded) return;
@@ -411,7 +417,7 @@ export const AssistenteController: EndpointController = {
             const pergunta = await reservarPerguntaIA(res, usuario);
             if (!pergunta) return;
             const ctxIA = { userId: usuario.id, perguntaId: pergunta.perguntaId };
-            const logarFalha = (usage?: LlmUsage[]) =>
+            const logarFalha = (usage: LlmUsage[] | undefined, erro: unknown) =>
                 logAiUsage({
                     endpoint: 'analyze-sabia',
                     durationMs: Date.now() - startTime,
@@ -419,6 +425,7 @@ export const AssistenteController: EndpointController = {
                     requestExcerpt: materia,
                     usage,
                     modeloPadrao: MARITACA_MODELS.AGENTE,
+                    erro,
                     ...ctxIA,
                 });
 
@@ -435,7 +442,7 @@ export const AssistenteController: EndpointController = {
 
                 if (!result.success) {
                     await pergunta.estornar();
-                    logarFalha(result.usage);
+                    logarFalha(result.usage, result.error);
                     // Só as mensagens de orientação escritas no próprio mcp_agent
                     // (ex.: "Envie o historico academico") chegam ao usuário.
                     if (result.error && isMensagemSabiaPublica(result.error)) {
@@ -470,7 +477,7 @@ export const AssistenteController: EndpointController = {
                 });
             } catch (error) {
                 await pergunta.estornar();
-                logarFalha(usageRecebido ?? usageParcialDoErro(error));
+                logarFalha(usageRecebido ?? usageParcialDoErro(error), error);
                 if (error instanceof SabiaTimeoutError) {
                     // Mensagem própria e segura (sem detalhe interno): ver SabiaTimeoutError.
                     logger.error(`Timeout do Sabiá após ${Date.now() - startTime}ms`);

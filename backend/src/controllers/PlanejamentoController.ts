@@ -787,7 +787,7 @@ export const PlanejamentoController: EndpointController = {
                 let excerpt = "";
                 // Pergunta reservada que falhou: entra no log como falha, com o
                 // que o modelo já tiver cobrado (0 tokens se nem chegou a ele).
-                const logarFalha = (usage: LlmUsage[]) =>
+                const logarFalha = (usage: LlmUsage[], erro?: unknown) =>
                     logAiUsage({
                         endpoint: "planejamento-chat",
                         durationMs: Date.now() - startTime,
@@ -795,6 +795,7 @@ export const PlanejamentoController: EndpointController = {
                         requestExcerpt: excerpt,
                         usage,
                         modeloPadrao: MARITACA_MODELS.AGENTE,
+                        erro,
                         ...ctxIA,
                     });
                 try {
@@ -902,7 +903,7 @@ export const PlanejamentoController: EndpointController = {
                     await pergunta?.estornar();
                     // Custo do que o modelo já respondeu antes da falha (a
                     // pergunta continua estornada). Comando direto não tem pergunta.
-                    if (pergunta) logarFalha(usageParcialDoErro(err));
+                    if (pergunta) logarFalha(usageParcialDoErro(err), err);
                     if (isMaritacaSemCreditos(err)) {
                         logger.error("Chat do planejador: Maritaca sem créditos ativos");
                         return res.status(503).json(AI_SEM_CREDITOS_BODY);
