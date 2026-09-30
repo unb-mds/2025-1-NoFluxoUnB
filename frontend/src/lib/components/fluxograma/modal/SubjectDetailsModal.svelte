@@ -92,7 +92,7 @@ import { ROUTES } from '$lib/config/routes';
 	onclick={handleBackdropClick}
 >
 	<div
-		class="relative max-h-[90dvh] w-full max-w-lg overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground shadow-2xl backdrop-blur-xl sm:max-h-[85dvh] sm:rounded-2xl"
+		class="relative max-h-[90dvh] w-full max-w-lg overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground shadow-2xl dark:border-white/10 dark:bg-gray-900/95 backdrop-blur-xl sm:max-h-[85dvh] sm:rounded-2xl"
 		role="dialog"
 		aria-modal="true"
 		aria-label="Detalhes da matéria"
@@ -307,7 +307,7 @@ import { ROUTES } from '$lib/config/routes';
 																{#if prereqMateria}
 																	{@const prereqStatus = store.getSubjectStatus(prereqMateria)}
 																	<div
-																		class="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-primary/35 bg-primary/10 px-2.5 py-1 text-xs text-accent-foreground"
+																		class="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-primary/35 dark:border-[#7f9cf5]/35 bg-primary/10 dark:bg-[#7f9cf5]/10 px-2.5 py-1 text-xs text-accent-foreground dark:text-[#b8adff]"
 																		title={cod}
 																	>
 																		<span class="h-1.5 w-1.5 shrink-0 rounded-full {statusDotColor[prereqStatus]}"></span>
@@ -334,7 +334,7 @@ import { ROUTES } from '$lib/config/routes';
 									{@const prereq = prereqs.find((p) => p.codigoMateria.toUpperCase() === display.code.toUpperCase())}
 									{#if prereq}
 										{@const prereqStatus = store.getSubjectStatus(prereq)}
-										<div class="flex items-center gap-2 rounded-lg border border-primary/35 bg-primary/10 px-3 py-2 text-xs text-accent-foreground">
+										<div class="flex items-center gap-2 rounded-lg border border-primary/35 dark:border-[#7f9cf5]/35 bg-primary/10 dark:bg-[#7f9cf5]/10 px-3 py-2 text-xs text-accent-foreground dark:text-[#b8adff]">
 											<div class="h-2.5 w-2.5 shrink-0 rounded-full {statusDotColor[prereqStatus]}"></div>
 											<div class="flex-1">
 												<span class="font-mono font-medium">{prereq.codigoMateria}</span>

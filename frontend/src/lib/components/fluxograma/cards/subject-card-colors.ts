@@ -143,17 +143,19 @@ export const CARD_OUTLINE: Record<
 	'selected' | 'failedHighlight' | 'focus' | 'precursor' | 'descendant' | 'corequisite',
 	OutlineColors
 > = {
-	// /65: com o --foreground do escuro (97%, não branco puro) o /60 ficava abaixo
-	// da borda branca a 60% que estava em produção.
+	// Token no claro; no escuro (produção) o `dark:` repõe exatamente o contorno
+	// da main (branco a 60%/30% no selecionado, red-300/85 + anel red-400/45 no
+	// reprovado em destaque).
 	selected: {
 		token: 'foreground',
 		borderAlpha: 0.65,
-		className: 'border-foreground/65 ring-2 ring-foreground/30'
+		className: 'border-foreground/65 ring-2 ring-foreground/30 dark:border-white/60 dark:ring-white/30'
 	},
 	failedHighlight: {
 		token: 'status-failed-ring',
 		borderAlpha: 0.85,
-		className: 'border-status-failed-ring/85 ring-2 ring-status-failed-ring/45 shadow-md shadow-red-700/20'
+		className:
+			'border-status-failed-ring/85 ring-2 ring-status-failed-ring/45 shadow-md shadow-red-700/20 dark:border-red-300/85 dark:ring-red-400/45'
 	},
 	// Alinhadas a CHAIN_VISUAL (mesma família de cor nas linhas de conexão).
 	focus: {

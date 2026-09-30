@@ -122,7 +122,7 @@
 					<div class="grid grid-cols-2 gap-3">
 						<div>
 							<label for="manual-mencao" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-foreground/75">Menção</label>
-							<select id="manual-mencao" bind:value={manualMencao} class="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground focus:border-ring focus:outline-none">
+							<select id="manual-mencao" bind:value={manualMencao} class="w-full rounded-md border border-input dark:border-white/10 bg-background dark:bg-white/5 px-2 py-1.5 text-sm text-foreground dark:text-white focus:border-ring focus:outline-none dark:focus:border-purple-500">
 								<option value="">-</option>
 								<option value="SS">SS</option>
 								<option value="MS">MS</option>
@@ -134,12 +134,12 @@
 						</div>
 						<div>
 							<label for="manual-equivalencia" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-foreground/75">Equivalência</label>
-							<input id="manual-equivalencia" type="text" bind:value={manualEquivalencia} placeholder="Ex: FGA0168" class="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none" />
+							<input id="manual-equivalencia" type="text" bind:value={manualEquivalencia} placeholder="Ex: FGA0168" class="w-full rounded-md border border-input dark:border-white/10 bg-background dark:bg-white/5 px-2 py-1.5 text-sm text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/30 focus:border-ring focus:outline-none dark:focus:border-purple-500" />
 						</div>
 					</div>
 					<div>
 						<label for="manual-professor" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-foreground/75">Professor</label>
-						<input id="manual-professor" type="text" bind:value={manualProfessor} placeholder="Nome do professor" class="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none" />
+						<input id="manual-professor" type="text" bind:value={manualProfessor} placeholder="Nome do professor" class="w-full rounded-md border border-input dark:border-white/10 bg-background dark:bg-white/5 px-2 py-1.5 text-sm text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/30 focus:border-ring focus:outline-none dark:focus:border-purple-500" />
 					</div>
 					<button type="button" disabled={salvandoManual} onclick={salvarManual} class="w-full rounded-lg bg-purple-600 px-4 py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-purple-500 disabled:opacity-50">
 						{#if salvandoManual}<Loader2 class="inline h-3 w-3 animate-spin" />{:else}Salvar Opções{/if}

@@ -35,7 +35,7 @@ type Arq = keyof typeof ARQ;
 
 /** Backdrop do modal (igual na main) + caixa do modal. */
 const PROD_MODAL: Camada[] = ['bg-black/60', 'bg-gray-900/95'];
-const MODAL: Camada[] = ['bg-black/60', 'bg-popover/95'];
+const MODAL: Camada[] = ['bg-black/60', 'bg-popover/95 dark:bg-gray-900/95'];
 
 /** Gradiente do cabeçalho por status (igual na main): as duas pontas. */
 const GRADIENTES = {
@@ -170,10 +170,10 @@ const CASOS: Caso[] = [
 	corpo('pré-req: instrução', 'modal', [['bg-white/5'], 'text-white/70'], [['bg-muted/50'], 'text-foreground/75']),
 	corpo('pré-req: "uma das opções"', 'modal', [['bg-white/5'], 'text-white/95'], [['bg-muted/50'], 'text-foreground']),
 	corpo('pré-req: "Opção N"', 'modal', [['bg-white/5', 'bg-black/20'], 'text-white/40'], [['bg-muted/50', 'bg-muted/40 dark:bg-black/20'], 'text-foreground/75']),
-	corpo('pré-req: chip (código)', 'modal', [['bg-white/5', 'bg-black/20', 'bg-[#7f9cf5]/10'], 'text-[#b8adff]'], [['bg-muted/50', 'bg-muted/40 dark:bg-black/20', 'bg-primary/10'], 'text-accent-foreground']),
-	corpo('pré-req: chip (nome)', 'modal', [['bg-white/5', 'bg-black/20', 'bg-[#7f9cf5]/10'], 'text-white/85'], [['bg-muted/50', 'bg-muted/40 dark:bg-black/20', 'bg-primary/10'], 'text-foreground/90']),
-	corpo('pré-req: chip (status)', 'modal', [['bg-white/5', 'bg-black/20', 'bg-[#7f9cf5]/10'], 'text-white/50'], [['bg-muted/50', 'bg-muted/40 dark:bg-black/20', 'bg-primary/10'], 'text-foreground/75']),
-	corpo('pré-req único: nome', 'modal', [['bg-white/5', 'bg-[#7f9cf5]/10'], 'text-white/60'], [['bg-muted/50', 'bg-primary/10'], 'text-foreground/75']),
+	corpo('pré-req: chip (código)', 'modal', [['bg-white/5', 'bg-black/20', 'bg-[#7f9cf5]/10'], 'text-[#b8adff]'], [['bg-muted/50', 'bg-muted/40 dark:bg-black/20', 'bg-primary/10 dark:bg-[#7f9cf5]/10'], 'text-accent-foreground dark:text-[#b8adff]']),
+	corpo('pré-req: chip (nome)', 'modal', [['bg-white/5', 'bg-black/20', 'bg-[#7f9cf5]/10'], 'text-white/85'], [['bg-muted/50', 'bg-muted/40 dark:bg-black/20', 'bg-primary/10 dark:bg-[#7f9cf5]/10'], 'text-foreground/90']),
+	corpo('pré-req: chip (status)', 'modal', [['bg-white/5', 'bg-black/20', 'bg-[#7f9cf5]/10'], 'text-white/50'], [['bg-muted/50', 'bg-muted/40 dark:bg-black/20', 'bg-primary/10 dark:bg-[#7f9cf5]/10'], 'text-foreground/75']),
+	corpo('pré-req único: nome', 'modal', [['bg-white/5', 'bg-[#7f9cf5]/10'], 'text-white/60'], [['bg-muted/50', 'bg-primary/10 dark:bg-[#7f9cf5]/10'], 'text-foreground/75']),
 	corpo('pré-req sem matéria: código', 'modal', [['bg-white/5', 'bg-white/5'], 'text-white/80'], [['bg-muted/50', 'bg-muted/50'], 'text-foreground/85']),
 	corpo('sem pré-requisitos / sem equivalência', 'modal', [[], 'text-white/50'], [[], 'text-foreground/75']),
 
@@ -209,7 +209,7 @@ const CASOS: Caso[] = [
 	corpo('editor: TRC escolhido', 'editor', [['bg-black/20', 'bg-gray-500/20'], 'text-gray-300'], [['bg-muted/40 p-4 dark:bg-black/20', 'bg-muted'], 'text-foreground']),
 	corpo('editor: opções avançadas', 'editor', [['bg-black/20', 'bg-purple-500/10'], 'text-purple-300'], [['bg-muted/40 p-4 dark:bg-black/20', 'bg-primary/10'], 'text-primary dark:text-purple-300']),
 	corpo('editor: rótulos dos campos', 'editor', [['bg-black/20'], 'text-white/50'], [['bg-muted/40 p-4 dark:bg-black/20'], 'text-foreground/75']),
-	corpo('editor: campo', 'editor', [['bg-black/20', 'bg-white/5'], 'text-white'], [['bg-muted/40 p-4 dark:bg-black/20', 'bg-background'], 'text-foreground']),
+	corpo('editor: campo', 'editor', [['bg-black/20', 'bg-white/5'], 'text-white'], [['bg-muted/40 p-4 dark:bg-black/20', 'bg-background dark:bg-white/5'], 'text-foreground dark:text-white']),
 	corpo('editor: "Salvar Opções"', 'editor', [['bg-black/20', 'bg-purple-600'], 'text-white'], [['bg-muted/40 p-4 dark:bg-black/20', 'bg-purple-600'], 'text-primary-foreground']),
 
 	// SubjectClassesTab (dentro do modal)
@@ -247,7 +247,15 @@ const CONTORNOS: Caso[] = [
 		onde: 'contorno do card selecionado',
 		arquivo: 'cores',
 		prod: { fundo: [], frente: 'border-white/60' },
-		atual: { fundo: [], frente: 'border-foreground/65' },
+		atual: { fundo: [], frente: 'border-foreground/65 ring-2 ring-foreground/30 dark:border-white/60' },
+		prop: 'border',
+		min: MIN_GRAFICO
+	},
+	{
+		onde: 'contorno do card reprovado em destaque',
+		arquivo: 'cores',
+		prod: { fundo: [], frente: 'border-red-300/85' },
+		atual: { fundo: [], frente: 'border-status-failed-ring/85 dark:border-red-300/85' },
 		prop: 'border',
 		min: MIN_GRAFICO
 	}
@@ -285,6 +293,38 @@ describe.each([...CASOS, ...ETIQUETAS, ...CONTORNOS])('$onde', (caso) => {
 		const prod = medir('dark', caso.prod, caso);
 		const atual = medir('dark', caso.atual, caso);
 		expect(atual, `main ${prod.toFixed(2)}:1 → agora ${atual.toFixed(2)}:1`).toBeGreaterThanOrEqual(prod);
+	});
+});
+
+/**
+ * Mudanças só visuais (sem ganho de contraste) não entram no escuro de produção
+ * sem aceite do mantenedor: lá fica o valor da main, byte a byte.
+ */
+describe('escuro (produção): superfícies e contornos idênticos à main', () => {
+	it.each([
+		['modal', 'painel do modal', 'dark:border-white/10 dark:bg-gray-900/95'],
+		['modal', 'chip de pré-requisito', 'dark:border-[#7f9cf5]/35 bg-primary/10 dark:bg-[#7f9cf5]/10'],
+		['modal', 'chip de pré-requisito (texto)', 'dark:text-[#b8adff]'],
+		['editor', 'campos do editor', 'dark:border-white/10 bg-background dark:bg-white/5'],
+		['editor', 'placeholder dos campos', 'dark:placeholder:text-white/30'],
+		['cores', 'card selecionado', 'dark:border-white/60 dark:ring-white/30'],
+		['cores', 'reprovado em destaque', 'dark:border-red-300/85 dark:ring-red-400/45']
+	] as const)('%s: %s', (arquivo, _onde, trecho) => {
+		expect(lerSrc(ARQ[arquivo])).toContain(trecho);
+	});
+
+	it('a cor medida no escuro é a da main', () => {
+		for (const [atual, main, prop] of [
+			['bg-popover/95 dark:bg-gray-900/95', 'bg-gray-900/95', 'bg'],
+			['text-accent-foreground dark:text-[#b8adff]', 'text-[#b8adff]', 'text'],
+			['border-foreground/65 dark:border-white/60', 'border-white/60', 'border'],
+			['ring-status-failed-ring/45 dark:ring-red-400/45', 'ring-red-400/45', 'ring']
+		] as const) {
+			expect(resolverClasse(atual, prop, 'dark')).toMatchObject({
+				rgb: resolverClasse(main, prop, 'dark')!.rgb,
+				alfa: resolverClasse(main, prop, 'dark')!.alfa
+			});
+		}
 	});
 });
 

@@ -92,10 +92,14 @@ describe.each(TEMAS)('contraste do SubjectCard — tema %s (pré-mortem R28)', (
 	});
 
 	// Fundo real: --page-background do PageBackground (liso e no glow), não --background.
+	// Mede a classe que vai para a tela (o `dark:` vence no escuro).
 	it.each(Object.entries(CARD_OUTLINE))('contorno %s >= 3:1 contra o fundo real da página', (_n, o) => {
-		expect(piorContraste(nome, { token: o.token, alfa: o.borderAlpha })).toBeGreaterThanOrEqual(
-			WCAG_AA_NON_TEXT
-		);
+		expect(piorContraste(nome, o.className, [], 'border')).toBeGreaterThanOrEqual(WCAG_AA_NON_TEXT);
+		if (nome === 'light') {
+			expect(piorContraste(nome, o.className, [], 'border')).toBeCloseTo(
+				piorContraste(nome, { token: o.token, alfa: o.borderAlpha })
+			);
+		}
 	});
 });
 
