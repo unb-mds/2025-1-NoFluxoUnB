@@ -409,16 +409,16 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 	{#if store.state.loading}
 		<div class="flex flex-col items-center justify-center gap-4 py-20">
 			<Loader2 class="h-10 w-10 animate-spin text-purple-600 dark:text-purple-400" />
-			<p class="text-sm text-muted-foreground">Carregando fluxograma de {courseName}...</p>
+			<p class="text-sm text-muted-foreground dark:text-white/60">Carregando fluxograma de {courseName}...</p>
 		</div>
 	{:else if store.state.error}
-		<div class="mx-auto max-w-md rounded-2xl border border-destructive/30 bg-destructive/10 p-8 text-center backdrop-blur-md">
+		<div class="mx-auto max-w-md rounded-2xl border border-destructive/30 bg-destructive/10 dark:border-red-500/20 dark:bg-red-500/10 p-8 text-center backdrop-blur-md">
 			<AlertTriangle class="mx-auto mb-3 h-8 w-8 text-red-600 dark:text-red-400" />
-			<h2 class="mb-2 text-lg font-semibold text-foreground">Erro ao carregar fluxograma</h2>
+			<h2 class="mb-2 text-lg font-semibold text-foreground dark:text-white">Erro ao carregar fluxograma</h2>
 			<p class="mb-4 text-sm text-red-700 dark:text-red-300/80">{store.state.error}</p>
 			<button
 				onclick={carregar}
-				class="rounded-full bg-foreground/10 px-6 py-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/20"
+				class="rounded-full bg-foreground/10 px-6 py-2 text-sm font-medium text-foreground dark:bg-white/10 dark:text-white transition-colors hover:bg-foreground/20 dark:hover:bg-white/20"
 			>
 				Tentar novamente
 			</button>
@@ -615,7 +615,7 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 			<p class="mb-4 text-sm text-muted-foreground">Escolha um curso na lista de fluxogramas.</p>
 			<a
 				href={ROUTES.FLUXOGRAMAS}
-				class="inline-block rounded-full bg-foreground/10 px-6 py-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/20"
+				class="inline-block rounded-full bg-foreground/10 px-6 py-2 text-sm font-medium text-foreground dark:bg-white/10 dark:text-white transition-colors hover:bg-foreground/20 dark:hover:bg-white/20"
 			>
 				Ver fluxogramas
 			</a>

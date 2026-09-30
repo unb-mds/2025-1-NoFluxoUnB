@@ -232,38 +232,38 @@
 				: ''}"
 		>
 			<div
-				class="pointer-events-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 rounded-full border border-border bg-background/80 px-4 py-2 text-xs backdrop-blur-md sm:text-sm"
+				class="pointer-events-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 rounded-full border border-border bg-background/80 px-4 py-2 text-xs backdrop-blur-md dark:border-white/10 dark:bg-black/50 sm:text-sm"
 			>
-				<div class="flex items-center gap-1.5 text-foreground">
+				<div class="flex items-center gap-1.5 text-foreground dark:text-white">
 					{#if integralizacaoLoading}
 						<Loader2 class="h-4 w-4 shrink-0 animate-spin text-green-700 dark:text-green-400" />
 						<span class="font-medium"
-							>— <span class="hidden text-muted-foreground sm:inline">concluído</span></span
+							>— <span class="hidden text-muted-foreground dark:text-white/50 sm:inline">concluído</span></span
 						>
 					{:else}
 						<GraduationCap class="h-4 w-4 text-green-700 dark:text-green-400" />
 						<span class="font-medium"
-							>{progressPct}% <span class="hidden text-muted-foreground sm:inline">concluído</span></span
+							>{progressPct}% <span class="hidden text-muted-foreground dark:text-white/50 sm:inline">concluído</span></span
 						>
 					{/if}
 				</div>
-				<div class="h-3 w-px bg-foreground/20"></div>
-				<div class="flex items-center gap-1.5 text-foreground">
+				<div class="h-3 w-px bg-foreground/20 dark:bg-white/20"></div>
+				<div class="flex items-center gap-1.5 text-foreground dark:text-white">
 					<Calendar class="h-4 w-4 text-amber-700 dark:text-amber-400" />
 					<span class="font-medium"
 						>{userFluxograma.semestreAtual}º
-						<span class="hidden text-muted-foreground sm:inline">sem.</span></span
+						<span class="hidden text-muted-foreground dark:text-white/50 sm:inline">sem.</span></span
 					>
 				</div>
-				<div class="h-3 w-px bg-foreground/20"></div>
-				<div class="flex items-center gap-1.5 text-foreground">
+				<div class="h-3 w-px bg-foreground/20 dark:bg-white/20"></div>
+				<div class="flex items-center gap-1.5 text-foreground dark:text-white">
 					<TrendingUp class="h-4 w-4 text-purple-600 dark:text-purple-400" />
 					{#if formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}
 						<span class="font-medium"
 							>IRA: {formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}</span
 						>
 					{:else}
-						<span class="font-medium text-muted-foreground">{IRA_NAO_ENCONTRADO}</span>
+						<span class="font-medium text-muted-foreground dark:text-white/50">{IRA_NAO_ENCONTRADO}</span>
 					{/if}
 				</div>
 			</div>

@@ -128,14 +128,14 @@
 {#if userFluxograma}
 	<!-- Um card: integralização | semestre (dividido por borda) -->
 	<div
-		class="flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-background/80 backdrop-blur-md sm:flex-row"
+		class="flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-background/80 backdrop-blur-md dark:border-white/10 dark:bg-black/40 sm:flex-row"
 	>
 		<button
 			type="button"
 			onclick={() => (podeAbrirModal ? (showChModal = true) : null)}
-			class="min-w-0 flex-1 border-b border-border p-4 text-left transition-colors sm:border-r sm:border-b-0 sm:p-5 {!podeAbrirModal
+			class="min-w-0 flex-1 border-b border-border dark:border-white/10 p-4 text-left transition-colors sm:border-r sm:border-b-0 sm:p-5 {!podeAbrirModal
 				? 'cursor-default'
-				: 'cursor-pointer hover:bg-foreground/5'}"
+				: 'cursor-pointer hover:bg-foreground/5 dark:hover:bg-black/30'}"
 			title={podeAbrirModal ? 'Ver detalhes da carga horária' : undefined}
 		>
 			<div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
@@ -150,7 +150,7 @@
 										cx="32"
 										cy="32"
 										r="28"
-										class="stroke-foreground/10"
+										class="stroke-foreground/10 dark:stroke-white/12"
 										stroke-width="5"
 										fill="none"
 									/>
@@ -163,11 +163,11 @@
 										stroke-linecap="round"
 										stroke-dasharray={circleData.circumference}
 										stroke-dashoffset={circleData.offset}
-										class="stroke-green-700 transition-all duration-600 dark:stroke-green-500"
+										class="stroke-green-700 transition-all duration-600 dark:stroke-[#22c55e]"
 									/>
 								</svg>
 								<div class="absolute inset-0 flex items-center justify-center">
-									<span class="text-sm font-bold text-foreground sm:text-base">{progressPct}%</span>
+									<span class="text-sm font-bold text-foreground dark:text-white sm:text-base">{progressPct}%</span>
 								</div>
 							</div>
 						{:else}
@@ -178,7 +178,7 @@
 						<div class="flex items-center gap-1.5 text-green-700 dark:text-green-400">
 							<span class="text-xs font-semibold uppercase tracking-wider">{progressLabel}</span>
 						</div>
-						<p class="text-xs text-muted-foreground">{progressSublabel}</p>
+						<p class="text-xs text-muted-foreground dark:text-white/50">{progressSublabel}</p>
 						{#if podeAbrirModal}
 							<p class="mt-1 text-xs text-cyan-700 dark:text-cyan-400 sm:mt-1.5">Clique para ver detalhes</p>
 						{/if}
@@ -186,8 +186,8 @@
 				</div>
 				<div class="flex min-w-0 flex-wrap items-center justify-between gap-3 sm:justify-end sm:gap-3">
 					<div class="min-w-0 flex-1 text-left sm:flex-none sm:text-right">
-						<p class="truncate text-sm font-semibold text-foreground sm:text-base">{progressValue}</p>
-						<p class="text-xs text-muted-foreground">{progressSublabel}</p>
+						<p class="truncate text-sm font-semibold text-foreground dark:text-white sm:text-base">{progressValue}</p>
+						<p class="text-xs text-muted-foreground dark:text-white/50">{progressSublabel}</p>
 						{#if simulacaoMatr}
 							{@const pctSimulado =
 								integralizacao && integralizacao.exigido.chTotal > 0
@@ -204,7 +204,7 @@
 										{pctSimulado ?? '—'}%
 									</span>
 								</div>
-								<span class="max-w-[11rem] text-left text-[10px] leading-tight text-muted-foreground sm:text-right sm:text-xs"
+								<span class="max-w-[11rem] text-left text-[10px] leading-tight text-muted-foreground dark:text-white/50 sm:text-right sm:text-xs"
 									>Próx. sem. (se aprovado)</span
 								>
 							</div>
@@ -223,16 +223,16 @@
 				<Calendar class="h-4 w-4 shrink-0" />
 				<span class="text-xs font-semibold uppercase tracking-wider">Semestre atual</span>
 			</div>
-			<p class="mt-2 text-2xl font-bold text-foreground sm:text-3xl">{currentSemester}º</p>
-			<p class="text-xs text-muted-foreground">semestre</p>
-			<div class="mt-2 rounded-lg bg-background/70 px-2.5 py-1.5 sm:mt-3 dark:bg-foreground/5">
+			<p class="mt-2 text-2xl font-bold text-foreground dark:text-white sm:text-3xl">{currentSemester}º</p>
+			<p class="text-xs text-muted-foreground dark:text-white/50">semestre</p>
+			<div class="mt-2 rounded-lg bg-background/70 px-2.5 py-1.5 sm:mt-3 dark:bg-white/5">
 				{#if formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}
-					<span class="text-xs text-muted-foreground">IRA: </span>
-					<span class="text-sm font-semibold text-foreground sm:text-base"
+					<span class="text-xs text-muted-foreground dark:text-white/50">IRA: </span>
+					<span class="text-sm font-semibold text-foreground dark:text-white sm:text-base"
 						>{formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}</span
 					>
 				{:else}
-					<span class="text-xs text-muted-foreground">{IRA_NAO_ENCONTRADO}</span>
+					<span class="text-xs text-muted-foreground dark:text-white/50">{IRA_NAO_ENCONTRADO}</span>
 				{/if}
 			</div>
 		</div>

@@ -262,12 +262,12 @@
 	{#if store.state.loading}
 		<div class="flex flex-col items-center justify-center gap-4 py-20">
 			<Loader2 class="h-10 w-10 animate-spin text-purple-600 dark:text-purple-400" />
-			<p class="text-sm text-muted-foreground">Carregando fluxograma...</p>
+			<p class="text-sm text-muted-foreground dark:text-white/60">Carregando fluxograma...</p>
 		</div>
 	{:else if store.state.error}
-		<div class="mx-auto max-w-md rounded-2xl border border-destructive/30 bg-destructive/10 p-8 text-center backdrop-blur-md">
+		<div class="mx-auto max-w-md rounded-2xl border border-destructive/30 bg-destructive/10 dark:border-red-500/20 dark:bg-red-500/10 p-8 text-center backdrop-blur-md">
 			<AlertTriangle class="mx-auto mb-3 h-8 w-8 text-red-600 dark:text-red-400" />
-			<h2 class="mb-2 text-lg font-semibold text-foreground">Erro ao carregar fluxograma</h2>
+			<h2 class="mb-2 text-lg font-semibold text-foreground dark:text-white">Erro ao carregar fluxograma</h2>
 			<p class="mb-4 text-sm text-red-700 dark:text-red-300/80">{store.state.error}</p>
 			<div class="flex flex-col items-center gap-3">
 				<button
@@ -276,13 +276,13 @@
 							? store.loadCourseDataByCurriculoCompleto(matrizCurricular.trim())
 							: courseName && store.loadCourseData(courseName)
 					}
-					class="rounded-full bg-foreground/10 px-6 py-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/20"
+					class="rounded-full bg-foreground/10 px-6 py-2 text-sm font-medium text-foreground dark:bg-white/10 dark:text-white transition-colors hover:bg-foreground/20 dark:hover:bg-white/20"
 				>
 					Tentar novamente
 				</button>
 				<button
 					onclick={() => goto(ROUTES.UPLOAD_HISTORICO)}
-					class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-2 text-sm font-semibold text-white transition-transform hover:scale-105"
+					class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-500 px-6 py-2 text-sm font-semibold text-white transition-transform hover:scale-105"
 				>
 					<Upload class="h-4 w-4" />
 					Enviar histórico novamente
@@ -290,15 +290,15 @@
 			</div>
 		</div>
 	{:else if !userFluxograma}
-		<div class="mx-auto max-w-md rounded-2xl border border-border bg-background/80 p-8 text-center backdrop-blur-md">
+		<div class="mx-auto max-w-md rounded-2xl border border-border bg-background/80 dark:border-white/10 dark:bg-black/40 p-8 text-center backdrop-blur-md">
 			<Upload class="mx-auto mb-3 h-8 w-8 text-purple-600 dark:text-purple-400" />
-			<h2 class="mb-2 text-lg font-semibold text-foreground">Nenhum Fluxograma Encontrado</h2>
-			<p class="mb-4 text-sm text-muted-foreground">
+			<h2 class="mb-2 text-lg font-semibold text-foreground dark:text-white">Nenhum Fluxograma Encontrado</h2>
+			<p class="mb-4 text-sm text-muted-foreground dark:text-white/50">
 				Importe seu histórico acadêmico para gerar seu fluxograma personalizado.
 			</p>
 			<button
 				onclick={() => goto(ROUTES.UPLOAD_HISTORICO)}
-				class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3 font-semibold text-white transition-transform hover:scale-105"
+				class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-500 px-6 py-3 font-semibold text-white transition-transform hover:scale-105"
 			>
 				<Upload class="h-4 w-4" />
 				Importar Histórico
