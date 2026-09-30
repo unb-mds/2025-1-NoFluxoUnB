@@ -68,9 +68,13 @@ export function textoPrevisao(s: AiSaldoStatus): string {
 		return `Sem gasto na Maritaca nos últimos ${p.janela_dias} dias — sem previsão.`;
 	}
 	const media = `${fmtMoeda(p.media_diaria, s.moeda)}/dia`;
-	const base = p.parcial
-		? `média de ${media} em ${plural(p.dias_considerados, 'dia', 'dias')} de dados (menos de ${p.janela_dias})`
-		: `média de ${media} nos últimos ${p.janela_dias} dias`;
+	const horas = p.horas_hoje === null || p.horas_hoje === undefined ? null : Number(p.horas_hoje);
+	const base =
+		horas !== null
+			? `média de ${media} projetada de ${plural(Math.round(horas), 'hora', 'horas')} de uso hoje — menos de 1 dia de dados, estimativa instável`
+			: p.parcial
+				? `média de ${media} em ${plural(p.dias_considerados, 'dia', 'dias')} de dados (menos de ${p.janela_dias})`
+				: `média de ${media} nos últimos ${p.janela_dias} dias`;
 	const dias = fmtDiasRestantes(p.dias_restantes);
 	if (!dias) return `Gasto: ${base}.`;
 	return `Dá para ${dias} (${base}).`;

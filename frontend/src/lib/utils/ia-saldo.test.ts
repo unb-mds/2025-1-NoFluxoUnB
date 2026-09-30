@@ -125,6 +125,22 @@ describe('previsão', () => {
 		);
 	});
 
+	it('só hoje no log: diz de quantas horas veio a projeção', () => {
+		const s = statusSaldo({
+			previsao: {
+				...statusSaldo().previsao,
+				dias_considerados: 0,
+				horas_hoje: 15,
+				parcial: true,
+				media_diaria: 4.8,
+				dias_restantes: 10
+			}
+		});
+		expect(textoPrevisao(s).replace(/\s/g, ' ')).toBe(
+			'Dá para ~10 dias (média de R$ 4,80/dia projetada de 15 horas de uso hoje — menos de 1 dia de dados, estimativa instável).'
+		);
+	});
+
 	it('sem gasto: sem previsão absurda', () => {
 		const s = statusSaldo({ previsao: { ...statusSaldo().previsao, media_diaria: 0, dias_restantes: null } });
 		expect(textoPrevisao(s)).toBe('Sem gasto na Maritaca nos últimos 7 dias — sem previsão.');

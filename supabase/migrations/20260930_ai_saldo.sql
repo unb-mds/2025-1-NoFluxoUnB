@@ -37,10 +37,16 @@
 --   saldo_estimado  = base − custo. Preço cheio de ai_pricing: descontos da
 --                     Maritaca (noturno, cache) não entram — o real tende a ser
 --                     um pouco maior.
---   previsão        = custo dos modelos Maritaca nos últimos 7 dias de Brasília
---                     (hoje incluído) ÷ dias considerados; com menos de 7 dias
---                     de log, divide pelos dias disponíveis e marca parcial.
---                     Média 0 (sem gasto) → sem previsão de dias.
+--   previsão        = custo dos modelos Maritaca nos últimos 7 dias COMPLETOS
+--                     de Brasília (ontem e os 6 antes; hoje fica de fora, porque
+--                     o dia incompleto puxaria a média para baixo e inflaria os
+--                     dias restantes) ÷ dias considerados. Com menos de 7 dias
+--                     completos de log, divide pelos disponíveis e marca parcial
+--                     (o 1º dia de log conta inteiro, mesmo que tenha começado
+--                     no meio). Se o log só tem o dia de hoje, projeta o gasto
+--                     de hoje para 24 h pelas horas já passadas (mínimo 1 h, para
+--                     a madrugada não virar extrapolação de minutos) e devolve
+--                     previsao.horas_hoje. Média 0 (sem gasto) → sem previsão.
 --   alertas (ordem de prioridade):
 --     sem_creditos   erro_codigo='ai_sem_creditos' nas últimas sem_creditos_horas
 --     urgente        saldo < urgente_reais  ou  dias restantes < urgente_dias
@@ -143,9 +149,12 @@ DECLARE
   v_saldo           numeric;
   v_sem_preco       jsonb := '[]'::jsonb;
   v_hoje            date := (p_agora AT TIME ZONE 'America/Sao_Paulo')::date;
+  v_hoje_ts         timestamptz;
   v_inicio_janela   date;
   v_primeiro_dia    date;
-  v_dias            integer;
+  v_dias_completos  integer;
+  v_horas_hoje      numeric;
+  v_dias            numeric;
   v_custo_janela    numeric;
   v_media           numeric;
   v_dias_restantes  numeric;
@@ -199,15 +208,26 @@ BEGIN
     v_saldo := v_saldo_base - v_custo;
   END IF;
 
-  -- Previsão: dias de Brasília [hoje - (janela-1), hoje].
-  v_inicio_janela := v_hoje - (c.janela_previsao_dias - 1);
+  -- Previsão: dias completos de Brasília [hoje - janela, hoje - 1]; só hoje,
+  -- proporcional às horas passadas, quando o log ainda não tem dia completo.
+  v_hoje_ts := v_hoje::timestamp AT TIME ZONE 'America/Sao_Paulo';
 
   SELECT min((l.created_at AT TIME ZONE 'America/Sao_Paulo')::date) INTO v_primeiro_dia
     FROM public.ai_usage_log l
    WHERE l.model = ANY (c.modelos_maritaca) AND l.created_at <= p_agora;
 
   IF v_primeiro_dia IS NOT NULL THEN
-    v_dias := v_hoje - GREATEST(v_primeiro_dia, v_inicio_janela) + 1;
+    IF v_primeiro_dia < v_hoje THEN
+      v_inicio_janela  := GREATEST(v_primeiro_dia, v_hoje - c.janela_previsao_dias);
+      v_dias_completos := v_hoje - v_inicio_janela;
+      v_dias           := v_dias_completos;
+    ELSE
+      v_inicio_janela  := v_hoje;
+      v_dias_completos := 0;
+      v_horas_hoje     := GREATEST(EXTRACT(EPOCH FROM (p_agora - v_hoje_ts)) / 3600.0, 1);
+      v_dias           := v_horas_hoje / 24.0;
+    END IF;
+
     SELECT COALESCE(sum(
              (l.prompt_tokens / 1000.0) * COALESCE(p.input_per_1k, 0)
            + (l.completion_tokens / 1000.0) * COALESCE(p.output_per_1k, 0)), 0)
@@ -216,7 +236,8 @@ BEGIN
       LEFT JOIN public.ai_pricing p ON p.model = l.model
      WHERE l.model = ANY (c.modelos_maritaca)
        AND l.created_at >= (v_inicio_janela::timestamp AT TIME ZONE 'America/Sao_Paulo')
-       AND l.created_at <= p_agora;
+       AND l.created_at <= p_agora
+       AND (v_horas_hoje IS NOT NULL OR l.created_at < v_hoje_ts);
     v_media := v_custo_janela / v_dias;
   END IF;
 
@@ -269,8 +290,9 @@ BEGIN
       'dias_atras',     v_dias_desde) END,
     'previsao', jsonb_build_object(
       'janela_dias',       c.janela_previsao_dias,
-      'dias_considerados', COALESCE(v_dias, 0),
-      'parcial',           COALESCE(v_dias, 0) < c.janela_previsao_dias,
+      'dias_considerados', COALESCE(v_dias_completos, 0),
+      'horas_hoje',        round(v_horas_hoje, 1),
+      'parcial',           COALESCE(v_dias_completos, 0) < c.janela_previsao_dias,
       'custo_janela',      round(COALESCE(v_custo_janela, 0), 4),
       'media_diaria',      round(v_media, 4),
       'dias_restantes',    v_dias_restantes),

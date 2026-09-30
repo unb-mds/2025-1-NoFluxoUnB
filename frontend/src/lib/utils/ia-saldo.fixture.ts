@@ -29,6 +29,7 @@ export function statusSaldo(parcial: Partial<AiSaldoStatus> = {}): AiSaldoStatus
 		previsao: {
 			janela_dias: 7,
 			dias_considerados: 7,
+			horas_hoje: null,
 			parcial: false,
 			custo_janela: 14,
 			media_diaria: 2,

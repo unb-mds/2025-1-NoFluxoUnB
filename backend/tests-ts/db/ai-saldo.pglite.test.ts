@@ -4,7 +4,8 @@
  *
  * Saldo estimado = último saldo informado + recargas depois dele − custo dos
  * modelos da Maritaca desde esse registro; previsão pela média dos últimos 7
- * dias de Brasília; alertas sem créditos / urgente / atenção / desatualizado
+ * dias completos de Brasília (hoje, incompleto, fica de fora; só hoje no log →
+ * projeção pelas horas passadas); alertas sem créditos / urgente / atenção / desatualizado
  * com limiares de ai_saldo_config; tudo só com has_admin_scope('dashboard').
  *
  * O cálculo roda em ai_saldo_status_em(p_agora) com um instante fixo, para os
@@ -69,8 +70,8 @@ const ADMINS = `
   INSERT INTO users (email, nome_completo, auth_id) VALUES ('admin@unb.br', 'Ana Admin', '${ADMIN}');
 `;
 
-/** 7 dias de Brasília (24 a 30/09) a R$ 2 por dia. */
-const SETE_DIAS_A_2 = ["24", "25", "26", "27", "28", "29", "30"]
+/** 7 dias completos de Brasília (23 a 29/09) e hoje (30/09), a R$ 2 por dia. */
+const SETE_DIAS_A_2 = ["23", "24", "25", "26", "27", "28", "29", "30"]
     .map((d) => gasto(br(`2026-09-${d} 10:00`), 2))
     .join("");
 
@@ -116,13 +117,27 @@ const CENARIOS = {
     // ── previsão ────────────────────────────────────────────────────────
     previsao_7d: status(`
       ${SETE_DIAS_A_2}
-      -- 23/09 23:30 em Brasília = 24/09 02:30 UTC: fora da janela de Brasília
-      ${gasto(br("2026-09-23 23:30"), 100)}
+      -- 22/09 23:30 em Brasília = 23/09 02:30 UTC: fora da janela de Brasília
+      ${gasto(br("2026-09-22 23:30"), 100)}
       ${saldoHoje(40)}
     `),
     previsao_parcial: status(`
-      ${["28", "29", "30"].map((d) => gasto(br(`2026-09-${d} 10:00`), 3)).join("")}
+      ${["28", "29"].map((d) => gasto(br(`2026-09-${d} 10:00`), 3)).join("")}
+      -- hoje (incompleto) não entra na média, mesmo gastando muito mais
+      ${gasto(br("2026-09-30 10:00"), 30)}
       ${saldoHoje(300)}
+    `),
+    // log só de hoje: 1ª chamada às 00:10 e agora 00:30 → vale o mínimo de 1 h.
+    // Antes a média era o gasto de 30 min ÷ 1 dia (R$ 0,50/dia → 100 dias).
+    previsao_so_hoje_madrugada: status(
+        `${gasto(br("2026-09-30 00:10"), 0.5)}
+         ${registro("saldo_atual", 50, br("2026-09-30 00:20"))}`,
+        "2026-09-30 00:30:00-03"
+    ),
+    // log só de hoje às 15h: R$ 3 em 15 h → R$ 4,80/dia.
+    previsao_so_hoje_tarde: status(`
+      ${gasto(br("2026-09-30 10:00"), 3)}
+      ${saldoHoje(48)}
     `),
     previsao_so_modelos_maritaca: status(`
       ${SETE_DIAS_A_2}
@@ -307,19 +322,41 @@ describe("previsão", () => {
         const p = s("previsao_7d").previsao;
         expect(p.janela_dias).toBe(7);
         expect(p.dias_considerados).toBe(7);
+        expect(p.horas_hoje).toBeNull();
         expect(p.parcial).toBe(false);
-        // os R$ 100 de 23/09 23:30 (Brasília) ficam fora — em UTC já seria 24/09
+        // 23 a 29/09; hoje fica de fora e os R$ 100 de 22/09 23:30 (Brasília)
+        // também — em UTC já seria 23/09
         expect(num(p.custo_janela)).toBeCloseTo(14, 4);
         expect(num(p.media_diaria)).toBeCloseTo(2, 4);
         expect(num(p.dias_restantes)).toBe(20);
     });
 
-    it("menos de 7 dias de dados: divide pelos dias disponíveis e marca parcial", () => {
+    it("menos de 7 dias completos: divide pelos disponíveis, marca parcial e ignora hoje", () => {
         const p = s("previsao_parcial").previsao;
-        expect(p.dias_considerados).toBe(3);
+        expect(p.dias_considerados).toBe(2);
+        expect(p.horas_hoje).toBeNull();
         expect(p.parcial).toBe(true);
+        expect(num(p.custo_janela)).toBeCloseTo(6, 4);
         expect(num(p.media_diaria)).toBeCloseTo(3, 4);
         expect(num(p.dias_restantes)).toBe(100);
+    });
+
+    it("só hoje no log, de madrugada: projeta por no mínimo 1 h e o alerta por dias dispara", () => {
+        const r = s("previsao_so_hoje_madrugada");
+        expect(r.previsao.dias_considerados).toBe(0);
+        expect(num(r.previsao.horas_hoje)).toBe(1);
+        expect(r.previsao.parcial).toBe(true);
+        expect(num(r.previsao.media_diaria)).toBeCloseTo(12, 4);
+        expect(num(r.previsao.dias_restantes)).toBeCloseTo(4.2, 1);
+        expect(r.nivel).toBe("urgente");
+    });
+
+    it("só hoje no log, à tarde: gasto de hoje proporcional às horas passadas", () => {
+        const p = s("previsao_so_hoje_tarde").previsao;
+        expect(num(p.horas_hoje)).toBe(15);
+        expect(num(p.custo_janela)).toBeCloseTo(3, 4);
+        expect(num(p.media_diaria)).toBeCloseTo(4.8, 4);
+        expect(num(p.dias_restantes)).toBe(10);
     });
 
     it("só os modelos da Maritaca entram na média", () => {
@@ -336,6 +373,7 @@ describe("previsão", () => {
     it("sem log nenhum da Maritaca: sem média e sem previsão", () => {
         const p = s("sem_log").previsao;
         expect(p.dias_considerados).toBe(0);
+        expect(p.horas_hoje).toBeNull();
         expect(p.media_diaria).toBeNull();
         expect(p.dias_restantes).toBeNull();
     });

@@ -252,7 +252,13 @@ export interface AiSaldoStatus {
 	ultimo_registro: AiSaldoRegistro | null;
 	previsao: {
 		janela_dias: number;
+		/** Dias completos de Brasília na média (hoje, incompleto, não entra). */
 		dias_considerados: number;
+		/**
+		 * Só quando o log ainda não tem dia completo: horas de hoje (mínimo 1)
+		 * pelas quais o gasto de hoje foi projetado para 24 h. null nos demais.
+		 */
+		horas_hoje?: number | null;
 		parcial: boolean;
 		custo_janela: number;
 		/** null = nenhum log da Maritaca; 0 = sem gasto na janela. */
