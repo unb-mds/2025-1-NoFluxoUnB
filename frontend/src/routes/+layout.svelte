@@ -15,21 +15,9 @@
 	import DarcyLoginModal from '$lib/components/chat/DarcyLoginModal.svelte';
 	import DarcyPedidoMaisPerguntas from '$lib/components/chat/DarcyPedidoMaisPerguntas.svelte';
 	import { Toaster } from 'svelte-sonner';
-	import {
-		TEMA_INICIAL,
-		observarTemaDoDocumento,
-		type TemaDocumento
-	} from '$lib/utils/tema-documento';
 	import '../app.css';
 
 	let { children } = $props();
-
-	// O sonner é claro por padrão: acompanha a classe `dark` do <html> (hoje fixa no app.html).
-	let temaToaster = $state<TemaDocumento>(TEMA_INICIAL);
-	$effect(() => {
-		if (!browser) return;
-		return observarTemaDoDocumento((tema) => (temaToaster = tema));
-	});
 
 	// Redirect from / to /auth/reset-password when landing with recovery hash or query (Supabase sent redirect_to=origin/ instead of /auth/reset-password)
 	// Redirect from / to /auth/callback when landing with OAuth code (Supabase redirectou para / em vez de /auth/callback)
@@ -153,4 +141,4 @@
 	<DarcyPedidoMaisPerguntas />
 {/if}
 
-<Toaster richColors position="top-right" theme={temaToaster} />
+<Toaster richColors position="top-right" />
