@@ -163,38 +163,73 @@
 	let activeIndex = $state(0);
 	let direction = $state(1);
 	let paused = $state(false);
-	// A troca automática muda a altura da seção (Fundadores é bem mais alta que o
-	// Time atual). Fora da tela isso empurrava a página de quem estava lendo mais
-	// abaixo (ex. no rodapé) — então só troca enquanto a vitrine está visível.
+	// Troca automática: só roda com alguma parte da vitrine na tela (fora dela não
+	// há o que animar). Ao clicar numa aba, pausa por PAUSA_MANUAL_MS e retoma.
+	const PAUSA_MANUAL_MS = 30000;
 	let visivel = $state(false);
 	let escolhaManual = $state(false);
 	let reduzido = $state(false);
 	let showcaseEl: HTMLDivElement | undefined = $state();
+	let fimDaVitrine: HTMLDivElement | undefined = $state();
+	let timerPausaManual: ReturnType<typeof setTimeout> | undefined;
 
 	const activeGroup = $derived(showcase[activeIndex]);
 	const autoplayAtivo = $derived(!escolhaManual && !reduzido);
 	const rodando = $derived(autoplayAtivo && visivel && !paused);
 
 	function selectGroup(index: number) {
-		// quem escolheu uma aba quer ficar nela: desliga a troca automática
+		// quem escolheu uma aba quer ler: pausa a troca automática por um tempo
 		escolhaManual = true;
+		clearTimeout(timerPausaManual);
+		timerPausaManual = setTimeout(() => (escolhaManual = false), PAUSA_MANUAL_MS);
 		if (index === activeIndex) return;
 		direction = index > activeIndex ? 1 : -1;
 		activeIndex = index;
 	}
 
+	$effect(() => () => clearTimeout(timerPausaManual));
+
 	$effect(() => {
 		reduzido = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 		const el = showcaseEl;
 		if (!el) return;
-		const io = new IntersectionObserver(
-			([entrada]) => {
-				visivel = entrada.isIntersecting;
-			},
-			{ threshold: 0.25 }
-		);
+		const io = new IntersectionObserver(([entrada]) => {
+			visivel = entrada.isIntersecting;
+		});
 		io.observe(el);
 		return () => io.disconnect();
+	});
+
+	// Âncora de rolagem manual. Fundadores é bem mais alta que o Time atual: ao
+	// trocar, tudo abaixo da vitrine sobe ou desce. Se quem está lendo está ABAIXO
+	// dela (fim da vitrine na metade de cima da tela ou acima), rola a página pelo
+	// mesmo tanto que o marcador `fimDaVitrine` se mexeu — o que está na tela fica
+	// parado. O Chrome já faz isso sozinho (scroll anchoring) e aí o deslocamento
+	// medido é ~0; o Safari não faz, e era onde a página "pulava".
+	$effect(() => {
+		const vitrine = showcaseEl;
+		const marcador = fimDaVitrine;
+		if (!vitrine || !marcador) return;
+		let ultimoTopo = marcador.getBoundingClientRect().top;
+		const lembrar = () => {
+			ultimoTopo = marcador.getBoundingClientRect().top;
+		};
+		const ro = new ResizeObserver(() => {
+			const topo = marcador.getBoundingClientRect().top;
+			const desvio = topo - ultimoTopo;
+			if (Math.abs(desvio) > 0.5 && ultimoTopo < window.innerHeight / 2) {
+				window.scrollBy(0, desvio);
+			}
+			lembrar();
+		});
+		ro.observe(vitrine);
+		window.addEventListener('scroll', lembrar, { passive: true });
+		window.addEventListener('resize', lembrar);
+		return () => {
+			ro.disconnect();
+			window.removeEventListener('scroll', lembrar);
+			window.removeEventListener('resize', lembrar);
+		};
 	});
 
 	$effect(() => {
@@ -418,6 +453,8 @@
 			{/key}
 		</div>
 	</div>
+	<!-- marcador do fim da vitrine: referência da âncora de rolagem manual -->
+	<div bind:this={fimDaVitrine} class="fim-da-vitrine" aria-hidden="true"></div>
 </section>
 
 <style>
@@ -504,6 +541,10 @@
 	/* --primary sobre o card escuro dá ~4,2:1; o lilás --ai (como no UNB do escuro) passa */
 	:global(.dark) .mote-fluxo {
 		color: hsl(var(--ai));
+	}
+
+	.fim-da-vitrine {
+		height: 0;
 	}
 
 	.sobre-link {
