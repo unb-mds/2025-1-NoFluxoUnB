@@ -63,44 +63,7 @@ const config: Config = {
 					success: 'hsl(var(--status-success) / <alpha-value>)',
 					warning: 'hsl(var(--status-warning) / <alpha-value>)',
 					danger: 'hsl(var(--status-danger) / <alpha-value>)',
-					info: 'hsl(var(--status-info) / <alpha-value>)',
-					completed: 'hsl(var(--status-completed) / <alpha-value>)',
-					'in-progress': 'hsl(var(--status-in-progress) / <alpha-value>)',
-					available: 'hsl(var(--status-available) / <alpha-value>)',
-					failed: {
-						DEFAULT: 'hsl(var(--status-failed) / <alpha-value>)',
-						ring: 'hsl(var(--status-failed-ring) / <alpha-value>)'
-					},
-					locked: {
-						DEFAULT: 'hsl(var(--status-locked) / <alpha-value>)',
-						foreground: 'hsl(var(--status-locked-foreground) / <alpha-value>)',
-						border: 'hsl(var(--status-locked-border) / <alpha-value>)'
-					},
-					'on-solid': 'hsl(var(--status-on-solid) / <alpha-value>)',
-					'prereq-ok': 'hsl(var(--status-prereq-ok) / <alpha-value>)',
-					'prereq-pending': 'hsl(var(--status-prereq-pending) / <alpha-value>)'
-				},
-				tag: {
-					equivalencia: {
-						DEFAULT: 'hsl(var(--tag-equivalencia) / <alpha-value>)',
-						foreground: 'hsl(var(--tag-equivalencia-foreground) / <alpha-value>)'
-					},
-					aproveitamento: {
-						DEFAULT: 'hsl(var(--tag-aproveitamento) / <alpha-value>)',
-						foreground: 'hsl(var(--tag-aproveitamento-foreground) / <alpha-value>)'
-					},
-					optativa: {
-						DEFAULT: 'hsl(var(--tag-optativa) / <alpha-value>)',
-						foreground: 'hsl(var(--tag-optativa-foreground) / <alpha-value>)'
-					},
-					optatoria: {
-						DEFAULT: 'hsl(var(--tag-optatoria) / <alpha-value>)',
-						foreground: 'hsl(var(--tag-optatoria-foreground) / <alpha-value>)'
-					},
-					'modulo-livre': {
-						DEFAULT: 'hsl(var(--tag-modulo-livre) / <alpha-value>)',
-						foreground: 'hsl(var(--tag-modulo-livre-foreground) / <alpha-value>)'
-					}
+					info: 'hsl(var(--status-info) / <alpha-value>)'
 				},
 				crianex: {
 					DEFAULT: 'hsl(var(--crianex) / <alpha-value>)',
@@ -116,11 +79,7 @@ const config: Config = {
 				chain: {
 					pre: 'var(--chain-pre)',
 					desc: 'var(--chain-desc)',
-					core: 'var(--chain-core)',
-					// mesmas cores em HSL, com suporte a opacidade (chore/tema-light)
-					focus: 'hsl(var(--chain-focus) / <alpha-value>)',
-					precursor: 'hsl(var(--chain-precursor) / <alpha-value>)',
-					descendant: 'hsl(var(--chain-descendant) / <alpha-value>)'
+					core: 'var(--chain-core)'
 				},
 
 				// NoFluxo Custom Colors (from Flutter AppColors)
