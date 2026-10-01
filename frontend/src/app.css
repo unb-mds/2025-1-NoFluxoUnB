@@ -3,64 +3,71 @@
 @config '../tailwind.config.ts';
 
 /**
- * Tokens NoFluxo — dark premium (preto + roxo + lilás IA).
- * :root mantém valores para telas claras herdadas (auth legado).
+ * Tokens NoFluxo.
+ * :root  = tema claro (paleta B: neutros lilás, roxo #6d3ae6).
+ * .dark  = tema escuro premium (preto + roxo + lilás IA) — referência visual; não alterar.
+ * A classe é aplicada em app.html (script inline) e mantida por stores/theme.ts.
  */
 @layer base {
 	:root {
-		--background: 0 0% 100%;
-		--foreground: 222.2 84% 4.9%;
+		color-scheme: light;
+		--background: 255 71% 99%;
+		--foreground: 260 24% 10%;
 		--card: 0 0% 100%;
-		--card-foreground: 222.2 84% 4.9%;
+		--card-foreground: 260 24% 10%;
 		--popover: 0 0% 100%;
-		--popover-foreground: 222.2 84% 4.9%;
-		--primary: 262 83% 53%;
+		--popover-foreground: 260 24% 10%;
+		--primary: 258 77% 56%;
 		--primary-foreground: 0 0% 100%;
-		--secondary: 210 40% 96.1%;
-		--secondary-foreground: 222.2 47.4% 11.2%;
-		--muted: 210 40% 96.1%;
-		--muted-foreground: 215.4 16.3% 46.9%;
-		--accent: 210 40% 96.1%;
-		--accent-foreground: 222.2 47.4% 11.2%;
-		--destructive: 0 84.2% 60.2%;
-		--destructive-foreground: 210 40% 98%;
-		--border: 214.3 31.8% 91.4%;
-		--input: 214.3 31.8% 91.4%;
-		--ring: 262 83% 58%;
+		--secondary: 258 33% 96%;
+		--secondary-foreground: 260 24% 10%;
+		--muted: 258 33% 96%;
+		--muted-foreground: 258 12% 41%;
+		--accent: 258 100% 96%;
+		--accent-foreground: 258 63% 50%;
+		--destructive: 0 72% 45%;
+		--destructive-foreground: 0 0% 100%;
+		--border: 258 35% 91%;
+		--input: 258 35% 91%;
+		/* Borda "forte" — inputs/controles que precisam de ≥ 3:1 sobre o fundo */
+		--border-strong: 258 15% 58%;
+		--ring: 258 77% 56%;
 		--radius: 0.625rem;
 		--radius-lg: 14px;
 		--spacing-section: clamp(3rem, 6vw, 4.5rem);
-		/* IA — lilás (texto/accent suave), tint de fundo */
-		--ai: 267 92% 78%;
-		--ai-soft: 268 42% 18%;
-		/* Crianex — verde da marca (/cria._nex>). Claro: ≥ 4,5:1 sobre o fundo branco. */
-		--crianex: 142 72% 29%;
-		--crianex-violeta: 263 70% 50%;
-		--crianex-magenta: 330 80% 42%;
+		/* IA — roxo escuro legível sobre claro; tint de fundo lilás */
+		--ai: 258 63% 50%;
+		--ai-soft: 258 100% 96%;
+		/* Sombra de card (shadow-nofluxo/-Lg): discreta no light, ≤ 0,06 de opacidade */
+		--nf-shadow-card: 0 1px 2px hsl(var(--foreground) / 0.04), 0 4px 16px hsl(var(--foreground) / 0.06);
+		--nf-shadow-card-lg: 0 8px 28px hsl(var(--foreground) / 0.08);
+		/* Pill/chip (hero-info-card-pill, specialties-list li): anel primary + sombra 1px */
+		--nf-shadow-pill: 0 0 0 1px hsl(var(--primary) / 0.1), 0 1px 2px hsl(var(--foreground) / 0.04);
+		/* Card com glow (hero-info-card, feature-card): sombra discreta no light; no .dark vira o glow roxo original */
+		--nf-shadow-glow: 0 1px 2px hsl(var(--foreground) / 0.04), 0 8px 24px hsl(var(--primary) / 0.06), inset 0 1px 0 hsl(var(--foreground) / 0.06);
+		--nf-shadow-glow-hover: 0 2px 6px hsl(var(--foreground) / 0.06), 0 12px 32px hsl(var(--primary) / 0.12), inset 0 1px 0 hsl(var(--foreground) / 0.08);
+		/* Linhas do fluxograma (SVG) + legenda: tons 600 para ≥ 3:1 sobre o fundo claro.
+		   No .dark valem os hex históricos (CHAIN_VISUAL em utils/curriculum-graph.ts). */
+		--edge-prereq: #7c3aed;
+		--edge-dep: #0f766e;
+		--edge-coreq: #047857;
+		--chain-pre: #0f766e;
+		--chain-desc: #c2410c;
+		--chain-core: #4f46e5;
 
 		/*
-		 * Fundo da página (PageBackground). No .dark é o #050505 de produção;
-		 * aqui é o próprio --background. Os testes de contraste compõem sobre ele.
+		 * Tokens extras (chore/tema-light) usados pelas branches de UI do pré-mortem.
+		 * Fundo real da página = o que o PageBackground pinta (tokens abaixo, com os
+		 * mesmos valores visuais da light-mode); os testes de contraste medem sobre ele.
 		 */
-		--page-background: 0 0% 100%;
-		/* Opacidade do glow roxo do PageBackground (no claro fraco o bastante p/ o muted-foreground) */
-		--page-glow-alpha: 0.1;
-
-		/*
-		 * Status genérico (texto, ícone, anel, tinta /10–/18 sobre card):
-		 * tons ~700 do Tailwind aqui (≥ 4,5:1 sobre página e card claros), ~400 no .dark.
-		 * Usado no upload de histórico e nos componentes do Darcy/dashboard.
-		 */
+		--page-background: 255 71% 99%; /* = --background claro */
+		--page-glow-alpha: 0.45;
+		/* Status genérico (texto/ícone/anel sobre página e card): tons ~700 no claro. */
 		--status-success: 142 72% 26%;
 		--status-warning: 26 90% 32%;
 		--status-danger: 0 74% 40%;
 		--status-info: 221 83% 40%;
-
-		/*
-		 * Fluxograma — status de disciplina e etiquetas (SubjectCard, modal, legendas).
-		 * Fundos sólidos com texto próprio: iguais nos dois temas de propósito
-		 * (o contraste do texto não depende do fundo da página).
-		 */
+		/* Fluxograma: fundos sólidos de status e etiquetas (iguais nos dois temas). */
 		--status-completed: 143.7 59.5% 30%;
 		--status-in-progress: 262.5 63% 49.8%;
 		--status-available: 32.5 73.2% 38%;
@@ -78,18 +85,23 @@
 		--tag-optatoria-foreground: 0 0% 0%;
 		--tag-modulo-livre: 172.5 66% 50.4%;
 		--tag-modulo-livre-foreground: 0 0% 0%;
-		/* Varia por tema: superfície neutra do card bloqueado e contornos de
-		   destaque (anel de cadeia, reprovação), que ficam sobre o fundo da página. */
 		--status-locked: 220 14% 93%;
 		--status-locked-foreground: 222.2 47.4% 11.2%;
 		--status-locked-border: 215 16% 47%;
 		--status-failed-ring: 0 72.2% 50.6%;
-		--chain-focus: 244.5 57.9% 50.6%;
+		/* Cadeia de pré-requisitos: MESMAS cores de --chain-core/-pre/-desc (hex acima),
+		   em HSL para aceitar opacidade nas classes (ring-chain-focus/35 etc.). */
+		--chain-focus: 243.4 75.4% 58.6%;
 		--chain-precursor: 175.3 77.4% 26.1%;
 		--chain-descendant: 17.5 88.3% 40.4%;
+		/* Crianex (/cria._nex>): ≥ 4,5:1 sobre o fundo claro. */
+		--crianex: 142 72% 29%;
+		--crianex-violeta: 263 70% 50%;
+		--crianex-magenta: 330 80% 42%;
 	}
 
 	.dark {
+		color-scheme: dark;
 		--background: 240 12% 2.4%;
 		--foreground: 240 6% 97%;
 		--card: 240 11% 6.8%;
@@ -108,24 +120,32 @@
 		--destructive-foreground: 0 0% 98%;
 		--border: 240 8% 16%;
 		--input: 240 9% 15%;
+		--border-strong: 240 8% 26%;
 		--ring: 270 91% 62%;
 		--ai: 267 92% 78%;
 		--ai-soft: 268 45% 16%;
-		/* Crianex — verde da marca (/cria._nex>). Escuro: ≥ 4,5:1 sobre o fundo da página. */
-		--crianex: 142 69% 58%;
-		/* roxo/rosa da logo clareados: o #7F3FE5 puro dá 3,6:1 no escuro */
-		--crianex-violeta: 263 85% 72%;
-		--crianex-magenta: 330 82% 64%;
+		/* Valores idênticos aos que shadow-nofluxo/-Lg tinham fixos no tailwind.config.ts */
+		--nf-shadow-card: 0 1px 0 hsl(0 0% 100% / 0.055) inset, 0 12px 34px hsl(0 0% 0% / 0.34);
+		--nf-shadow-card-lg: 0 16px 48px hsl(0 0% 0% / 0.42);
+		/* Glows históricos (valores que hero-info-card-pill/specialties-list li e hero-info-card/feature-card tinham fixos) */
+		--nf-shadow-pill: 0 0 0 1px hsl(var(--primary) / 0.1), 0 0 12px hsl(var(--primary) / 0.16), inset 0 1px 0 hsl(0 0% 100% / 0.08);
+		--nf-shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.12), 0 0 12px hsl(var(--primary) / 0.14), inset 0 1px 0 hsl(0 0% 100% / 0.06);
+		--nf-shadow-glow-hover: 0 0 0 1px hsl(var(--primary) / 0.26), 0 0 20px hsl(var(--primary) / 0.26), 0 0 34px hsl(var(--primary) / 0.14), inset 0 1px 0 hsl(0 0% 100% / 0.12);
+		/* Mesmos valores que PrerequisiteConnections/SubjectCard tinham fixos (dark idêntico) */
+		--edge-prereq: #a78bfa;
+		--edge-dep: #2dd4bf;
+		--edge-coreq: #10b981;
+		--chain-pre: #4fd1c5;
+		--chain-desc: #f6ad55;
+		--chain-core: #7f9cf5;
 
-		/* #050505 — fundo de produção, idêntico ao que o PageBackground pintava fixo */
-		--page-background: 0 0% 1.9608%;
+		/* Tokens extras (chore/tema-light) — ver :root. */
+		--page-background: 0 0% 1.9608%; /* #050505, igual ao PageBackground da light-mode */
 		--page-glow-alpha: 0.45;
-
 		--status-success: 142 69% 58%;
 		--status-warning: 38 92% 50%;
 		--status-danger: 0 91% 71%;
 		--status-info: 213 94% 68%;
-
 		--status-completed: 143.7 59.5% 30%;
 		--status-in-progress: 262.5 63% 49.8%;
 		--status-available: 32.5 73.2% 38%;
@@ -150,6 +170,10 @@
 		--chain-focus: 225.3 85.5% 72.9%;
 		--chain-precursor: 174.5 58.6% 56.5%;
 		--chain-descendant: 32.8 89.9% 64.9%;
+		/* roxo/rosa da logo clareados: o #7F3FE5 puro dá 3,6:1 no escuro */
+		--crianex: 142 69% 58%;
+		--crianex-violeta: 263 85% 72%;
+		--crianex-magenta: 330 82% 64%;
 	}
 }
 
@@ -223,15 +247,15 @@
 }
 
 .nav-link-premium {
-	color: hsl(0 0% 100% / 0.86);
+	color: hsl(var(--foreground) / 0.86);
 }
 
 .nav-link-premium:hover {
-	color: hsl(0 0% 100% / 0.98);
+	color: hsl(var(--foreground) / 0.98);
 }
 
 .nav-link-premium.active {
-	color: hsl(0 0% 100%);
+	color: hsl(var(--foreground));
 	font-weight: 600;
 }
 
@@ -257,7 +281,7 @@
 }
 
 .nf-wordmark-noflx {
-	color: hsl(0 0% 100%);
+	color: hsl(var(--foreground));
 }
 
 .nf-wordmark-unb {
@@ -327,31 +351,149 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 	opacity: 0.18;
 }
 
-/* Auth form shared styles */
+/* Auth form shared styles.
+   O card de auth é BRANCO nos dois temas (legado Flutter). No light ele usa os tokens
+   (border 1px + sombra discreta); no .dark os valores históricos são mantidos via
+   :where(.dark) (especificidade zero → a cascata autofill/focus fica igual à antiga). */
 .auth-card {
-	background: white;
-	border-radius: 16px;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-	padding: 24px 20px 20px;
+	background: hsl(var(--card));
+	border-radius: 22px;
+	box-shadow:
+		0 0 0 1px hsl(var(--border)),
+		var(--nf-shadow-card-lg);
+	padding: 28px 22px 24px;
 	max-width: 440px;
 	width: 100%;
 }
 
+:where(.dark) .auth-card {
+	background: white;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
+	/* Tokens neutros re-escopados para o card branco: os filhos que usam
+	   text-foreground / text-muted-foreground / bg-muted / bg-border / border-strong
+	   resolvem para os cinzas históricos (gray-900/500/50/200/300) sem twins dark:. */
+	--foreground: 221 39% 11%;
+	--muted-foreground: 220 9% 46%;
+	--muted: 210 20% 98%;
+	--border: 220 13% 91%;
+	--border-strong: 216 12% 84%;
+}
+
 @media (min-width: 640px) {
 	.auth-card {
-		padding: 40px 40px 28px;
+		padding: 36px 40px 32px;
 	}
+}
+
+/* Estrutura do formulário: blocos com respiro em vez de margens soltas. */
+.auth-form {
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+}
+
+.auth-head {
+	display: flex;
+	flex-direction: column;
+	gap: 0.375rem;
+}
+
+.auth-title {
+	font-size: 1.5rem;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	line-height: 1.2;
+	color: hsl(var(--foreground));
+}
+
+.auth-subtitle {
+	font-size: 0.9rem;
+	line-height: 1.5;
+	color: hsl(var(--muted-foreground));
+}
+
+.auth-fields {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.auth-field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+}
+
+.auth-label {
+	font-size: 0.85rem;
+	font-weight: 500;
+	color: hsl(var(--foreground) / 0.85);
+}
+
+.auth-field-error {
+	font-size: 0.75rem;
+	color: hsl(var(--destructive));
+}
+
+.auth-input-wrap {
+	position: relative;
+}
+
+.auth-input-icon {
+	position: absolute;
+	left: 0.95rem;
+	top: 50%;
+	width: 1.1rem;
+	height: 1.1rem;
+	transform: translateY(-50%);
+	color: hsl(var(--muted-foreground));
+	pointer-events: none;
+	transition: color 0.2s;
+}
+
+.auth-input-wrap:focus-within .auth-input-icon {
+	color: hsl(var(--primary));
+}
+
+.auth-input-action {
+	position: absolute;
+	right: 0.5rem;
+	top: 50%;
+	transform: translateY(-50%);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	border: none;
+	border-radius: 0.6rem;
+	background: transparent;
+	color: hsl(var(--muted-foreground));
+	cursor: pointer;
+	transition: background 0.2s, color 0.2s;
+}
+
+.auth-input-action:hover {
+	background: hsl(var(--muted));
+	color: hsl(var(--foreground));
+}
+
+.auth-input-action:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 3px hsl(var(--ring) / 0.35);
 }
 
 .auth-input {
 	width: 100%;
-	padding: 18px;
-	border: 1px solid #d1d5db;
+	height: 52px;
+	padding: 0 1rem;
+	/* border-strong: ≥ 3:1 sobre o card no light */
+	border: 1px solid hsl(var(--border-strong));
 	border-radius: 14px;
 	font-size: 16px;
 	font-family: inherit;
-	color: #111827;
-	background: #fff;
+	color: hsl(var(--foreground));
+	background: hsl(var(--card));
 	color-scheme: light;
 	transition:
 		border-color 0.2s,
@@ -359,10 +501,33 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 	box-sizing: border-box;
 }
 
-/* Evita texto acinzentado ilegível no autofill do Chrome/Edge em SO com tema escuro */
+.auth-input--icon {
+	padding-left: 2.75rem;
+}
+
+.auth-input--invalid {
+	border-color: hsl(var(--destructive));
+}
+
+:where(.dark) .auth-input {
+	border-color: #d1d5db;
+	color: #111827;
+	background: #fff;
+}
+
+/* Autofill: mantém o fundo do card em vez do amarelo/azul do navegador. */
 .auth-input:-webkit-autofill,
 .auth-input:-webkit-autofill:hover,
 .auth-input:-webkit-autofill:focus {
+	-webkit-text-fill-color: hsl(var(--foreground));
+	-webkit-box-shadow: 0 0 0 1000px hsl(var(--card)) inset;
+	box-shadow: 0 0 0 1000px hsl(var(--card)) inset;
+	caret-color: hsl(var(--foreground));
+}
+
+:where(.dark) .auth-input:-webkit-autofill,
+:where(.dark) .auth-input:-webkit-autofill:hover,
+:where(.dark) .auth-input:-webkit-autofill:focus {
 	-webkit-text-fill-color: #111827;
 	-webkit-box-shadow: 0 0 0 1000px #fff inset;
 	box-shadow: 0 0 0 1000px #fff inset;
@@ -371,11 +536,15 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 
 .auth-input:focus {
 	outline: none;
-	border-color: hsl(var(--primary));
-	box-shadow: 0 0 0 3px hsl(var(--primary) / 0.18);
+	border-color: hsl(var(--ring));
+	box-shadow: 0 0 0 4px hsl(var(--ring) / 0.16);
 }
 
 .auth-input::placeholder {
+	color: hsl(var(--muted-foreground) / 0.8);
+}
+
+:where(.dark) .auth-input::placeholder {
 	color: #9ca3af;
 }
 
@@ -384,56 +553,147 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 	cursor: not-allowed;
 }
 
+.auth-remember {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	cursor: pointer;
+	user-select: none;
+	font-size: 0.875rem;
+	color: hsl(var(--muted-foreground));
+}
+
+.auth-remember input {
+	width: 1.05rem;
+	height: 1.05rem;
+	border-radius: 0.3rem;
+	border: 1px solid hsl(var(--border-strong));
+	accent-color: hsl(var(--primary));
+}
+
+/* Ações: respiro fixo entre os botões (12px) e o divisor. */
+.auth-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
 .auth-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
 	width: 100%;
 	height: 52px;
 	background: hsl(var(--primary));
-	color: white;
+	color: hsl(var(--primary-foreground));
 	border: none;
 	border-radius: 14px;
-	font-size: 18px;
+	font-size: 1.0625rem;
 	font-weight: 600;
+	letter-spacing: 0.01em;
 	font-family: inherit;
 	cursor: pointer;
-	transition: filter 0.2s;
+	box-shadow: 0 8px 24px hsl(var(--primary) / 0.28);
+	transition: filter 0.2s, transform 0.15s, box-shadow 0.2s;
 }
 
 .auth-btn:hover:not(:disabled) {
 	filter: brightness(1.06);
+	box-shadow: 0 10px 28px hsl(var(--primary) / 0.34);
+}
+
+.auth-btn:active:not(:disabled) {
+	transform: translateY(1px);
+}
+
+.auth-btn:focus-visible {
+	outline: none;
+	box-shadow:
+		0 0 0 3px hsl(var(--card)),
+		0 0 0 5px hsl(var(--ring));
 }
 
 .auth-btn:disabled {
-	opacity: 0.65;
+	opacity: 0.55;
 	cursor: not-allowed;
+	box-shadow: none;
 }
 
 .auth-btn-google {
 	width: 100%;
-	height: 52px;
-	background: white;
-	color: #333;
-	border: 1px solid #d1d5db;
+	height: 50px;
+	background: hsl(var(--card));
+	color: hsl(var(--foreground));
+	border: 1px solid hsl(var(--border-strong));
 	border-radius: 14px;
-	font-size: 16px;
+	font-size: 0.95rem;
 	font-weight: 500;
 	font-family: inherit;
 	cursor: pointer;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	gap: 0.5rem;
-	transition: background 0.2s;
+	gap: 0.6rem;
+	transition: background 0.2s, border-color 0.2s;
+}
+
+:where(.dark) .auth-btn-google {
+	background: white;
+	color: #333;
+	border-color: #d1d5db;
 }
 
 .auth-btn-google:hover:not(:disabled) {
+	background: hsl(var(--muted));
+	border-color: hsl(var(--foreground) / 0.35);
+}
+
+:where(.dark) .auth-btn-google:hover:not(:disabled) {
 	background: #f5f5f5;
+}
+
+.auth-btn-google:focus-visible,
+.auth-btn-ghost:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 3px hsl(var(--ring) / 0.35);
+}
+
+/* Ação terciária (visitante): só texto, mesma altura da linha para alinhar o respiro. */
+.auth-btn-ghost {
+	width: 100%;
+	height: 44px;
+	background: transparent;
+	color: hsl(var(--muted-foreground));
+	border: none;
+	border-radius: 12px;
+	font-size: 0.9rem;
+	font-weight: 500;
+	font-family: inherit;
+	cursor: pointer;
+	transition: background 0.2s, color 0.2s;
+}
+
+.auth-btn-ghost:hover:not(:disabled) {
+	background: hsl(var(--muted));
+	color: hsl(var(--foreground));
+}
+
+.auth-foot {
+	display: flex;
+	justify-content: center;
+	gap: 0.35rem;
+	padding-top: 1.25rem;
+	border-top: 1px solid hsl(var(--border));
+	font-size: 0.9rem;
+	color: hsl(var(--muted-foreground));
 }
 
 .auth-btn-visitor {
 	width: 100%;
 	height: 52px;
-	background: hsl(240 12% 6%);
-	color: white;
+	background: hsl(var(--foreground));
+	color: hsl(var(--background));
 	border: none;
 	border-radius: 14px;
 	font-size: 16px;
@@ -441,6 +701,11 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 	font-family: inherit;
 	cursor: pointer;
 	transition: background 0.2s;
+}
+
+.dark .auth-btn-visitor {
+	background: hsl(240 12% 6%);
+	color: white;
 }
 
 .auth-btn-visitor:hover:not(:disabled) {
@@ -479,4 +744,197 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 
 .auth-link:hover {
 	text-decoration: underline;
+}
+
+/* Divisor "ou" dos forms de login/cadastro (dentro do .auth-card). */
+.auth-divider {
+	display: flex;
+	align-items: center;
+	margin: 0.25rem 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+	content: '';
+	flex: 1;
+	height: 1px;
+	background: hsl(var(--border));
+}
+
+.auth-divider span {
+	padding: 0 0.9rem;
+	color: hsl(var(--muted-foreground));
+	font-size: 0.8rem;
+}
+
+/* Card branco legado no dark: a linha já resolve para gray-200 via --border do .auth-card;
+   o texto mantém o gray-400 histórico (muted-foreground do card é gray-500). */
+:where(.dark) .auth-divider span {
+	/* gray-500: o gray-400 histórico dava 2,5:1 sobre o card branco (WCAG 1.4.3 exige 4,5:1). */
+	color: #6b7280;
+}
+
+/* ============================================================================
+ * Acessibilidade (WCAG 2.2) — classes aplicadas no <html> pela store
+ * src/lib/stores/a11y.ts (e antes do primeiro paint pelo script de app.html).
+ *
+ * Princípio: o alto contraste SOBRESCREVE OS TOKENS, então todo componente que
+ * usa tokens já o respeita. Nada aqui pinta componente por componente.
+ * ========================================================================== */
+@layer base {
+	/* --- Alto contraste, tema claro: preto no branco, roxo profundo como ação ------------ */
+	html.a11y-high-contrast {
+		--background: 0 0% 100%;
+		--foreground: 0 0% 0%;
+		--card: 0 0% 100%;
+		--card-foreground: 0 0% 0%;
+		--popover: 0 0% 100%;
+		--popover-foreground: 0 0% 0%;
+		--primary: 258 100% 33%;
+		--primary-foreground: 0 0% 100%;
+		--secondary: 0 0% 94%;
+		--secondary-foreground: 0 0% 0%;
+		--muted: 0 0% 94%;
+		--muted-foreground: 0 0% 20%;
+		--accent: 258 100% 94%;
+		--accent-foreground: 258 100% 25%;
+		--destructive: 0 100% 32%;
+		--destructive-foreground: 0 0% 100%;
+		--border: 0 0% 0%;
+		--input: 0 0% 0%;
+		--border-strong: 0 0% 0%;
+		--ring: 258 100% 33%;
+		--ai: 258 100% 28%;
+		--ai-soft: 258 100% 94%;
+		--nf-shadow-card: 0 0 0 1px hsl(var(--foreground));
+		--nf-shadow-card-lg: 0 0 0 2px hsl(var(--foreground));
+		--nf-shadow-pill: 0 0 0 1px hsl(var(--foreground));
+		--nf-shadow-glow: 0 0 0 1px hsl(var(--foreground));
+		--nf-shadow-glow-hover: 0 0 0 2px hsl(var(--foreground));
+		--edge-prereq: #3b0ca3;
+		--edge-dep: #004d40;
+		--edge-coreq: #00593d;
+		--chain-pre: #004d40;
+		--chain-desc: #8a2e00;
+		--chain-core: #1e1b93;
+	}
+
+	/* --- Alto contraste, tema escuro: branco no preto, amarelo como ação (padrão de SO) --- */
+	html.dark.a11y-high-contrast {
+		--background: 0 0% 0%;
+		--foreground: 0 0% 100%;
+		--card: 0 0% 0%;
+		--card-foreground: 0 0% 100%;
+		--popover: 0 0% 0%;
+		--popover-foreground: 0 0% 100%;
+		--primary: 55 100% 50%;
+		--primary-foreground: 0 0% 0%;
+		--secondary: 0 0% 12%;
+		--secondary-foreground: 0 0% 100%;
+		--muted: 0 0% 12%;
+		--muted-foreground: 0 0% 85%;
+		--accent: 55 100% 14%;
+		--accent-foreground: 55 100% 75%;
+		--destructive: 0 100% 70%;
+		--destructive-foreground: 0 0% 0%;
+		--border: 0 0% 100%;
+		--input: 0 0% 100%;
+		--border-strong: 0 0% 100%;
+		--ring: 55 100% 50%;
+		--ai: 55 100% 70%;
+		--ai-soft: 55 100% 12%;
+		--nf-shadow-card: 0 0 0 1px hsl(var(--foreground));
+		--nf-shadow-card-lg: 0 0 0 2px hsl(var(--foreground));
+		--nf-shadow-pill: 0 0 0 1px hsl(var(--foreground));
+		--nf-shadow-glow: 0 0 0 1px hsl(var(--foreground));
+		--nf-shadow-glow-hover: 0 0 0 2px hsl(var(--foreground));
+		--edge-prereq: #ffe94d;
+		--edge-dep: #5eead4;
+		--edge-coreq: #6ee7b7;
+		--chain-pre: #5eead4;
+		--chain-desc: #fdba74;
+		--chain-core: #a5b4fc;
+	}
+
+	/* Vidro, transparências e brilhos deixam de existir no alto contraste. */
+	html.a11y-high-contrast .nf-glass-header,
+	html.a11y-high-contrast .nf-glass-header-floating,
+	html.a11y-high-contrast .navbar-glass {
+		background: hsl(var(--background));
+		backdrop-filter: none;
+		-webkit-backdrop-filter: none;
+	}
+	/* Brilhos decorativos do fundo somem: fundo liso é parte do contraste máximo. */
+	html.a11y-high-contrast .nofluxo-bg {
+		display: none;
+	}
+	html.a11y-high-contrast a:not([class*='btn']):not([role='menuitem']) {
+		text-decoration: underline;
+		text-underline-offset: 0.15em;
+	}
+	html.a11y-high-contrast * {
+		text-shadow: none !important;
+	}
+
+	/* --- Texto ampliado: tudo que usa rem cresce 12,5% ---------------------------------- */
+	html.a11y-large-text {
+		font-size: 112.5%;
+	}
+
+	/* --- Fonte de leitura facilitada (Lexend); preserva logotipo, código e ícones ---------- */
+	html.a11y-readable-font :where(body, body *):not(svg, svg *, code, kbd, pre, samp, .font-mono, .nf-wordmark-noflx, .nf-wordmark-unb) {
+		font-family: 'Lexend', Inter, system-ui, sans-serif !important;
+		letter-spacing: 0.01em;
+	}
+
+	/* --- Redução de movimento: preferência do sistema E interruptor manual ---------------- */
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		*::before,
+		*::after {
+			animation-duration: 0.001ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 0.001ms !important;
+			scroll-behavior: auto !important;
+		}
+	}
+	html.a11y-reduced-motion *,
+	html.a11y-reduced-motion *::before,
+	html.a11y-reduced-motion *::after {
+		animation: none !important;
+		transition: none !important;
+		scroll-behavior: auto !important;
+	}
+
+	/* --- Foco reforçado (2.4.7 / 2.4.13): anel grosso com halo, sempre visível ----------- */
+	html.a11y-focus-bold :focus-visible {
+		outline: 3px solid hsl(var(--ring)) !important;
+		outline-offset: 3px !important;
+		box-shadow: 0 0 0 6px hsl(var(--ring) / 0.3) !important;
+		border-radius: 4px;
+	}
+}
+
+@layer utilities {
+	/* Skip link (2.4.1): fora da tela até receber foco. */
+	.skip-link {
+		position: fixed;
+		top: 0.75rem;
+		left: 0.75rem;
+		z-index: 10000;
+		transform: translateY(-200%);
+		padding: 0.6rem 1rem;
+		border-radius: 0.5rem;
+		background: hsl(var(--primary));
+		color: hsl(var(--primary-foreground));
+		font-weight: 600;
+		font-size: 0.9rem;
+		box-shadow: 0 0 0 3px hsl(var(--background)), 0 0 0 5px hsl(var(--ring));
+		transition: transform 150ms ease;
+	}
+	.skip-link:focus,
+	.skip-link:focus-visible {
+		transform: translateY(0);
+		outline: none;
+	}
 }

@@ -58,13 +58,11 @@
 >
 	<div
 		aria-hidden="true"
-		class="pointer-events-none absolute -top-40 -left-40 h-[700px] w-[700px] rounded-full"
-		style="background: radial-gradient(circle, rgba(108,38,220,0.32) 0%, rgba(88,22,180,0.13) 42%, transparent 68%); z-index:0;"
+		class="glow glow--top pointer-events-none absolute -top-40 -left-40 h-[700px] w-[700px] rounded-full"
 	></div>
 	<div
 		aria-hidden="true"
-		class="pointer-events-none absolute right-0 -bottom-20 h-[400px] w-[400px] rounded-full"
-		style="background: radial-gradient(circle, rgba(80,20,160,0.18) 0%, transparent 65%); z-index:0;"
+		class="glow glow--bottom pointer-events-none absolute right-0 -bottom-20 h-[400px] w-[400px] rounded-full"
 	></div>
 	<div class="relative z-[1] w-full max-w-2xl min-w-0">
 		<header class="mb-6 text-center sm:mb-9">
@@ -81,7 +79,7 @@
 			<div class="mb-6 flex justify-center">
 				<button
 					type="button"
-					class="flex w-full items-center justify-center gap-2 rounded-xl border border-purple-500/30 bg-purple-500/10 px-6 py-3.5 text-[15px] font-semibold text-purple-300 shadow-sm transition-all hover:border-purple-500/50 hover:bg-purple-500/20 hover:text-purple-200 sm:w-auto sm:py-2.5 sm:text-sm sm:font-medium"
+					class="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-6 py-3.5 text-[15px] font-semibold text-accent-foreground shadow-sm transition-all hover:border-primary/50 hover:bg-primary/20 hover:text-primary sm:w-auto sm:py-2.5 sm:text-sm sm:font-medium dark:text-purple-300 dark:hover:text-purple-200"
 					onclick={openManualMode}
 				>
 					Preencha manualmente
@@ -112,7 +110,7 @@
 				-->
 				<div class="error-state">
 					<div class="error-icon">
-						<AlertTriangle class="size-10 text-amber-400" stroke-width="2" />
+						<AlertTriangle class="size-10 text-amber-700 dark:text-amber-400" stroke-width="2" />
 					</div>
 					<div class="error-copy">
 						<h3 class="error-title">Falta escolher seu curso</h3>
@@ -136,7 +134,7 @@
 			{:else if $uploadStore.state === 'error'}
 				<div class="error-state">
 					<div class="error-icon">
-						<AlertTriangle class="size-10 text-red-400" stroke-width="2" />
+						<AlertTriangle class="size-10 text-red-700 dark:text-red-400" stroke-width="2" />
 					</div>
 					<div class="error-copy">
 						<h3 class="error-title">Não foi possível processar</h3>
@@ -194,12 +192,48 @@
 		background: hsl(var(--card));
 		border: 1px solid hsl(var(--border) / 0.9);
 		border-radius: 20px;
+		box-shadow: var(--nf-shadow-card);
+	}
+
+	/* Dark: relevo/insets históricos do shell */
+	:global(.dark) .upload-shell {
 		box-shadow:
 			inset 0 1px 0 hsl(0 0% 100% / 0.07),
 			inset 1px 0 0 hsl(0 0% 100% / 0.04),
 			inset 0 -1px 0 hsl(0 0% 0% / 0.22),
 			0 0 0 1px hsl(var(--primary) / 0.08),
 			0 24px 48px hsl(0 0% 0% / 0.35);
+	}
+
+	/* Brilhos decorativos: discretos no light, valores históricos no dark */
+	.glow {
+		z-index: 0;
+	}
+
+	.glow--top {
+		background: radial-gradient(
+			circle,
+			hsl(var(--primary) / 0.12) 0%,
+			hsl(var(--primary) / 0.05) 42%,
+			transparent 68%
+		);
+	}
+
+	.glow--bottom {
+		background: radial-gradient(circle, hsl(var(--primary) / 0.07) 0%, transparent 65%);
+	}
+
+	:global(.dark) .glow--top {
+		background: radial-gradient(
+			circle,
+			rgba(108, 38, 220, 0.32) 0%,
+			rgba(88, 22, 180, 0.13) 42%,
+			transparent 68%
+		);
+	}
+
+	:global(.dark) .glow--bottom {
+		background: radial-gradient(circle, rgba(80, 20, 160, 0.18) 0%, transparent 65%);
 	}
 
 	@media (min-width: 640px) {
@@ -256,7 +290,7 @@
 		font-weight: 600;
 		color: hsl(var(--foreground));
 		background: hsl(var(--secondary) / 0.55);
-		border: 1px solid hsl(0 0% 100% / 0.12);
+		border: 1px solid hsl(var(--border-strong) / 0.7);
 		cursor: pointer;
 		transition:
 			background 0.15s ease,
@@ -265,6 +299,14 @@
 
 	.retry-btn:hover {
 		background: hsl(var(--secondary) / 0.85);
+		border-color: hsl(var(--border-strong));
+	}
+
+	:global(.dark) .retry-btn {
+		border-color: hsl(0 0% 100% / 0.12);
+	}
+
+	:global(.dark) .retry-btn:hover {
 		border-color: hsl(0 0% 100% / 0.18);
 	}
 

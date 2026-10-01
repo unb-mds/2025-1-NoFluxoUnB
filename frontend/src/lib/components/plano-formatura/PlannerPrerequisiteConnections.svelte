@@ -426,7 +426,7 @@
 					refY="4"
 					orient="auto"
 				>
-					<polygon points="0 0, 9 4, 0 8" fill="#a78bfa" />
+					<polygon points="0 0, 9 4, 0 8" style="fill: var(--edge-prereq);" />
 				</marker>
 			</defs>
 
@@ -434,11 +434,10 @@
 				<path
 					d={pathForLine(line)}
 					fill="none"
-					stroke="#a78bfa"
+					style="stroke: var(--edge-prereq); transition: stroke-opacity 0.15s;"
 					stroke-width="2.5"
 					stroke-opacity="0.9"
 					marker-end="url(#planner-arrow-prereq)"
-					style="transition: stroke-opacity 0.15s;"
 				/>
 			{/each}
 		</svg>

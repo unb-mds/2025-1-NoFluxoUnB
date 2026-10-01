@@ -537,7 +537,7 @@
 		min-height: 2.75rem;
 		border-radius: 0.8rem;
 		border: 1px solid hsl(var(--border));
-		background: hsl(0 0% 100% / 0.03);
+		background: hsl(var(--foreground) / 0.03);
 		font-size: 0.82rem;
 		font-weight: 700;
 		white-space: nowrap;
@@ -557,7 +557,7 @@
 	/* ---------- Seções ---------- */
 	.secao {
 		padding: clamp(2.75rem, 8vw, 4.5rem) 0;
-		border-top: 1px solid hsl(0 0% 100% / 0.06);
+		border-top: 1px solid hsl(var(--foreground) / 0.06);
 		scroll-margin-top: 1rem;
 	}
 
@@ -641,16 +641,23 @@
 		max-width: 100%;
 		border-radius: 1rem;
 		border: 1px solid hsl(var(--primary) / 0.28);
-		background: linear-gradient(170deg, hsl(267 42% 8% / 0.9), hsl(240 14% 5%));
+		background: linear-gradient(170deg, hsl(var(--accent) / 0.7), hsl(var(--card)));
 		box-shadow:
-			inset 0 1px 0 hsl(0 0% 100% / 0.08),
-			0 18px 48px hsl(0 0% 0% / 0.5),
-			0 0 60px hsl(var(--primary) / 0.12);
+			0 1px 2px hsl(var(--foreground) / 0.04),
+			0 12px 32px hsl(var(--primary) / 0.08);
 		padding: 0.9rem;
 		display: flex;
 		flex-direction: column;
 		gap: 0.8rem;
 		overflow: hidden;
+	}
+
+	:global(.dark) .tela {
+		background: linear-gradient(170deg, hsl(267 42% 8% / 0.9), hsl(240 14% 5%));
+		box-shadow:
+			inset 0 1px 0 hsl(0 0% 100% / 0.08),
+			0 18px 48px hsl(0 0% 0% / 0.5),
+			0 0 60px hsl(var(--primary) / 0.12);
 	}
 
 	.tela img {
@@ -715,7 +722,7 @@
 	}
 
 	.mock-trava {
-		background: hsl(0 0% 100% / 0.07);
+		background: hsl(var(--foreground) / 0.07);
 	}
 
 	.mock-legenda {
@@ -749,7 +756,7 @@
 		gap: 0.6rem;
 		padding: 0.45rem 0.6rem;
 		border-radius: 0.55rem;
-		background: hsl(0 0% 100% / 0.04);
+		background: hsl(var(--foreground) / 0.04);
 	}
 
 	.mock-plano .mock-sem {
@@ -805,12 +812,13 @@
 	.balao-aluno {
 		align-self: flex-end;
 		background: hsl(var(--primary));
+		color: hsl(var(--primary-foreground));
 		border-bottom-right-radius: 0.2rem;
 	}
 
 	.balao-darcy {
 		align-self: flex-start;
-		background: hsl(0 0% 100% / 0.08);
+		background: hsl(var(--foreground) / 0.08);
 		border-bottom-left-radius: 0.2rem;
 	}
 
@@ -898,7 +906,7 @@
 		width: 0.5rem;
 		height: 0.5rem;
 		border-radius: 999px;
-		background: hsl(0 0% 100% / 0.25);
+		background: hsl(var(--foreground) / 0.25);
 		transition:
 			width 0.2s ease,
 			background 0.2s ease;
@@ -966,7 +974,7 @@
 		height: 2.6rem;
 		border-radius: 50%;
 		background: hsl(var(--primary));
-		color: white;
+		color: hsl(var(--primary-foreground));
 		box-shadow: 0 0 20px hsl(var(--primary) / 0.4);
 	}
 
@@ -999,8 +1007,8 @@
 		align-items: flex-start;
 		gap: 0.9rem;
 		border-radius: var(--radius-lg);
-		border: 1px dashed hsl(0 0% 100% / 0.16);
-		background: hsl(0 0% 100% / 0.02);
+		border: 1px dashed hsl(var(--foreground) / 0.16);
+		background: hsl(var(--foreground) / 0.02);
 	}
 
 	.card-inst h3 {
@@ -1026,7 +1034,7 @@
 		text-transform: uppercase;
 		padding: 0.15rem 0.5rem;
 		border-radius: 999px;
-		background: hsl(0 0% 100% / 0.08);
+		background: hsl(var(--foreground) / 0.08);
 		color: hsl(var(--muted-foreground));
 	}
 
@@ -1037,7 +1045,7 @@
 		align-items: center;
 		gap: 0.6rem;
 		padding: 2.5rem 0 1rem;
-		border-top: 1px solid hsl(0 0% 100% / 0.06);
+		border-top: 1px solid hsl(var(--foreground) / 0.06);
 		text-align: center;
 		font-size: 0.85rem;
 		color: hsl(var(--muted-foreground));

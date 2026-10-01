@@ -59,26 +59,26 @@
 			transition:fly={{ y: 30, duration: 250 }}
 		>
 			<!-- Header -->
-			<div class="border-b border-white/10 px-6 py-4 flex items-start justify-between gap-4">
+			<div class="border-b border-border px-6 py-4 flex items-start justify-between gap-4">
 				<div>
-					<h2 class="text-lg font-bold text-white">Selecionar Curso</h2>
-					<p class="mt-1 text-sm text-gray-400">
+					<h2 class="text-lg font-bold text-foreground">Selecionar Curso</h2>
+					<p class="mt-1 text-sm text-muted-foreground">
 						{courseError.message || 'Encontramos mais de um curso possível. Selecione o correto:'}
 					</p>
 				</div>
-				<button type="button" onclick={onclose} class="rounded-full p-1 text-gray-400 hover:bg-white/10 hover:text-white transition-colors" aria-label="Fechar">
+				<button type="button" onclick={onclose} class="rounded-full p-1 text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors" aria-label="Fechar">
 					<X class="h-5 w-5" />
 				</button>
 			</div>
 
-			<div class="border-b border-white/10 px-6 py-3">
+			<div class="border-b border-border px-6 py-3">
 				<div class="relative">
-					<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+					<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 					<input 
 						type="text" 
 						bind:value={searchQuery}
 						placeholder="Pesquisar curso..."
-						class="w-full rounded-lg border border-white/10 bg-white/5 py-2 pl-9 pr-4 text-sm text-white placeholder-gray-500 transition-all focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+						class="w-full rounded-lg border border-border-strong bg-background py-2 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground transition-all focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring dark:border-foreground/10 dark:bg-foreground/5 dark:focus:border-ring"
 					/>
 				</div>
 			</div>
@@ -87,7 +87,7 @@
 			<div class="max-h-64 overflow-y-auto px-6 py-4">
 				<div class="space-y-2">
 					{#if filteredCourses.length === 0}
-						<p class="text-center text-sm text-gray-500 py-4">Nenhum curso encontrado.</p>
+						<p class="text-center text-sm text-muted-foreground py-4">Nenhum curso encontrado.</p>
 					{/if}
 					{#each filteredCourses as curso}
 						{@const option = { nome_curso: curso.nome_curso, id_curso: curso.id_curso, matriz_curricular: curso.matriz_curricular }}
@@ -111,11 +111,11 @@
 								class="radio-dot"
 								class:active={selectedOptionKey === optionKey}
 							></div>
-							<span class="text-sm text-gray-200">
+							<span class="text-sm text-foreground/90">
 								{curso.nome_curso}{#if curso.turno}
-									<span class="text-gray-500"> ({curso.turno === 'NOTURNO' ? 'Noturno' : curso.turno === 'DIURNO' ? 'Diurno' : curso.turno})</span>
+									<span class="text-muted-foreground"> ({curso.turno === 'NOTURNO' ? 'Noturno' : curso.turno === 'DIURNO' ? 'Diurno' : curso.turno})</span>
 								{/if}{#if curso.matriz_curricular}
-									<span class="text-gray-400"> — {curso.matriz_curricular}</span>
+									<span class="text-muted-foreground"> — {curso.matriz_curricular}</span>
 								{/if}
 							</span>
 						</label>
@@ -124,7 +124,7 @@
 			</div>
 
 			<!-- Footer -->
-			<div class="flex gap-3 border-t border-white/10 px-6 py-4">
+			<div class="flex gap-3 border-t border-border px-6 py-4">
 				<button type="button" class="cancel-btn flex-1" onclick={onclose}>Cancelar</button>
 				<button
 					type="button"
@@ -158,8 +158,15 @@
 		max-width: 28rem;
 		overflow: hidden;
 		border-radius: 1.125rem;
+		background: hsl(var(--card));
+		border: 1px solid hsl(var(--border));
+		box-shadow: var(--nf-shadow-card-lg);
+	}
+
+	/* Dark: valores históricos (borda/inset branco translúcido + sombra profunda) */
+	:global(.dark) .modal {
 		background: hsl(var(--card) / 0.97);
-		border: 1px solid hsl(0 0% 100% / 0.058);
+		border-color: hsl(0 0% 100% / 0.058);
 		box-shadow:
 			inset 0 1px 0 hsl(0 0% 100% / 0.052),
 			0 0 0 1px hsl(var(--primary) / 0.06),
@@ -172,12 +179,17 @@
 		align-items: center;
 		gap: 0.75rem;
 		border-radius: var(--radius, 10px);
-		border: 1px solid hsl(0 0% 100% / 0.06);
-		background: hsl(0 0% 100% / 0.03);
+		border: 1px solid hsl(var(--border));
+		background: hsl(var(--muted) / 0.6);
 		padding: 0.85rem 1rem;
 		transition:
 			border-color 0.16s ease,
 			background 0.16s ease;
+	}
+
+	:global(.dark) .course-option {
+		border-color: hsl(0 0% 100% / 0.06);
+		background: hsl(0 0% 100% / 0.03);
 	}
 
 	.course-option:hover {
@@ -212,7 +224,7 @@
 		cursor: pointer;
 		flex: 1;
 		border-radius: var(--radius, 10px);
-		border: 1px solid hsl(0 0% 100% / 0.1);
+		border: 1px solid hsl(var(--border-strong));
 		padding: 0.625rem 1rem;
 		font-size: 0.875rem;
 		font-weight: 600;
@@ -222,6 +234,14 @@
 	}
 
 	.cancel-btn:hover {
+		background: hsl(var(--muted));
+	}
+
+	:global(.dark) .cancel-btn {
+		border-color: hsl(0 0% 100% / 0.1);
+	}
+
+	:global(.dark) .cancel-btn:hover {
 		background: hsl(0 0% 100% / 0.06);
 	}
 

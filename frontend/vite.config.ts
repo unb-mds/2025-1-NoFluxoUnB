@@ -54,6 +54,29 @@ export default defineConfig({
 	test: {
 		// Só testes unitários de src/: os specs de tests-e2e/ são do PLAYWRIGHT
 		// (rodam via `npm run test:integration`) e explodem se o Vitest os coletar.
-		include: ['src/**/*.{test,spec}.{js,ts}']
+		// O `include` fica em cada projeto (arrays do root e do projeto se somariam).
+		projects: [
+			{
+				// Testes de lógica (stores, tipos, serviços): Node, componentes compilados em SSR.
+				extends: true,
+				test: {
+					name: 'unit',
+					include: ['src/**/*.{test,spec}.{js,ts}'],
+					exclude: ['**/node_modules/**', '**/*.a11y.test.ts']
+				}
+			},
+			{
+				// Testes de componente com Testing Library + axe: jsdom e resolução "browser",
+				// para o Svelte montar no modo cliente. Só arquivos *.a11y.test.ts entram aqui.
+				extends: true,
+				resolve: { conditions: ['browser'] },
+				test: {
+					name: 'a11y',
+					environment: 'jsdom',
+					include: ['src/**/*.a11y.test.ts'],
+					exclude: ['**/node_modules/**']
+				}
+			}
+		]
 	}
 });

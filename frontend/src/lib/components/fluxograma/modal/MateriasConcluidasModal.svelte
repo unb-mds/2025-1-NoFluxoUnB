@@ -208,47 +208,47 @@
 	role="presentation"
 	onclick={(e) => e.target === e.currentTarget && onclose()}
 >
-	<div class="flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-white/10 bg-gray-900/95 shadow-2xl backdrop-blur-xl">
+	<div class="flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-nofluxoLg backdrop-blur-xl dark:bg-gray-900/95 dark:shadow-2xl">
 		<div class="flex items-center justify-between border-b border-fuchsia-400/30 bg-gradient-to-r from-fuchsia-600/25 via-purple-600/20 to-cyan-600/20 px-4 py-3 sm:px-6">
 			<div>
-				<h2 class="text-base font-bold text-white sm:text-lg">Materias concluidas do usuario</h2>
-				<p class="text-xs text-white/55">
+				<h2 class="text-base font-bold text-foreground sm:text-lg">Materias concluidas do usuario</h2>
+				<p class="text-xs text-foreground/70">
 					Total: {concluidas.length} · Por equivalencia: {totalPorEquivalencia}
 				</p>
 			</div>
 			<button
 				type="button"
 				onclick={onclose}
-				class="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/70 transition-colors hover:bg-white/20 hover:text-white"
+				class="flex h-8 w-8 items-center justify-center rounded-full bg-foreground/10 text-foreground/70 transition-colors hover:bg-foreground/20 hover:text-foreground"
 				aria-label="Fechar"
 			>
 				<X class="h-4 w-4" />
 			</button>
 		</div>
 
-		<div class="border-b border-white/10 bg-white/[0.02] px-4 py-3 sm:px-6">
+		<div class="border-b border-border bg-foreground/[0.02] px-4 py-3 sm:px-6">
 			<div class="relative">
-				<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+				<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 				<input
 					type="search"
 					placeholder="Buscar por codigo ou equivalencia..."
 					bind:value={searchQuery}
-					class="w-full rounded-lg border border-white/10 bg-white/5 py-2 pl-10 pr-3 text-sm text-white placeholder-white/40 outline-none focus:border-cyan-500/40"
+					class="w-full rounded-lg border border-border-strong bg-foreground/5 py-2 pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-cyan-500/40 dark:placeholder:text-foreground/40"
 				/>
 			</div>
 		</div>
 
 		<div class="min-h-0 flex-1 space-y-4 overflow-auto p-4 sm:p-6">
 			{#if !temResultadosConcluidas}
-				<p class="py-8 text-center text-sm text-white/55">Nenhuma materia concluida para exibir na busca atual.</p>
+				<p class="py-8 text-center text-sm text-muted-foreground">Nenhuma materia concluida para exibir na busca atual.</p>
 			{:else}
 				<section class="space-y-2">
 						<div class="flex items-center justify-between rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2">
-							<h3 class="text-sm font-semibold text-emerald-200">Obrigatorias</h3>
-							<span class="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-100">{obrigatorias.length}</span>
+							<h3 class="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Obrigatorias</h3>
+							<span class="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-900 dark:text-emerald-100">{obrigatorias.length}</span>
 						</div>
 						{#if obrigatorias.length === 0}
-							<p class="px-1 text-xs text-white/50">Nenhuma obrigatoria concluida na lista filtrada.</p>
+							<p class="px-1 text-xs text-muted-foreground">Nenhuma obrigatoria concluida na lista filtrada.</p>
 						{:else}
 							<div class="space-y-2">
 								{#each obrigatorias as materia (materia.codigoMateria)}
@@ -256,12 +256,12 @@
 										<div class="flex flex-wrap items-center justify-between gap-2">
 											<div class="min-w-0">
 												{#if materia.nomeMateria}
-													<p class="text-sm font-semibold text-white" title={materia.codigoMateria}>{materia.nomeMateria}</p>
-													<p class="font-mono text-[11px] text-white/45">{materia.codigoMateria}</p>
+													<p class="text-sm font-semibold text-foreground" title={materia.codigoMateria}>{materia.nomeMateria}</p>
+													<p class="font-mono text-[11px] text-muted-foreground">{materia.codigoMateria}</p>
 												{:else}
-													<p class="font-mono text-sm font-semibold text-white">{materia.codigoMateria}</p>
+													<p class="font-mono text-sm font-semibold text-foreground">{materia.codigoMateria}</p>
 												{/if}
-												<p class="text-xs text-white/60">
+												<p class="text-xs text-muted-foreground">
 													{materia.status}
 													{#if materia.mencao !== '-'}
 														· mencao {materia.mencao}
@@ -275,13 +275,13 @@
 												</p>
 											</div>
 											{#if materia.viaEquivalencia}
-												<span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-200">
+												<span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-800 dark:text-cyan-200">
 													Equivalencia
 												</span>
 											{/if}
 										</div>
 										{#if materia.viaEquivalencia}
-											<p class="mt-1 text-xs text-cyan-100/85">
+											<p class="mt-1 text-xs text-cyan-900 dark:text-cyan-100/85">
 												{#if materia.fonte === 'simulacao' || (materia.materiasQueSatisfizeram ?? []).length > 0}
 													Concluida por equivalencia:
 													{#if (materia.materiasQueSatisfizeram ?? []).length > 0}
@@ -289,10 +289,10 @@
 															<span class="font-mono">{m}</span>{i < (materia.materiasQueSatisfizeram?.length ?? 0) - 1 ? ' / ' : ''}
 														{/each}
 													{:else}
-														<span class="text-white/60">sem rastreio de materia</span>
+														<span class="text-muted-foreground">sem rastreio de materia</span>
 													{/if}
 													{#if materia.viaCadeia}
-														<span class="ml-1 rounded-full border border-amber-400/35 bg-amber-500/15 px-1.5 py-[1px] text-[10px] text-amber-100">cadeia</span>
+														<span class="ml-1 rounded-full border border-amber-400/35 bg-amber-500/15 px-1.5 py-[1px] text-[10px] text-amber-900 dark:text-amber-100">cadeia</span>
 													{/if}
 												{:else}
 													Concluida por equivalencia
@@ -313,11 +313,11 @@
 
 				<section class="space-y-2">
 						<div class="flex items-center justify-between rounded-lg border border-violet-400/30 bg-violet-500/10 px-3 py-2">
-							<h3 class="text-sm font-semibold text-violet-200">Optativas</h3>
-							<span class="rounded-full bg-violet-500/20 px-2 py-0.5 text-xs font-medium text-violet-100">{optativas.length}</span>
+							<h3 class="text-sm font-semibold text-violet-800 dark:text-violet-200">Optativas</h3>
+							<span class="rounded-full bg-violet-500/20 px-2 py-0.5 text-xs font-medium text-violet-900 dark:text-violet-100">{optativas.length}</span>
 						</div>
 						{#if optativas.length === 0}
-							<p class="px-1 text-xs text-white/50">Nenhuma optativa concluida na lista filtrada.</p>
+							<p class="px-1 text-xs text-muted-foreground">Nenhuma optativa concluida na lista filtrada.</p>
 						{:else}
 							<div class="space-y-2">
 								{#each optativas as materia (materia.codigoMateria)}
@@ -325,12 +325,12 @@
 										<div class="flex flex-wrap items-center justify-between gap-2">
 											<div class="min-w-0">
 												{#if materia.nomeMateria}
-													<p class="text-sm font-semibold text-white" title={materia.codigoMateria}>{materia.nomeMateria}</p>
-													<p class="font-mono text-[11px] text-white/45">{materia.codigoMateria}</p>
+													<p class="text-sm font-semibold text-foreground" title={materia.codigoMateria}>{materia.nomeMateria}</p>
+													<p class="font-mono text-[11px] text-muted-foreground">{materia.codigoMateria}</p>
 												{:else}
-													<p class="font-mono text-sm font-semibold text-white">{materia.codigoMateria}</p>
+													<p class="font-mono text-sm font-semibold text-foreground">{materia.codigoMateria}</p>
 												{/if}
-												<p class="text-xs text-white/60">
+												<p class="text-xs text-muted-foreground">
 													{materia.status}
 													{#if materia.mencao !== '-'}
 														· mencao {materia.mencao}
@@ -344,13 +344,13 @@
 												</p>
 											</div>
 											{#if materia.viaEquivalencia}
-												<span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-200">
+												<span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-800 dark:text-cyan-200">
 													Equivalencia
 												</span>
 											{/if}
 										</div>
 										{#if materia.viaEquivalencia}
-											<p class="mt-1 text-xs text-cyan-100/85">
+											<p class="mt-1 text-xs text-cyan-900 dark:text-cyan-100/85">
 												{#if materia.fonte === 'simulacao' || (materia.materiasQueSatisfizeram ?? []).length > 0}
 													Concluida por equivalencia:
 													{#if (materia.materiasQueSatisfizeram ?? []).length > 0}
@@ -358,10 +358,10 @@
 															<span class="font-mono">{m}</span>{i < (materia.materiasQueSatisfizeram?.length ?? 0) - 1 ? ' / ' : ''}
 														{/each}
 													{:else}
-														<span class="text-white/60">sem rastreio de materia</span>
+														<span class="text-muted-foreground">sem rastreio de materia</span>
 													{/if}
 													{#if materia.viaCadeia}
-														<span class="ml-1 rounded-full border border-amber-400/35 bg-amber-500/15 px-1.5 py-[1px] text-[10px] text-amber-100">cadeia</span>
+														<span class="ml-1 rounded-full border border-amber-400/35 bg-amber-500/15 px-1.5 py-[1px] text-[10px] text-amber-900 dark:text-amber-100">cadeia</span>
 													{/if}
 												{:else}
 													Concluida por equivalencia
@@ -383,8 +383,8 @@
 				{#if semCategoria.length > 0}
 					<section class="space-y-2">
 						<div class="flex items-center justify-between rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2">
-							<h3 class="text-sm font-semibold text-amber-200">Sem categoria na matriz atual</h3>
-							<span class="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-100">{semCategoria.length}</span>
+							<h3 class="text-sm font-semibold text-amber-800 dark:text-amber-200">Sem categoria na matriz atual</h3>
+							<span class="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-900 dark:text-amber-100">{semCategoria.length}</span>
 						</div>
 						<div class="space-y-2">
 							{#each semCategoria as materia (materia.codigoMateria)}
@@ -392,12 +392,12 @@
 									<div class="flex flex-wrap items-center justify-between gap-2">
 										<div class="min-w-0">
 											{#if materia.nomeMateria}
-													<p class="text-sm font-semibold text-white" title={materia.codigoMateria}>{materia.nomeMateria}</p>
-													<p class="font-mono text-[11px] text-white/45">{materia.codigoMateria}</p>
+													<p class="text-sm font-semibold text-foreground" title={materia.codigoMateria}>{materia.nomeMateria}</p>
+													<p class="font-mono text-[11px] text-muted-foreground">{materia.codigoMateria}</p>
 												{:else}
-													<p class="font-mono text-sm font-semibold text-white">{materia.codigoMateria}</p>
+													<p class="font-mono text-sm font-semibold text-foreground">{materia.codigoMateria}</p>
 												{/if}
-											<p class="text-xs text-white/60">
+											<p class="text-xs text-muted-foreground">
 													{materia.status}
 													{#if materia.mencao !== '-'}
 														· mencao {materia.mencao}
@@ -411,13 +411,13 @@
 											</p>
 										</div>
 										{#if materia.viaEquivalencia}
-											<span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-200">
+											<span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-800 dark:text-cyan-200">
 												Equivalencia
 											</span>
 										{/if}
 									</div>
 										{#if materia.viaEquivalencia}
-										<p class="mt-1 text-xs text-cyan-100/85">
+										<p class="mt-1 text-xs text-cyan-900 dark:text-cyan-100/85">
 												{#if materia.fonte === 'simulacao' || (materia.materiasQueSatisfizeram ?? []).length > 0}
 													Concluida por equivalencia:
 													{#if (materia.materiasQueSatisfizeram ?? []).length > 0}
@@ -425,10 +425,10 @@
 															<span class="font-mono">{m}</span>{i < (materia.materiasQueSatisfizeram?.length ?? 0) - 1 ? ' / ' : ''}
 														{/each}
 													{:else}
-														<span class="text-white/60">sem rastreio de materia</span>
+														<span class="text-muted-foreground">sem rastreio de materia</span>
 													{/if}
 													{#if materia.viaCadeia}
-														<span class="ml-1 rounded-full border border-amber-400/35 bg-amber-500/15 px-1.5 py-[1px] text-[10px] text-amber-100">cadeia</span>
+														<span class="ml-1 rounded-full border border-amber-400/35 bg-amber-500/15 px-1.5 py-[1px] text-[10px] text-amber-900 dark:text-amber-100">cadeia</span>
 													{/if}
 												{:else}
 													Concluida por equivalencia

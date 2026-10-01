@@ -19,7 +19,7 @@
 	];
 </script>
 
-<footer class="home-footer border-t border-white/[0.07]">
+<footer class="home-footer">
 	<div class="footer-content">
 		<div class="footer-brand">
 			<p class="footer-logo">
@@ -74,6 +74,8 @@
 
 	.home-footer {
 		background: hsl(var(--background));
+		/* divisória: foreground ≈ branco no dark → mesmo valor visual de antes */
+		border-top: 1px solid hsl(var(--foreground) / 0.07);
 	}
 
 	.footer-content {

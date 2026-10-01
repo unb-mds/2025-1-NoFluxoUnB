@@ -103,7 +103,7 @@
 			<div class="team-avatar-wrap">
 				{#if imageError || !avatarUrl}
 					<div class="fallback-avatar">
-						<svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+						<svg class="w-8 h-8 text-muted-foreground dark:text-foreground" fill="currentColor" viewBox="0 0 20 20">
 							<path
 								fill-rule="evenodd"
 								d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
@@ -245,9 +245,14 @@
 			0 0 16px rgba(240, 197, 106, 0.3);
 	}
 
+	/* Dourado "Fundador": light usa tom escuro (≥ 5:1 sobre card/página); dark mantém o original. */
 	.team-card.is-founder .team-role {
-		color: #f0c56a;
+		color: hsl(40 90% 30%);
 		font-weight: 600;
+	}
+
+	:global(.dark) .team-card.is-founder .team-role {
+		color: #f0c56a;
 	}
 
 	.team-card.is-maintainer {
@@ -295,9 +300,10 @@
 		width: 22px;
 		height: 22px;
 		border-radius: 999px;
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		background: rgba(255, 255, 255, 0.08);
-		color: white;
+		/* foreground ≈ branco no dark → mesmos valores de antes; no light vira chip cinza com ícone escuro */
+		border: 1px solid hsl(var(--foreground) / 0.2);
+		background: hsl(var(--foreground) / 0.08);
+		color: hsl(var(--foreground));
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -306,7 +312,7 @@
 	}
 
 	.carousel-btn:hover {
-		background: rgba(255, 255, 255, 0.2);
+		background: hsl(var(--foreground) / 0.2);
 	}
 
 	.member-slide {
@@ -332,7 +338,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: #374151;
+		background: hsl(var(--muted));
 		border-radius: 50%;
 	}
 
@@ -341,6 +347,12 @@
 		height: 100%;
 		border-radius: 50%;
 		object-fit: cover;
+		background: hsl(var(--muted));
+	}
+
+	/* placeholder do avatar: valor histórico do dark */
+	:global(.dark) .fallback-avatar,
+	:global(.dark) .team-avatar {
 		background: #374151;
 	}
 
@@ -359,7 +371,7 @@
 	}
 
 	.team-role {
-		color: #aeadad;
+		color: hsl(var(--foreground) / 0.7);
 		font-size: clamp(0.75rem, 1.5vw, 1rem);
 		letter-spacing: 0.5px;
 	}
@@ -416,10 +428,7 @@
 				hsl(var(--primary) / 0.09) 40%,
 				hsl(var(--card) / 0.65) 100%
 			);
-		box-shadow:
-			0 0 0 1px hsl(var(--primary) / 0.1),
-			0 0 12px hsl(var(--primary) / 0.16),
-			inset 0 1px 0 hsl(0 0% 100% / 0.08);
+		box-shadow: var(--nf-shadow-pill);
 	}
 
 	.contact-list {
@@ -433,12 +442,12 @@
 		align-items: center;
 		justify-content: center;
 		gap: 0.375rem;
-		color: #f3f4f6;
+		color: hsl(var(--foreground));
 		font-size: 0.8125rem;
 	}
 
 	.contact-item a {
-		color: #f3f4f6;
+		color: hsl(var(--foreground));
 		text-decoration: none;
 	}
 
@@ -453,17 +462,32 @@
 		margin-top: 0.75rem;
 	}
 
+	/* WCAG 2.5.8: alvo de 24px; o ponto visível de 8px é desenhado por dentro. */
 	.dot {
-		width: 8px;
-		height: 8px;
+		position: relative;
+		width: 24px;
+		height: 24px;
 		border-radius: 999px;
 		border: none;
 		cursor: pointer;
-		background: rgba(255, 255, 255, 0.35);
+		background: transparent;
+		padding: 0;
 	}
 
-	.dot.active {
-		background: #f9fafb;
+	.dot::before {
+		content: '';
+		position: absolute;
+		inset: 8px;
+		border-radius: 999px;
+		background: hsl(var(--foreground) / 0.5);
+	}
+
+	:global(.dark) .dot::before {
+		background: hsl(var(--foreground) / 0.35);
+	}
+
+	.dot.active::before {
+		background: hsl(var(--foreground));
 	}
 
 	@keyframes slide-in {

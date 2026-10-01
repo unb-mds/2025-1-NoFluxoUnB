@@ -253,14 +253,14 @@
 >
 	{#if store.state.loading}
 		<div class="flex flex-col items-center justify-center gap-4 py-20">
-			<Loader2 class="h-10 w-10 animate-spin text-purple-400" />
-			<p class="text-sm text-white/60">Carregando fluxograma...</p>
+			<Loader2 class="h-10 w-10 animate-spin text-ai" />
+			<p class="text-sm text-muted-foreground">Carregando fluxograma...</p>
 		</div>
 	{:else if store.state.error}
 		<div class="mx-auto max-w-md rounded-2xl border border-red-500/20 bg-red-500/10 p-8 text-center backdrop-blur-md">
-			<AlertTriangle class="mx-auto mb-3 h-8 w-8 text-red-400" />
-			<h2 class="mb-2 text-lg font-semibold text-white">Erro ao carregar fluxograma</h2>
-			<p class="mb-4 text-sm text-red-300/80">{store.state.error}</p>
+			<AlertTriangle class="mx-auto mb-3 h-8 w-8 text-red-700 dark:text-red-400" />
+			<h2 class="mb-2 text-lg font-semibold text-foreground">Erro ao carregar fluxograma</h2>
+			<p class="mb-4 text-sm text-red-700 dark:text-red-300/80">{store.state.error}</p>
 			<div class="flex flex-col items-center gap-3">
 				<button
 					onclick={() =>
@@ -268,13 +268,13 @@
 							? store.loadCourseDataByCurriculoCompleto(matrizCurricular.trim())
 							: courseName && store.loadCourseData(courseName)
 					}
-					class="rounded-full bg-white/10 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20"
+					class="rounded-full bg-foreground/10 px-6 py-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/20"
 				>
 					Tentar novamente
 				</button>
 				<button
 					onclick={() => goto(ROUTES.UPLOAD_HISTORICO)}
-					class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-700 px-6 py-2 text-sm font-semibold text-white transition-transform hover:scale-105"
+					class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-2 text-sm font-semibold text-white transition-transform dark:from-blue-500 dark:to-blue-700 hover:scale-105"
 				>
 					<Upload class="h-4 w-4" />
 					Enviar histórico novamente
@@ -282,15 +282,15 @@
 			</div>
 		</div>
 	{:else if !userFluxograma}
-		<div class="mx-auto max-w-md rounded-2xl border border-white/10 bg-black/40 p-8 text-center backdrop-blur-md">
-			<Upload class="mx-auto mb-3 h-8 w-8 text-purple-400" />
-			<h2 class="mb-2 text-lg font-semibold text-white">Nenhum Fluxograma Encontrado</h2>
-			<p class="mb-4 text-sm text-white/50">
+		<div class="mx-auto max-w-md rounded-2xl border border-border bg-card p-8 text-center backdrop-blur-md dark:bg-background/80">
+			<Upload class="mx-auto mb-3 h-8 w-8 text-ai" />
+			<h2 class="mb-2 text-lg font-semibold text-foreground">Nenhum Fluxograma Encontrado</h2>
+			<p class="mb-4 text-sm text-muted-foreground">
 				Importe seu histórico acadêmico para gerar seu fluxograma personalizado.
 			</p>
 			<button
 				onclick={() => goto(ROUTES.UPLOAD_HISTORICO)}
-				class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-700 px-6 py-3 font-semibold text-white transition-transform hover:scale-105"
+				class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-3 font-semibold text-white transition-transform dark:from-blue-500 dark:to-blue-700 hover:scale-105"
 			>
 				<Upload class="h-4 w-4" />
 				Importar Histórico
@@ -318,10 +318,10 @@
 					>
 						{#if curriculoCompletoAtual && (resolvedMatrizCurricular || matrizCurricular) && curriculoCompletoAtual !== (resolvedMatrizCurricular || matrizCurricular)}
 							<div class="flex animate-in fade-in slide-in-from-top-2 items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 backdrop-blur-md">
-								<Info class="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+								<Info class="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-400" />
 								<div class="min-w-0 flex-1">
-									<h3 class="text-sm font-semibold text-amber-300">Você está simulando uma matriz diferente</h3>
-									<p class="mt-0.5 text-xs leading-relaxed text-amber-200/80">
+									<h3 class="text-sm font-semibold text-amber-800 dark:text-amber-300">Você está simulando uma matriz diferente</h3>
+									<p class="mt-0.5 text-xs leading-relaxed text-amber-800 dark:text-amber-200/80">
 										Sua matriz original (<strong>{matrizCurricular}</strong>) pode estar inativa ou você escolheu visualizar outra grade. O fluxograma abaixo corresponde à matriz <strong>{curriculoCompletoAtual}</strong>.
 									</p>
 								</div>
@@ -379,7 +379,7 @@
 			</div>
 
 			{#if !fluxogramaFocusMode && !store.state.isAnonymous}
-				<div class="relative z-40 shrink-0 space-y-4 border-t border-white/10 pt-4">
+				<div class="relative z-40 shrink-0 space-y-4 border-t border-border pt-4">
 					<ProgressSummarySection
 						courseData={store.state.courseData}
 						userFluxograma={store.userFluxograma}
@@ -392,7 +392,7 @@
 					<ProgressToolsSection />
 				</div>
 			{:else if !fluxogramaFocusMode}
-				<div class="relative z-40 border-t border-white/10 pt-4">
+				<div class="relative z-40 border-t border-border pt-4">
 					<ProgressSummarySection
 						courseData={store.state.courseData}
 						userFluxograma={store.userFluxograma}

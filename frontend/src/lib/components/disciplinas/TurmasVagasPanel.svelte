@@ -122,12 +122,12 @@
 	});
 </script>
 
-<section class="rounded-2xl border border-white/10 bg-zinc-950/78 p-4 sm:p-5">
-	<div class="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
-		<p class="text-xs font-semibold uppercase tracking-[0.12em] text-white/80">
-			Turmas e vagas{#if codigoMateria} · <span class="font-mono text-purple-300">{codigoMateria}</span>{/if}
+<section class="rounded-2xl border border-border bg-card/80 dark:bg-background/80 p-4 sm:p-5">
+	<div class="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
+		<p class="text-xs font-semibold uppercase tracking-[0.12em] text-foreground/80">
+			Turmas e vagas{#if codigoMateria} · <span class="font-mono text-ai">{codigoMateria}</span>{/if}
 			{#if periodoAtual}
-				<span class="ml-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] normal-case tracking-normal text-white/50">
+				<span class="ml-1 rounded-full border border-border bg-muted/60 px-2 py-0.5 text-[10px] normal-case tracking-normal text-muted-foreground">
 					{periodoAtual}
 				</span>
 			{/if}
@@ -141,8 +141,8 @@
 					null,
 					periodoAtual
 				)
-					? 'border-purple-300/45 bg-purple-500/18 text-purple-100 hover:bg-purple-500/25'
-					: 'border-white/15 bg-white/5 text-white/70 hover:bg-white/10'}"
+					? 'border-primary/45 bg-primary/15 text-accent-foreground hover:bg-primary/25'
+					: 'border-border bg-muted/60 text-foreground/70 hover:bg-muted'}"
 			>
 				{#if acaoEmAndamento === assinaturaKey(null, periodoAtual)}
 					<Loader2 class="h-3 w-3 animate-spin" />
@@ -157,24 +157,24 @@
 	</div>
 
 	{#if erroAcao}
-		<p class="mb-2 text-xs text-red-300/85">{erroAcao}</p>
+		<p class="mb-2 text-xs text-red-700 dark:text-red-300/85">{erroAcao}</p>
 	{/if}
 
 	{#if carregandoTurmas}
-		<p class="flex items-center gap-2 text-xs text-white/55">
+		<p class="flex items-center gap-2 text-xs text-muted-foreground">
 			<Loader2 class="h-3.5 w-3.5 animate-spin" /> Carregando turmas...
 		</p>
 	{:else if erroTurmas}
-		<p class="text-xs text-red-300/85">{erroTurmas}</p>
+		<p class="text-xs text-red-700 dark:text-red-300/85">{erroTurmas}</p>
 	{:else if turmas.length === 0}
-		<p class="text-xs text-white/45">
+		<p class="text-xs text-muted-foreground">
 			Nenhuma turma cadastrada{#if nomeMateria} para {nomeMateria}{/if} no período {periodoAtual ??
 				'atual'}.
 		</p>
 	{:else}
 		<div class="space-y-2">
 			{#if codigoOfertado}
-				<p class="rounded-xl border border-sky-300/25 bg-sky-500/10 px-3 py-2 text-[11px] leading-snug text-sky-200/90">
+				<p class="rounded-xl border border-sky-300/25 bg-sky-500/10 px-3 py-2 text-[11px] leading-snug text-sky-800 dark:text-sky-200/90">
 					Ofertada como <span class="font-mono font-semibold">{codigoOfertado}</span> neste período —
 					é nesse código que você se matricula.
 				</p>
@@ -182,30 +182,30 @@
 			{#each turmas as { turma: t } (t.id_turmas)}
 				{@const seguindo = encontrarAssinatura(t.turma, t.ano_periodo)}
 				{@const key = assinaturaKey(t.turma, t.ano_periodo)}
-				<div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5">
+				<div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background/80 dark:bg-black/25 px-3 py-2.5">
 					<div class="min-w-0 flex-1">
 						<div class="flex flex-wrap items-center gap-2">
-							<span class="font-mono text-xs font-semibold text-purple-200">Turma {t.turma}</span>
-							<span class="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-white/60">
+							<span class="font-mono text-xs font-semibold text-ai">Turma {t.turma}</span>
+							<span class="rounded-full border border-border bg-muted/60 px-2 py-0.5 text-[10px] text-muted-foreground">
 								{t.ano_periodo}
 							</span>
 							{#if t.vagas_sobrando != null}
 								<span
 									class="rounded-full border px-2 py-0.5 text-[10px] font-semibold {t.vagas_sobrando > 0
-										? 'border-emerald-300/45 bg-emerald-500/18 text-emerald-100'
-										: 'border-red-300/40 bg-red-500/15 text-red-200'}"
+										? 'border-emerald-300/45 bg-emerald-500/18 text-emerald-800 dark:text-emerald-100'
+										: 'border-red-300/40 bg-red-500/15 text-red-800 dark:text-red-200'}"
 								>
 									{t.vagas_sobrando > 0 ? `${t.vagas_sobrando} vaga(s) livre(s)` : 'Sem vagas'}
 								</span>
 							{/if}
 						</div>
-						<p class="mt-1 text-xs text-white/65">
+						<p class="mt-1 text-xs text-muted-foreground">
 							{#if t.docente}{t.docente}{:else}Docente não informado{/if}
 							{#if t.horario} · {t.horario}{/if}
 							{#if t.local} · {t.local}{/if}
 						</p>
 						{#if t.vagas_ofertadas != null || t.vagas_ocupadas != null}
-							<p class="mt-0.5 text-[11px] text-white/45">
+							<p class="mt-0.5 text-[11px] text-muted-foreground">
 								Ofertadas: {t.vagas_ofertadas ?? '—'} · Ocupadas: {t.vagas_ocupadas ?? '—'}
 							</p>
 						{/if}
@@ -215,8 +215,8 @@
 						disabled={acaoEmAndamento === key}
 						onclick={() => alternarSeguir(t.turma, t.ano_periodo)}
 						class="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 {seguindo
-							? 'border-purple-300/45 bg-purple-500/18 text-purple-100 hover:bg-purple-500/25'
-							: 'border-white/15 bg-white/5 text-white/70 hover:bg-white/10'}"
+							? 'border-primary/45 bg-primary/15 text-accent-foreground hover:bg-primary/25'
+							: 'border-border bg-muted/60 text-foreground/70 hover:bg-muted'}"
 					>
 						{#if acaoEmAndamento === key}
 							<Loader2 class="h-3 w-3 animate-spin" />
@@ -232,7 +232,7 @@
 		</div>
 	{/if}
 	{#if carregandoAssinaturas && !carregandoTurmas}
-		<p class="mt-2 flex items-center gap-1.5 text-[11px] text-white/40">
+		<p class="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground/80">
 			<Loader2 class="h-3 w-3 animate-spin" /> Sincronizando suas assinaturas...
 		</p>
 	{/if}
