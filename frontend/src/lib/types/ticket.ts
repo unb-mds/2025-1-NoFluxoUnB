@@ -121,10 +121,13 @@ export const CATEGORY_LABELS: Record<TicketCategory, string> = {
 	duvida: 'Dúvida'
 };
 
+// Chips: light = tint 50 + texto 800 (≥ 6,6:1); dark: mantém as classes históricas.
 export const CATEGORY_COLORS: Record<TicketCategory, string> = {
-	bug: 'bg-red-500/20 text-red-300 border-red-500/30',
-	sugestao: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-	duvida: 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+	bug: 'bg-red-50 text-red-800 border-red-200 dark:bg-red-500/20 dark:text-red-300 dark:border-red-500/30',
+	sugestao:
+		'bg-accent text-accent-foreground border-primary/30 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/30',
+	duvida:
+		'bg-sky-50 text-sky-800 border-sky-200 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30'
 };
 
 export const STATUS_LABELS: Record<TicketStatus, string> = {
@@ -135,10 +138,14 @@ export const STATUS_LABELS: Record<TicketStatus, string> = {
 };
 
 export const STATUS_COLORS: Record<TicketStatus, string> = {
-	aberto: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-	em_andamento: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
-	aguardando_info: 'bg-yellow-500/20 text-yellow-200 border-yellow-500/30',
-	resolvido: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+	aberto:
+		'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30',
+	em_andamento:
+		'bg-sky-50 text-sky-800 border-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:border-sky-500/30',
+	aguardando_info:
+		'bg-yellow-50 text-yellow-800 border-yellow-200 dark:bg-yellow-500/20 dark:text-yellow-200 dark:border-yellow-500/30',
+	resolvido:
+		'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30'
 };
 
 export const STATUS_ORDER: TicketStatus[] = [

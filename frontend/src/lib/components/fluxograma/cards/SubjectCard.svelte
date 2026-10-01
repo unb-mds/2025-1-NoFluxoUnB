@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { MateriaModel } from '$lib/types/materia';
+	import { getStatusLabel } from '$lib/types/materia';
 	import {
 		SubjectStatusEnum,
 		canBeTaken,
@@ -16,13 +17,7 @@
 	} from '$lib/utils/curriculum-graph';
 	import MateriaNaturezaBadge from '$lib/components/materia/MateriaNaturezaBadge.svelte';
 	import { Check, Circle, CircleDashed, Clock, Lock, X } from 'lucide-svelte';
-	import {
-		CARD_OUTLINE,
-		PREREQ_BADGE,
-		STATUS_CARD,
-		TAG_BADGE,
-		subjectCardAriaLabel
-	} from './subject-card-colors';
+	import { subjectCardAriaLabel } from './subject-card-colors';
 
 	interface Props {
 		materia: MateriaModel;
@@ -204,6 +199,26 @@
 		[SubjectStatusEnum.LOCKED]: Lock,
 		[SubjectStatusEnum.NOT_STARTED]: CircleDashed
 	};
+
+	/**
+	 * Superfície por status. Light (padrão): fundo pastel + faixa esquerda de 4px
+	 * + texto escuro na cor do status (≥ 4,5:1). Dark: os preenchimentos sólidos
+	 * históricos, sem faixa (border-l volta a 1px e herda a cor da borda).
+	 */
+	const surfaceMap: Record<SubjectStatusValue, string> = {
+		[SubjectStatusEnum.COMPLETED]:
+			'bg-emerald-50 text-emerald-800 border-l-emerald-600 dark:bg-[#1f7a43] dark:text-foreground',
+		[SubjectStatusEnum.IN_PROGRESS]:
+			'bg-violet-50 text-violet-800 border-l-violet-600 dark:bg-[#6b2fcf] dark:text-foreground',
+		[SubjectStatusEnum.AVAILABLE]:
+			'bg-amber-50 text-amber-800 border-l-amber-600 dark:bg-[#a8671a] dark:text-foreground',
+		[SubjectStatusEnum.FAILED]:
+			'bg-red-50 text-red-800 border-l-red-600 dark:bg-[#991b1b] dark:text-foreground',
+		[SubjectStatusEnum.LOCKED]:
+			'bg-muted text-muted-foreground border-l-border-strong dark:bg-[#161625] dark:text-foreground/80',
+		[SubjectStatusEnum.NOT_STARTED]:
+			'bg-muted text-muted-foreground border-l-border-strong dark:bg-[#161625] dark:text-foreground/80'
+	};
 	let StatusIcon = $derived(statusIcon[status]);
 
 	let showPrereqBadge = $derived(!store.state.isAnonymous && (hasPrereqs || dependentCount > 0));
@@ -226,27 +241,35 @@
 	});
 
 	let cardClasses = $derived.by(() => {
-		const cores = STATUS_CARD[status];
-		const base = `subject-card relative flex w-full max-w-[220px] min-w-0 flex-col text-left cursor-pointer rounded-xl border p-2.5 transition-[opacity,box-shadow,border-color] duration-300 sm:max-w-[240px]`;
+		const surface = surfaceMap[status];
+		// border-l-4 só no light; no dark o `dark:border-l` devolve 1px e a cor da faixa
+		// é sobrescrita pelo shorthand/longhand de borda de cada estado abaixo.
+		const base = `subject-card relative flex w-full max-w-[220px] min-w-0 flex-col text-left cursor-pointer rounded-xl border border-l-4 p-2.5 transition-[opacity,box-shadow,border-color] duration-300 sm:max-w-[240px] dark:border-l`;
 		if (isSelected) {
-			return `${base} ${cores.className} ${CARD_OUTLINE.selected.className} opacity-100`;
+			return `${base} ${surface} border-primary/60 ring-2 ring-primary/30 opacity-100 dark:border-foreground/60 dark:ring-foreground/30`;
 		}
-		let borderExtras = cores.borderClass;
+		let borderExtras = 'border-border dark:border-foreground/10';
 		if (destaqueReprovacao) {
-			borderExtras = CARD_OUTLINE.failedHighlight.className;
+			borderExtras =
+				'border-red-500/70 ring-2 ring-red-500/35 shadow-md shadow-red-700/20 dark:border-red-300/85 dark:ring-red-400/45';
 		}
 		const role = highlightRole;
-		// Cores alinhadas a CHAIN_VISUAL; tokens --chain-* têm valor por tema (app.css)
-		if (role) borderExtras = CARD_OUTLINE[role].className;
+		// Cores alinhadas a CHAIN_VISUAL via tokens --chain-* (app.css); light usa tons 600.
+		if (role === 'focus') {
+			borderExtras = 'border-chain-core/80 ring-2 ring-chain-core/35 shadow-md dark:border-l-chain-core/80';
+		} else if (role === 'precursor') {
+			borderExtras = 'border-chain-pre/80 ring-2 ring-chain-pre/35 shadow-md dark:border-l-chain-pre/80';
+		} else if (role === 'descendant') {
+			borderExtras = 'border-chain-desc/80 ring-2 ring-chain-desc/35 shadow-md dark:border-l-chain-desc/80';
+		} else if (role === 'corequisite') {
+			borderExtras = 'border-chain-core/80 ring-2 ring-chain-core/[0.32] shadow-md dark:border-l-chain-core/80';
+		}
 		const dimmed =
 			chainHighlightActive && role === null
 				? 'opacity-[0.14] saturate-[0.35]'
 				: 'opacity-100';
-		return `${base} ${cores.className} ${borderExtras} ${dimmed}`;
+		return `${base} ${surface} ${borderExtras} ${dimmed}`;
 	});
-
-	let textColor = $derived(STATUS_CARD[status].textClass);
-	let textSoftColor = $derived(STATUS_CARD[status].textSoftClass);
 
 	// Track if this is a touch device interaction
 	let isTouchInteraction = $state(false);
@@ -392,13 +415,15 @@
 	tabindex="0"
 	aria-label={ariaLabel}
 >
+	<!-- WCAG 1.4.1: o status não pode depender só da cor — texto para leitores de tela. -->
+	<span class="sr-only">Status: {getStatusLabel(status)}</span>
 	<div class="mb-1 flex shrink-0 items-center justify-between gap-1">
-		<span class="flex min-w-0 items-center gap-1 text-[length:clamp(11px,5.8cqw,13.5px)] font-semibold uppercase tracking-wider {textColor} opacity-100">
+		<span class="flex min-w-0 items-center gap-1 text-[length:clamp(11px,5.8cqw,13.5px)] font-semibold uppercase tracking-wider opacity-100">
 			<StatusIcon class="h-3 w-3 shrink-0" strokeWidth={2.75} aria-hidden="true" />
 			{materia.codigoMateria}
 		</span>
 		<div class="flex items-center gap-1">
-			<span class="rounded-md bg-black/25 px-1.5 py-0.5 text-[length:clamp(10px,5.2cqw,12px)] font-bold {textColor} opacity-90">
+			<span class="rounded-md bg-foreground/[0.08] px-1.5 py-0.5 text-[length:clamp(10px,5.2cqw,12px)] font-bold opacity-90 dark:bg-background/25">
 				{materia.creditos}cr
 			</span>
 		</div>
@@ -406,7 +431,7 @@
 	<!-- Bloco do nome com altura fixa: não estica o card; nome completo no tooltip -->
 	<div class="h-[2.5rem] shrink-0 overflow-hidden">
 		<p
-			class="line-clamp-2 break-words text-[length:clamp(11px,6.2cqw,14px)] font-semibold leading-[1.25] {textColor}"
+			class="line-clamp-2 break-words text-[length:clamp(11px,6.2cqw,14px)] font-semibold leading-[1.25]"
 			title={materia.nomeMateria}
 		>
 			{materia.nomeMateria}
@@ -414,7 +439,7 @@
 	</div>
 
 	{#if highlightRole === 'focus' && chainHighlightActive && directDependents}
-		<p class="mt-1 text-[length:clamp(9px,4.8cqw,11px)] font-medium leading-snug {textSoftColor}" aria-live="polite">
+		<p class="mt-1 text-[length:clamp(9px,4.8cqw,11px)] font-medium leading-snug dark:opacity-75" aria-live="polite">
 			libera {directDependents.size}
 		</p>
 	{/if}
@@ -426,13 +451,14 @@
 			<MateriaNaturezaBadge natureza={naturezaBadge} {nomesQueExigem} />
 			{#if concluidaPorEquivalencia}
 				<span
-					class="rounded {TAG_BADGE.equivalencia.className} px-1.5 py-0.5 text-[length:clamp(9px,5cqw,11px)] font-medium"
+					class="rounded bg-primary px-1.5 py-0.5 text-[length:clamp(9px,5cqw,11px)] font-medium text-primary-foreground dark:bg-purple-500/90"
 					title="Concluída por equivalência"
 				>equiv.</span>
 			{:else if concluidaPorAproveitamento}
-				<!-- Branco com texto escuro: o verde-esmeralda sumia sobre o card verde de Aprovado. -->
+				<!-- Dark: branco com texto escuro (o esmeralda sumia sobre o card verde de Aprovado).
+				     Light: invertido — verde escuro sólido sobre o card pastel. -->
 				<span
-					class="rounded {TAG_BADGE.aproveitamento.className} px-1.5 py-0.5 text-[length:clamp(9px,5cqw,11px)] font-semibold"
+					class="rounded bg-emerald-800 px-1.5 py-0.5 text-[length:clamp(9px,5cqw,11px)] font-semibold text-emerald-50 dark:bg-foreground/95 dark:text-emerald-900"
 					title="Aproveitamento de estudos: componente ganho por disciplina de outra instituição/curso"
 				>aprov.</span>
 			{/if}
@@ -441,7 +467,7 @@
 
 	<!-- Prerequisite indicator badge -->
 	{#if showPrereqBadge}
-		<div class="absolute left-0 -bottom-1.5 flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[length:clamp(9px,5cqw,11px)] font-bold {prereqsCompleted ? PREREQ_BADGE.ok.className : PREREQ_BADGE.pending.className}">
+		<div class="absolute left-0 -bottom-1.5 flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[length:clamp(9px,5cqw,11px)] font-bold {prereqsCompleted ? 'bg-emerald-700 text-emerald-50 dark:bg-green-500/72 dark:text-foreground/95' : 'bg-amber-700 text-amber-50 dark:bg-amber-500/72 dark:text-foreground/95'}">
 			{#if hasPrereqs}
 				<span>{prereqsCompleted ? '✓' : '!'}</span>
 			{/if}
@@ -457,6 +483,14 @@
 	:global(.subject-card) {
 		/* Card é container de tamanho: os textos internos escalam em cqw junto com a largura */
 		container-type: inline-size;
+		/* Light: sombra discreta (≤ 0,06), sem filetes internos */
+		box-shadow:
+			0 1px 2px hsl(var(--foreground) / 0.04),
+			0 2px 8px hsl(var(--foreground) / 0.06);
+	}
+
+	/* Dark: receita histórica, verbatim */
+	:global(.dark .subject-card) {
 		box-shadow:
 			inset 0 1px 0 rgba(255, 255, 255, 0.14),
 			inset 1px 0 0 rgba(255, 255, 255, 0.06),
