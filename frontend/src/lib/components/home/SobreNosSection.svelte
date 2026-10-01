@@ -4,7 +4,21 @@
 	import { cubicOut } from 'svelte/easing';
 	import MemberCard from './MemberCard.svelte';
 
-	const founders = [
+	interface Member {
+		name: string;
+		githubUsername?: string;
+		/** Foto própria em /static — usada quando a pessoa não tem avatar no GitHub. */
+		photo?: string;
+		/** Sobrescreve o rótulo do grupo (ex. cargo na Crianex). */
+		role?: string;
+		funcao: string;
+		specialties: string[];
+		linkedin: string;
+		instagram?: string;
+		email: string;
+	}
+
+	const founders: Member[] = [
 		{
 			name: 'Guilherme Gusmão',
 			githubUsername: 'gusmoles',
@@ -16,6 +30,7 @@
 		{
 			name: 'Vitor Marconi',
 			githubUsername: 'Vitor-Trancoso',
+			photo: '/team/vitor-marconi.webp',
 			funcao: 'Fullstack, arquitetura visual e manutenção do produto',
 			specialties: ['Fullstack', 'Design', 'Arquitetura visual'],
 			linkedin: 'https://www.linkedin.com/in/vitor-marconi-4a069524a/',
@@ -81,9 +96,37 @@
 
 	const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'pt-BR');
 
-	const maintainers = founders
-		.filter((member) => ['Vitor-Trancoso', 'darkymeubem', 'staann'].includes(member.githubUsername))
-		.sort(byName);
+	// Time da Crianex que mantém o produto sem ter sido do time fundador.
+	const crianexTeam: Member[] = [
+		{
+			name: 'Rodrigo Bessone',
+			photo: '/team/bessone.webp',
+			role: 'CMO · Crianex',
+			funcao: 'Creator, direção criativa e comercial',
+			specialties: ['Marketing', 'Criação de conteúdo', 'Comercial'],
+			linkedin: '',
+			instagram: 'besssone',
+			email: ''
+		}
+	];
+
+	// Cargo na Crianex de quem também é dev e mantenedor — aparece só no "Time atual";
+	// na aba Fundadores o rótulo continua "Fundador".
+	const cargoNoTimeAtual: Record<string, { role: string; funcao: string }> = {
+		'Vitor-Trancoso': {
+			role: 'CEO · Crianex',
+			funcao: 'Dev e mantenedor: fullstack e arquitetura'
+		}
+	};
+
+	const maintainers = [
+		...founders
+			.filter((member) =>
+				['Vitor-Trancoso', 'darkymeubem', 'staann', 'hisarxt'].includes(member.githubUsername ?? '')
+			)
+			.map((member) => ({ ...member, ...cargoNoTimeAtual[member.githubUsername ?? ''] })),
+		...crianexTeam
+	].sort(byName);
 
 	// menção honrosa: destaque fora do grid, também mantém as linhas alinhadas (8 cards = 2x4)
 	const HONOR_USERNAME = 'knz13';
@@ -97,7 +140,7 @@
 			id: 'atuais',
 			label: 'Time atual',
 			title: 'Quem mantém hoje',
-			description: 'Os desenvolvedores que seguem cuidando do No Fluxo no dia a dia.',
+			description: 'O time que segue cuidando do No Fluxo no dia a dia.',
 			role: 'Mantenedor',
 			variant: 'maintainer' as const,
 			members: maintainers,
@@ -181,6 +224,12 @@
 				pela professora Dr Carla Rocha na FCTE/UnB. A ideia era construir um software que resolvesse um
 				problema real da comunidade, e a gente escolheu resolver um que vivia toda semana.
 			</p>
+
+			<p class="sobre-text">
+				Hoje o No Fluxo faz parte da <a class="sobre-link" href="https://crianex.com" target="_blank"
+					rel="noopener noreferrer">Crianex</a
+				>, que segue desenvolvendo o produto junto com quem o começou.
+			</p>
 		</div>
 
 		<!--
@@ -247,9 +296,12 @@
 						<p>{activeGroup.description}</p>
 					</header>
 
-					<div class="team-grid" class:compact={activeGroup.members.length <= 3}>
+					<div
+						class="team-grid"
+						class:compact={activeGroup.members.length <= 3}
+						class:incompleta={activeGroup.members.length > 4 && activeGroup.members.length % 4 !== 0}
+					>
 						{#each activeGroup.members as member, memberIndex}
-							<!-- TODO: add instagram={member.instagram} prop -->
 							<div
 								class="team-grid-item"
 								style={`--stagger: ${Math.min(memberIndex, 8) * 55}ms`}
@@ -257,10 +309,12 @@
 								<MemberCard
 									name={member.name}
 									githubUsername={member.githubUsername}
+									photo={member.photo}
 									specialties={member.specialties}
 									linkedin={member.linkedin}
+									instagram={member.instagram}
 									email={member.email}
-									role={activeGroup.role}
+									role={member.role ?? activeGroup.role}
 									funcao={member.funcao}
 									variant={activeGroup.variant}
 								/>
@@ -369,6 +423,13 @@
 		font-size: clamp(0.8125rem, 1.5vw, 1.0625rem);
 		line-height: 1.7;
 		text-align: left;
+	}
+
+	.sobre-link {
+		color: hsl(var(--crianex));
+		font-weight: 600;
+		text-decoration: underline;
+		text-underline-offset: 3px;
 	}
 
 	.sobre-features {
@@ -754,6 +815,17 @@
 		.team-grid {
 			grid-template-columns: repeat(4, 1fr);
 			gap: 1.5rem;
+		}
+
+		/* última linha incompleta (ex. 5 cards): centraliza em vez de alinhar à esquerda */
+		.team-grid.incompleta {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+		}
+
+		.team-grid.incompleta > .team-grid-item {
+			flex: 0 0 calc((100% - 3 * 1.5rem) / 4);
 		}
 
 		.team-grid.compact {

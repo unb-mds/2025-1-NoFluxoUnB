@@ -3,7 +3,9 @@
 
 	interface Props {
 		name: string;
-		githubUsername: string;
+		githubUsername?: string;
+		/** Foto própria (ex. /team/nome.webp) — tem prioridade sobre o avatar do GitHub. */
+		photo?: string;
 		specialties?: string[];
 		instagram?: string;
 		linkedin?: string;
@@ -17,7 +19,8 @@
 
 	let {
 		name,
-		githubUsername,
+		githubUsername = '',
+		photo = '',
 		specialties = [],
 		instagram = '',
 		linkedin = '',
@@ -48,7 +51,9 @@
 		return () => clearTimeout(timer);
 	});
 
-	const avatarUrl = $derived(`https://avatars.githubusercontent.com/${githubUsername}`);
+	const avatarUrl = $derived(
+		photo || (githubUsername ? `https://avatars.githubusercontent.com/${githubUsername}` : '')
+	);
 	const githubUrl = $derived(`https://github.com/${githubUsername}`);
 	const linkedinValue = $derived(linkedin.trim());
 	const linkedinHandle = $derived(linkedinValue.replace('@', ''));
@@ -96,7 +101,7 @@
 	{#if currentSlide === 0}
 		<div class="member-slide">
 			<div class="team-avatar-wrap">
-				{#if imageError}
+				{#if imageError || !avatarUrl}
 					<div class="fallback-avatar">
 						<svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
 							<path
@@ -143,10 +148,22 @@
 		<div class="member-slide">
 			<h4 class="slide-title">Contato</h4>
 			<div class="contact-list">
-				<div class="contact-item">
-					<Github size={16} />
-					<a href={githubUrl} target="_blank" rel="noopener noreferrer">@{githubUsername}</a>
-				</div>
+				{#if githubUsername}
+					<div class="contact-item">
+						<Github size={16} />
+						<a href={githubUrl} target="_blank" rel="noopener noreferrer">@{githubUsername}</a>
+					</div>
+				{/if}
+				{#if instagram}
+					<div class="contact-item">
+						<Instagram size={16} />
+						<a
+							href={`https://www.instagram.com/${instagram.replace('@', '')}`}
+							target="_blank"
+							rel="noopener noreferrer">@{instagram.replace('@', '')}</a
+						>
+					</div>
+				{/if}
 				<div class="contact-item">
 					<Linkedin size={16} />
 					{#if linkedinUrl}
