@@ -16,12 +16,10 @@
 		z-index: -1;
 		overflow: hidden;
 		pointer-events: none;
-		background: hsl(var(--background));
+		background: hsl(var(--page-background));
 	}
 
-	:global(.dark) .nofluxo-bg {
-		background: #050505;
-	}
+	/* .dark: --page-background = o mesmo preto de produção, agora por token */
 
 	.nofluxo-bg-mesh {
 		position: absolute;
@@ -57,7 +55,7 @@
 		filter: blur(110px);
 		opacity: 0.22;
 		border-radius: 50%;
-		background: hsl(var(--primary) / 0.45);
+		background: hsl(var(--primary) / var(--page-glow-alpha));
 	}
 
 	.nofluxo-bg-glow.nw {
