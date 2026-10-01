@@ -27,17 +27,19 @@ const dropzoneSrc = lerSrc('lib/components/upload/FileDropzone.svelte');
 const paginaSrc = lerSrc('routes/(protected)/upload-historico/+page.svelte');
 
 /**
- * Glows decorativos da página (divs aria-hidden com radial-gradient), com o pico
- * de cada um e se aparecem no tema: `hidden` some no claro; `dark:block` volta no escuro.
+ * Glows decorativos da página (.glow--top / .glow--bottom, CSS da light-mode), com
+ * o pico de cada um no tema: no claro, --primary com alfa baixo; no escuro, os
+ * rgba da main em `:global(.dark) .glow--*`.
  */
 function glowsDaPagina(tema: Tema): Camada[] {
 	const glows: Camada[] = [];
-	for (const m of paginaSrc.matchAll(
-		/<div\s+aria-hidden="true"\s+class="([^"]*)"\s+style="background: radial-gradient\(circle, rgba\((\d+),(\d+),(\d+),([\d.]+)\)/g
-	)) {
-		const classes = m[1].split(/\s+/);
-		const visivel = tema === 'dark' ? !classes.includes('hidden') || classes.includes('dark:block') : !classes.includes('hidden');
-		if (visivel) glows.push({ cor: `rgb(${m[2]} ${m[3]} ${m[4]})`, alfa: Number(m[5]) });
+	for (const nome of ['glow--top', 'glow--bottom']) {
+		const seletor = tema === 'dark' ? `:global\\(\\.dark\\) \\.${nome}` : `(?<!\\) )\\.${nome}`;
+		const bloco = new RegExp(`${seletor}\\s*\\{([^}]*)\\}`).exec(paginaSrc)?.[1] ?? '';
+		const rgba = /rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/.exec(bloco);
+		const prim = /hsl\(var\(--primary\) \/ ([\d.]+)\)/.exec(bloco);
+		if (rgba) glows.push({ cor: `rgb(${rgba[1]} ${rgba[2]} ${rgba[3]})`, alfa: Number(rgba[4]) });
+		else if (prim) glows.push({ token: 'primary', alfa: Number(prim[1]) });
 	}
 	return glows;
 }
@@ -53,9 +55,10 @@ const MAIN = {
 /** Tint do círculo atual no tema: tokens no claro, o vermelho da main no escuro. */
 const circulo = (tema: Tema, nome: string): Camada =>
 	tema === 'dark' ? MAIN.circulo : { token: nome, alfa: 0.1 };
+// Ícones da light-mode: par de paleta claro/escuro (âmbar = aviso, vermelho = erro).
 const ICONES = {
-	'status-warning': /<AlertTriangle class="([^"]*text-status-warning[^"]*)"/.exec(paginaSrc)?.[1] ?? '',
-	'status-danger': /<AlertTriangle class="([^"]*text-status-danger[^"]*)"/.exec(paginaSrc)?.[1] ?? ''
+	'status-warning': /<AlertTriangle class="([^"]*text-amber-[^"]*)"/.exec(paginaSrc)?.[1] ?? '',
+	'status-danger': /<AlertTriangle class="([^"]*text-red-[^"]*)"/.exec(paginaSrc)?.[1] ?? ''
 };
 
 /** Regras CSS com seletor `:global(.dark) …` (sobrescritas só do escuro). */
@@ -87,9 +90,11 @@ describe.each(TEMAS)('upload de histórico — tema %s, sobre o fundo real', (te
 	it('cabeçalho: título e subtítulo', () => {
 		expect(paginaSrc).toContain('<h1 class="text-foreground');
 		expect(paginaSrc).toContain('<p class="text-muted-foreground mx-auto');
-		// No escuro o subtítulo fica em 4,43:1 no PICO do glow roxo (pré-existente em
-		// produção, que este teste mantém idêntica); mede-se lá sobre o PageBackground.
-		for (const p of tema === 'dark' ? [[]] : paginas) {
+		// Mede-se sobre o PageBackground (liso e no pico do glow dele). Com o glow da
+		// própria página TAMBÉM no pico (os dois ficam no canto superior esquerdo),
+		// o subtítulo cai para ~4,4:1 nos dois temas — mas ele é centralizado, longe
+		// desse canto (no escuro isso já era assim em produção).
+		for (const p of [[]] as Camada[][]) {
 			expect(piorContraste(tema, 'text-foreground', p)).toBeGreaterThanOrEqual(MIN_TEXTO);
 			expect(piorContraste(tema, 'text-muted-foreground', p)).toBeGreaterThanOrEqual(MIN_TEXTO);
 		}
@@ -186,8 +191,11 @@ describe('upload de histórico — escuro (produção) nunca pior que a main', (
 });
 
 describe('upload de histórico — glows decorativos', () => {
-	it('o glow roxo forte da página só aparece no escuro (produção inalterada)', () => {
-		expect(glowsDaPagina('light')).toEqual([]);
+	it('glow roxo forte só no escuro (produção inalterada); no claro, sutil (light-mode)', () => {
+		expect(glowsDaPagina('light')).toEqual([
+			{ token: 'primary', alfa: 0.12 },
+			{ token: 'primary', alfa: 0.07 }
+		]);
 		expect(glowsDaPagina('dark')).toEqual([
 			{ cor: 'rgb(108 38 220)', alfa: 0.32 },
 			{ cor: 'rgb(80 20 160)', alfa: 0.18 }
@@ -213,9 +221,9 @@ describe('upload de histórico — sem cor que só funciona no escuro', () => {
 		expect(semDark).not.toMatch(/hsl\(0 72% 51%/); // vermelho fixo do círculo de erro
 	});
 
-	it('os ícones de erro/aviso usam os tokens de status', () => {
-		expect(paginaSrc).toContain('text-status-danger');
-		expect(paginaSrc).toContain('text-status-warning');
+	it('os ícones de erro/aviso têm par claro/escuro (700 no claro, 400 no escuro)', () => {
+		expect(paginaSrc).toContain('text-red-700 dark:text-red-400');
+		expect(paginaSrc).toContain('text-amber-700 dark:text-amber-400');
 	});
 
 	it('os toasts do upload (erro de PDF, sucesso) seguem claros como em produção', () => {

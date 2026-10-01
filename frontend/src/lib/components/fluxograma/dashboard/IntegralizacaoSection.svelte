@@ -21,11 +21,11 @@
 </script>
 
 {#if integralizacao}
-	<div class="min-w-0 rounded-xl border border-white/10 bg-black/40 p-3 backdrop-blur-md sm:p-4">
+	<div class="min-w-0 rounded-xl border border-border bg-background/80 dark:bg-black/40 p-3 backdrop-blur-md sm:p-4">
 		{#if matrizes.length > 1 && onMatrizChange}
 			<div class="mb-3 flex justify-end">
 				<select
-					class="rounded-lg border border-white/20 bg-white/5 px-2 py-1.5 text-xs text-white focus:border-cyan-500 focus:outline-none"
+					class="rounded-lg border border-border-strong bg-muted/60 px-2 py-1.5 text-xs text-foreground focus:border-cyan-700 focus:outline-none dark:focus:border-cyan-500"
 					value={curriculoCompletoAtual ?? integralizacao.curriculoCompleto}
 					onchange={(e) => onMatrizChange((e.target as HTMLSelectElement).value)}
 				>

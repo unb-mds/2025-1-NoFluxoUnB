@@ -36,20 +36,20 @@
 
 {#if !dismissed && mostrandoTudo}
 	<div
-		class="mb-2 flex items-start gap-2.5 rounded-xl border border-primary/30 bg-primary/[0.12] px-3 py-2.5 text-xs leading-relaxed text-white/85 backdrop-blur-md md:hidden"
+		class="mb-2 flex items-start gap-2.5 rounded-xl border border-primary/30 bg-primary/[0.12] px-3 py-2.5 text-xs leading-relaxed text-foreground/85 backdrop-blur-md md:hidden"
 		role="note"
 	>
-		<Settings2 class="mt-0.5 h-4 w-4 shrink-0 text-purple-300" aria-hidden="true" />
+		<Settings2 class="mt-0.5 h-4 w-4 shrink-0 text-primary dark:text-purple-300" aria-hidden="true" />
 		<p class="min-w-0 flex-1">
 			Estamos mostrando seu fluxograma completo, com
-			<strong class="text-white">optativas</strong> e
-			<strong class="text-white">módulos livres</strong>. Para uma visualização mais limpa no
+			<strong class="text-foreground">optativas</strong> e
+			<strong class="text-foreground">módulos livres</strong>. Para uma visualização mais limpa no
 			celular, você pode ocultá-los no menu de exibição (⚙).
 		</p>
 		<button
 			type="button"
 			onclick={dismiss}
-			class="shrink-0 rounded-lg p-1 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+			class="shrink-0 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
 			aria-label="Dispensar aviso"
 		>
 			<X class="h-4 w-4" />

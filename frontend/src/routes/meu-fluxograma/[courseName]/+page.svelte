@@ -412,14 +412,14 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 >
 	{#if store.state.loading}
 		<div class="flex flex-col items-center justify-center gap-4 py-20">
-			<Loader2 class="h-10 w-10 animate-spin text-purple-400" />
-			<p class="text-sm text-white/60">Carregando fluxograma de {courseName}...</p>
+			<Loader2 class="h-10 w-10 animate-spin text-ai" />
+			<p class="text-sm text-muted-foreground">Carregando fluxograma de {courseName}...</p>
 		</div>
 	{:else if store.state.error}
 		<div class="mx-auto max-w-md rounded-2xl border border-red-500/20 bg-red-500/10 p-8 text-center backdrop-blur-md">
-			<AlertTriangle class="mx-auto mb-3 h-8 w-8 text-red-400" />
-			<h2 class="mb-2 text-lg font-semibold text-white">Erro ao carregar fluxograma</h2>
-			<p class="mb-4 text-sm text-red-300/80">{store.state.error}</p>
+			<AlertTriangle class="mx-auto mb-3 h-8 w-8 text-red-700 dark:text-red-400" />
+			<h2 class="mb-2 text-lg font-semibold text-foreground">Erro ao carregar fluxograma</h2>
+			<p class="mb-4 text-sm text-red-700 dark:text-red-300/80">{store.state.error}</p>
 			<button
 				onclick={() => {
 				if (courseName) {
@@ -427,7 +427,7 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 					store.loadCourseData(courseName, !u?.dadosFluxograma);
 				}
 			}}
-				class="rounded-full bg-white/10 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20"
+				class="rounded-full bg-foreground/10 px-6 py-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/20"
 			>
 				Tentar novamente
 			</button>
@@ -471,7 +471,7 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 								<button
 									type="button"
 									onclick={() => (showMateriasConcluidasModal = true)}
-									class="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/35 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-200 transition-colors hover:bg-cyan-500/20 sm:text-sm"
+									class="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/35 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-800 dark:text-cyan-200 transition-colors hover:bg-cyan-500/20 sm:text-sm"
 								>
 									<ListChecks class="h-4 w-4" />
 									Concluidas do historico
@@ -512,7 +512,7 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 						<button
 							type="button"
 							onclick={scrollToSummary}
-							class="absolute bottom-3 left-1/2 z-20 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 text-xs font-medium text-white/70 backdrop-blur-md transition-colors hover:bg-black/80 hover:text-white md:flex"
+							class="absolute bottom-3 left-1/2 z-20 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-background/85 hover:bg-background/95 dark:bg-black/60 dark:hover:bg-black/80 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-nofluxo backdrop-blur-md transition-colors hover:bg-background hover:text-foreground md:flex dark:shadow-none"
 							aria-label="Ver resumo de progresso abaixo"
 						>
 							<span>Ver progresso</span>
@@ -532,7 +532,7 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 			</div>
 
 			{#if !fluxogramaFocusMode && !store.state.isAnonymous}
-				<div class="relative z-40 mt-2 shrink-0 space-y-4 border-t border-white/10 pt-4" bind:this={progressSummaryRef}>
+				<div class="relative z-40 mt-2 shrink-0 space-y-4 border-t border-border pt-4" bind:this={progressSummaryRef}>
 					{#if userFluxograma && store.state.courseData}
 						<div class="space-y-2">
 							{#if eSimulacaoOutroCurso}
@@ -542,11 +542,11 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 									integralizacaoLoading={integralizacaoLoading}
 								/>
 							{/if}
-							<p class="flex items-center gap-1.5 text-xs text-white/70 sm:text-sm">
-								<ArrowRightLeft class="h-4 w-4 shrink-0 text-cyan-400" />
+							<p class="flex items-center gap-1.5 text-xs text-foreground/70 sm:text-sm">
+								<ArrowRightLeft class="h-4 w-4 shrink-0 text-cyan-700 dark:text-cyan-400" />
 								<span
-									><span class="font-medium text-white/90">Progresso neste curso</span>
-									<span class="text-white/45"> · simulação pelo histórico</span></span
+									><span class="font-medium text-foreground/90">Progresso neste curso</span>
+									<span class="text-muted-foreground"> · simulação pelo histórico</span></span
 								>
 							</p>
 							<ProgressSummarySection
@@ -562,7 +562,7 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 					{/if}
 				</div>
 			{:else if !fluxogramaFocusMode && userFluxograma && store.state.courseData}
-				<div class="relative z-40 mt-2 space-y-2 border-t border-white/10 pt-4">
+				<div class="relative z-40 mt-2 space-y-2 border-t border-border pt-4">
 					{#if eSimulacaoOutroCurso}
 						<RequisitosMudancaCursoBanner
 							dadosFluxograma={userFluxograma}
@@ -570,11 +570,11 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 							integralizacaoLoading={integralizacaoLoading}
 						/>
 					{/if}
-					<p class="flex items-center gap-1.5 text-xs text-white/70">
-						<ArrowRightLeft class="h-4 w-4 shrink-0 text-cyan-400" />
+					<p class="flex items-center gap-1.5 text-xs text-foreground/70">
+						<ArrowRightLeft class="h-4 w-4 shrink-0 text-cyan-700 dark:text-cyan-400" />
 						<span
-							><span class="font-medium text-white/90">Progresso neste curso</span>
-							<span class="text-white/45"> · simulação pelo histórico</span></span
+							><span class="font-medium text-foreground/90">Progresso neste curso</span>
+							<span class="text-muted-foreground"> · simulação pelo histórico</span></span
 						>
 					</p>
 					<ProgressSummarySection

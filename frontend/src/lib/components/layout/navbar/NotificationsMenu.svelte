@@ -4,6 +4,7 @@
 	import { formatDate } from '$lib/utils';
 	import { vagaNotificacaoService } from '$lib/services/vaga-notificacao.service';
 	import { Bell } from 'lucide-svelte';
+	import NavTooltip from './NavTooltip.svelte';
 	import type { Notificacao } from '$lib/types/notificacao';
 
 	const POLL_INTERVAL_MS = 60000;
@@ -50,7 +51,10 @@
 </script>
 
 <DropdownMenu.Root onOpenChange={handleOpenChange}>
+	<NavTooltip label={totalNaoLidas > 0 ? `Notificações · ${totalNaoLidas} não lida${totalNaoLidas > 1 ? 's' : ''}` : 'Notificações'}>
+	{#snippet children(tip)}
 	<DropdownMenu.Trigger
+		{...tip}
 		class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-none bg-transparent p-0 transition-opacity hover:opacity-90"
 		aria-label="Notificações"
 	>
@@ -63,6 +67,8 @@
 			</span>
 		{/if}
 	</DropdownMenu.Trigger>
+	{/snippet}
+	</NavTooltip>
 	<DropdownMenu.Content class="w-80" align="end">
 		<DropdownMenu.Label class="flex items-center justify-between font-normal">
 			<span>Notificações</span>

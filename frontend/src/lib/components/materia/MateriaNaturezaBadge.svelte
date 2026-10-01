@@ -29,7 +29,7 @@
 	>optatória</span>
 {:else if natureza === 'optativa'}
 	<span
-		class="rounded bg-blue-500/85 px-1.5 py-0.5 text-[length:var(--materia-badge-fs,9px)] font-medium text-white"
+		class="rounded bg-blue-600 px-1.5 py-0.5 text-[length:var(--materia-badge-fs,9px)] font-medium text-white dark:bg-blue-500/85"
 		title="Optativa: não é exigida individualmente, mas conta para a carga horária optativa"
 	>opt.</span>
 {/if}
