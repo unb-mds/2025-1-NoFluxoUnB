@@ -7,6 +7,7 @@
 	import ComoFuncionaSection from '$lib/components/home/ComoFuncionaSection.svelte';
 	import ProntoParaOrganizarSection from '$lib/components/home/ProntoParaOrganizarSection.svelte';
 	import SobreNosSection from '$lib/components/home/SobreNosSection.svelte';
+	import CrianexSection from '$lib/components/home/CrianexSection.svelte';
 	import HomeFooter from '$lib/components/home/HomeFooter.svelte';
 	import { currentUser, isAuthenticated } from '$lib/stores/auth';
 
@@ -24,7 +25,12 @@
 		name: 'NoFluxo UNB',
 		alternateName: ['No Fluxo UNB', 'NoFluxoUnB'],
 		url: 'https://no-fluxo.crianex.com',
-		logo: 'https://no-fluxo.crianex.com/og-image.png'
+		logo: 'https://no-fluxo.crianex.com/og-image.png',
+		parentOrganization: {
+			'@type': 'Organization',
+			name: 'Crianex',
+			url: 'https://crianex.com'
+		}
 	};
 </script>
 
@@ -49,5 +55,6 @@
 	<ComoFuncionaSection />
 	<ProntoParaOrganizarSection />
 	<SobreNosSection />
+	<CrianexSection />
 	<HomeFooter />
 </main>

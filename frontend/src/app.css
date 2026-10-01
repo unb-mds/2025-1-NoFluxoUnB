@@ -33,6 +33,10 @@
 		/* IA — lilás (texto/accent suave), tint de fundo */
 		--ai: 267 92% 78%;
 		--ai-soft: 268 42% 18%;
+		/* Crianex — verde da marca (/cria._nex>). Claro: ≥ 4,5:1 sobre o fundo branco. */
+		--crianex: 142 72% 29%;
+		--crianex-violeta: 263 70% 50%;
+		--crianex-magenta: 330 80% 42%;
 	}
 
 	.dark {
@@ -57,6 +61,11 @@
 		--ring: 270 91% 62%;
 		--ai: 267 92% 78%;
 		--ai-soft: 268 45% 16%;
+		/* Crianex — verde da marca (/cria._nex>). Escuro: ≥ 4,5:1 sobre o fundo da página. */
+		--crianex: 142 69% 58%;
+		/* roxo/rosa da logo clareados: o #7F3FE5 puro dá 3,6:1 no escuro */
+		--crianex-violeta: 263 85% 72%;
+		--crianex-magenta: 330 82% 64%;
 	}
 }
 
