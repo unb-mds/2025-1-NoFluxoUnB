@@ -15,7 +15,7 @@
 
 <div class="success-wrap">
 	<div class="success-icon">
-		<CheckCircle class="size-10 text-emerald-400 sm:size-12" stroke-width="2" />
+		<CheckCircle class="size-10 text-emerald-700 sm:size-12 dark:text-emerald-400" stroke-width="2" />
 	</div>
 
 	<div class="success-text">
@@ -148,13 +148,21 @@
 	}
 
 	.btn-secondary {
-		border: 1px solid hsl(0 0% 100% / 0.12);
+		border: 1px solid hsl(var(--border-strong) / 0.7);
 		background: hsl(var(--secondary) / 0.45);
 		color: hsl(var(--foreground));
 	}
 
 	.btn-secondary:hover {
 		background: hsl(var(--secondary) / 0.75);
+		border-color: hsl(var(--border-strong));
+	}
+
+	:global(.dark) .btn-secondary {
+		border-color: hsl(0 0% 100% / 0.12);
+	}
+
+	:global(.dark) .btn-secondary:hover {
 		border-color: hsl(0 0% 100% / 0.18);
 	}
 

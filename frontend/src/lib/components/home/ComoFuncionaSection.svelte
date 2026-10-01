@@ -49,7 +49,7 @@
 	];
 </script>
 
-<section class="como-section border-t border-white/[0.06]">
+<section class="como-section">
 	<h2 class="section-heading">Como funciona</h2>
 	<div class="feature-cards">
 		{#each features as feature}
@@ -62,6 +62,8 @@
 	.como-section {
 		padding: clamp(3.5rem, 8vw, 4.5rem) 1.5rem;
 		background: hsl(var(--background) / 0.85);
+		/* divisória: foreground ≈ branco no dark → mesmo valor visual de antes */
+		border-top: 1px solid hsl(var(--foreground) / 0.06);
 	}
 
 	.section-heading {

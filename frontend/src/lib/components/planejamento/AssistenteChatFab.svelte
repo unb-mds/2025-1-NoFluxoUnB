@@ -167,7 +167,7 @@
 <!-- Painel flutuante -->
 {#if isChatOpen}
 	<div
-		class="fixed z-[100] flex flex-col overflow-hidden border border-white/10 bg-[#090c12]/90 shadow-[0_8px_30px_rgb(0,0,0,0.5)] backdrop-blur-3xl sm:bg-[#090c12]/60
+		class="fixed z-[100] flex flex-col overflow-hidden border border-border bg-card/95 shadow-nofluxoLg backdrop-blur-3xl sm:bg-card/90 dark:bg-[#090c12]/90 dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] dark:sm:bg-[#090c12]/60
 			{isMobile
 			? 'right-0 bottom-0 left-0 h-[85vh] w-full rounded-t-3xl'
 			: 'origin-bottom-right rounded-2xl'}"
@@ -183,7 +183,7 @@
 				<button
 					type="button"
 					onclick={resetChat}
-					class="rounded-md p-1 text-white/40 transition-colors hover:bg-white/5 hover:text-white/80"
+					class="rounded-md p-1 text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground/80"
 					aria-label="Restaurar tamanho e posição"
 					title="Restaurar tamanho e posição"
 				>
@@ -193,7 +193,7 @@
 			<button
 				type="button"
 				onclick={() => (isChatOpen = false)}
-				class="rounded-md p-1 text-white/40 transition-colors hover:bg-white/5 hover:text-white/80"
+				class="rounded-md p-1 text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground/80"
 				aria-label="Fechar chat"
 			>
 				<X class="h-4 w-4" />
@@ -217,16 +217,16 @@
 		>
 			{#snippet emptyState()}
 				<div
-					class="mb-4 flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border border-pink-500/50 bg-pink-500/10 shadow-[0_0_30px_rgba(236,72,153,0.15)] backdrop-blur-md"
+					class="mb-4 flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border border-ai/40 bg-ai-soft backdrop-blur-md dark:border-pink-500/50 dark:bg-pink-500/10 dark:shadow-[0_0_30px_rgba(236,72,153,0.15)]"
 				>
-					<Bot class="h-8 w-8 text-pink-400" />
+					<Bot class="h-8 w-8 text-ai dark:text-pink-400" />
 				</div>
-				<h3 class="text-xl font-semibold tracking-tight text-white">Recomende e monte</h3>
-				<p class="mt-2 max-w-[280px] text-[12px] leading-relaxed text-white/50">
-					Peça optativas por tema, ou <span class="font-bold text-emerald-200">módulo livre</span>
+				<h3 class="text-xl font-semibold tracking-tight text-foreground">Recomende e monte</h3>
+				<p class="mt-2 max-w-[280px] text-[12px] leading-relaxed text-muted-foreground">
+					Peça optativas por tema, ou <span class="font-bold text-emerald-800 dark:text-emerald-200">módulo livre</span>
 					por área de interesse — mostro só o que
-					<span class="font-bold text-emerald-200">tem turma</span>
-					neste semestre. Toque em <span class="font-bold text-emerald-200">+ grade</span> pra jogar na
+					<span class="font-bold text-emerald-800 dark:text-emerald-200">tem turma</span>
+					neste semestre. Toque em <span class="font-bold text-emerald-800 dark:text-emerald-200">+ grade</span> pra jogar na
 					sua grade.
 				</p>
 			{/snippet}
@@ -239,13 +239,13 @@
 	<button
 		type="button"
 		onclick={() => (isChatOpen = true)}
-		class="fixed z-[90] flex items-center justify-center border border-pink-500/50 bg-[#1e1e24]/80 shadow-[0_8px_30px_rgba(236,72,153,0.3)] backdrop-blur-md transition-all duration-300 hover:scale-105 hover:border-pink-400 hover:bg-[#2a2a32] active:scale-95
+		class="fixed z-[90] flex items-center justify-center border border-ai/40 bg-card/90 shadow-nofluxoLg backdrop-blur-md transition-all duration-300 hover:scale-105 hover:border-ai hover:bg-accent dark:border-pink-500/50 dark:bg-[#1e1e24]/80 dark:shadow-[0_8px_30px_rgba(236,72,153,0.3)] dark:hover:border-pink-400 dark:hover:bg-[#2a2a32] active:scale-95
 			{isMobile ? 'right-4 bottom-4 h-14 w-14 rounded-full' : 'right-6 bottom-6 h-12 w-12 rounded-xl'}"
 		aria-label="Abrir assistente IA"
 		data-tour="assistente-ia"
 		in:scale={{ start: 0.5, duration: 400, easing: backOut, delay: 100 }}
 		out:scale={{ start: 0.5, duration: 200, easing: cubicOut }}
 	>
-		<Bot class="{isMobile ? 'h-7 w-7' : 'h-6 w-6'} text-pink-400" />
+		<Bot class="{isMobile ? 'h-7 w-7' : 'h-6 w-6'} text-ai dark:text-pink-400" />
 	</button>
 {/if}

@@ -152,12 +152,20 @@
 		padding: 2.5rem 1.5rem;
 		border-radius: 14px;
 		cursor: pointer;
-		border: 1.5px dashed hsl(var(--primary) / 0.35);
-		background: hsl(var(--primary) / 0.04);
+		/* Light: tracejado em border-strong (≥ 3:1) sobre o fundo da página */
+		border: 1.5px dashed hsl(var(--border-strong));
+		background: hsl(var(--background));
 		transition:
 			border-color 0.2s ease,
 			background 0.2s ease,
 			box-shadow 0.2s ease;
+	}
+
+	/* :not(.dropzone--drag) mantém a especificidade abaixo de .dropzone--drag
+	   (senão .dark .dropzone venceria e o feedback de drag do dark mudaria) */
+	:global(.dark) .dropzone:not(.dropzone--drag) {
+		border-color: hsl(var(--primary) / 0.35);
+		background: hsl(var(--primary) / 0.04);
 	}
 
 	.dropzone:hover:not(.dropzone--disabled) {
@@ -194,17 +202,21 @@
 		border-radius: 9999px;
 		background: hsl(var(--primary));
 		border: 2px solid hsl(var(--primary) / 0.55);
-		color: #ffffff;
+		color: hsl(var(--primary-foreground));
 		margin-bottom: 0.5rem;
 		transition: transform 0.2s ease;
+		box-shadow: 0 4px 14px hsl(var(--primary) / 0.28);
+	}
+
+	:global(.dark) .icon-wrap {
 		box-shadow:
 			0 0 24px hsl(var(--primary) / 0.4),
 			inset 0 1px 0 hsl(0 0% 100% / 0.18);
 	}
 
 	.icon-wrap :global(svg) {
-		color: #ffffff;
-		stroke: #ffffff;
+		color: hsl(var(--primary-foreground));
+		stroke: hsl(var(--primary-foreground));
 	}
 
 	.dropzone--drag .icon-wrap {
@@ -254,9 +266,7 @@
 		color: hsl(var(--primary-foreground));
 		background: hsl(var(--primary));
 		cursor: pointer;
-		box-shadow:
-			0 0 28px hsl(var(--primary) / 0.35),
-			0 0 8px hsl(var(--primary) / 0.18);
+		box-shadow: 0 4px 14px hsl(var(--primary) / 0.22);
 		transition:
 			filter 0.15s ease,
 			box-shadow 0.15s ease;
@@ -264,6 +274,16 @@
 
 	.select-btn:hover:not(:disabled) {
 		filter: brightness(1.08);
+		box-shadow: 0 6px 18px hsl(var(--primary) / 0.3);
+	}
+
+	:global(.dark) .select-btn {
+		box-shadow:
+			0 0 28px hsl(var(--primary) / 0.35),
+			0 0 8px hsl(var(--primary) / 0.18);
+	}
+
+	:global(.dark) .select-btn:hover:not(:disabled) {
 		box-shadow:
 			0 0 36px hsl(var(--primary) / 0.45),
 			inset 0 1px 0 hsl(0 0% 100% / 0.12);

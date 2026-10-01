@@ -93,7 +93,12 @@ const CANONICOS = [
 	'tag-modulo-livre-foreground',
 	'chain-focus',
 	'chain-precursor',
-	'chain-descendant'
+	'chain-descendant',
+	// tokens da própria light-mode (hex, usados nas linhas SVG e na legenda);
+	// chain-focus/-precursor/-descendant acima são as MESMAS cores em HSL
+	'chain-pre',
+	'chain-desc',
+	'chain-core'
 ];
 
 describe('tokens canônicos (um nome por conceito, nos dois temas)', () => {
@@ -122,12 +127,18 @@ describe('tokens canônicos (um nome por conceito, nos dois temas)', () => {
 		expect(extras).toEqual([]);
 	});
 
-	it.each(CANONICOS.filter((n) => n !== 'page-glow-alpha'))(
+	const DA_LIGHT_MODE = ['chain-pre', 'chain-desc', 'chain-core'];
+
+	it.each(CANONICOS.filter((n) => n !== 'page-glow-alpha' && !DA_LIGHT_MODE.includes(n)))(
 		'tailwind.config expõe --%s como cor',
 		(nome) => {
 			expect(tailwind).toContain(`'hsl(var(--${nome}) / <alpha-value>)'`);
 		}
 	);
+
+	it.each(DA_LIGHT_MODE)('tailwind.config expõe --%s (hex da light-mode)', (nome) => {
+		expect(tailwind).toContain(`'var(--${nome})'`);
+	});
 });
 
 describe.each(TEMAS)('tokens de status genéricos — tema %s, sobre o fundo real', (tema) => {
