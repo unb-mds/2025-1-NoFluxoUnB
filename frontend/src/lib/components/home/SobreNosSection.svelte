@@ -163,19 +163,44 @@
 	let activeIndex = $state(0);
 	let direction = $state(1);
 	let paused = $state(false);
+	// A troca automática muda a altura da seção (Fundadores é bem mais alta que o
+	// Time atual). Fora da tela isso empurrava a página de quem estava lendo mais
+	// abaixo (ex. no rodapé) — então só troca enquanto a vitrine está visível.
+	let visivel = $state(false);
+	let escolhaManual = $state(false);
+	let reduzido = $state(false);
+	let showcaseEl: HTMLDivElement | undefined = $state();
 
 	const activeGroup = $derived(showcase[activeIndex]);
+	const autoplayAtivo = $derived(!escolhaManual && !reduzido);
+	const rodando = $derived(autoplayAtivo && visivel && !paused);
 
 	function selectGroup(index: number) {
+		// quem escolheu uma aba quer ficar nela: desliga a troca automática
+		escolhaManual = true;
 		if (index === activeIndex) return;
 		direction = index > activeIndex ? 1 : -1;
 		activeIndex = index;
 	}
 
 	$effect(() => {
-		// lê activeIndex para reiniciar a contagem sempre que o grupo muda (auto ou manual)
+		reduzido = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+		const el = showcaseEl;
+		if (!el) return;
+		const io = new IntersectionObserver(
+			([entrada]) => {
+				visivel = entrada.isIntersecting;
+			},
+			{ threshold: 0.25 }
+		);
+		io.observe(el);
+		return () => io.disconnect();
+	});
+
+	$effect(() => {
+		// lê activeIndex para reiniciar a contagem sempre que o grupo muda
 		const current = activeIndex;
-		if (paused) return;
+		if (!rodando) return;
 		const timer = setTimeout(() => {
 			direction = 1;
 			activeIndex = (current + 1) % showcase.length;
@@ -212,6 +237,13 @@
 				SIGAA não explica, e no fim quem se vira pra organizar tudo isso é você, geralmente
 				sozinho, no Excel ou no papel.
 			</p>
+
+			<blockquote class="sobre-mote">
+				<p class="mote-linha">A vida do estudante não é linear.</p>
+				<p class="mote-linha">
+					Cada um tem o seu próprio <mark class="mote-fluxo">fluxo</mark>.
+				</p>
+			</blockquote>
 
 			<p class="sobre-text">
 				Aí a gente fez uma pesquisa e percebeu que não era só com a gente. A maioria dos cursos da
@@ -255,6 +287,7 @@
 
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
+		bind:this={showcaseEl}
 		class="showcase"
 		onmouseenter={() => (paused = true)}
 		onmouseleave={() => (paused = false)}
@@ -278,10 +311,17 @@
 		</div>
 
 		<div class="showcase-progress" aria-hidden="true">
-			{#key activeIndex}
-				<span class="progress-bar" class:paused style={`animation-duration: ${ROTATION_MS}ms`}
-				></span>
-			{/key}
+			<!-- recomeça junto com o timer a cada troca e a cada retomada (voltou à tela, saiu o mouse);
+			     sem troca automática, some só a barra (o espaço fica, para nada pular) -->
+			{#if autoplayAtivo}
+				{#key `${activeIndex}-${rodando}`}
+					<span
+						class="progress-bar"
+						class:paused={!rodando}
+						style={`animation-duration: ${ROTATION_MS}ms`}
+					></span>
+				{/key}
+			{/if}
 		</div>
 
 		<div class="showcase-stage">
@@ -423,6 +463,47 @@
 		font-size: clamp(0.8125rem, 1.5vw, 1.0625rem);
 		line-height: 1.7;
 		text-align: left;
+	}
+
+	/* Mote "grafitado": Rock Salt (marcador rabiscado), escolhida pelo time. */
+	.sobre-mote {
+		margin: 0.5rem 0;
+		padding: 1.25rem 0 1.25rem 1.25rem;
+		border-left: 3px solid hsl(var(--primary));
+		border-radius: 0;
+		font-family: 'Rock Salt', 'Permanent Marker', cursive;
+		font-weight: 400;
+		font-size: clamp(1.125rem, 2.6vw, 1.75rem);
+		line-height: 1.7;
+		letter-spacing: 0.01em;
+		color: hsl(var(--foreground));
+		text-align: left;
+	}
+
+	.mote-linha {
+		margin: 0;
+	}
+
+	/* "fluxo" no roxo do UNB da logo, com um traço de marca-texto por trás —
+	   eco do "fluxograma impresso e uma caneta marca-texto" do começo do texto.
+	   Marca-texto a 22%: ≥ 4,5:1 nos dois temas (a 30% o claro cai para 4,0:1). */
+	.mote-fluxo {
+		color: hsl(var(--primary));
+		background: linear-gradient(
+			transparent 30%,
+			hsl(var(--primary) / 0.22) 30%,
+			hsl(var(--primary) / 0.22) 78%,
+			transparent 78%
+		);
+		padding: 0 0.12em;
+		border-radius: 0.15em;
+		box-decoration-break: clone;
+		-webkit-box-decoration-break: clone;
+	}
+
+	/* --primary sobre o card escuro dá ~4,2:1; o lilás --ai (como no UNB do escuro) passa */
+	:global(.dark) .mote-fluxo {
+		color: hsl(var(--ai));
 	}
 
 	.sobre-link {

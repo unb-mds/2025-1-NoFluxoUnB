@@ -1,39 +1,49 @@
 <script lang="ts">
 	import { ArrowUpRight } from 'lucide-svelte';
+	import CrianexWordmark from '$lib/components/brand/CrianexWordmark.svelte';
 
-	// Textos e produtos conforme crianex.com (set/2026).
-	const produtos = [
-		{ nome: 'No Fluxo', descricao: 'Fluxograma e planejamento acadêmico da UnB' },
-		{ nome: 'Pontua', descricao: 'Avaliações de metodologias de aprendizagem ativa' },
-		{ nome: 'Avalí', descricao: 'Gestão de avaliações e análise de desempenho' }
+	// História da Crianex (texto da própria Crianex, out/2026).
+	const historia = [
+		{
+			quando: 'antes',
+			texto:
+				'Boas ideias ficavam no papel, e problemas reais eram aceitos como normais, resolvidos com planilha, improviso ou mais uma ferramenta que ninguém usa.'
+		},
+		{
+			quando: 'então',
+			texto:
+				'Decidimos começar pelo outro lado. Entender a origem do problema antes de escrever código, validar antes de escalar e construir junto com quem vive a dor.'
+		},
+		{
+			quando: 'hoje',
+			texto:
+				'Nossas crias estão no mundo. O NoFluxo orienta milhares de estudantes da UnB, o Pontua tira professores das planilhas, a Plataforma Agro acompanha o planejamento de cooperativas, e o Avalí está a caminho.'
+		},
+		{
+			quando: 'amanhã',
+			texto:
+				'Cada cria anda com as próprias pernas e tem time próprio. E a Crianex segue sendo o lugar onde ideias saem do papel e pessoas crescem no caminho.'
+		}
 	];
 </script>
 
 <section class="crianex-section" id="crianex" aria-labelledby="crianex-title">
 	<div class="crianex-card nf-card-surface">
 		<p class="crianex-kicker">Um produto</p>
-		<h2 id="crianex-title" class="crianex-wordmark" aria-label="Crianex">
-			<span class="wm-base">/cria.</span><span class="wm-accent">_nex&gt;</span>
+		<h2 id="crianex-title" class="crianex-titulo">
+			<CrianexWordmark modo="entrada" />
 		</h2>
 
-		<blockquote class="crianex-quote">
-			“Tecnologia para resolver problemas, não para empilhar ferramentas.”
-		</blockquote>
-
-		<p class="crianex-text">
-			O No Fluxo nasceu em 2025 como projeto de estudantes da UnB e hoje faz parte da Crianex, um
-			estúdio de tecnologia que cria soluções sob medida: da pesquisa com quem usa até a manutenção
-			contínua do produto.
-		</p>
-
-		<ul class="crianex-produtos" aria-label="Produtos da Crianex">
-			{#each produtos as produto}
-				<li class="produto">
-					<span class="produto-nome">{produto.nome}</span>
-					<span class="produto-desc">{produto.descricao}</span>
+		<ol class="historia" aria-label="A história da Crianex">
+			{#each historia as etapa}
+				<li class="etapa">
+					<span class="etapa-quando">{etapa.quando}<span class="cursor">_</span></span>
+					<p class="etapa-texto">{etapa.texto}</p>
 				</li>
 			{/each}
-		</ul>
+		</ol>
+
+		<p class="crianex-frase">Tecnologia para resolver problemas, não para empilhar ferramentas.</p>
 
 		<a class="crianex-cta" href="https://crianex.com" target="_blank" rel="noopener noreferrer">
 			Conheça a Crianex
@@ -51,13 +61,12 @@
 
 	.crianex-card {
 		width: 100%;
-		max-width: 820px;
-		padding: clamp(1.75rem, 4vw, 2.5rem);
-		text-align: center;
+		max-width: 920px;
+		padding: clamp(1.75rem, 4vw, 2.75rem);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 1rem;
+		gap: 1.25rem;
 	}
 
 	.crianex-kicker {
@@ -68,40 +77,15 @@
 		color: hsl(var(--muted-foreground));
 	}
 
-	.crianex-wordmark {
+	.crianex-titulo {
 		margin: 0;
-		font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
 		font-size: clamp(1.75rem, 5vw, 2.5rem);
-		font-weight: 700;
 		letter-spacing: -0.02em;
 		line-height: 1.1;
+		cursor: default;
 	}
 
-	.wm-base {
-		color: hsl(var(--foreground));
-	}
-
-	.wm-accent {
-		color: hsl(var(--crianex));
-	}
-
-	.crianex-quote {
-		margin: 0;
-		font-size: clamp(0.95rem, 2vw, 1.125rem);
-		font-weight: 600;
-		color: hsl(var(--foreground));
-		max-width: 560px;
-	}
-
-	.crianex-text {
-		margin: 0;
-		color: hsl(var(--muted-foreground));
-		font-size: clamp(0.8125rem, 1.5vw, 1rem);
-		line-height: 1.7;
-		max-width: 620px;
-	}
-
-	.crianex-produtos {
+	.historia {
 		list-style: none;
 		margin: 0.5rem 0 0;
 		padding: 0;
@@ -111,36 +95,53 @@
 		gap: 0.75rem;
 	}
 
-	@media (min-width: 640px) {
-		.crianex-produtos {
-			grid-template-columns: repeat(3, 1fr);
+	@media (min-width: 720px) {
+		.historia {
+			grid-template-columns: repeat(2, 1fr);
 		}
 	}
 
-	.produto {
+	.etapa {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
-		padding: 0.875rem 1rem;
+		gap: 0.5rem;
+		padding: 1rem 1.125rem;
 		border: 1px solid hsl(var(--border));
 		border-radius: var(--radius);
 		background: hsl(var(--muted) / 0.35);
+		text-align: left;
 	}
 
-	.produto-nome {
+	.etapa-quando {
+		font-family: ui-monospace, 'JetBrains Mono', 'SF Mono', SFMono-Regular, Menlo, Consolas,
+			monospace;
 		font-weight: 700;
-		color: hsl(var(--foreground));
 		font-size: 0.9375rem;
+		color: hsl(var(--foreground));
 	}
 
-	.produto-desc {
+	.cursor {
+		color: hsl(var(--crianex));
+	}
+
+	.etapa-texto {
+		margin: 0;
 		color: hsl(var(--muted-foreground));
-		font-size: 0.8125rem;
-		line-height: 1.5;
+		font-size: 0.875rem;
+		line-height: 1.65;
+	}
+
+	.crianex-frase {
+		margin: 0.5rem 0 0;
+		max-width: 620px;
+		text-align: center;
+		font-size: clamp(1rem, 2.2vw, 1.25rem);
+		font-weight: 700;
+		line-height: 1.4;
+		color: hsl(var(--foreground));
 	}
 
 	.crianex-cta {
-		margin-top: 0.5rem;
 		display: inline-flex;
 		align-items: center;
 		gap: 0.375rem;
