@@ -95,24 +95,24 @@
 	});
 </script>
 
-<div class="min-h-screen bg-[#05070b] p-4 text-white">
+<div class="min-h-screen bg-background p-4 text-foreground">
 	<h1 class="mb-2 text-lg font-bold">Harness — toque do planejador</h1>
 
-	<div class="mb-3 rounded-lg border border-white/15 bg-black/40 p-3 font-mono text-xs">
+	<div class="mb-3 rounded-lg border border-border bg-muted p-3 font-mono text-xs">
 		<p>pointer:coarse = <strong data-testid="coarse">{coarse}</strong></p>
 		<p>innerWidth = <strong data-testid="largura">{largura}</strong></p>
 		<p>modoToque esperado = <strong data-testid="modo-toque">{modoToqueEsperado}</strong></p>
 	</div>
 
 	<!-- Conteúdo antes/depois para testar se a página rola com o dedo no canvas -->
-	<div class="mb-3 h-40 rounded-lg bg-white/5 p-3 text-sm text-white/50">bloco acima (rolagem)</div>
+	<div class="mb-3 h-40 rounded-lg bg-foreground/5 p-3 text-sm text-muted-foreground">bloco acima (rolagem)</div>
 
 	<!-- Altura explícita: o componente usa lg:h-full, que precisa de pai com altura definida -->
 	<div style="height: 600px">
 		<PlannerSvelteFlow {plano} curso={null} semestreAtual={5} displayUnit="creditos" onChatAction={(m: string) => push(`chatAction: ${m}`)} />
 	</div>
 
-	<div class="mt-3 h-[60vh] rounded-lg bg-white/5 p-3 text-sm text-white/50">bloco abaixo (rolagem)</div>
+	<div class="mt-3 h-[60vh] rounded-lg bg-foreground/5 p-3 text-sm text-muted-foreground">bloco abaixo (rolagem)</div>
 
-	<pre class="fixed bottom-2 left-2 right-2 z-[200] max-h-44 overflow-auto rounded-lg border border-white/15 bg-black/85 p-2 text-[10px] leading-tight" data-testid="log">{log.join('\n')}</pre>
+	<pre class="fixed bottom-2 left-2 right-2 z-[200] max-h-44 overflow-auto rounded-lg border border-border bg-card/95 p-2 text-[10px] leading-tight" data-testid="log">{log.join('\n')}</pre>
 </div>

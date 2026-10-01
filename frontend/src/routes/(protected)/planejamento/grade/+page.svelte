@@ -497,13 +497,13 @@
 <PageBackground />
 
 {#if status === 'loading'}
-	<div class="relative z-10 flex items-center justify-center gap-2 py-20 text-white/60">
+	<div class="relative z-10 flex items-center justify-center gap-2 py-20 text-muted-foreground">
 		<Loader2 class="h-5 w-5 animate-spin" /> Carregando matérias e turmas...
 	</div>
 {:else if status === 'error'}
 	<div class="relative z-10 mx-auto w-full max-w-2xl px-4 py-20">
 		<div
-			class="rounded-2xl border border-red-300/30 bg-red-500/10 px-4 py-6 text-center text-sm text-red-200"
+			class="rounded-2xl border border-red-300 bg-red-50 dark:border-red-300/30 dark:bg-red-500/10 px-4 py-6 text-center text-sm text-red-800 dark:text-red-200"
 		>
 			{erro}
 		</div>

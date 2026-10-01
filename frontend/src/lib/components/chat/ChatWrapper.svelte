@@ -7,7 +7,7 @@
 	let { children }: Props = $props();
 </script>
 
-<div class="relative flex flex-col h-full w-full overflow-hidden bg-[#09090b]">
+<div class="chat-shell relative flex flex-col h-full w-full overflow-hidden bg-card">
 	<!-- Ambient Background Blobs for Glassmorphism Effect -->
 	<div class="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-40">
 		<div class="absolute -top-[20%] -left-[10%] w-[70%] h-[50%] rounded-full bg-indigo-600/30 blur-[120px]"></div>
@@ -18,3 +18,10 @@
 	<!-- Render rest of chat layout here -->
 	{@render children()}
 </div>
+
+<style>
+	/* Dark: mantém o preto histórico do painel (#09090b ≠ token --card). */
+	:global(.dark) .chat-shell {
+		background-color: #09090b;
+	}
+</style>

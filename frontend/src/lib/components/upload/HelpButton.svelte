@@ -24,7 +24,7 @@
 		font-weight: 600;
 		color: hsl(var(--foreground));
 		background: hsl(var(--secondary) / 0.55);
-		border: 1px solid hsl(0 0% 100% / 0.12);
+		border: 1px solid hsl(var(--border-strong) / 0.7);
 		cursor: pointer;
 		transition:
 			background 0.15s ease,
@@ -33,6 +33,14 @@
 
 	.help-btn:hover {
 		background: hsl(var(--secondary) / 0.8);
+		border-color: hsl(var(--border-strong));
+	}
+
+	:global(.dark) .help-btn {
+		border-color: hsl(0 0% 100% / 0.12);
+	}
+
+	:global(.dark) .help-btn:hover {
 		border-color: hsl(0 0% 100% / 0.16);
 	}
 </style>
