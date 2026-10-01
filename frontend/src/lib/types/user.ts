@@ -52,6 +52,8 @@ export interface DadosFluxogramaUser {
 	anoAtual: string;
 	matrizCurricular: string;
 	semestreAtual: number;
+	/** Quantidade de semestres cursados/decorridos no curso de origem. */
+    semestresCursados?: number;
 	dadosFluxograma: DadosMateria[][];
 	/** Planejamento de optativas no fluxograma (semestre + código). */
 	optativasPlanejadas?: OptativaPlanejadaRef[];
