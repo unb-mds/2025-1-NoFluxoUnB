@@ -10,6 +10,7 @@
 		ChevronsDown,
 		GraduationCap
 	} from 'lucide-svelte';
+	import FluxogramaLegendaStatus from '$lib/components/fluxograma/controls/FluxogramaLegendaStatus.svelte';
 	import FluxogramViewMenu from '$lib/components/fluxograma/controls/FluxogramViewMenu.svelte';
 	import ScreenshotChoiceModal from '$lib/components/fluxograma/modal/ScreenshotChoiceModal.svelte';
 	import { goto } from '$app/navigation';
@@ -129,7 +130,11 @@
 				>
 					<ArrowLeft class="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
 				</button>
-				<div class="min-w-0 flex-1 overflow-hidden">
+				<div
+					class="min-w-0 flex-1 overflow-hidden {cabecalho.recolhido
+						? 'md:flex md:flex-wrap md:items-center md:gap-x-3 md:gap-y-1'
+						: ''}"
+				>
 					<h1
 						class="truncate text-base font-black leading-tight text-foreground sm:text-lg md:text-xl {cabecalho.recolhido
 							? 'lg:text-xl'
@@ -138,7 +143,7 @@
 						{courseName}
 					</h1>
 					<div
-						class="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 {cabecalho.recolhido ? 'md:hidden' : ''}"
+						class="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 {cabecalho.recolhido ? 'md:mt-0' : ''}"
 					>
 						{#if tipoCurso?.trim()}
 							<span
@@ -168,6 +173,10 @@
 							<p class="min-w-0 truncate text-xs text-muted-foreground sm:text-sm">{matrizCurricular}</p>
 						{/if}
 					</div>
+					{#if cabecalho.recolhido}
+						<!-- Recolhido, a barra da legenda some: a legenda vem compacta para cá -->
+						<FluxogramaLegendaStatus compacta class="hidden md:flex" />
+					{/if}
 				</div>
 			</div>
 		</div>
