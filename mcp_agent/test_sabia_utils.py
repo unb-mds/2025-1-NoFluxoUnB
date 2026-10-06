@@ -174,12 +174,14 @@ def test_geracao_sem_stream_tem_read_timeout_de_geracao_inteira():
 def _ler_constante_ms(nome):
     caminho = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        "..", "backend", "src", "services", "sabia.service.ts",
+        "..",
+        "backend",
+        "src",
+        "services",
+        "sabia.service.ts",
     )
     with open(caminho, encoding="utf-8") as f:
-        m = re.search(
-            r"export const " + nome + r"\s*=\s*([\d_]+)\s*;", f.read()
-        )
+        m = re.search(r"export const " + nome + r"\s*=\s*([\d_]+)\s*;", f.read())
     assert m, nome
     return int(m.group(1).replace("_", ""))
 
@@ -229,9 +231,9 @@ def test_chamadas_sem_stream_do_api_producao_usam_teto_proprio():
         if isinstance(stream, ast.Constant) and stream.value is True:
             continue
         alvo = c.func.value.value.value  # client.with_options(...).chat.completions
-        assert isinstance(alvo, ast.Call) and alvo.func.attr == "with_options", (
-            ast.dump(c.func)
-        )
+        assert (
+            isinstance(alvo, ast.Call) and alvo.func.attr == "with_options"
+        ), ast.dump(c.func)
         opcoes = alvo.keywords[0].value.func.id
         opcoes_por_modelo.append((kws["model"].value, opcoes))
     assert sorted(opcoes_por_modelo) == [
