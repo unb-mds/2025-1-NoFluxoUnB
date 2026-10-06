@@ -1,6 +1,7 @@
 <script lang="ts">
 import { Bot, GraduationCap, Info } from 'lucide-svelte';
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
+	import { fluxogramaCabecalhoStore as cabecalho } from '$lib/stores/fluxograma-cabecalho.store.svelte';
 	import { ROUTES } from '$lib/config/routes';
 	import { SubjectStatusEnum, getStatusLabel } from '$lib/types/materia';
 	import FluxogramViewMenu from '$lib/components/fluxograma/controls/FluxogramViewMenu.svelte';
@@ -47,7 +48,7 @@ import { Bot, GraduationCap, Info } from 'lucide-svelte';
 	<div
 		class="fluxo-legend flex min-w-0 flex-col gap-2 overflow-visible rounded-xl border border-border px-2.5 py-2 sm:gap-2.5 sm:px-3 sm:py-2.5 [@media(orientation:landscape)_and_(max-height:560px)]:gap-1.5 [@media(orientation:landscape)_and_(max-height:560px)]:px-2 [@media(orientation:landscape)_and_(max-height:560px)]:py-1.5 [@media(orientation:landscape)_and_(max-height:560px)]:sm:gap-2 [@media(orientation:landscape)_and_(max-height:560px)]:sm:px-2 [@media(orientation:landscape)_and_(max-height:560px)]:sm:py-2 [@media(orientation:landscape)_and_(max-height:560px)]:[&>div:first-child]:hidden {viewOnlyOnDesktop
 			? 'hidden md:flex'
-			: ''}"
+			: ''} {cabecalho.recolhido ? 'md:!hidden' : ''}"
 		style="background: hsl(var(--card) / 0.75); backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(14px) saturate(1.3);"
 	>
 		<div
