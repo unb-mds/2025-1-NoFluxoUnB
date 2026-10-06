@@ -198,6 +198,12 @@
 		flex-direction: column;
 		padding-bottom: env(safe-area-inset-bottom, 0px);
 		padding-top: env(safe-area-inset-top, 0px);
+		/* Com a lista de acessibilidade o conteúdo passa da altura da tela em
+		   celulares comuns: sem rolagem própria, os últimos itens ficavam
+		   inalcançáveis. contain: rolar até o fim não arrasta a página atrás. */
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		-webkit-overflow-scrolling: touch;
 		background: hsl(var(--card) / 0.97);
 		border-left: 1px solid hsl(var(--border));
 		/* Light: sombra discreta; .dark mantém o valor histórico */
