@@ -54,6 +54,23 @@
 		--chain-pre: #0f766e;
 		--chain-desc: #c2410c;
 		--chain-core: #4f46e5;
+
+		/*
+		 * Tokens extras (chore/tema-light) usados pelas branches de UI do pré-mortem.
+		 * Fundo real da página = o que o PageBackground pinta (tokens abaixo, com os
+		 * mesmos valores visuais da light-mode); os testes de contraste medem sobre ele.
+		 */
+		--page-background: 255 71% 99%; /* = --background claro */
+		--page-glow-alpha: 0.45;
+		/* Status genérico (texto/ícone/anel sobre página e card): tons ~700 no claro. */
+		--status-success: 142 72% 26%;
+		--status-warning: 26 90% 32%;
+		--status-danger: 0 74% 40%;
+		--status-info: 221 83% 40%;
+		/* Crianex (/cria._nex>): ≥ 4,5:1 sobre o fundo claro. */
+		--crianex: 142 72% 29%;
+		--crianex-violeta: 263 70% 50%;
+		--crianex-magenta: 330 80% 42%;
 	}
 
 	.dark {
@@ -94,6 +111,18 @@
 		--chain-pre: #4fd1c5;
 		--chain-desc: #f6ad55;
 		--chain-core: #7f9cf5;
+
+		/* Tokens extras (chore/tema-light) — ver :root. */
+		--page-background: 0 0% 1.9608%; /* #050505, igual ao PageBackground da light-mode */
+		--page-glow-alpha: 0.45;
+		--status-success: 142 69% 58%;
+		--status-warning: 38 92% 50%;
+		--status-danger: 0 91% 71%;
+		--status-info: 213 94% 68%;
+		/* roxo/rosa da logo clareados: o #7F3FE5 puro dá 3,6:1 no escuro */
+		--crianex: 142 69% 58%;
+		--crianex-violeta: 263 85% 72%;
+		--crianex-magenta: 330 82% 64%;
 	}
 }
 

@@ -57,6 +57,19 @@ const config: Config = {
 					soft: 'hsl(var(--ai-soft) / <alpha-value>)'
 				},
 				// Linhas de pré-requisito do fluxograma (hex por tema em app.css)
+				// Fundo real da página (PageBackground) — chore/tema-light
+				'page-background': 'hsl(var(--page-background) / <alpha-value>)',
+				status: {
+					success: 'hsl(var(--status-success) / <alpha-value>)',
+					warning: 'hsl(var(--status-warning) / <alpha-value>)',
+					danger: 'hsl(var(--status-danger) / <alpha-value>)',
+					info: 'hsl(var(--status-info) / <alpha-value>)'
+				},
+				crianex: {
+					DEFAULT: 'hsl(var(--crianex) / <alpha-value>)',
+					violeta: 'hsl(var(--crianex-violeta) / <alpha-value>)',
+					magenta: 'hsl(var(--crianex-magenta) / <alpha-value>)'
+				},
 				edge: {
 					prereq: 'var(--edge-prereq)',
 					dep: 'var(--edge-dep)',
