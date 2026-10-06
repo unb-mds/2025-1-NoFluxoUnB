@@ -302,6 +302,22 @@ function checkEquivalencies(
 }
 
 /**
+ * Escapa um termo vindo do cliente para ser usado DENTRO de um padrão LIKE.
+ * Sem isso `nome_curso=%` virava `%%%` e casava todos os cursos
+ * (pré-mortem 27/09/2026, R21). `%`, `_` e `\` ganham escape (o `\` é o
+ * escape padrão do LIKE no Postgres); `*` é removido porque o PostgREST o
+ * trata como alias de `%` em filtros like.
+ */
+function escaparTermoLike(termo: string): string {
+    return termo.replace(/\*/g, "").replace(/[\\%_]/g, (c) => "\\" + c);
+}
+
+/** Busca por nome de curso: tamanho mínimo/máximo do termo e teto de resultados. */
+const BUSCA_CURSO_MIN = 3;
+const BUSCA_CURSO_MAX = 120;
+const BUSCA_CURSO_LIMIT = 10;
+
+/**
  * Funções auxiliares internas expostas apenas para testes de unidade
  * (caixa-branca). Não devem ser usadas pelo código de produção.
  */
@@ -316,6 +332,7 @@ export const __testing__ = {
     processMatchedDiscipline,
     checkEquivalencies,
     mapEquivalenciasFromDb,
+    escaparTermoLike,
 };
 
 export const FluxogramaController: EndpointController = {
@@ -324,19 +341,30 @@ export const FluxogramaController: EndpointController = {
         "fluxograma": new Pair(RequestType.GET, async (req: Request, res: Response) => {
             const logger = createControllerLogger("FluxogramaController", "fluxograma");
             logger.info(`Buscando fluxograma para curso`);
-            const nome_curso = req.query.nome_curso as string;
+            // Rota pública (sem token) e cada curso retornado dispara mais 3
+            // queries abaixo: o termo precisa de tamanho mínimo, curingas
+            // escapados e teto de resultados.
+            const nome_curso = typeof req.query.nome_curso === "string" ? req.query.nome_curso.trim() : "";
 
             logger.info(`Nome do curso: ${nome_curso}`);
             if (!nome_curso) {
                 logger.error("Nome do curso não informado");
                 return res.status(400).json({ error: "Nome do curso não informado" });
             }
+            if (nome_curso.length < BUSCA_CURSO_MIN || nome_curso.length > BUSCA_CURSO_MAX) {
+                logger.error(`Nome do curso com tamanho inválido: ${nome_curso.length}`);
+                return res.status(400).json({ error: `Nome do curso deve ter entre ${BUSCA_CURSO_MIN} e ${BUSCA_CURSO_MAX} caracteres` });
+            }
 
-            const { data, error } = await SupabaseWrapper.get().from("cursos").select("*,materias_por_curso(nivel,tipo_natureza,materias(*))").like("nome_curso", "%" + req.query.nome_curso + "%");
+            const { data, error } = await SupabaseWrapper.get()
+                .from("cursos")
+                .select("*,materias_por_curso(nivel,tipo_natureza,materias(*))")
+                .like("nome_curso", "%" + escaparTermoLike(nome_curso) + "%")
+                .limit(BUSCA_CURSO_LIMIT);
 
             if (error) {
                 logger.error(`Erro ao buscar fluxograma: ${error.message}`);
-                return res.status(500).json({ error: error.message });
+                return res.status(500).json({ error: "Erro ao buscar fluxograma" });
             }
 
             for (const curso of data) {
@@ -348,7 +376,7 @@ export const FluxogramaController: EndpointController = {
 
                 if (errorEquivalencias) {
                     logger.error(`Erro ao buscar equivalencias: ${errorEquivalencias.message}`);
-                    return res.status(500).json({ error: errorEquivalencias.message });
+                    return res.status(500).json({ error: "Erro ao buscar fluxograma" });
                 }
 
                 const equivalencias = mapEquivalenciasFromDb(equivalenciasRaw ?? []);
@@ -367,7 +395,7 @@ export const FluxogramaController: EndpointController = {
 
                 if (errorPreRequisitos) {
                     logger.error(`Erro ao buscar pre-requisitos: ${errorPreRequisitos.message}`);
-                    return res.status(500).json({ error: errorPreRequisitos.message });
+                    return res.status(500).json({ error: "Erro ao buscar fluxograma" });
                 }
 
                 const preRequisitosCodigosComId = await mapPreRequisitosFromDb(
@@ -385,7 +413,7 @@ export const FluxogramaController: EndpointController = {
 
                 if (errorCoRequisitos) {
                     logger.error(`Erro ao buscar co-requisitos: ${errorCoRequisitos.message}`);
-                    return res.status(500).json({ error: errorCoRequisitos.message });
+                    return res.status(500).json({ error: "Erro ao buscar fluxograma" });
                 }
 
                 var coRequisitosCodigosComId = [];
@@ -511,7 +539,7 @@ export const FluxogramaController: EndpointController = {
                     let query = SupabaseWrapper.get()
                         .from("cursos")
                         .select("*,materias_por_curso(id_materia,nivel,tipo_natureza,materias(*))")
-                        .like("nome_curso", "%" + curso_extraido + "%");
+                        .like("nome_curso", "%" + escaparTermoLike(String(curso_extraido)) + "%");
 
 
                     if (matriz_curricular) {
