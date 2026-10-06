@@ -246,8 +246,9 @@ const CENARIOS = {
          INSERT INTO ai_usage_log (created_at, endpoint, model, prompt_tokens, completion_tokens, total_tokens, pergunta_id)
          VALUES (now(), 'analyze-sabia', 'sabiazinho-4', 10, 10, 20, 'aaaaaaaa-0000-0000-0000-000000000001'),
                 (now(), 'analyze-sabia', 'sabia-4', 10, 10, 20, 'aaaaaaaa-0000-0000-0000-000000000001'),
-                ('2026-09-02 12:00:00+00', 'assistente-chat', 'sabia-4', 10, 10, 20, NULL),
-                ('2026-09-02 12:00:00+00', 'assistente-chat', 'sabia-4', 10, 10, 20, NULL),
+                -- data relativa: dentro da janela de 30 dias em qualquer dia que o teste rodar
+                (date_trunc('second', now()) - interval '5 days', 'assistente-chat', 'sabia-4', 10, 10, 20, NULL),
+                (date_trunc('second', now()) - interval '5 days', 'assistente-chat', 'sabia-4', 10, 10, 20, NULL),
                 (now() - interval '1 day', 'planejamento-chat', 'desconhecido', 0, 0, 0, NULL);`
     ),
     metricas_ferramenta_nao_e_pergunta: comoUsuario(
