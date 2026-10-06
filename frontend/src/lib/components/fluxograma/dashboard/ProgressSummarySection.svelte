@@ -5,7 +5,7 @@
 	import type { DadosFluxogramaUser } from '$lib/types/user';
 	import { getTotalCreditsCompleted, getCurrentSubjectCodes } from '$lib/types/user';
 	import { GraduationCap, Calendar, X, Loader2 } from 'lucide-svelte';
-	import { formatarIraParaExibicao } from '$lib/utils/ira';
+	import { formatarIraParaExibicao, IRA_NAO_ENCONTRADO } from '$lib/utils/ira';
 	import IntegralizacaoSection from '$lib/components/fluxograma/dashboard/IntegralizacaoSection.svelte';
 	import { portal } from '$lib/actions/portal';
 
@@ -164,7 +164,7 @@
 										stroke-linecap="round"
 										stroke-dasharray={circleData.circumference}
 										stroke-dashoffset={circleData.offset}
-										class="transition-all duration-600"
+										class="stroke-green-700 transition-all duration-600 dark:stroke-[#22c55e]"
 									/>
 								</svg>
 								<div class="absolute inset-0 flex items-center justify-center">
@@ -226,14 +226,16 @@
 			</div>
 			<p class="mt-2 text-2xl font-bold text-foreground sm:text-3xl">{currentSemester}º</p>
 			<p class="text-xs text-muted-foreground">semestre</p>
-			{#if userFluxograma.ira != null}
-				<div class="mt-2 rounded-lg bg-muted/60 px-2.5 py-1.5 sm:mt-3">
+			<div class="mt-2 rounded-lg bg-muted/60 px-2.5 py-1.5 sm:mt-3">
+				{#if formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}
 					<span class="text-xs text-muted-foreground">IRA: </span>
 					<span class="text-sm font-semibold text-foreground sm:text-base"
 						>{formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}</span
 					>
-				</div>
-			{/if}
+				{:else}
+					<span class="text-xs text-muted-foreground">{IRA_NAO_ENCONTRADO}</span>
+				{/if}
+			</div>
 		</div>
 	</div>
 
@@ -281,7 +283,7 @@
 <style>
 	/* Anel de progresso: emerald-600 no light (≥ 3:1 sobre o card); .dark mantém #22c55e. */
 	.ps-card {
-		--ps-ring: #059669;
+		--ps-ring: #047857; /* emerald-700: ≥ 3:1 contra o trilho no claro (o 600 dava 2,4:1) */
 	}
 	:global(.dark) .ps-card {
 		--ps-ring: #22c55e;

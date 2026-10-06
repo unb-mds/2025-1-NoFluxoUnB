@@ -419,7 +419,8 @@ function createUploadStore() {
 			
 			const dados: DadosFluxogramaUser = {
 				nomeCurso: course.nomeCurso,
-				ira: 0,
+				// Modo manual não tem histórico: IRA desconhecido, não 0.
+				ira: null,
 				matricula: 'Manual',
 				horasIntegralizadas: 0,
 				suspensoes: [],
@@ -440,7 +441,7 @@ function createUploadStore() {
 						curso_extraido: course.nomeCurso,
 						matriz_curricular: course.matrizCurricular,
 						matricula: 'Manual',
-						ira: 0,
+						ira: null,
 						media_ponderada: 0,
 						carga_horaria_integralizada: null,
 						suspensoes: [],

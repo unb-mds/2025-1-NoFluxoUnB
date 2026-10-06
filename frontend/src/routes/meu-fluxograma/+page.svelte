@@ -14,6 +14,7 @@
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
 	import { matchesFluxogramCompactTouchMode } from '$lib/utils/fluxogram-viewport';
 	import { getIntegralizacao } from '$lib/services/integralizacao.service';
+	import { iniciarCarregamento } from '$lib/utils/carregamento-cancelavel';
 	import { supabaseDataService } from '$lib/services/supabase-data.service';
 	import { goto } from '$app/navigation';
 	import { ROUTES } from '$lib/config/routes';
@@ -49,31 +50,51 @@
 		const fluxo = userFluxograma;
 		const cc = course?.curriculoCompleto;
 		void store.diagramLayoutRevision;
+		// Fonte única do cálculo (a troca de matriz só recarrega o curso). Cada execução
+		// cancela a anterior: resposta velha não sobrescreve a nova, e erro não prende o spinner.
+		const idCurso = course?.idCurso;
+		const carregarMatrizes = () =>
+			idCurso
+				? iniciarCarregamento(() => supabaseDataService.getMatrizesByCurso(idCurso), {
+						ok: (m) => {
+							matrizes = m.map((x) => ({ curriculoCompleto: x.curriculoCompleto, status: x.status }));
+						},
+						erro: (e) => console.warn('Erro ao carregar matrizes do curso:', e)
+					})
+				: undefined;
 		if (!cc || !fluxo) {
-			if (course?.idCurso && !cc) {
-				supabaseDataService.getMatrizesByCurso(course.idCurso).then((m) => {
-					matrizes = m.map((x) => ({ curriculoCompleto: x.curriculoCompleto, status: x.status }));
-				});
-			}
+			const cancelarMatrizes = !cc ? carregarMatrizes() : undefined;
 			integralizacao = null;
 			integralizacaoLoading = false;
-			return;
+			return () => cancelarMatrizes?.();
 		}
 		integralizacaoLoading = true;
-		getIntegralizacao({
-			curriculoCompleto: cc,
-			dadosFluxograma: fluxo,
-			cargaHorariaIntegralizada: store.cargaHorariaIntegralizada,
-			equivalencias: course?.equivalencias
-		}).then((r) => {
-			integralizacao = r;
-			integralizacaoLoading = false;
-		});
-		if (course?.idCurso) {
-			supabaseDataService.getMatrizesByCurso(course.idCurso).then((m) => {
-				matrizes = m.map((x) => ({ curriculoCompleto: x.curriculoCompleto, status: x.status }));
-			});
-		}
+		const cancelarIntegralizacao = iniciarCarregamento(
+			() =>
+				getIntegralizacao({
+					curriculoCompleto: cc,
+					dadosFluxograma: fluxo,
+					cargaHorariaIntegralizada: store.cargaHorariaIntegralizada,
+					equivalencias: course?.equivalencias
+				}),
+			{
+				ok: (r) => {
+					integralizacao = r;
+				},
+				erro: (e) => {
+					integralizacao = null;
+					console.error('Erro ao calcular integralização:', e);
+				},
+				fim: () => {
+					integralizacaoLoading = false;
+				}
+			}
+		);
+		const cancelarMatrizes = carregarMatrizes();
+		return () => {
+			cancelarIntegralizacao();
+			cancelarMatrizes?.();
+		};
 	});
 
 	onMount(() => {
@@ -107,21 +128,8 @@
 	});
 
 	async function handleMatrizChange(curriculoCompleto: string) {
+		// A integralização é recalculada pelo $effect quando courseData muda.
 		await store.loadCourseDataByCurriculoCompleto(curriculoCompleto, false);
-		if (userFluxograma) {
-			integralizacaoLoading = true;
-			try {
-				const r = await getIntegralizacao({
-					curriculoCompleto,
-					dadosFluxograma: userFluxograma,
-					cargaHorariaIntegralizada: store.cargaHorariaIntegralizada,
-					equivalencias: store.state.courseData?.equivalencias
-				});
-				integralizacao = r;
-			} finally {
-				integralizacaoLoading = false;
-			}
-		}
 	}
 
 	function handleSubjectClick(materia: MateriaModel) {

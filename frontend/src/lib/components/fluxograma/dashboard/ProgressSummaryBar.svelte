@@ -5,7 +5,7 @@
 	import type { DadosFluxogramaUser } from '$lib/types/user';
 	import { getTotalCreditsCompleted } from '$lib/types/user';
 	import { GraduationCap, Calendar, Loader2 } from 'lucide-svelte';
-	import { formatarIraParaExibicao } from '$lib/utils/ira';
+	import { formatarIraParaExibicao, IRA_NAO_ENCONTRADO } from '$lib/utils/ira';
 
 	interface Props {
 		courseData: CursoModel | null;
@@ -81,23 +81,25 @@
 
 		{#if currentSemester != null}
 			<span
-				class="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 dark:bg-black/40 px-3 py-1 text-foreground/80 backdrop-blur-md"
+				class="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-3 py-1 text-foreground/80 backdrop-blur-md dark:bg-black/40"
 			>
-				<Calendar class="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+				<Calendar class="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" />
 				<span class="font-semibold text-foreground">{currentSemester}º</span>
 				<span class="text-muted-foreground">semestre</span>
 			</span>
 		{/if}
 
-		{#if userFluxograma.ira != null}
-			<span
-				class="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 dark:bg-black/40 px-3 py-1 text-foreground/80 backdrop-blur-md"
-			>
+		<span
+			class="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-3 py-1 text-foreground/80 backdrop-blur-md dark:bg-black/40"
+		>
+			{#if formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}
 				<span class="text-muted-foreground">IRA</span>
 				<span class="font-semibold text-foreground"
 					>{formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}</span
 				>
-			</span>
-		{/if}
+			{:else}
+				<span class="text-muted-foreground">{IRA_NAO_ENCONTRADO}</span>
+			{/if}
+		</span>
 	</div>
 {/if}

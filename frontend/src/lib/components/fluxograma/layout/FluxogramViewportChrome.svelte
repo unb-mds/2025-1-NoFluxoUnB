@@ -18,7 +18,7 @@
 	import { getTotalCreditsCompleted } from '$lib/types/user';
 	import { isOptativa } from '$lib/types/materia';
 	import type { IntegralizacaoResult } from '$lib/types/matriz';
-	import { formatarIraParaExibicao } from '$lib/utils/ira';
+	import { formatarIraParaExibicao, IRA_NAO_ENCONTRADO } from '$lib/utils/ira';
 	import { portal } from '$lib/actions/portal';
 	import {
 		matchesFluxogramCompactTouchMode,
@@ -232,7 +232,7 @@
 				: ''}"
 		>
 			<div
-				class="pointer-events-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 rounded-full border border-border bg-background/80 dark:bg-black/50 px-4 py-2 text-xs backdrop-blur-md sm:text-sm"
+				class="pointer-events-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 rounded-full border border-border bg-background/80 px-4 py-2 text-xs backdrop-blur-md dark:bg-black/50 sm:text-sm"
 			>
 				<div class="flex items-center gap-1.5 text-foreground">
 					{#if integralizacaoLoading}
@@ -249,21 +249,23 @@
 				</div>
 				<div class="h-3 w-px bg-foreground/20"></div>
 				<div class="flex items-center gap-1.5 text-foreground">
-					<Calendar class="h-4 w-4 text-amber-600 dark:text-amber-400" />
+					<Calendar class="h-4 w-4 text-amber-700 dark:text-amber-400" />
 					<span class="font-medium"
 						>{userFluxograma.semestreAtual}º
 						<span class="hidden text-muted-foreground sm:inline">sem.</span></span
 					>
 				</div>
-				{#if userFluxograma.ira != null}
-					<div class="h-3 w-px bg-foreground/20"></div>
-					<div class="flex items-center gap-1.5 text-foreground">
-						<TrendingUp class="h-4 w-4 text-primary dark:text-purple-400" />
+				<div class="h-3 w-px bg-foreground/20"></div>
+				<div class="flex items-center gap-1.5 text-foreground">
+					<TrendingUp class="h-4 w-4 text-primary dark:text-purple-400" />
+					{#if formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}
 						<span class="font-medium"
 							>IRA: {formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}</span
 						>
-					</div>
-				{/if}
+					{:else}
+						<span class="font-medium text-muted-foreground">{IRA_NAO_ENCONTRADO}</span>
+					{/if}
+				</div>
 			</div>
 		</div>
 	{/if}

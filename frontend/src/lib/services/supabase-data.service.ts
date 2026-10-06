@@ -176,7 +176,7 @@ export class SupabaseDataService {
 			.select('*')
 			.in('id_curso', idCursosToTry)
 			.eq('versao', versao)
-			.order('ano_vigor', { ascending: false })
+			.order('ano_vigor', { ascending: false, nullsFirst: false })
 			.limit(1);
 
 		if (errCode) throw new Error(`Erro ao buscar matriz: ${errCode.message}`);
@@ -220,7 +220,7 @@ export class SupabaseDataService {
 			.select('id_matriz, id_curso, curriculo_completo, ano_vigor, status')
 			.eq('id_curso', idCurso)
 			.ilike('status', 'ativa')
-			.order('ano_vigor', { ascending: false })
+			.order('ano_vigor', { ascending: false, nullsFirst: false })
 			.limit(1)
 			.maybeSingle();
 
@@ -238,7 +238,7 @@ export class SupabaseDataService {
 				.from('matrizes')
 				.select('*')
 				.eq('id_curso', idCurso)
-				.order('ano_vigor', { ascending: false });
+				.order('ano_vigor', { ascending: false, nullsFirst: false });
 
 			if (error) throw new Error(`Erro ao buscar matrizes: ${error.message}`);
 
@@ -259,7 +259,7 @@ export class SupabaseDataService {
 							.from('matrizes')
 							.select('*')
 							.like('curriculo_completo', `${codigoCurso}/%`)
-							.order('ano_vigor', { ascending: false });
+							.order('ano_vigor', { ascending: false, nullsFirst: false });
 						if (dataByCodigo && dataByCodigo.length > 0) {
 							data = dataByCodigo;
 						}
@@ -361,7 +361,7 @@ export class SupabaseDataService {
 		const { data, error } = await this.supabase
 			.from('matrizes')
 			.select('id_matriz, id_curso, curriculo_completo, ano_vigor')
-			.order('ano_vigor', { ascending: false });
+			.order('ano_vigor', { ascending: false, nullsFirst: false });
 
 		if (error) throw new Error(`Erro ao buscar matrizes resumo: ${error.message}`);
 		const map = new Map<

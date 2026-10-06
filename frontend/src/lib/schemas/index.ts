@@ -28,7 +28,7 @@ export type DadosMateriaFromSchema = z.infer<typeof DadosMateriaSchema>;
 
 export const DadosFluxogramaUserSchema = z.object({
 	nomeCurso: z.string(),
-	ira: z.number(),
+	ira: z.number().nullable(),
 	iraTexto: z.string().nullable().optional(),
 	matricula: z.string(),
 	horasIntegralizadas: z.number().default(0),
