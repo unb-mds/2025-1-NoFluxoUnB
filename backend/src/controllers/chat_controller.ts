@@ -11,6 +11,10 @@
  * e-mail (também do token) alimenta os atuadores que precisam resolver o id_user
  * legado (bigint) do aluno.
  *
+ * Login obrigatório + cota diária de perguntas (utils/ia_acesso.ts): sem token
+ * válido → 401 LOGIN_NECESSARIO antes de qualquer chamada ao modelo; a pergunta
+ * é estornada se o orquestrador falhar.
+ *
  * Isolado do Darcy legado (PlanejadorAgenteService / /assistente/chat /
  * /planejamento/chat) — esta rota não toca nesses arquivos.
  */
@@ -18,9 +22,10 @@
 import { EndpointController, RequestType } from "../interfaces";
 import { Pair } from "../utils";
 import { Request, Response } from "express";
-import { run } from "@openai/agents";
+import { run, RunContext } from "@openai/agents";
 import { createControllerLogger } from "../utils/controller_logger";
-import { logAiUsage } from "../utils/ai_usage_logger";
+import { executarComContextoIA, logAiUsage, usageDoAgente } from "../utils/ai_usage_logger";
+import { exigirLoginIA, reservarPerguntaIA } from "../utils/ia_acesso";
 import { SupabaseWrapper } from "../supabase_wrapper";
 import { SupabaseSession } from "../services/chat/supabase_session";
 import { createOrquestradorAgent } from "../services/chat/orquestrador_agent";
@@ -35,11 +40,8 @@ export const ChatController: EndpointController = {
             const logger = createControllerLogger("ChatController", "send");
             const startTime = Date.now();
 
-            const authorization = req.headers["authorization"];
-            if (!authorization || typeof authorization !== "string") {
-                return res.status(401).json({ error: "Header 'Authorization' é obrigatório." });
-            }
-            const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : authorization;
+            const usuario = await exigirLoginIA(req, res);
+            if (!usuario) return;
 
             // turnos: reservado pra uma extensão futura (filtro de turno explícito no
             // AtuadorGrade) — desencapado do body agora, ainda não usado nesta task.
@@ -53,14 +55,16 @@ export const ChatController: EndpointController = {
                 return res.status(503).json({ error: "Serviço de chat indisponível." });
             }
 
-            try {
-                const { data: authData, error: erroAuth } = await SupabaseWrapper.get().auth.getUser(token);
-                if (erroAuth || !authData?.user?.id) {
-                    logger.error(`Token inválido: ${erroAuth?.message}`);
-                    return res.status(401).json({ error: "Token inválido." });
-                }
+            const pergunta = await reservarPerguntaIA(res, usuario);
+            if (!pergunta) return;
+            const ctxIA = { userId: usuario.id, perguntaId: pergunta.perguntaId };
+            // RunContext criado aqui (e não pelo run) para o usage acumulado —
+            // orquestrador + atuadores + sub-execuções com revisor — continuar
+            // acessível se o run lançar no meio.
+            const contextoRun = new RunContext<unknown>();
 
-                const session = new SupabaseSession(authData.user.id);
+            try {
+                const session = new SupabaseSession(usuario.id);
 
                 // Horário livre só faz sentido acompanhado de um período letivo ativo pra
                 // consultar as turmas contra — mesma RPC já usada em
@@ -83,35 +87,44 @@ export const ChatController: EndpointController = {
                 }
 
                 const orquestrador = createOrquestradorAgent(
-                    authData.user.email ?? "",
+                    usuario.email ?? "",
                     req.body?.contexto === "montador",
                     typeof curriculoCompleto === "string" ? curriculoCompleto : undefined,
                     horarioLivreResolvido
                 );
-                const resultado = await run(orquestrador, message, { session });
+                const resultado = await executarComContextoIA(ctxIA, () =>
+                    run(orquestrador, message, { session, context: contextoRun })
+                );
 
-                // Usage acumulado do run inteiro (todas as chamadas ao LLM feitas
-                // pelo orquestrador + atuadores) — tracking de custo no dashboard admin.
-                // O @openai/agents-openai (openaiChatCompletionsModel.js) confia cegamente
-                // em `usage.total_tokens ?? 0` da resposta, sem recalcular — mesma falha já
-                // vista na Maritaca via mcp_agent/api_producao.py. Recalcula aqui também.
-                const usage = resultado.state.usage;
-                const totalTokens = usage.totalTokens || (usage.inputTokens + usage.outputTokens);
+                // Usage acumulado do run inteiro (orquestrador + atuadores via
+                // asTool + sub-execuções com revisor, ver sub_run.ts) — custo no
+                // dashboard admin. usageDoAgente recalcula o total zerado.
                 logAiUsage({
                     endpoint: "chat-send",
                     durationMs: Date.now() - startTime,
                     success: true,
                     requestExcerpt: message,
-                    usage: [{
-                        model: MARITACA_MODELS.AGENTE,
-                        prompt_tokens: usage.inputTokens,
-                        completion_tokens: usage.outputTokens,
-                        total_tokens: totalTokens,
-                    }],
+                    usage: usageDoAgente(resultado.state?.usage ?? contextoRun.usage, MARITACA_MODELS.AGENTE),
+                    ...ctxIA,
                 });
 
-                return res.status(200).json({ reply: resultado.finalOutput });
+                // O modelo já respondeu (e cobrou): quem saiu gasta a pergunta, só não recebe a resposta.
+                if (pergunta.clienteSaiu()) return;
+                return res.status(200).json({ reply: resultado.finalOutput, cota: pergunta.cota });
             } catch (error) {
+                await pergunta.estornar();
+                // A pergunta volta para o aluno, mas o que o modelo já respondeu
+                // até a falha foi cobrado: entra no custo como falha.
+                logAiUsage({
+                    endpoint: "chat-send",
+                    durationMs: Date.now() - startTime,
+                    success: false,
+                    requestExcerpt: message,
+                    usage: usageDoAgente(contextoRun.usage, MARITACA_MODELS.AGENTE),
+                    modeloPadrao: MARITACA_MODELS.AGENTE,
+                    erro: error,
+                    ...ctxIA,
+                });
                 if (isMaritacaSemCreditos(error)) {
                     logger.error("Chat (orquestrador): Maritaca sem créditos ativos");
                     return res.status(503).json(AI_SEM_CREDITOS_BODY);

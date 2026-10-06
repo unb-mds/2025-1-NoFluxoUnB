@@ -1,6 +1,9 @@
 import { createSupabaseBrowserClient } from '$lib/supabase/client';
 import type {
 	AiCostMetrics,
+	AiSaldoStatus,
+	AiSaldoTipoRegistro,
+	DarcyUsoMetrics,
 	DashboardOverview,
 	GrowthBucket,
 	PeriodoLetivo,
@@ -46,6 +49,35 @@ export class DashboardService {
 		const { data, error } = await this.supabase.rpc('get_ai_cost_metrics', { p_days: days });
 		if (error) throw new Error(error.message);
 		return data as AiCostMetrics;
+	}
+
+	/** Uso das cotas do Darcy hoje (migration 20260929_darcy_cota.sql). */
+	async getDarcyUsoMetrics(): Promise<DarcyUsoMetrics> {
+		const { data, error } = await this.supabase.rpc('get_darcy_uso_metrics');
+		if (error) throw new Error(error.message);
+		return data as DarcyUsoMetrics;
+	}
+
+	/** Saldo estimado da IA e alertas (migration 20260930_ai_saldo.sql). */
+	async getAiSaldoStatus(): Promise<AiSaldoStatus> {
+		const { data, error } = await this.supabase.rpc('get_ai_saldo_status');
+		if (error) throw new Error(error.message);
+		return data as AiSaldoStatus;
+	}
+
+	/** Registra o saldo visto no painel da Maritaca ou uma recarga; devolve o status novo. */
+	async registrarAiSaldo(
+		tipo: AiSaldoTipoRegistro,
+		valor: number,
+		observacao: string | null
+	): Promise<AiSaldoStatus> {
+		const { data, error } = await this.supabase.rpc('registrar_ai_saldo', {
+			p_tipo: tipo,
+			p_valor: valor,
+			p_observacao: observacao
+		});
+		if (error) throw new Error(error.message);
+		return data as AiSaldoStatus;
 	}
 
 	async getTurmasDemanda(periodo: string | null = null): Promise<TurmasDemanda> {

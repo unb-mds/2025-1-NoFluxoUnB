@@ -8,6 +8,8 @@ resposta do Sabiá e a normalização dos termos de busca isoladamente.
 
 import json
 import re
+import uuid
+from math import ceil
 
 # Cliente da Maritaca (SDK OpenAI). O padrão do SDK é 600s de timeout e 2
 # retries: com o provedor pendurado, uma única request do aluno ficava presa por
@@ -100,6 +102,42 @@ def normalizar_termos_busca(termos_busca) -> list:
         if isinstance(t, str) and t.strip()
     )
     return list(dict.fromkeys(termos))[:MAX_TERMOS_BUSCA]
+
+
+def _uuid_ou_none(valor):
+    """UUID canônico ou None: a coluna é uuid e um valor inválido derrubaria o insert."""
+    if not isinstance(valor, str):
+        return None
+    try:
+        return str(uuid.UUID(valor))
+    except ValueError:
+        return None
+
+
+def linha_uso_embeddings(
+    endpoint, termos, duration_ms, success, user_id=None, pergunta_id=None
+) -> dict:
+    """Linha de `ai_usage_log` para as embeddings Gemini de uma busca.
+
+    `genai.embed_content` não devolve contagem de tokens: aproxima por
+    len(texto)/4. `user_id`/`pergunta_id` vêm do backend quando a busca é uma
+    ferramenta chamada dentro de uma pergunta do Darcy; assim a linha entra
+    na mesma pergunta no dashboard em vez de parecer uma pergunta a mais.
+    """
+    texto_concatenado = " ".join(termos)
+    tokens_estimados = max(1, ceil(len(texto_concatenado) / 4))
+    return {
+        "endpoint": endpoint,
+        "model": "gemini-embedding-001",
+        "prompt_tokens": tokens_estimados,
+        "completion_tokens": 0,
+        "total_tokens": tokens_estimados,
+        "duration_ms": duration_ms,
+        "success": success,
+        "request_excerpt": texto_concatenado[:120],
+        "user_id": _uuid_ou_none(user_id),
+        "pergunta_id": _uuid_ou_none(pergunta_id),
+    }
 
 
 def codigos_validos_de(dados_banco):

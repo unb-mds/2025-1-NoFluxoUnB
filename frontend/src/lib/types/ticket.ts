@@ -113,6 +113,8 @@ export interface NewTicketInput {
 	description: string;
 	category: TicketCategory;
 	attachments?: File[];
+	/** Campos extras no metadata (ex.: tipo 'darcy_mais_perguntas'). */
+	metadata?: Record<string, unknown>;
 }
 
 export const CATEGORY_LABELS: Record<TicketCategory, string> = {

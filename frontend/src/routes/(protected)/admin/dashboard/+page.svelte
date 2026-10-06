@@ -3,16 +3,18 @@
 	import PageMeta from '$lib/components/seo/PageMeta.svelte';
 	import PageBackground from '$lib/components/effects/PageBackground.svelte';
 	import AdminNav from '$lib/components/admin/AdminNav.svelte';
+	import IaSaldoAlertas from '$lib/components/admin/dashboard/IaSaldoAlertas.svelte';
+	import IaSaldoCard from '$lib/components/admin/dashboard/IaSaldoCard.svelte';
+	import IaSaudeLogCard from '$lib/components/admin/dashboard/IaSaudeLogCard.svelte';
+	import IaSemPrecoAlerta from '$lib/components/admin/dashboard/IaSemPrecoAlerta.svelte';
+	import SuporteCard from '$lib/components/admin/dashboard/SuporteCard.svelte';
 	import { ROUTES } from '$lib/config/routes';
 	import { dashboardService } from '$lib/services/dashboard.service';
-	import {
-		CATEGORY_LABELS,
-		STATUS_LABELS,
-		type TicketCategory,
-		type TicketStatus
-	} from '$lib/types/ticket';
 	import type {
 		AiCostMetrics,
+		AiSaldoStatus,
+		AiSaldoTipoRegistro,
+		DarcyUsoMetrics,
 		DashboardOverview,
 		FasePeriodo,
 		PeriodoLetivo,
@@ -46,6 +48,8 @@
 	let topCursos = $state<TopCurso[]>([]);
 	let ticketMetrics = $state<TicketMetrics | null>(null);
 	let aiCost = $state<AiCostMetrics | null>(null);
+	let darcyUso = $state<DarcyUsoMetrics | null>(null);
+	let saldoIa = $state<AiSaldoStatus | null>(null);
 	let turmas = $state<TurmasDemanda | null>(null);
 	let scraping = $state<ScrapingHealth | null>(null);
 	let security = $state<SecurityHealth | null>(null);
@@ -77,7 +81,7 @@
 		loading = true;
 		error = null;
 		try {
-			const [o, g, t, m, ai, tu, sc, se, pl] = await Promise.all([
+			const [o, g, t, m, ai, tu, sc, se, pl, du, sd] = await Promise.all([
 				dashboardService.getOverview(),
 				dashboardService.getUserGrowth(30, 'day'),
 				dashboardService.getTopCursos(8),
@@ -87,7 +91,11 @@
 				dashboardService.getScrapingHealth(),
 				// RPC pode ainda não existir no banco — não derruba o dashboard
 				dashboardService.getSecurityHealth().catch(() => null),
-				dashboardService.getPeriodoLetivo().catch(() => null)
+				dashboardService.getPeriodoLetivo().catch(() => null),
+				// Só existe depois da migration 20260929_darcy_cota.sql
+				dashboardService.getDarcyUsoMetrics().catch(() => null),
+				// Só existe depois da migration 20260930_ai_saldo.sql
+				dashboardService.getAiSaldoStatus().catch(() => null)
 			]);
 			overview = o;
 			growth = g;
@@ -98,6 +106,8 @@
 			scraping = sc;
 			security = se;
 			periodo = pl;
+			darcyUso = du;
+			saldoIa = sd;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Erro ao carregar o dashboard.';
 		} finally {
@@ -105,7 +115,23 @@
 		}
 	}
 
+	/** Formulário do card de saldo: grava e já mostra o status recalculado. */
+	async function registrarSaldoIa(tipo: AiSaldoTipoRegistro, valor: number, observacao: string | null) {
+		saldoIa = await dashboardService.registrarAiSaldo(tipo, valor, observacao);
+	}
+
 	function fmtDate(value: string): string {
+		// Data-só ('2026-09-02'): new Date() leria meia-noite UTC e mostraria o
+		// dia anterior no fuso de Brasília (o gráfico de custo por dia saía
+		// deslocado). Monta a data local direto.
+		const soData = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+		if (soData) {
+			const [, a, m, d] = soData;
+			return new Date(Number(a), Number(m) - 1, Number(d)).toLocaleDateString('pt-BR', {
+				day: '2-digit',
+				month: 'short'
+			});
+		}
 		try {
 			return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 		} catch {
@@ -148,6 +174,9 @@
 			<span>{error}</span>
 		</div>
 	{:else if overview}
+		<!-- Saldo da IA: créditos acabaram / urgente / atenção / desatualizado -->
+		<IaSaldoAlertas status={saldoIa} />
+
 		<!-- Período letivo vigente: mesma fonte (calendario_academico) que o
 		     scraper e o filtro de turmas usam, pra não divergir do sistema. -->
 		{#if periodo}
@@ -196,7 +225,8 @@
 			<div class="stat">
 				<LifeBuoy class="h-5 w-5 text-primary" />
 				<span class="stat-value">{overview.tickets_abertos}</span>
-				<span class="stat-label">Tickets abertos</span>
+				<span class="stat-label">Tickets não resolvidos</span>
+				<span class="stat-sub">aberto, em andamento ou aguardando info</span>
 			</div>
 		</section>
 
@@ -267,40 +297,15 @@
 
 		<!-- Tickets -->
 		{#if ticketMetrics}
-			<section class="card mt-5">
-				<h2 class="card-title">Suporte</h2>
-				<div class="ticket-grid">
-					<div class="ticket-block">
-						<span class="block-title">Total</span>
-						<span class="block-big">{ticketMetrics.total}</span>
-						<span class="block-sub">
-							Tempo médio resolução: {ticketMetrics.tempo_medio_horas}h
-						</span>
-					</div>
-					<div class="ticket-block">
-						<span class="block-title">Por status</span>
-						<ul class="kv">
-							{#each Object.entries(ticketMetrics.por_status) as [k, v]}
-								<li>
-									<span>{STATUS_LABELS[k as TicketStatus] ?? k}</span><strong>{v}</strong>
-								</li>
-							{/each}
-						</ul>
-					</div>
-					<div class="ticket-block">
-						<span class="block-title">Por categoria</span>
-						<ul class="kv">
-							{#each Object.entries(ticketMetrics.por_categoria) as [k, v]}
-								<li>
-									<span>{CATEGORY_LABELS[k as TicketCategory] ?? k}</span><strong>{v}</strong>
-								</li>
-							{/each}
-						</ul>
-					</div>
-				</div>
-				<a class="ticket-link" href={ROUTES.ADMIN_TICKETS}>Ver todos os tickets →</a>
-			</section>
+			<div class="mt-5">
+				<SuporteCard metricas={ticketMetrics} hrefTickets={ROUTES.ADMIN_TICKETS} />
+			</div>
 		{/if}
+
+		<!-- Saldo da IA (Maritaca): estimativa e registro do saldo/recarga -->
+		<div class="mt-5">
+			<IaSaldoCard status={saldoIa} onRegistrar={registrarSaldoIa} />
+		</div>
 
 		<!-- Custos de IA -->
 		{#if aiCost}
@@ -316,41 +321,142 @@
 						</span>
 					</div>
 				{/if}
+				<IaSemPrecoAlerta modelos={aiCost.modelos_sem_preco} />
 				<div class="ticket-grid">
 					<div class="ticket-block">
 						<span class="block-title">Custo total</span>
 						<span class="block-big">{moedaFmt(aiCost.custo_total)}</span>
-						<span class="block-sub">{aiCost.total_requisicoes} requisições</span>
+						<span
+							class="block-sub"
+							title={aiCost.total_perguntas !== undefined
+								? 'Perguntas dos alunos ao Darcy. Buscas semânticas e a dificuldade do plano entram no custo, mas não como pergunta. Antes de 29/09/2026 (sem pergunta_id) a contagem é aproximada.'
+								: undefined}
+						>
+							{#if aiCost.total_perguntas !== undefined}
+								{aiCost.total_perguntas} perguntas · {aiCost.total_requisicoes} chamadas ao modelo
+							{:else}
+								{aiCost.total_requisicoes} requisições
+							{/if}
+						</span>
+						{#if aiCost.perguntas_com_falha}
+							<span
+								class="block-sub"
+								title="Perguntas cuja chamada paga terminou com success=false: falhas (estornadas da cota do aluno) e streams abandonados pelo aluno depois de o modelo responder (esses contam na cota). O log ainda não distingue os dois casos. Não entram na contagem de perguntas, mas o que o modelo cobrou está no custo."
+							>
+								{aiCost.perguntas_com_falha} com falha ou abandonadas (custo incluído)
+							</span>
+						{/if}
+						{#if aiCost.custo_hoje !== undefined}
+							<span class="block-sub">Hoje: {moedaFmt(aiCost.custo_hoje)}</span>
+						{/if}
 					</div>
 					<div class="ticket-block">
 						<span class="block-title">Tokens</span>
 						<span class="block-big">{aiCost.total_tokens.toLocaleString('pt-BR')}</span>
-						<span class="block-sub">~{aiCost.tokens_medios_por_req} por requisição</span>
+						{#if aiCost.tokens_medios_por_pergunta !== undefined}
+							<span
+								class="block-sub"
+								title="Soma das chamadas ao modelo de cada pergunta; perguntas e chamadas sem tokens (falhas, sem usage) ficam fora da média."
+							>
+								~{aiCost.tokens_medios_por_pergunta.toLocaleString('pt-BR')} por pergunta ·
+								~{aiCost.tokens_medios_por_req.toLocaleString('pt-BR')} por chamada
+							</span>
+						{:else}
+							<span class="block-sub">~{aiCost.tokens_medios_por_req} por requisição</span>
+						{/if}
 					</div>
 					<div class="ticket-block">
 						<span class="block-title">Por modelo</span>
 						<ul class="kv">
 							{#each Object.entries(aiCost.por_modelo) as [model, m]}
 								<li>
-									<span>{model}</span><strong>{moedaFmt(m.custo)}</strong>
+									<span>{model}</span>
+									{#if m.sem_preco}
+										<strong class="sem-preco" title="Sem preço em ai_pricing: custo não calculado">sem preço</strong>
+									{:else}
+										<strong>{moedaFmt(m.custo)}</strong>
+									{/if}
 								</li>
 							{:else}
 								<li><span>Sem dados</span></li>
 							{/each}
 						</ul>
 					</div>
+					{#if aiCost.por_endpoint && Object.keys(aiCost.por_endpoint).length > 0}
+						<div class="ticket-block">
+							<span class="block-title">Por rota</span>
+							<ul class="kv">
+								{#each Object.entries(aiCost.por_endpoint).sort((a, b) => b[1].custo - a[1].custo) as [ep, e] (ep)}
+									<li title={`${e.perguntas} perguntas · ${e.requisicoes} chamadas`}>
+										<span>{ep}</span><strong>{moedaFmt(e.custo)}</strong>
+									</li>
+								{/each}
+							</ul>
+							{#if aiCost.requisicoes_sem_tokens}
+								<span class="block-sub">{aiCost.requisicoes_sem_tokens} chamadas sem tokens (custo 0)</span>
+							{/if}
+						</div>
+					{/if}
 				</div>
 				{#if aiCost.por_dia.length > 0}
 					<div class="mt-4">
 						<span class="block-title">Custo por dia</span>
 						<div class="bars mt-2">
 							{#each aiCost.por_dia as d}
-								<div class="bar-col" title={`${fmtDate(d.dia)}: ${moedaFmt(d.custo)}`}>
+								<div
+									class="bar-col"
+									title={`${fmtDate(d.dia)}: ${moedaFmt(d.custo)}${d.perguntas !== undefined ? ` · ${d.perguntas} perguntas` : ''}`}
+								>
 									<div class="bar" style="height: {(d.custo / maxAiDay) * 100}%"></div>
 								</div>
 							{/each}
 						</div>
 					</div>
+				{/if}
+			</section>
+		{/if}
+
+		{#if aiCost?.saude_log}
+			<div class="mt-5">
+				<IaSaudeLogCard saude={aiCost.saude_log} dias={30} />
+			</div>
+		{/if}
+
+		<!-- Darcy: uso das cotas hoje -->
+		{#if darcyUso}
+			<section class="card mt-5">
+				<h2 class="card-title"><Bot class="h-4 w-4" /> Darcy hoje — cotas de perguntas</h2>
+				<div class="ticket-grid">
+					<div class="ticket-block">
+						<span class="block-title">Perguntas hoje</span>
+						<span class="block-big">{darcyUso.perguntas_hoje}</span>
+						<span class="block-sub">{darcyUso.usuarios_hoje} alunos · {moedaFmt(darcyUso.custo_hoje)}</span>
+					</div>
+					<div class="ticket-block">
+						<span class="block-title">No limite</span>
+						<span class="block-big">{darcyUso.usuarios_no_limite}</span>
+						<span class="block-sub">alunos que usaram a cota inteira</span>
+					</div>
+					<div class="ticket-block">
+						<span class="block-title">Pedidos de mais perguntas</span>
+						<span class="block-big">{darcyUso.pedidos_pendentes}</span>
+						<span class="block-sub">{darcyUso.concessoes_vigentes} concessões vigentes</span>
+					</div>
+					{#if darcyUso.top_usuarios.length > 0}
+						<div class="ticket-block">
+							<span class="block-title">Quem mais perguntou</span>
+							<ul class="kv">
+								{#each darcyUso.top_usuarios as u, i (i)}
+									<li title={u.email ?? ''}>
+										<span>{u.nome || u.email || 'sem cadastro'}</span><strong>{u.usadas}/{u.limite}</strong>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+				</div>
+				{#if darcyUso.pedidos_pendentes > 0}
+					<a class="ticket-link" href={ROUTES.ADMIN_TICKETS}>Ver pedidos nos tickets →</a>
 				{/if}
 			</section>
 		{/if}
@@ -746,6 +852,9 @@
 	.kv strong {
 		color: hsl(var(--foreground));
 	}
+	.kv strong.sem-preco {
+		color: hsl(var(--status-warning));
+	}
 	.ticket-link {
 		display: inline-block;
 		margin-top: 14px;
@@ -756,5 +865,9 @@
 	}
 	.ticket-link:hover {
 		text-decoration: underline;
+	}
+	/* No escuro o --primary fica em 4,2:1 sobre o card; o lilás --ai passa de 4,5:1. */
+	:global(.dark) .ticket-link {
+		color: hsl(var(--ai));
 	}
 </style>

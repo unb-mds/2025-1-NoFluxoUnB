@@ -6,7 +6,17 @@
 
 import { config } from '$lib/config';
 import { apiRequest } from '$lib/utils/api';
+import { authService } from '$lib/services/auth.service';
+import { ErroIA, type CotaIA } from '$lib/utils/darcy-cota';
 import type { PlannerChatMessage } from '$lib/types/plano-formatura';
+
+/**
+ * Headers das chamadas de IA: o backend exige login (401 LOGIN_NECESSARIO sem
+ * token) e desconta a pergunta da cota do aluno do token.
+ */
+async function headersIA(): Promise<Record<string, string>> {
+	return { ...(await authService.getAuthHeaders()), 'Content-Type': 'application/json' };
+}
 
 /** planoInput enviado quando o aluno está logado (acende as tools de plano/histórico). */
 export interface AssistentePlanoInput {
@@ -22,6 +32,8 @@ export interface AssistenteChatResponse {
 	reply: string;
 	plano?: unknown;
 	restricoes?: unknown;
+	/** Cota diária do aluno já contando esta pergunta (rodinha do chat). */
+	cota?: CotaIA;
 }
 
 interface AssistenteRequest {
@@ -32,6 +44,7 @@ interface AssistenteRequest {
 interface AssistenteResponse {
     resultado?: string;
     erro?: string;
+    cota?: CotaIA;
     agente?: 'ragflow' | 'sabia';
     disciplinas?: Array<{
         codigo: string;
@@ -44,8 +57,10 @@ interface AssistenteResponse {
 export type AgentType = 'ragflow' | 'sabia';
 
 export interface StreamEvent {
-    stage: 'thinking' | 'searching' | 'generating' | 'disciplina' | 'done' | 'error';
+    stage: 'thinking' | 'searching' | 'generating' | 'disciplina' | 'done' | 'error' | 'cota';
     message?: string;
+    /** Evento `cota`: estado da cota diária já contando esta pergunta. */
+    cota?: CotaIA;
     data?: {
         codigo: string;
         nome: string;
@@ -93,7 +108,7 @@ export class AssistenteService {
         });
 
         if (error || !data) {
-            throw new Error(`Erro ${status} ao chamar assistente: ${error ?? 'Resposta inválida'}`);
+            throw new ErroIA(status, error ?? '', 'assistente');
         }
         return data;
     }
@@ -111,14 +126,12 @@ export class AssistenteService {
         try {
             const response = await fetch(url, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: await headersIA(),
                 body: JSON.stringify({ materia: message } satisfies AssistenteRequest)
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                throw new ErroIA(response.status, await response.text(), endpoint);
             }
 
             const data: AssistenteResponse = await response.json();
@@ -129,6 +142,7 @@ export class AssistenteService {
 
             return data.resultado || 'Sem resposta da IA.';
         } catch (error) {
+            if (error instanceof ErroIA) throw error;
             if (error instanceof Error) {
                 throw new Error(`Erro ao se comunicar com a IA: ${error.message}`);
             }
@@ -147,14 +161,12 @@ export class AssistenteService {
         try {
             const response = await fetch(url, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: await headersIA(),
                 body: JSON.stringify({ materia: message } satisfies AssistenteRequest)
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                throw new ErroIA(response.status, await response.text(), this.sabiaEndpoint);
             }
 
             const data: AssistenteResponse = await response.json();
@@ -165,6 +177,7 @@ export class AssistenteService {
 
             return data;
         } catch (error) {
+            if (error instanceof ErroIA) throw error;
             if (error instanceof Error) {
                 throw new Error(`Erro ao se comunicar com o Sabiá: ${error.message}`);
             }
@@ -198,7 +211,7 @@ export class AssistenteService {
 
         const response = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: await headersIA(),
             // 3. ADICIONADO: Injetando a matriz_curricular no payload
             body: JSON.stringify({ 
                 materia: message,
@@ -207,7 +220,7 @@ export class AssistenteService {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new ErroIA(response.status, await response.text(), this.sabiaStreamEndpoint);
         }
 
         if (!response.body) {

@@ -89,7 +89,9 @@ export function createOrquestradorAgent(
         name: "consultar_integralizacao",
         description: "Delega para o atuador de integralização: créditos, carga horária e progresso do aluno.",
         parameters: z.object({ input: z.string() }),
-        execute: async ({ input }) => runIntegralizacaoComRevisao(integralizacao, input),
+        // O RunContext do orquestrador vai junto: o usage da sub-execução (e da
+        // reexecução pós-revisor) soma no run do chat-send (ver sub_run.ts).
+        execute: async ({ input }, contexto) => runIntegralizacaoComRevisao(integralizacao, input, contexto),
     });
 
     const tools = [
@@ -116,7 +118,7 @@ export function createOrquestradorAgent(
             name: "recomendar_por_horario_livre",
             description: "Delega para o atuador que recomenda matérias que cabem no horário livre atual do aluno, priorizando afinidade com o histórico.",
             parameters: z.object({ input: z.string() }),
-            execute: async ({ input }) => runGradeComRevisao(grade, input),
+            execute: async ({ input }, contexto) => runGradeComRevisao(grade, input, contexto),
         });
         tools.push(recomendarHorarioLivreTool);
 

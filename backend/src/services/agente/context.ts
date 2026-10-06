@@ -68,6 +68,11 @@ export interface AgenteResultado {
     restricoes: RestricoesPlanoInternas;
     /** Uso de tokens por chamada ao LLM (tracking de custo no dashboard admin). */
     usage?: LlmUsage[];
+    /**
+     * True quando a resposta saiu sem chamar o LLM (comando direto, ex.
+     * `/turmas COD`): não é uso de IA — não loga em ai_usage_log nem gasta cota.
+     */
+    semLlm?: boolean;
 }
 
 export interface LlmMessage {

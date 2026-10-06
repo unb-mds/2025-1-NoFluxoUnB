@@ -7,6 +7,7 @@
 import logger from '../logger';
 import { Response } from 'express';
 import { ERRO_IA_GENERICO, registrarFalha } from '../utils/erro_publico';
+import { anexarUsageParcial, contextoIAAtual } from '../utils/ai_usage_logger';
 
 /**
  * Mensagens de erro que o próprio mcp_agent escreve para o usuário
@@ -107,6 +108,39 @@ export interface SabiaResponse {
 /** Ping do /health do mcp_agent: timeout e validade do resultado em cache. */
 export const SABIA_PING_TIMEOUT_MS = 2000;
 export const SABIA_PING_CACHE_MS = 30_000;
+
+export interface ResultadoStreamSabia {
+    usage?: SabiaUsage[];
+    /** O cliente fechou a conexão antes do fim. */
+    aborted: boolean;
+    /** Algum evento `disciplina` ou `done` foi repassado ao cliente. */
+    entregouConteudo: boolean;
+    /**
+     * Algum byte chegou do Python. O primeiro evento (`thinking`) sai antes da
+     * 1ª chamada à Maritaca; depois dele o gerador segue e o modelo cobra mesmo
+     * que o cliente saia. Só sem nada recebido a pergunta pode ser estornada.
+     */
+    recebeuDoUpstream: boolean;
+    /** O stream terminou com `done` e sem evento de erro. */
+    concluiu: boolean;
+    /**
+     * Mensagem crua do evento `error` do Python (não vai ao cliente): o
+     * controller a usa para marcar a falha por falta de créditos da Maritaca.
+     */
+    erroUpstream?: string;
+}
+
+/**
+ * Quem perguntou e qual pergunta (contexto da requisição, ver
+ * executarComContextoIA): o mcp_agent grava junto das embeddings Gemini no
+ * ai_usage_log, e a busca entra na mesma pergunta do dashboard em vez de
+ * contar como outra. Vale para /buscar-materias, /recomendar e
+ * /recomendar-stream.
+ */
+function idsDaPergunta(): { user_id: string | null; pergunta_id: string | null } {
+    const ctx = contextoIAAtual();
+    return { user_id: ctx.userId ?? null, pergunta_id: ctx.perguntaId ?? null };
+}
 
 export class SabiaService {
     private readonly apiUrl: string;
@@ -212,6 +246,7 @@ export class SabiaService {
                 body: JSON.stringify({
                     interesse,
                     matriz_curricular: matrizCurricular,
+                    ...idsDaPergunta(),
                 }),
                 signal: AbortSignal.timeout(SABIA_TIMEOUT_MS),
             });
@@ -274,7 +309,10 @@ export class SabiaService {
             const response = await fetch(`${this.apiUrl}/buscar-materias`, {
                 method: 'POST',
                 headers: this.buildHeaders(),
-                body: JSON.stringify({ termos_busca: termos }),
+                // Quem perguntou e qual pergunta: o Python grava junto das
+                // embeddings no ai_usage_log, e a busca entra na mesma pergunta
+                // do dashboard em vez de contar como outra.
+                body: JSON.stringify({ termos_busca: termos, ...idsDaPergunta() }),
                 signal: AbortSignal.timeout(SABIA_BUSCA_TIMEOUT_MS),
             });
             if (!response.ok) {
@@ -311,7 +349,7 @@ export class SabiaService {
         matrizCurricular: string = '',
         res: Response,
         clientSignal?: AbortSignal,
-    ): Promise<{ usage?: SabiaUsage[]; aborted: boolean }> {
+    ): Promise<ResultadoStreamSabia> {
         if (!this.available) {
             throw new Error('Sabiá service is not configured');
         }
@@ -336,6 +374,20 @@ export class SabiaService {
         const clienteSaiu = () => clientSignal?.aborted === true;
 
         let usage: SabiaUsage[] | undefined;
+        // Para a cota do Darcy: a pergunta só conta se houve resposta.
+        let entregouConteudo = false; // algum `disciplina`/`done` chegou ao cliente
+        let recebeuDoUpstream = false; // algum byte veio do Python (ver ResultadoStreamSabia)
+        let viuDone = false;
+        let viuErro = false;
+        let erroUpstream: string | undefined;
+        const resultado = (aborted: boolean): ResultadoStreamSabia => ({
+            usage,
+            aborted,
+            entregouConteudo,
+            recebeuDoUpstream,
+            concluiu: viuDone && !viuErro,
+            ...(erroUpstream !== undefined ? { erroUpstream } : {}),
+        });
         try {
             rearmarIdle();
             const response = await fetch(`${this.apiUrl}/recomendar-stream`, {
@@ -344,6 +396,7 @@ export class SabiaService {
                 body: JSON.stringify({
                     interesse,
                     matriz_curricular: matrizCurricular,
+                    ...idsDaPergunta(),
                 }),
                 signal: upstream.signal,
             });
@@ -366,6 +419,7 @@ export class SabiaService {
 
             while (true) {
                 const { done, value } = await reader.read();
+                if (value && value.length > 0) recebeuDoUpstream = true;
                 if (upstream.signal.aborted) break;
                 if (done) break;
                 rearmarIdle();
@@ -384,6 +438,15 @@ export class SabiaService {
                             if (parsed.stage === 'usage' && Array.isArray(parsed.calls)) {
                                 usage = parsed.calls;
                                 continue; // evento interno — não repassa pro cliente
+                            }
+                            if (parsed.stage === 'disciplina') entregouConteudo = true;
+                            if (parsed.stage === 'done') {
+                                entregouConteudo = true;
+                                viuDone = true;
+                            }
+                            if (parsed.stage === 'error') {
+                                viuErro = true;
+                                erroUpstream = typeof parsed.message === 'string' ? parsed.message : JSON.stringify(parsed.message ?? '');
                             }
                             // O Python manda `str(e)` cru no evento de erro: troca
                             // pela mensagem genérica, exceto as de orientação.
@@ -408,7 +471,7 @@ export class SabiaService {
                 }
             }
             if (timedOut) throw new SabiaTimeoutError();
-            if (clienteSaiu()) return { usage, aborted: true };
+            if (clienteSaiu()) return resultado(true);
 
             // Sobra sem `\n\n` final (não deveria conter o evento usage, que sempre
             // fecha com o delimitador) — repassa como está.
@@ -416,11 +479,14 @@ export class SabiaService {
                 res.write(buffer);
             }
             res.end();
-            return { usage, aborted: false };
+            return resultado(false);
         } catch (error) {
-            if (timedOut) throw new SabiaTimeoutError();
-            if (clienteSaiu()) return { usage, aborted: true };
-            throw error;
+            // O evento `usage` pode ter chegado antes da falha (ex.: timeout
+            // depois do resumo): vai preso ao erro para o controller logar o
+            // gasto real com success=false (ver usageParcialDoErro).
+            if (timedOut) throw anexarUsageParcial(new SabiaTimeoutError(), usage ?? []);
+            if (clienteSaiu()) return resultado(true);
+            throw anexarUsageParcial(error, usage ?? []);
         } finally {
             clearTimeout(idleTimer);
             clientSignal?.removeEventListener('abort', onClientAbort);

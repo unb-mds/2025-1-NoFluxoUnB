@@ -1,6 +1,8 @@
 <script lang="ts">
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
 	import { montadorChatStore } from '$lib/stores/assistente-chat.store.svelte';
+	import { darcyCotaStore } from '$lib/stores/darcy-cota.store.svelte';
+	import { authStore } from '$lib/stores/auth';
 	import { gradeStore } from '$lib/stores/grade.store.svelte';
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
 	import { Bot, X, RefreshCw } from 'lucide-svelte';
@@ -27,11 +29,28 @@
 	let prefillText = $state('');
 	let prefillNonce = $state(0);
 
+	// O Darcy exige login: visitante (login anônimo) vê o modal "Faça login"
+	// em vez do chat. O resto do Montador continua liberado.
+	const logado = $derived($authStore.isAuthenticated && !!$authStore.user);
+
+	function abrirChat() {
+		if (!logado) {
+			darcyCotaStore.abrirLogin();
+			return;
+		}
+		isChatOpen = true;
+	}
+
 	// Um controle fora deste componente (ex.: "Pedir pra Darcy" no card de uma
 	// matéria) pode pedir a abertura do chat já com um texto começado.
 	$effect(() => {
 		const pedido = montadorChatStore.pedidoAbertura;
 		if (!pedido) return;
+		if (!logado) {
+			montadorChatStore.consumirPedidoAbertura();
+			darcyCotaStore.abrirLogin();
+			return;
+		}
 		isChatOpen = true;
 		prefillText = pedido.texto;
 		prefillNonce = pedido.nonce;
@@ -238,7 +257,7 @@
 {#if !isChatOpen}
 	<button
 		type="button"
-		onclick={() => (isChatOpen = true)}
+		onclick={abrirChat}
 		class="fixed z-[90] flex items-center justify-center border border-ai/40 bg-card/90 shadow-nofluxoLg backdrop-blur-md transition-all duration-300 hover:scale-105 hover:border-ai hover:bg-accent dark:border-pink-500/50 dark:bg-[#1e1e24]/80 dark:shadow-[0_8px_30px_rgba(236,72,153,0.3)] dark:hover:border-pink-400 dark:hover:bg-[#2a2a32] active:scale-95
 			{isMobile ? 'right-4 bottom-4 h-14 w-14 rounded-full' : 'right-6 bottom-6 h-12 w-12 rounded-xl'}"
 		aria-label="Abrir assistente IA"

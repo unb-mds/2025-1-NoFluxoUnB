@@ -31,6 +31,8 @@ export interface PlannerChatResponse {
 	reply: string;
 	plano?: PlanoFormaturav2;
 	restricoes: RestricoesPlano;
+	/** Cota diária do Darcy já contando esta pergunta (rodinha do chat). */
+	cota?: import('$lib/utils/darcy-cota').CotaIA;
 }
 
 // ─── Preferências do usuário (onboarding) ───────────────────────────────────

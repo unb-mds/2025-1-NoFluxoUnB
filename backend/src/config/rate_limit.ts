@@ -9,9 +9,10 @@
  * balde de 120 req/min e o 121º aluno do minuto levava 429. Na semana de
  * matrícula isso derruba o site.
  *
- * Pré-mortem R8: as rotas que chamam LLM pago (Maritaca/RAGFlow) aceitam
- * anônimos por design (modo leve do Darcy), então o teto de custo é por IP,
- * num limiter próprio bem mais apertado que o global.
+ * Pré-mortem R8: as rotas que chamam LLM pago (Maritaca/RAGFlow) ganham um
+ * limiter por IP próprio, bem mais apertado que o global. Desde 29/09/2026 elas
+ * também exigem login e descontam da cota diária por usuário (utils/ia_acesso.ts);
+ * o limiter por IP continua como primeira barreira contra rajadas.
  */
 
 import type { Express, Request } from "express";
@@ -38,6 +39,7 @@ export const ROTAS_IA_PAGA = [
     "/assistente/analyze-sabia-stream",
     "/assistente/chat",
     "/planejamento/chat",
+    "/chat/send",
 ];
 
 export interface RateLimitOptions {

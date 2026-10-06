@@ -8,6 +8,7 @@ import { authStore } from '$lib/stores/auth';
 import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
 import { planoFormaturaService } from '$lib/services/plano-formatura.service';
 import { mensagemErroChat } from '$lib/utils/ai-errors';
+import { darcyCotaStore } from '$lib/stores/darcy-cota.store.svelte';
 import type {
 	PlanoFormatura,
 	PreferenciasPlano,
@@ -313,6 +314,7 @@ function createPlanoFormaturaStore() {
 
 				// Atualiza chat com resposta do agente
 				chatMessages = [...chatMessages, { role: 'assistant', content: resposta.reply }];
+				darcyCotaStore.atualizar(resposta.cota);
 
 				// Se o agente retornar um plano atualizado, usa-o
 				if (resposta.plano) {
@@ -333,6 +335,12 @@ function createPlanoFormaturaStore() {
 					}
 				}
 			} catch (err) {
+				// Login (401), cota (429) e teto global (503) viram modal/card do
+				// Darcy, não bolha de erro.
+				if (darcyCotaStore.tratarErro(err) !== 'outro') {
+					chatMessages = chatMessages.slice(0, -1);
+					return;
+				}
 				// Antes o chat ficava mudo em erro (só setava `error`, que ninguém
 				// renderiza). Agora responde com bolha: texto próprio pra "sem
 				// créditos" da Maritaca, fallback genérico pro resto.

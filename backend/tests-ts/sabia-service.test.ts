@@ -17,6 +17,7 @@ import {
     SABIA_STREAM_IDLE_TIMEOUT_MS,
     SABIA_TIMEOUT_MS,
 } from "../src/services/sabia.service";
+import { executarComContextoIA, usageParcialDoErro } from "../src/utils/ai_usage_logger";
 
 const ENV_KEYS = ["MARITACA_API_KEY", "GOOGLE_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SABIA_API_URL"];
 const envOriginal: Record<string, string | undefined> = {};
@@ -46,6 +47,67 @@ afterEach(() => {
 function jsonResponse(body: unknown): Response {
     return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
 }
+
+describe("SabiaService.buscarMaterias — rastreabilidade da pergunta", () => {
+    test("manda user_id e pergunta_id da pergunta corrente para o mcp_agent", async () => {
+        const fetchMock = jest.fn().mockResolvedValue(jsonResponse({ materias: [] }));
+        global.fetch = fetchMock as unknown as typeof fetch;
+
+        await executarComContextoIA({ userId: "u-1", perguntaId: "p-1" }, () =>
+            new SabiaService().buscarMaterias(["redes"]),
+        );
+
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body).toMatchObject({ user_id: "u-1", pergunta_id: "p-1" });
+    });
+
+    test("fora de uma pergunta manda null", async () => {
+        const fetchMock = jest.fn().mockResolvedValue(jsonResponse({ materias: [] }));
+        global.fetch = fetchMock as unknown as typeof fetch;
+
+        await new SabiaService().buscarMaterias(["redes"]);
+
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body).toMatchObject({ user_id: null, pergunta_id: null });
+    });
+});
+
+describe("SabiaService /recomendar(-stream) — rastreabilidade da pergunta", () => {
+    // O Python loga as embeddings Gemini da busca feita dentro do /recomendar
+    // com estes ids; sem eles as linhas ficavam fora da pergunta no dashboard.
+    test("/recomendar manda user_id e pergunta_id da pergunta corrente", async () => {
+        const fetchMock = jest.fn().mockResolvedValue(jsonResponse({ success: true, disciplinas: [], usage: [] }));
+        global.fetch = fetchMock as unknown as typeof fetch;
+
+        await executarComContextoIA({ userId: "u-1", perguntaId: "p-1" }, () =>
+            new SabiaService().analyzarInteresse("redes"),
+        );
+
+        expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/recomendar$/);
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body).toMatchObject({ interesse: "redes", user_id: "u-1", pergunta_id: "p-1" });
+    });
+
+    test("/recomendar-stream manda user_id e pergunta_id da pergunta corrente", async () => {
+        const fetchMock = jest.fn().mockResolvedValue(
+            new Response('data: {"stage":"done","resultado":""}\n\n', { status: 200, headers: { "Content-Type": "text/event-stream" } }),
+        );
+        global.fetch = fetchMock as unknown as typeof fetch;
+        const res = Object.assign(new EventEmitter(), {
+            write: jest.fn(() => true),
+            end: jest.fn(),
+            writableEnded: false,
+        }) as unknown as ExpressResponse;
+
+        await executarComContextoIA({ userId: "u-2", perguntaId: "p-2" }, () =>
+            new SabiaService().analyzarInteresseStream("redes", "", res),
+        );
+
+        expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/recomendar-stream$/);
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body).toMatchObject({ user_id: "u-2", pergunta_id: "p-2" });
+    });
+});
 
 describe("SabiaService.buscarMaterias — teto de termos (R51)", () => {
     test("manda no máximo 4 termos, sem duplicados, para o mcp_agent", async () => {
@@ -189,6 +251,8 @@ describe("SabiaService.analyzarInteresseStream — cliente fecha a conexão (R31
         const r = await new SabiaService().analyzarInteresseStream("ia", "", res as unknown as ExpressResponse, cliente.signal);
 
         expect(r.aborted).toBe(true);
+        // Um evento já veio do Python: a Maritaca foi chamada, a pergunta conta.
+        expect(r.recebeuDoUpstream).toBe(true);
         expect(stats.cancelado).toBe(true);
         expect(stats.pulls - pullsNoAbort).toBeLessThanOrEqual(1);
         expect(res.write).toHaveBeenCalledTimes(1);
@@ -202,8 +266,72 @@ describe("SabiaService.analyzarInteresseStream — cliente fecha a conexão (R31
         const r = await new SabiaService().analyzarInteresseStream("ia", "", res as unknown as ExpressResponse, new AbortController().signal);
 
         expect(r.aborted).toBe(false);
+        expect(r.recebeuDoUpstream).toBe(true);
         expect(res.write).toHaveBeenCalledTimes(3);
         expect(res.end).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("SabiaService.analyzarInteresseStream — recebeuDoUpstream", () => {
+    test("cliente que sai antes de qualquer byte do Python: recebeuDoUpstream false", async () => {
+        // fetch real: signal já abortado rejeita antes de qualquer resposta.
+        global.fetch = jest.fn(async (_url: unknown, init?: RequestInit) => {
+            if (init?.signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
+            return new Response(upstreamSse(3, 1).body, { status: 200 });
+        }) as unknown as typeof fetch;
+        const cliente = new AbortController();
+        cliente.abort();
+
+        const r = await new SabiaService().analyzarInteresseStream("ia", "", fakeRes() as unknown as ExpressResponse, cliente.signal);
+
+        expect(r.aborted).toBe(true);
+        expect(r.recebeuDoUpstream).toBe(false);
+    });
+});
+
+describe("SabiaService.analyzarInteresseStream — usage que chegou antes da falha", () => {
+    const USAGE = [{ model: "sabia-4", prompt_tokens: 900, completion_tokens: 300, total_tokens: 1200 }];
+
+    /** Upstream que manda o evento `usage` e depois quebra (ou pendura). */
+    function upstreamUsageEntao(depois: "quebra" | "pendura") {
+        const encoder = new TextEncoder();
+        let enviado = false;
+        return new ReadableStream<Uint8Array>({
+            pull(controller) {
+                if (!enviado) {
+                    enviado = true;
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ stage: "usage", calls: USAGE })}\n\n`));
+                    return;
+                }
+                if (depois === "quebra") controller.error(new Error("socket hang up"));
+                return new Promise<void>(() => {});
+            },
+        }, { highWaterMark: 0 });
+    }
+
+    test("erro de conexão depois do `usage`: o erro leva o usage recebido", async () => {
+        global.fetch = jest.fn().mockResolvedValue(new Response(upstreamUsageEntao("quebra"), { status: 200 })) as unknown as typeof fetch;
+
+        const erro = await new SabiaService()
+            .analyzarInteresseStream("ia", "", fakeRes() as unknown as ExpressResponse)
+            .catch((e: unknown) => e);
+
+        expect(erro).toBeInstanceOf(Error);
+        expect(usageParcialDoErro(erro)).toEqual(USAGE);
+    });
+
+    test("timeout de inatividade depois do `usage`: SabiaTimeoutError leva o usage recebido", async () => {
+        jest.useFakeTimers();
+        global.fetch = jest.fn().mockResolvedValue(new Response(upstreamUsageEntao("pendura"), { status: 200 })) as unknown as typeof fetch;
+
+        const p = new SabiaService()
+            .analyzarInteresseStream("ia", "", fakeRes() as unknown as ExpressResponse)
+            .catch((e: unknown) => e);
+        await jest.advanceTimersByTimeAsync(SABIA_STREAM_IDLE_TIMEOUT_MS + 1);
+        const erro = await p;
+
+        expect(erro).toBeInstanceOf(SabiaTimeoutError);
+        expect(usageParcialDoErro(erro)).toEqual(USAGE);
     });
 });
 

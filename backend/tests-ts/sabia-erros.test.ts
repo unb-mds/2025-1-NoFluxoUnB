@@ -80,4 +80,24 @@ describe('analyzarInteresseStream', () => {
 
         expect(escrito.join('')).toBe(sse);
     });
+
+    it('guarda a mensagem crua do erro (não enviada) para o log marcar a falta de créditos', async () => {
+        const corpo = '{\\"code\\":\\"insufficient_funds\\"}';
+        const sse = `data: {"stage": "error", "message": "Error code: 403 - ${corpo}"}\n\n`;
+        global.fetch = jest.fn().mockResolvedValue(respostaSse(sse)) as any;
+        const { res, escrito } = resFalso();
+
+        const r = await new SabiaService().analyzarInteresseStream('IA', '', res);
+
+        expect(r.concluiu).toBe(false);
+        expect(r.erroUpstream).toContain('insufficient_funds');
+        expect(escrito.join('')).not.toContain('insufficient_funds');
+    });
+
+    it('stream sem erro: nenhum erroUpstream', async () => {
+        global.fetch = jest.fn().mockResolvedValue(respostaSse('data: {"stage": "done"}\n\n')) as any;
+        const { res } = resFalso();
+        const r = await new SabiaService().analyzarInteresseStream('IA', '', res);
+        expect(r.erroUpstream).toBeUndefined();
+    });
 });

@@ -5,6 +5,7 @@
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
 	import { assistenteChatStore } from '$lib/stores/assistente-chat.store.svelte';
 	import { authStore } from '$lib/stores/auth';
+	import { darcyCotaStore } from '$lib/stores/darcy-cota.store.svelte';
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
 	import { Bot } from 'lucide-svelte';
 
@@ -12,6 +13,10 @@
 	// monte o planoInput e o agente ganhe as tools de plano/histórico. Sem matriz,
 	// segue em modo leve (recomendação/ementa/turmas) — não redireciona.
 	onMount(async () => {
+		// O Darcy exige login: o visitante (login anônimo) vê o modal já ao abrir.
+		const auth = authStore.getUser();
+		if (!auth) darcyCotaStore.abrirLogin();
+
 		if (!fluxogramaStore.state.courseData) {
 			const curriculoCompleto = authStore.getUser()?.dadosFluxograma?.matrizCurricular ?? null;
 			if (curriculoCompleto) {

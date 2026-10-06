@@ -5,6 +5,7 @@
  */
 
 import type { PlanoFormatura, PlanoFormaturav2, PreferenciasPlano, PlannerChatMessage, PlannerChatResponse, RestricoesPlano } from '$lib/types/plano-formatura';
+import { ErroIA } from '$lib/utils/darcy-cota';
 import { DEFAULT_PREFERENCIAS } from '$lib/types/plano-formatura';
 import { supabaseDataService } from './supabase-data.service';
 import { apiRequest } from '$lib/utils/api';
@@ -106,7 +107,7 @@ class PlanoFormaturaService {
 		);
 
 		if (error || !data) {
-			throw new Error(`Erro ${status} ao chamar chat agente: ${error ?? 'Resposta inválida'}`);
+			throw new ErroIA(status, error ?? '', 'chat agente');
 		}
 
 		return data;

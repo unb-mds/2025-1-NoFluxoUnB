@@ -5,19 +5,28 @@
  * POST /assistente/analyze        — Analyze a materia using RAGFlow.
  * POST /assistente/analyze-sabia  — Analyze a materia using Sabiá AI (Maritaca).
  * GET  /assistente/health         — Health check for the AI service.
+ * GET  /assistente/cota           — Cota diária de perguntas do aluno logado.
+ *
+ * Todas as rotas que chamam LLM pago exigem login e gastam uma pergunta da
+ * cota diária (ver utils/ia_acesso.ts); a pergunta é estornada se a IA falhar.
  */
 
 import { EndpointController, RequestType } from '../interfaces';
 import { Pair, Utils } from '../utils';
 import { Request, Response } from 'express';
 import { RagflowService } from '../services/ragflow.service';
+import type { RagflowResponse } from '../services/ragflow.types';
 import { SabiaService, SabiaTimeoutError, isMensagemSabiaPublica } from '../services/sabia.service';
 import { removeAccents } from '../utils/text.utils';
 import { formatRanking, RankingFormatError } from '../utils/ranking.formatter';
 import { createControllerLogger } from '../utils/controller_logger';
-import { logAiUsage } from '../utils/ai_usage_logger';
+import { executarComContextoIA, logAiUsage, usageParcialDoErro, type ContextoIA, type LlmUsage } from '../utils/ai_usage_logger';
+import { MARITACA_MODELS } from '../config/maritaca';
+import { usageDoRagflow, RAGFLOW_MODEL } from '../utils/ragflow_usage';
+import { exigirLoginIA, reservarPerguntaIA, MSG_COTA_INDISPONIVEL } from '../utils/ia_acesso';
+import { estadoCota } from '../services/darcy_cota.service';
 import { SupabaseWrapper } from '../supabase_wrapper';
-import { PlanejadorAgenteService, type MensagemChat } from '../services/planejador_agente.service';
+import { PlanejadorAgenteService, ehComandoDireto, type MensagemChat } from '../services/planejador_agente.service';
 import { criarContextoLeve } from '../services/agente/context';
 import { montarContextoAgente } from './PlanejamentoController';
 import { AI_SEM_CREDITOS_BODY, isMaritacaSemCreditos } from '../config/maritaca_errors';
@@ -39,6 +48,9 @@ export const AssistenteController: EndpointController = {
             const logger = createControllerLogger('AssistenteController', 'analyze');
             const startTime = Date.now();
 
+            const usuario = await exigirLoginIA(req, res);
+            if (!usuario) return;
+
             // Validate input
             const { materia } = req.body;
             if (!materia || typeof materia !== 'string' || !materia.trim()) {
@@ -56,6 +68,26 @@ export const AssistenteController: EndpointController = {
                 return res.status(503).json({ erro: 'Serviço de IA indisponível. Configuração do RAGFlow ausente.' });
             }
 
+            const pergunta = await reservarPerguntaIA(res, usuario);
+            if (!pergunta) return;
+            // Antes esta rota não deixava rastro no ai_usage_log. O RAGFlow não
+            // diz o modelo e em geral não devolve tokens: a linha sai com model
+            // 'ragflow' (o dashboard avisa "sem preço cadastrado") e os tokens
+            // só quando a resposta os trouxer (usageDoRagflow).
+            let respostaRagflow: RagflowResponse | undefined;
+            const logarRagflow = (success: boolean, erro?: unknown) =>
+                logAiUsage({
+                    endpoint: 'analyze',
+                    durationMs: Date.now() - startTime,
+                    success,
+                    erro,
+                    requestExcerpt: materia,
+                    usage: usageDoRagflow(respostaRagflow),
+                    modeloPadrao: RAGFLOW_MODEL,
+                    userId: usuario.id,
+                    perguntaId: pergunta.perguntaId,
+                });
+
             try {
                 // Preprocess: remove accents and uppercase
                 const processed = removeAccents(materia).toUpperCase();
@@ -66,8 +98,11 @@ export const AssistenteController: EndpointController = {
                 logger.info(`Session created: ${sessionId}`);
 
                 const result = await ragflow.analyzeMateria(processed, sessionId);
+                respostaRagflow = result;
 
                 if (result.code !== 0) {
+                    await pergunta.estornar();
+                    logarRagflow(false, result.message);
                     const requestId = registrarFalha(logger, `RAGFlow API error code=${result.code}`, result.message ?? 'sem mensagem');
                     return res.status(502).json({ erro: ERRO_IA_GENERICO, requestId });
                 }
@@ -80,14 +115,21 @@ export const AssistenteController: EndpointController = {
                     formatted = formatRanking(result);
                 } catch (error) {
                     if (!(error instanceof RankingFormatError)) throw error;
+                    await pergunta.estornar();
+                    logarRagflow(false);
                     const requestId = registrarFalha(logger, 'Resposta do RAGFlow sem ranking', error);
                     return res.status(502).json({ erro: ERRO_IA_GENERICO, requestId });
                 }
                 const duration = Date.now() - startTime;
                 logger.info(`Request completed in ${duration}ms`);
+                logarRagflow(true);
 
-                return res.json({ resultado: formatted });
+                // O modelo já respondeu (e cobrou): quem saiu gasta a pergunta, só não recebe a resposta.
+                if (pergunta.clienteSaiu()) return;
+                return res.json({ resultado: formatted, cota: pergunta.cota });
             } catch (error) {
+                await pergunta.estornar();
+                logarRagflow(false, error);
                 const requestId = registrarFalha(logger, `Error after ${Date.now() - startTime}ms`, error);
                 return res.status(500).json({ erro: ERRO_IA_GENERICO, requestId });
             }
@@ -99,6 +141,13 @@ export const AssistenteController: EndpointController = {
         chat: new Pair(RequestType.POST, async (req: Request, res: Response) => {
             const logger = createControllerLogger('AssistenteController', 'chat');
             const startTime = Date.now();
+
+            const usuario = await exigirLoginIA(req, res);
+            if (!usuario) return;
+
+            let pergunta: Awaited<ReturnType<typeof reservarPerguntaIA>> = null;
+            let ctxIA: ContextoIA = {};
+            let excerpt = '';
             try {
                 const svc = new PlanejadorAgenteService();
                 if (!svc.isAvailable()) {
@@ -116,46 +165,91 @@ export const AssistenteController: EndpointController = {
                 }
                 const historico: MensagemChat[] = messages.map((m: any) => ({ role: m.role, content: m.content }));
 
-                // Contexto sob demanda.
-                let ctx = criarContextoLeve();
-                const autorizado = await Utils.checkAuthorization(req as Request);
-                const idUser = req.headers['user-id'] || req.headers['User-ID'];
-                if (autorizado && idUser && body.planoInput) {
-                    const { ctx: ctxPlano, error } = await montarContextoAgente(String(idUser), body.planoInput, body.restricoes);
-                    if (ctxPlano) {
-                        ctx = ctxPlano;
-                    } else {
-                        logger.warn(`Sem contexto de plano (modo leve): ${error}`);
-                    }
+                // Comando direto (/turmas COD) responde do banco, sem LLM: não gasta cota.
+                const semLlm = ehComandoDireto(historico);
+                if (!semLlm) {
+                    pergunta = await reservarPerguntaIA(res, usuario);
+                    if (!pergunta) return;
                 }
+                ctxIA = { userId: usuario.id, perguntaId: pergunta?.perguntaId };
+                excerpt = historico.slice().reverse().find((m) => m.role === 'user')?.content ?? '';
 
-                // Chat embutido no Montador de Grade: recomenda só matérias com turma
-                // ofertada no período ativo. O /assistente comum não manda esse contexto.
-                ctx.apenasComOferta = body.contexto === 'montador';
+                const resultado = await executarComContextoIA(ctxIA, async () => {
+                    // Contexto sob demanda.
+                    let ctx = criarContextoLeve();
+                    const autorizado = await Utils.checkAuthorization(req as Request);
+                    const idUser = req.headers['user-id'] || req.headers['User-ID'];
+                    if (autorizado && idUser && body.planoInput) {
+                        const { ctx: ctxPlano, error } = await montarContextoAgente(String(idUser), body.planoInput, body.restricoes);
+                        if (ctxPlano) {
+                            ctx = ctxPlano;
+                        } else {
+                            logger.warn(`Sem contexto de plano (modo leve): ${error}`);
+                        }
+                    }
 
-                const resultado = await svc.conversar(historico, ctx);
+                    // Chat embutido no Montador de Grade: recomenda só matérias com turma
+                    // ofertada no período ativo. O /assistente comum não manda esse contexto.
+                    ctx.apenasComOferta = body.contexto === 'montador';
 
-                const ultimaMsgUsuario = historico.slice().reverse().find((m) => m.role === 'user');
-                logAiUsage({
-                    endpoint: 'assistente-chat',
-                    durationMs: Date.now() - startTime,
-                    success: true,
-                    requestExcerpt: ultimaMsgUsuario?.content ?? '',
-                    usage: resultado.usage,
+                    return svc.conversar(historico, ctx);
                 });
 
+                if (!resultado.semLlm) {
+                    logAiUsage({
+                        endpoint: 'assistente-chat',
+                        durationMs: Date.now() - startTime,
+                        success: true,
+                        requestExcerpt: excerpt,
+                        usage: resultado.usage,
+                        ...ctxIA,
+                    });
+                }
+
+                // O modelo já respondeu (e cobrou): quem saiu gasta a pergunta, só não recebe a resposta.
+                if (pergunta?.clienteSaiu()) return;
+
+                const cota = pergunta ? pergunta.cota : await estadoCota(usuario.id).catch(() => undefined);
                 return res.status(200).json({
                     reply: resultado.reply,
                     plano: resultado.plano ?? undefined,
                     restricoes: resultado.restricoes,
+                    cota,
                 });
             } catch (err: any) {
+                await pergunta?.estornar();
+                // Só pergunta que passou pela cota (comando direto não chama LLM):
+                // o que o modelo cobrou até a falha entra no custo como falha.
+                if (pergunta) {
+                    logAiUsage({
+                        endpoint: 'assistente-chat',
+                        durationMs: Date.now() - startTime,
+                        success: false,
+                        requestExcerpt: excerpt,
+                        usage: usageParcialDoErro(err),
+                        modeloPadrao: MARITACA_MODELS.AGENTE,
+                        erro: err,
+                        ...ctxIA,
+                    });
+                }
                 if (isMaritacaSemCreditos(err)) {
                     logger.error('Chat da assistente: Maritaca sem créditos ativos');
                     return res.status(503).json(AI_SEM_CREDITOS_BODY);
                 }
                 const requestId = registrarFalha(logger, 'Erro no chat da assistente', err);
                 return res.status(500).json({ error: ERRO_IA_GENERICO, requestId });
+            }
+        }),
+
+        // Estado da cota diária (rodinha do chat ao abrir a página). Não consome.
+        cota: new Pair(RequestType.GET, async (req: Request, res: Response) => {
+            const usuario = await exigirLoginIA(req, res);
+            if (!usuario) return;
+            try {
+                return res.json({ cota: await estadoCota(usuario.id) });
+            } catch (error) {
+                const requestId = registrarFalha(createControllerLogger('AssistenteController', 'cota'), 'Estado da cota', error);
+                return res.status(503).json({ codigo: 'COTA_INDISPONIVEL', erro: MSG_COTA_INDISPONIVEL, requestId });
             }
         }),
 
@@ -182,6 +276,9 @@ export const AssistenteController: EndpointController = {
             const logger = createControllerLogger('AssistenteController', 'analyze-sabia-stream');
             const startTime = Date.now();
 
+            const usuario = await exigirLoginIA(req, res);
+            if (!usuario) return;
+
             const { materia, matriz_curricular } = req.body;
             if (!materia || typeof materia !== 'string' || !materia.trim()) {
                 logger.error('Missing or empty "materia" field');
@@ -199,6 +296,11 @@ export const AssistenteController: EndpointController = {
                 return res.status(503).json({ erro: 'Serviço Sabiá indisponível.' });
             }
 
+            // Reserva ANTES dos headers SSE: 401/429/503 continuam sendo JSON.
+            const pergunta = await reservarPerguntaIA(res, usuario);
+            if (!pergunta) return;
+            const ctxIA = { userId: usuario.id, perguntaId: pergunta.perguntaId };
+
             // Set SSE headers
             res.setHeader('Content-Type', 'text/event-stream');
             res.setHeader('Cache-Control', 'no-cache');
@@ -214,24 +316,40 @@ export const AssistenteController: EndpointController = {
                 if (!res.writableEnded) clientAbort.abort();
             });
 
+            // Estado da cota para a rodinha (já contando esta pergunta).
+            res.write(`data: ${JSON.stringify({ stage: 'cota', cota: pergunta.cota })}\n\n`);
+
             try {
                 logger.info(`Streaming with Sabiá: "${materia}"`);
-                const { usage, aborted } = await sabia.analyzarInteresseStream(
-                    materia, matrizCurricular, res, clientAbort.signal,
+                // Contexto da pergunta: o SabiaService repassa user_id/pergunta_id
+                // ao mcp_agent, que loga as embeddings Gemini na mesma pergunta.
+                const resultadoStream = await executarComContextoIA(ctxIA, () =>
+                    sabia.analyzarInteresseStream(materia, matrizCurricular, res, clientAbort.signal),
                 );
+                const { usage, aborted, recebeuDoUpstream, concluiu } = resultadoStream;
                 if (aborted) {
                     // Sem o evento `usage` do Python: registra a request como não
                     // concluída (tokens 0) para não sumir do dashboard de custo.
                     logger.info('Cliente fechou a conexão — stream do Sabiá abortado');
+                    // Só não conta se saiu antes de o Python mandar qualquer
+                    // evento: depois do 1º (`thinking`) a Maritaca já foi chamada
+                    // e cobra, mesmo sem disciplina entregue.
+                    if (!recebeuDoUpstream) await pergunta.estornar();
                     logAiUsage({
                         endpoint: 'analyze-sabia-stream',
                         durationMs: Date.now() - startTime,
                         success: false,
                         requestExcerpt: materia,
                         usage,
+                        ...ctxIA,
                     });
                     return;
                 }
+                // Terminou com evento de erro (ou sem `done`): o Darcy não respondeu.
+                // A pergunta é estornada e a linha do log vai como falha — com o
+                // usage que chegou, porque a Maritaca cobrou do mesmo jeito.
+                if (!concluiu) await pergunta.estornar();
+                const { erroUpstream } = resultadoStream;
                 // Tokens reais vêm do evento SSE "usage" que o Python emite antes do
                 // "done" (ver SabiaService.analyzarInteresseStream). Fallback: se a
                 // Maritaca não mandar include_usage em algum caminho, o evento não
@@ -239,14 +357,28 @@ export const AssistenteController: EndpointController = {
                 logAiUsage({
                     endpoint: 'analyze-sabia-stream',
                     durationMs: Date.now() - startTime,
-                    success: true,
+                    success: concluiu,
                     requestExcerpt: materia,
                     usage: usage && usage.length > 0
                         ? usage
-                        : [{ model: 'sabia-4', prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }]
+                        : [{ model: 'sabia-4', prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }],
+                    erro: erroUpstream,
+                    ...ctxIA,
                 });
                 return;
             } catch (error) {
+                await pergunta.estornar();
+                logAiUsage({
+                    endpoint: 'analyze-sabia-stream',
+                    durationMs: Date.now() - startTime,
+                    success: false,
+                    requestExcerpt: materia,
+                    // O evento `usage` pode ter chegado antes da falha.
+                    usage: usageParcialDoErro(error),
+                    modeloPadrao: MARITACA_MODELS.AGENTE,
+                    erro: error,
+                    ...ctxIA,
+                });
                 if (clientAbort.signal.aborted || res.writableEnded) return;
                 const requestId = registrarFalha(logger, 'Stream error', error);
                 const errorEvent = `data: ${JSON.stringify({ stage: 'error', message: ERRO_IA_GENERICO, requestId })}\n\n`;
@@ -259,6 +391,9 @@ export const AssistenteController: EndpointController = {
         'analyze-sabia': new Pair(RequestType.POST, async (req: Request, res: Response) => {
             const logger = createControllerLogger('AssistenteController', 'analyze-sabia');
             const startTime = Date.now();
+
+            const usuario = await exigirLoginIA(req, res);
+            if (!usuario) return;
 
             // Validate input
             const { materia, matriz_curricular } = req.body;
@@ -279,13 +414,35 @@ export const AssistenteController: EndpointController = {
                 return res.status(503).json({ erro: 'Serviço Sabiá indisponível.' });
             }
 
+            const pergunta = await reservarPerguntaIA(res, usuario);
+            if (!pergunta) return;
+            const ctxIA = { userId: usuario.id, perguntaId: pergunta.perguntaId };
+            const logarFalha = (usage: LlmUsage[] | undefined, erro: unknown) =>
+                logAiUsage({
+                    endpoint: 'analyze-sabia',
+                    durationMs: Date.now() - startTime,
+                    success: false,
+                    requestExcerpt: materia,
+                    usage,
+                    modeloPadrao: MARITACA_MODELS.AGENTE,
+                    erro,
+                    ...ctxIA,
+                });
+
+            // Usage já recebido do mcp_agent: se algo quebrar depois (ex.: na
+            // formatação), o catch loga o gasto real em vez de usage vazio.
+            let usageRecebido: LlmUsage[] | undefined;
             try {
                 logger.info(`Processing with Sabiá: "${materia}"`);
 
-                // Call Sabiá AI service
-                const result = await sabia.analyzarInteresse(materia, matrizCurricular);
+                // Call Sabiá AI service (o contexto leva user_id/pergunta_id ao mcp_agent)
+                const result = await executarComContextoIA(ctxIA, () => sabia.analyzarInteresse(materia, matrizCurricular));
+
+                usageRecebido = result.usage;
 
                 if (!result.success) {
+                    await pergunta.estornar();
+                    logarFalha(result.usage, result.error);
                     // Só as mensagens de orientação escritas no próprio mcp_agent
                     // (ex.: "Envie o historico academico") chegam ao usuário.
                     if (result.error && isMensagemSabiaPublica(result.error)) {
@@ -306,15 +463,21 @@ export const AssistenteController: EndpointController = {
                     durationMs: duration,
                     success: true,
                     requestExcerpt: materia,
-                    usage: result.usage
+                    usage: result.usage,
+                    ...ctxIA,
                 });
 
+                // O modelo já respondeu (e cobrou): quem saiu gasta a pergunta, só não recebe a resposta.
+                if (pergunta.clienteSaiu()) return;
                 return res.json({
                     resultado: formatted,
                     disciplinas: result.disciplinas,
-                    agente: 'sabia'
+                    agente: 'sabia',
+                    cota: pergunta.cota,
                 });
             } catch (error) {
+                await pergunta.estornar();
+                logarFalha(usageRecebido ?? usageParcialDoErro(error), error);
                 if (error instanceof SabiaTimeoutError) {
                     // Mensagem própria e segura (sem detalhe interno): ver SabiaTimeoutError.
                     logger.error(`Timeout do Sabiá após ${Date.now() - startTime}ms`);

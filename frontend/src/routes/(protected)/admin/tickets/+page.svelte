@@ -4,6 +4,8 @@
 	import PageBackground from '$lib/components/effects/PageBackground.svelte';
 	import AdminNav from '$lib/components/admin/AdminNav.svelte';
 	import TicketChat from '$lib/components/tickets/TicketChat.svelte';
+	import DarcyPedidoAdminPanel from '$lib/components/tickets/DarcyPedidoAdminPanel.svelte';
+	import { TIPO_TICKET_PEDIDO } from '$lib/utils/darcy-cota';
 	import { ticketService } from '$lib/services/ticket.service';
 	import {
 		CATEGORY_COLORS,
@@ -473,6 +475,13 @@
 							<h3 class="section-title">Contexto</h3>
 							<pre class="metadata-block">{JSON.stringify(t.metadata, null, 2)}</pre>
 						</section>
+					{/if}
+
+					{#if t.metadata?.tipo === TIPO_TICKET_PEDIDO}
+						<DarcyPedidoAdminPanel
+							ticket={t}
+							onConcluido={() => Promise.all([selectTicket(t.id), loadPage(currentPage)]).then(() => {})}
+						/>
 					{/if}
 
 					<section>
