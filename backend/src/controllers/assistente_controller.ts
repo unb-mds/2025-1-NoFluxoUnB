@@ -11,7 +11,7 @@ import { EndpointController, RequestType } from '../interfaces';
 import { Pair, Utils } from '../utils';
 import { Request, Response } from 'express';
 import { RagflowService } from '../services/ragflow.service';
-import { SabiaService, isMensagemSabiaPublica } from '../services/sabia.service';
+import { SabiaService, SabiaTimeoutError, isMensagemSabiaPublica } from '../services/sabia.service';
 import { removeAccents } from '../utils/text.utils';
 import { formatRanking, RankingFormatError } from '../utils/ranking.formatter';
 import { createControllerLogger } from '../utils/controller_logger';
@@ -206,9 +206,32 @@ export const AssistenteController: EndpointController = {
             res.setHeader('X-Accel-Buffering', 'no');
             res.flushHeaders();
 
+            // Aluno fechou a aba/conexão antes do fim: aborta o stream do upstream
+            // (senão o backend segue lendo e a Maritaca cobrando até o fim). O
+            // guard evita abortar no 'close' que também dispara após o res.end().
+            const clientAbort = new AbortController();
+            res.on('close', () => {
+                if (!res.writableEnded) clientAbort.abort();
+            });
+
             try {
                 logger.info(`Streaming with Sabiá: "${materia}"`);
-                const { usage } = await sabia.analyzarInteresseStream(materia, matrizCurricular, res);
+                const { usage, aborted } = await sabia.analyzarInteresseStream(
+                    materia, matrizCurricular, res, clientAbort.signal,
+                );
+                if (aborted) {
+                    // Sem o evento `usage` do Python: registra a request como não
+                    // concluída (tokens 0) para não sumir do dashboard de custo.
+                    logger.info('Cliente fechou a conexão — stream do Sabiá abortado');
+                    logAiUsage({
+                        endpoint: 'analyze-sabia-stream',
+                        durationMs: Date.now() - startTime,
+                        success: false,
+                        requestExcerpt: materia,
+                        usage,
+                    });
+                    return;
+                }
                 // Tokens reais vêm do evento SSE "usage" que o Python emite antes do
                 // "done" (ver SabiaService.analyzarInteresseStream). Fallback: se a
                 // Maritaca não mandar include_usage em algum caminho, o evento não
@@ -224,6 +247,7 @@ export const AssistenteController: EndpointController = {
                 });
                 return;
             } catch (error) {
+                if (clientAbort.signal.aborted || res.writableEnded) return;
                 const requestId = registrarFalha(logger, 'Stream error', error);
                 const errorEvent = `data: ${JSON.stringify({ stage: 'error', message: ERRO_IA_GENERICO, requestId })}\n\n`;
                 res.write(errorEvent);
@@ -291,6 +315,11 @@ export const AssistenteController: EndpointController = {
                     agente: 'sabia'
                 });
             } catch (error) {
+                if (error instanceof SabiaTimeoutError) {
+                    // Mensagem própria e segura (sem detalhe interno): ver SabiaTimeoutError.
+                    logger.error(`Timeout do Sabiá após ${Date.now() - startTime}ms`);
+                    return res.status(504).json({ erro: error.message });
+                }
                 const requestId = registrarFalha(logger, `Error after ${Date.now() - startTime}ms`, error);
                 return res.status(500).json({ erro: ERRO_IA_GENERICO, requestId });
             }

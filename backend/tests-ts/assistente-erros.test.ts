@@ -97,6 +97,9 @@ function mockReqRes(body: any = {}, query: any = {}) {
         flushHeaders: jest.fn(),
         write: jest.fn((chunk: string) => { res.written.push(chunk); return true; }),
         end: jest.fn(),
+        // O stream escuta 'close' para abortar a chamada ao Sabiá (fix/darcy-resiliencia).
+        writableEnded: false,
+        on: jest.fn(),
     };
     return { req, res: res as Response & typeof res };
 }
