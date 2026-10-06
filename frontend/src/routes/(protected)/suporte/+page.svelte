@@ -466,11 +466,11 @@
 	}
 	.tab-btn.active {
 		color: hsl(var(--foreground));
-		border-bottom-color: #9333ea;
+		border-bottom-color: hsl(var(--primary));
 	}
 	.badge-count {
-		background: rgba(147, 51, 234, 0.2);
-		color: #e9d5ff;
+		background: hsl(var(--accent));
+		color: hsl(var(--accent-foreground));
 		border-radius: 9999px;
 		padding: 1px 8px;
 		font-size: 11px;
@@ -530,7 +530,7 @@
 	.input:focus,
 	.textarea:focus {
 		outline: none;
-		border-color: #9333ea;
+		border-color: hsl(var(--ring));
 	}
 	.textarea {
 		resize: vertical;
@@ -556,9 +556,9 @@
 		background: hsl(var(--muted));
 	}
 	.cat-chip.active {
-		background: rgba(147, 51, 234, 0.25);
-		border-color: rgba(147, 51, 234, 0.6);
-		color: white;
+		background: hsl(var(--accent));
+		border-color: hsl(var(--primary) / 0.7);
+		color: hsl(var(--accent-foreground));
 	}
 
 	.upload-trigger {
@@ -613,7 +613,7 @@
 		border-radius: 4px;
 	}
 	.file-remove:hover {
-		color: #f87171;
+		color: hsl(var(--destructive));
 	}
 
 	.alert {
@@ -627,12 +627,13 @@
 	.alert-error {
 		background: rgba(239, 68, 68, 0.1);
 		border-color: rgba(239, 68, 68, 0.3);
-		color: #fca5a5;
+		color: hsl(var(--destructive));
 	}
 	.alert-success {
 		background: rgba(16, 185, 129, 0.1);
 		border-color: rgba(16, 185, 129, 0.3);
-		color: #6ee7b7;
+		/* emerald-800: 7,3:1 sobre o card */
+		color: #065f46;
 	}
 
 	.submit-btn {
@@ -643,8 +644,8 @@
 		padding: 11px 18px;
 		border-radius: 8px;
 		border: none;
-		background: linear-gradient(90deg, #9333ea, #ec4899);
-		color: white;
+		background: hsl(var(--primary));
+		color: hsl(var(--primary-foreground));
 		font-weight: 600;
 		font-size: 14px;
 		cursor: pointer;
@@ -661,13 +662,13 @@
 	.link-btn {
 		background: none;
 		border: none;
-		color: #c4b5fd;
+		color: hsl(var(--ai));
 		cursor: pointer;
 		font-weight: 500;
 		padding: 0;
 	}
 	.link-btn:hover {
-		color: #e9d5ff;
+		color: hsl(var(--primary));
 	}
 
 	/* O card é um <button>: resetamos a aparência e mantemos o visual de card */
@@ -685,11 +686,11 @@
 		transition: border-color 150ms, transform 120ms;
 	}
 	.ticket-card:hover {
-		border-color: rgba(147, 51, 234, 0.5);
+		border-color: hsl(var(--primary) / 0.5);
 		transform: translateY(-1px);
 	}
 	.ticket-card:focus-visible {
-		outline: 2px solid #c4b5fd;
+		outline: 2px solid hsl(var(--ring));
 		outline-offset: 2px;
 	}
 	.ticket-header {
@@ -756,11 +757,11 @@
 		margin-left: auto;
 		font-size: 12px;
 		font-weight: 500;
-		color: #c4b5fd;
+		color: hsl(var(--ai));
 		transition: color 150ms;
 	}
 	.ticket-card:hover .ticket-ver {
-		color: #e9d5ff;
+		color: hsl(var(--primary));
 	}
 
 	.dialog-id {
@@ -803,14 +804,15 @@
 		height: 22px;
 		padding: 0 6px;
 		border-radius: 999px;
-		background: #25d366;
-		color: #05240f;
+		/* light: emerald-700 + branco (5,5:1), igual ao badge da navbar; .dark volta ao verde WhatsApp */
+		background: #047857;
+		color: #fff;
 		font-size: 12px;
 		font-weight: 700;
 		line-height: 1;
 	}
 	.hint-respondido {
-		color: #6ee7b7;
+		color: #065f46;
 		font-size: 12px;
 	}
 
@@ -829,7 +831,7 @@
 		border-radius: 6px;
 		border: 1px solid hsl(var(--border));
 		background: hsl(var(--muted) / 0.4);
-		color: #c4b5fd;
+		color: hsl(var(--ai));
 		text-decoration: none;
 		max-width: 260px;
 		overflow: hidden;
@@ -840,10 +842,63 @@
 			color 150ms;
 	}
 	.anexo-link:hover {
-		border-color: rgba(147, 51, 234, 0.5);
-		color: #e9d5ff;
+		border-color: hsl(var(--primary) / 0.5);
+		color: hsl(var(--primary));
 	}
 	.anexo-pendente {
 		opacity: 0.6;
+	}
+
+	/* Dark: receita histórica, sem alteração de aparência */
+	:global(.dark) .tab-btn.active {
+		border-bottom-color: #9333ea;
+	}
+	:global(.dark) .badge-count {
+		background: rgba(147, 51, 234, 0.2);
+		color: #e9d5ff;
+	}
+	:global(.dark) .input:focus,
+	:global(.dark) .textarea:focus {
+		border-color: #9333ea;
+	}
+	:global(.dark) .cat-chip.active {
+		background: rgba(147, 51, 234, 0.25);
+		border-color: rgba(147, 51, 234, 0.6);
+		color: white;
+	}
+	:global(.dark) .file-remove:hover {
+		color: #f87171;
+	}
+	:global(.dark) .alert-error {
+		color: #fca5a5;
+	}
+	:global(.dark) .alert-success,
+	:global(.dark) .hint-respondido {
+		color: #6ee7b7;
+	}
+	:global(.dark) .submit-btn {
+		background: linear-gradient(90deg, #9333ea, #ec4899);
+		color: white;
+	}
+	:global(.dark) .link-btn,
+	:global(.dark) .ticket-ver,
+	:global(.dark) .anexo-link {
+		color: #c4b5fd;
+	}
+	:global(.dark) .link-btn:hover,
+	:global(.dark) .ticket-card:hover .ticket-ver,
+	:global(.dark) .anexo-link:hover {
+		color: #e9d5ff;
+	}
+	:global(.dark) .ticket-card:hover,
+	:global(.dark) .anexo-link:hover {
+		border-color: rgba(147, 51, 234, 0.5);
+	}
+	:global(.dark) .ticket-card:focus-visible {
+		outline-color: #c4b5fd;
+	}
+	:global(.dark) .badge-nao-lidas {
+		background: #25d366;
+		color: #05240f;
 	}
 </style>

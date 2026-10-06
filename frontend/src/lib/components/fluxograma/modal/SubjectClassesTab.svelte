@@ -46,20 +46,20 @@
 
 <div class="space-y-2">
 	{#if turmasLoading}
-		<div class="flex items-center justify-center gap-2 py-6 text-sm text-white/50">
+		<div class="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
 			<Loader2 class="h-4 w-4 animate-spin" />
 			Carregando turmas...
 		</div>
 	{:else if turmasError}
-		<p class="py-4 text-center text-sm text-red-300/80">{turmasError}</p>
+		<p class="py-4 text-center text-sm text-red-700 dark:text-red-300/80">{turmasError}</p>
 	{:else if turmas.length === 0}
-		<p class="py-4 text-center text-sm text-white/50">
+		<p class="py-4 text-center text-sm text-muted-foreground">
 			Nenhuma turma ofertada no período letivo atual.
 		</p>
 	{:else}
 		{#if turmas[0]?.codigoOfertado}
 			<p
-				class="rounded-lg border border-sky-300/25 bg-sky-500/10 px-3 py-2 text-xs leading-snug text-sky-200/90"
+				class="rounded-lg border border-sky-300/25 bg-sky-500/10 px-3 py-2 text-xs leading-snug text-sky-800 dark:text-sky-200/90"
 			>
 				Esta matéria é ofertada como
 				<span class="font-mono font-semibold">{turmas[0].codigoOfertado}</span> neste período —
@@ -67,18 +67,18 @@
 			</p>
 		{/if}
 		{#each turmas as { turma: t } (t.id_turmas)}
-			<div class="rounded-lg bg-white/5 px-3 py-2.5">
+			<div class="rounded-lg bg-foreground/5 px-3 py-2.5">
 				<div class="flex items-center justify-between gap-2">
-					<span class="text-sm font-semibold text-white/90">Turma {t.turma}</span>
-					<span class="rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/70">
+					<span class="text-sm font-semibold text-foreground/90">Turma {t.turma}</span>
+					<span class="rounded-full bg-foreground/10 px-2 py-0.5 text-xs text-foreground/70">
 						{formatVagas(t.vagas_sobrando, t.vagas_ofertadas, t.vagas_ocupadas)} vaga(s)
 					</span>
 				</div>
 				{#if t.docente}
-					<p class="mt-1 text-xs text-white/60">{t.docente}</p>
+					<p class="mt-1 text-xs text-muted-foreground">{t.docente}</p>
 				{/if}
-				<p class="mt-1 text-xs text-white/50">{horarioLegivel(t.horario)}</p>
-				<p class="text-xs text-white/50">{localLegivel(t.local)}</p>
+				<p class="mt-1 text-xs text-muted-foreground">{horarioLegivel(t.horario)}</p>
+				<p class="text-xs text-muted-foreground">{localLegivel(t.local)}</p>
 				<div class="mt-2">
 					<SeguirVagaButton turma={t} />
 				</div>

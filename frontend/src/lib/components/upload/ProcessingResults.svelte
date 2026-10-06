@@ -75,7 +75,7 @@ type MateriaListItem = Record<string, unknown> & {
 			label: 'Total de Obrigatórias',
 			value: totalObrigatorias,
 			icon: BookOpen,
-			color: 'text-purple-400',
+			color: 'text-primary dark:text-purple-400',
 			bg: 'bg-purple-500/10',
 			title: 'Matérias obrigatórias (nivel > 0): concluídas + pendentes'
 		},
@@ -83,7 +83,7 @@ type MateriaListItem = Record<string, unknown> & {
 			label: 'Concluídas (obrig.)',
 			value: data.resumo.total_obrigatorias_concluidas,
 			icon: CheckCircle,
-			color: 'text-emerald-400',
+			color: 'text-emerald-700 dark:text-emerald-400',
 			bg: 'bg-emerald-500/10',
 			title: 'Obrigatórias concluídas (APR/CUMP/DISP ou por equivalência)'
 		},
@@ -91,7 +91,7 @@ type MateriaListItem = Record<string, unknown> & {
 			label: 'Pendentes (obrig.)',
 			value: data.resumo.total_obrigatorias_pendentes,
 			icon: AlertTriangle,
-			color: 'text-orange-400',
+			color: 'text-orange-700 dark:text-orange-400',
 			bg: 'bg-orange-500/10',
 			title: 'Obrigatórias ainda não concluídas'
 		},
@@ -99,7 +99,7 @@ type MateriaListItem = Record<string, unknown> & {
 			label: 'Optativas',
 			value: optativasConcluidas.length + optativasEmAndamento.length,
 			icon: Star,
-			color: 'text-blue-400',
+			color: 'text-blue-700 dark:text-blue-400',
 			bg: 'bg-blue-500/10',
 			title: 'Optativas exibidas nesta tela (somente concluídas + em andamento)'
 		}
@@ -111,12 +111,12 @@ type MateriaListItem = Record<string, unknown> & {
 	<!-- Stats Grid -->
 	<div class="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-4">
 		{#each stats as stat}
-			<div class="rounded-xl border border-white/5 p-2.5 text-center sm:p-3 {stat.bg}" title={stat.title}>
+			<div class="rounded-xl border border-border p-2.5 text-center sm:p-3 dark:border-foreground/5 {stat.bg}" title={stat.title}>
 				<div class="mx-auto mb-1 flex h-7 w-7 items-center justify-center rounded-full sm:mb-1.5 sm:h-8 sm:w-8 {stat.bg}">
 					<stat.icon class="h-3.5 w-3.5 sm:h-4 sm:w-4 {stat.color}" />
 				</div>
-				<p class="text-xl font-bold text-white sm:text-2xl">{stat.value}</p>
-				<p class="text-[10px] text-gray-400 sm:text-xs">{stat.label}</p>
+				<p class="text-xl font-bold text-foreground sm:text-2xl">{stat.value}</p>
+				<p class="text-[10px] text-muted-foreground sm:text-xs">{stat.label}</p>
 			</div>
 		{/each}
 	</div>
@@ -128,39 +128,39 @@ type MateriaListItem = Record<string, unknown> & {
 
 	<!-- Validation Data (IRA, MP, curso, matriz, semestre — horas vêm da integralização acima) -->
 	{#if data.dados_validacao || extractedData}
-		<div class="rounded-xl border border-white/5 p-3 sm:p-4" style="background: rgba(255,255,255,0.03);">
-			<h4 class="mb-2 text-xs font-semibold text-gray-300 sm:mb-3 sm:text-sm">Dados de Validação</h4>
+		<div class="rounded-xl border border-border bg-muted/60 p-3 sm:p-4 dark:border-foreground/5 dark:bg-foreground/[0.03]">
+			<h4 class="mb-2 text-xs font-semibold text-foreground/85 sm:mb-3 sm:text-sm">Dados de Validação</h4>
 			<div class="grid grid-cols-2 gap-2 text-xs sm:gap-3 sm:text-sm">
 				{#if data.dados_validacao?.ira != null}
 					<div>
-						<span class="text-gray-500">IRA</span>
-						<p class="font-medium text-white">
+						<span class="text-muted-foreground">IRA</span>
+						<p class="font-medium text-foreground">
 							{formatarIraParaExibicao(data.dados_validacao.ira, iraTextoHistorico)}
 						</p>
 					</div>
 				{/if}
 				{#if data.dados_validacao?.media_ponderada != null}
 					<div>
-						<span class="text-gray-500">Média Ponderada</span>
-						<p class="font-medium text-white">{data.dados_validacao.media_ponderada.toFixed(2)}</p>
+						<span class="text-muted-foreground">Média Ponderada</span>
+						<p class="font-medium text-foreground">{data.dados_validacao.media_ponderada.toFixed(2)}</p>
 					</div>
 				{/if}
 				{#if extractedData?.curso_extraido}
 					<div>
-						<span class="text-gray-500">Curso</span>
-						<p class="font-medium text-white">{extractedData.curso_extraido}</p>
+						<span class="text-muted-foreground">Curso</span>
+						<p class="font-medium text-foreground">{extractedData.curso_extraido}</p>
 					</div>
 				{/if}
 				{#if extractedData?.matriz_curricular}
 					<div>
-						<span class="text-gray-500">Matriz Curricular</span>
-						<p class="font-medium text-white">{extractedData.matriz_curricular}</p>
+						<span class="text-muted-foreground">Matriz Curricular</span>
+						<p class="font-medium text-foreground">{extractedData.matriz_curricular}</p>
 					</div>
 				{/if}
 				{#if extractedData?.semestre_atual}
 					<div>
-						<span class="text-gray-500">Semestre Atual</span>
-						<p class="font-medium text-white">{extractedData.semestre_atual}</p>
+						<span class="text-muted-foreground">Semestre Atual</span>
+						<p class="font-medium text-foreground">{extractedData.semestre_atual}</p>
 					</div>
 				{/if}
 			</div>

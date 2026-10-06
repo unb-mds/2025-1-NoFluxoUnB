@@ -18,6 +18,7 @@ const config: Config = {
 			colors: {
 				// shadcn-svelte CSS variable colors
 				border: 'hsl(var(--border) / <alpha-value>)',
+				'border-strong': 'hsl(var(--border-strong) / <alpha-value>)',
 				input: 'hsl(var(--input) / <alpha-value>)',
 				ring: 'hsl(var(--ring) / <alpha-value>)',
 				background: 'hsl(var(--background) / <alpha-value>)',
@@ -49,6 +50,23 @@ const config: Config = {
 				card: {
 					DEFAULT: 'hsl(var(--card) / <alpha-value>)',
 					foreground: 'hsl(var(--card-foreground) / <alpha-value>)'
+				},
+				// IA (Darcy) — texto/accent lilás e tint de fundo
+				ai: {
+					DEFAULT: 'hsl(var(--ai) / <alpha-value>)',
+					soft: 'hsl(var(--ai-soft) / <alpha-value>)'
+				},
+				// Linhas de pré-requisito do fluxograma (hex por tema em app.css)
+				edge: {
+					prereq: 'var(--edge-prereq)',
+					dep: 'var(--edge-dep)',
+					coreq: 'var(--edge-coreq)'
+				},
+				// Cadeia topológica (hover/roadmap) — alinhado a CHAIN_VISUAL no dark
+				chain: {
+					pre: 'var(--chain-pre)',
+					desc: 'var(--chain-desc)',
+					core: 'var(--chain-core)'
 				},
 
 				// NoFluxo Custom Colors (from Flutter AppColors)
@@ -89,9 +107,9 @@ const config: Config = {
 				mono: ['JetBrains Mono', ...fontFamily.mono]
 			},
 			boxShadow: {
-				nofluxo:
-					'0 1px 0 hsl(0 0% 100% / 0.055) inset, 0 12px 34px hsl(0 0% 0% / 0.34)',
-				nofluxoLg: '0 16px 48px hsl(0 0% 0% / 0.42)'
+				// Definidas por tema em app.css (:root = light discreta, .dark = valores originais)
+				nofluxo: 'var(--nf-shadow-card)',
+				nofluxoLg: 'var(--nf-shadow-card-lg)'
 			},
 			spacing: {
 				section: 'var(--spacing-section)'

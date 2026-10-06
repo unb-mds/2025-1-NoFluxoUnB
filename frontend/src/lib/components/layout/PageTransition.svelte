@@ -123,10 +123,15 @@
 	.nf-splash-veil {
 		position: absolute;
 		inset: 0;
-		background: hsl(240 12% 2.4% / 0.62);
+		background: hsl(var(--background) / 0.72);
 		backdrop-filter: blur(7px);
 		-webkit-backdrop-filter: blur(7px);
 		opacity: 0;
+	}
+
+	/* Dark mantém o véu escuro histórico */
+	:global(.dark) .nf-splash-veil {
+		background: hsl(240 12% 2.4% / 0.62);
 	}
 
 	.nf-splash--in .nf-splash-veil {
@@ -186,12 +191,16 @@
 	}
 
 	.nf-splash-noflx {
+		color: hsl(var(--foreground));
+		text-shadow: 0 4px 32px hsl(var(--primary) / 0.45);
+	}
+
+	:global(.dark) .nf-splash-noflx {
 		color: hsl(0 0% 100%);
-		text-shadow: 0 4px 32px hsl(270 91% 62% / 0.45);
 	}
 
 	.nf-splash-unb {
-		color: hsl(270 91% 62%);
+		color: hsl(var(--primary));
 		text-shadow: 0 4px 32px hsl(330 80% 55% / 0.35);
 	}
 

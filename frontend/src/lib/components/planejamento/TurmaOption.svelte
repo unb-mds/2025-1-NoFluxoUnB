@@ -42,9 +42,9 @@
 		return t.vagas_sobrando > 0
 			? {
 					texto: `${t.vagas_sobrando} vaga(s)`,
-					classe: 'border-emerald-300/45 bg-emerald-500/18 text-emerald-100'
+					classe: 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-300/45 dark:bg-emerald-500/18 dark:text-emerald-100'
 				}
-			: { texto: 'Sem vagas', classe: 'border-red-300/40 bg-red-500/15 text-red-200' };
+			: { texto: 'Sem vagas', classe: 'border-red-300 bg-red-50 text-red-800 dark:border-red-300/40 dark:bg-red-500/15 dark:text-red-200' };
 	});
 
 </script>
@@ -63,15 +63,15 @@
 				</span>
 			{/if}
 		</div>
-		<p class="mt-1 flex items-center gap-1.5 text-[11px] text-white/55">
+		<p class="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
 			<CalendarClock class="h-3 w-3 shrink-0" />
 			{horarioLegivel(t.horario)}
 		</p>
-		<p class="mt-0.5 truncate text-[11px] text-white/45">
+		<p class="mt-0.5 truncate text-[11px] text-muted-foreground">
 			{t.docente ?? 'Docente não informado'}{#if local} · {local}{/if}
 		</p>
 		{#if bloqueada}
-			<p class="mt-1 flex items-center gap-1 text-[10px] font-medium text-red-300/85">
+			<p class="mt-1 flex items-center gap-1 text-[10px] font-medium text-red-700 dark:text-red-300/85">
 				<Ban class="h-3 w-3" /> Conflita com {conflitoCom}
 			</p>
 		{/if}
@@ -81,8 +81,8 @@
 	class="relative w-full rounded-xl border transition-colors {isSel
 		? `${cor.cell} ${cor.text}`
 		: bloqueada
-			? 'border-white/5 bg-white/[0.02] opacity-55'
-			: 'border-white/10 bg-black/25' + (interativa ? ' hover:bg-white/5' : '')}"
+			? 'border-foreground/5 bg-foreground/[0.02] opacity-55'
+			: 'border-border bg-muted/50 dark:bg-black/20' + (interativa ? ' hover:bg-foreground/5 dark:hover:bg-white/5' : '')}"
 >
 	{#if interativa}
 		<button
@@ -98,7 +98,7 @@
 	{/if}
 
 	{#if vagaAssinaturasStore.podeSeguir(t)}
-		<div class="border-t border-white/10 px-3 py-1.5">
+		<div class="border-t border-border px-3 py-1.5">
 			<SeguirVagaButton turma={t} />
 		</div>
 	{/if}

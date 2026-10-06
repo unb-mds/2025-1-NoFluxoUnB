@@ -1,6 +1,11 @@
 /**
  * NoFluxo UNB — utilitários do design system (Etapa 1).
- * Tokens HSL vivem em app.css (:root / .dark).
+ * Tokens HSL vivem em app.css (:root = claro / .dark = escuro).
+ *
+ * Convenção: a declaração base usa só tokens (vale para o tema claro);
+ * `.dark .classe` restaura, verbatim, a receita histórica do tema escuro
+ * sempre que um token não reproduz o valor antigo (vidro, sombras pretas,
+ * filetes brancos). O dark tem de continuar visualmente idêntico.
  */
 
 @layer utilities {
@@ -11,10 +16,21 @@
 		-webkit-backdrop-filter: blur(20px);
 		background: linear-gradient(
 			180deg,
+			hsl(var(--background) / 0.86) 0%,
+			hsl(var(--background) / 0.92) 100%
+		);
+		border-bottom: 1px solid hsl(var(--primary) / 0.14);
+		box-shadow:
+			inset 0 1px 0 hsl(var(--card) / 0.7),
+			0 0 60px hsl(var(--primary) / 0.05);
+	}
+
+	.dark .nf-glass-header {
+		background: linear-gradient(
+			180deg,
 			hsl(240 14% 6% / 0.78) 0%,
 			hsl(270 26% 5% / 0.74) 100%
 		);
-		border-bottom: 1px solid hsl(var(--primary) / 0.14);
 		box-shadow:
 			inset 0 1px 0 hsl(0 0% 100% / 0.06),
 			0 0 60px hsl(var(--primary) / 0.05);
@@ -30,6 +46,13 @@
 		border: 1px solid hsl(var(--border) / 0.95);
 		border-radius: 999px;
 		box-shadow:
+			inset 0 1px 0 hsl(var(--card) / 0.8),
+			0 0 0 1px hsl(var(--primary) / 0.1),
+			0 8px 32px hsl(var(--foreground) / 0.08);
+	}
+
+	.dark .nf-glass-header-floating {
+		box-shadow:
 			inset 0 1px 0 hsl(0 0% 100% / 0.09),
 			0 0 0 1px hsl(var(--primary) / 0.1),
 			0 8px 32px hsl(0 0% 0% / 0.45);
@@ -38,6 +61,23 @@
 	/** HUD do fluxograma — mesmo tratamento que os cards em vidro. */
 	.nf-chrome-pill {
 		border: 1px solid hsl(var(--primary) / 0.28);
+		background: linear-gradient(
+			168deg,
+			hsl(var(--card) / 0.92) 0%,
+			hsl(var(--accent) / 0.7) 40%,
+			hsl(var(--background) / 0.9) 100%
+		);
+		box-shadow:
+			inset 0 1px 0 hsl(var(--card) / 0.9),
+			inset 0 0 52px hsl(var(--primary) / 0.06),
+			0 0 0 1px hsl(var(--primary) / 0.1),
+			0 18px 48px hsl(var(--foreground) / 0.1),
+			0 0 72px hsl(var(--primary) / 0.1);
+		backdrop-filter: blur(22px);
+		-webkit-backdrop-filter: blur(22px);
+	}
+
+	.dark .nf-chrome-pill {
 		background: linear-gradient(
 			168deg,
 			hsl(0 0% 100% / 0.05) 0%,
@@ -50,8 +90,6 @@
 			0 0 0 1px hsl(var(--primary) / 0.1),
 			0 18px 48px hsl(0 0% 0% / 0.52),
 			0 0 72px hsl(var(--primary) / 0.1);
-		backdrop-filter: blur(22px);
-		-webkit-backdrop-filter: blur(22px);
 	}
 
 	/*
@@ -63,6 +101,13 @@
 		background: hsl(var(--card));
 		border: 1px solid hsl(var(--border) / 0.9);
 		border-radius: var(--radius-lg);
+		box-shadow:
+			0 0 0 1px hsl(var(--primary) / 0.07),
+			0 1px 2px hsl(var(--foreground) / 0.04),
+			0 4px 16px hsl(var(--foreground) / 0.04);
+	}
+
+	.dark .nf-card-surface {
 		box-shadow:
 			inset 0 1px 0 hsl(0 0% 100% / 0.08),
 			inset 1px 0 0 hsl(0 0% 100% / 0.05),
@@ -82,6 +127,13 @@
 		filter: brightness(1.02);
 		border-color: hsl(var(--primary) / 0.28);
 		box-shadow:
+			0 0 0 1px hsl(var(--primary) / 0.18),
+			0 2px 8px hsl(var(--foreground) / 0.06),
+			0 8px 24px hsl(var(--primary) / 0.1);
+	}
+
+	.dark .nf-card-interactive:hover {
+		box-shadow:
 			inset 0 1px 0 hsl(0 0% 100% / 0.13),
 			inset 1px 0 0 hsl(0 0% 100% / 0.08),
 			inset 0 -1px 0 hsl(0 0% 0% / 0.25),
@@ -91,6 +143,12 @@
 	}
 
 	.nf-shadow-soft {
+		box-shadow:
+			0 1px 0 hsl(var(--card) / 0.7) inset,
+			0 12px 32px hsl(var(--foreground) / 0.08);
+	}
+
+	.dark .nf-shadow-soft {
 		box-shadow:
 			0 1px 0 hsl(0 0% 100% / 0.05) inset,
 			0 12px 32px hsl(0 0% 0% / 0.32);
@@ -106,13 +164,14 @@
 			0 0 8px hsl(var(--primary) / 0.15);
 	}
 
+	/* --primary-foreground é branco nos dois temas → idêntico ao antigo hsl(0 0% 100% / 0.12). */
 	.nf-cta-glow-hover:hover:not(:disabled) {
 		box-shadow:
-			0 1px 0 hsl(0 0% 100% / 0.12) inset,
+			0 1px 0 hsl(var(--primary-foreground) / 0.12) inset,
 			0 12px 42px hsl(var(--primary) / 0.28);
 	}
 
-	/* Chip genérico (filtros, tags) */
+	/* Chip genérico (filtros, tags) — borda no tom do texto (no dark ≈ branco/10, como antes). */
 	.nf-chip {
 		display: inline-flex;
 		align-items: center;
@@ -122,7 +181,7 @@
 		font-size: 0.75rem;
 		font-weight: 500;
 		line-height: 1.25;
-		border: 1px solid hsl(0 0% 100% / 0.1);
+		border: 1px solid hsl(var(--foreground) / 0.1);
 		background: hsl(var(--secondary) / 0.65);
 		color: hsl(var(--foreground) / 0.92);
 		transition:
@@ -131,7 +190,7 @@
 	}
 
 	.nf-chip:hover {
-		border-color: hsl(0 0% 100% / 0.14);
+		border-color: hsl(var(--foreground) / 0.14);
 		background: hsl(var(--secondary) / 0.85);
 	}
 
