@@ -13,7 +13,7 @@ import bodyParser from 'body-parser';
 import cors from "cors";
 import { buildCorsOptions } from './config/cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import { applyRateLimits } from './config/rate_limit';
 import { FluxogramaController } from './controllers/fluxograma_controller';
 import logger from './logger';
 import { UsersController } from './controllers/users_controller';
@@ -161,14 +161,9 @@ app.use(cors(corsOptions));
 // middleware acima; `cors()` puro aqui liberaria qualquer origem no preflight.
 app.options('*', cors(corsOptions));
 
-// Rate limiting global — mitiga enumeração automatizada e brute force
-app.use(rateLimit({
-    windowMs: 60 * 1000,
-    limit: 120,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Muitas requisições. Tente novamente em instantes.' },
-}));
+// Rate limiting: trust proxy (IP real atrás do Traefik), limiter global e
+// limiter apertado nas rotas de IA paga. Ver src/config/rate_limit.ts.
+applyRateLimits(app);
 
 app.use(bodyParser.json({ limit: 50 * 1024 * 1024, }));
 app.use(bodyParser.urlencoded({ extended: true, limit: 50 * 1024 * 1024 }));
