@@ -9,7 +9,7 @@
 		import { portal } from '$lib/actions/portal';
 import { ROUTES } from '$lib/config/routes';
 	import { formatLocalSigaa, formatVagas, horarioLegivel } from '$lib/utils/sigaa';
-	import { getLogicalCodeGroups } from '$lib/utils/expressao-logica';
+	import { getPrereqDisplay } from '$lib/utils/prereq-display';
 	import ManualStatusEditor from './ManualStatusEditor.svelte';
 	import SubjectClassesTab from './SubjectClassesTab.svelte';
 
@@ -55,6 +55,8 @@ import { ROUTES } from '$lib/config/routes';
 		[SubjectStatusEnum.NOT_STARTED]: 'from-muted-foreground/25 to-muted-foreground/10'
 	};
 
+	// Claro: mesmos tokens do fundo do card (>= 3:1 sobre o popover branco);
+	// escuro: tons 500, que se destacam sobre o popover quase preto.
 	const statusDotColor: Record<SubjectStatusValue, string> = {
 		[SubjectStatusEnum.COMPLETED]: 'bg-emerald-600 dark:bg-green-500',
 		[SubjectStatusEnum.IN_PROGRESS]: 'bg-primary',
@@ -282,9 +284,10 @@ import { ROUTES } from '$lib/config/routes';
 						</p>
 					{:else}
 						{#each prereqModels as pr}
+							{@const display = getPrereqDisplay(pr)}
 							<div class="rounded-lg bg-foreground/5 px-3 py-2.5">
-								{#if pr.expressaoOriginal}
-									{@const logicGroups = getLogicalCodeGroups(pr.expressaoLogica, pr.expressaoOriginal)}
+								{#if display.kind === 'groups'}
+									{@const logicGroups = display.groups}
 									{#if logicGroups.length > 0}
 										<div class="space-y-3">
 											{#if logicGroups.length > 1}
@@ -324,8 +327,11 @@ import { ROUTES } from '$lib/config/routes';
 											</div>
 										</div>
 									{/if}
+								{:else if display.kind === 'raw'}
+									<!-- Regra que não se conseguiu interpretar: texto cru em vez de card vazio. -->
+									<p class="font-mono text-xs text-foreground/75">{display.text}</p>
 								{:else}
-									{@const prereq = prereqs.find((p) => p.codigoMateria.toUpperCase() === (pr.codigoMateriaRequisito || '').toUpperCase())}
+									{@const prereq = prereqs.find((p) => p.codigoMateria.toUpperCase() === display.code.toUpperCase())}
 									{#if prereq}
 										{@const prereqStatus = store.getSubjectStatus(prereq)}
 										<div class="flex items-center gap-2 rounded-lg border border-chain-core/35 bg-chain-core/10 px-3 py-2 text-xs text-chain-core dark:text-[#b8adff]">
@@ -338,7 +344,7 @@ import { ROUTES } from '$lib/config/routes';
 										</div>
 									{:else}
 										<div class="inline-flex items-center gap-1.5 rounded-lg border border-foreground/20 bg-foreground/5 px-2.5 py-1 text-xs text-foreground/80">
-											<span class="font-mono font-medium">{pr.codigoMateriaRequisito}</span>
+											<span class="font-mono font-medium">{display.code}</span>
 										</div>
 									{/if}
 								{/if}
