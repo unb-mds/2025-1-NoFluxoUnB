@@ -27,6 +27,12 @@ export const CARD_MIN_TEXT_PX = 11;
 export const MIN_READABLE_TEXT_PX = 10;
 /** Menor zoom inicial no modo compacto: 10/11 ≈ 0.91. */
 export const COMPACT_MIN_ZOOM = MIN_READABLE_TEXT_PX / CARD_MIN_TEXT_PX;
+/** Nome da matéria no card de desktop em zoom 1 (teto do clamp, card largo). */
+export const DESKTOP_CARD_TEXT_PX = 14;
+/** No desktop o nome do card não fica abaixo de 11px na tela ao abrir. */
+export const MIN_READABLE_DESKTOP_TEXT_PX = 11;
+/** Menor zoom inicial no desktop: 11/14 ≈ 0.79. */
+export const DESKTOP_MIN_ZOOM = MIN_READABLE_DESKTOP_TEXT_PX / DESKTOP_CARD_TEXT_PX;
 
 export interface InitialZoomInput {
 	/** Modo compacto (celular retrato ou deitado) — ver matchesFluxogramCompactTouchMode. */
@@ -38,8 +44,11 @@ export interface InitialZoomInput {
 }
 
 /**
- * Zoom inicial do fluxograma. Desktop: a coluna mais alta cabe inteira na vertical
- * (teto 1.0 — o eixo de navegação é o horizontal). Compacto: tenta caber 2 colunas
+ * Zoom inicial do fluxograma. Desktop: tenta caber a coluna mais alta inteira na
+ * vertical (teto 1.0 — o eixo de navegação é o horizontal), mas nunca abaixo de
+ * DESKTOP_MIN_ZOOM: curso com semestre de 12+ matérias (optativas e módulo livre
+ * à mostra) abria em 30%, com o texto ilegível; o que não couber rola na vertical.
+ * Compacto: tenta caber 2 colunas
  * na largura, mas nunca abaixo de COMPACT_MIN_ZOOM — antes o piso era 0.5 e num
  * celular de 375px o zoom ficava em ~0.64, com código e nome do card em 7–8px
  * (pré-mortem R29). Retorna null quando ainda não há altura para medir.
@@ -54,7 +63,7 @@ export function computeInitialZoom({
 		return Math.min(1.0, Math.max(COMPACT_MIN_ZOOM, clientWidth / (2 * COMPACT_COLUMN_PITCH)));
 	}
 	if (naturalH <= 0) return null;
-	return Math.min(1.0, clientHeight / naturalH);
+	return Math.min(1.0, Math.max(DESKTOP_MIN_ZOOM, clientHeight / naturalH));
 }
 
 /**

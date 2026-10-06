@@ -3,6 +3,9 @@ import {
 	CARD_MIN_TEXT_PX,
 	MIN_READABLE_TEXT_PX,
 	computeInitialZoom,
+	DESKTOP_CARD_TEXT_PX,
+	DESKTOP_MIN_ZOOM,
+	MIN_READABLE_DESKTOP_TEXT_PX,
 	findFirstPendingSemester,
 	pickInitialFocusSemester
 } from './fluxogram-viewport';
@@ -19,11 +22,18 @@ describe('computeInitialZoom — visualização inicial (pré-mortem R29)', () =
 		expect(computeInitialZoom({ compact: true, clientWidth: 800, clientHeight: 360, naturalH: 1200 })).toBe(1);
 	});
 
-	it('desktop mantém o encaixe da coluna mais alta na vertical', () => {
+	it('desktop encaixa a coluna mais alta na vertical quando ainda dá para ler', () => {
 		expect(
-			computeInitialZoom({ compact: false, clientWidth: 1280, clientHeight: 800, naturalH: 1200 })
-		).toBeCloseTo(0.667, 3);
+			computeInitialZoom({ compact: false, clientWidth: 1280, clientHeight: 800, naturalH: 950 })
+		).toBeCloseTo(0.842, 3);
 		expect(computeInitialZoom({ compact: false, clientWidth: 1280, clientHeight: 900, naturalH: 600 })).toBe(1);
+	});
+
+	it('desktop com coluna muito alta não abre ilegível (antes caía para 30%)', () => {
+		// Engenharia de Software com optativas: ~2600px de coluna numa área de ~560px.
+		const z = computeInitialZoom({ compact: false, clientWidth: 1440, clientHeight: 560, naturalH: 2600 })!;
+		expect(z).toBe(DESKTOP_MIN_ZOOM);
+		expect(z * DESKTOP_CARD_TEXT_PX).toBeGreaterThanOrEqual(MIN_READABLE_DESKTOP_TEXT_PX);
 	});
 
 	it('desktop sem altura medida ainda devolve null', () => {
