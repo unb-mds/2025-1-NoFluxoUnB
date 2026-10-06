@@ -1,21 +1,12 @@
 <script lang="ts">
 import { Bot, GraduationCap, Info } from 'lucide-svelte';
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
+	import { fluxogramaCabecalhoStore as cabecalho } from '$lib/stores/fluxograma-cabecalho.store.svelte';
 	import { ROUTES } from '$lib/config/routes';
-	import { SubjectStatusEnum, getStatusLabel } from '$lib/types/materia';
+	import FluxogramaLegendaStatus from '$lib/components/fluxograma/controls/FluxogramaLegendaStatus.svelte';
 	import FluxogramViewMenu from '$lib/components/fluxograma/controls/FluxogramViewMenu.svelte';
 	import MobileFilterNotice from '$lib/components/fluxograma/controls/MobileFilterNotice.svelte';
 
-	/** Cores dos cartões — mesma legenda que existia no modal (?), agora fixa nesta barra.
-	 *  Light: mesmos tons da faixa lateral do SubjectCard (≥ 3:1 sobre o fundo claro);
-	 *  o par dark: preserva exatamente as cores históricas do tema escuro. */
-	const statusLegendItems = [
-		{ label: getStatusLabel(SubjectStatusEnum.COMPLETED), color: 'bg-emerald-600 dark:bg-green-500' },
-		{ label: getStatusLabel(SubjectStatusEnum.IN_PROGRESS), color: 'bg-violet-600 dark:bg-purple-500' },
-		{ label: getStatusLabel(SubjectStatusEnum.AVAILABLE), color: 'bg-amber-600 dark:bg-orange-500' },
-		{ label: getStatusLabel(SubjectStatusEnum.FAILED), color: 'bg-red-600 dark:bg-red-500' },
-		{ label: getStatusLabel(SubjectStatusEnum.LOCKED), color: 'bg-border-strong dark:bg-gray-500' }
-	];
 
 	interface Props {
 		/** Desktop: mesma barra que Assistente/Planejar; no mobile ficam no header */
@@ -47,23 +38,10 @@ import { Bot, GraduationCap, Info } from 'lucide-svelte';
 	<div
 		class="fluxo-legend flex min-w-0 flex-col gap-2 overflow-visible rounded-xl border border-border px-2.5 py-2 sm:gap-2.5 sm:px-3 sm:py-2.5 [@media(orientation:landscape)_and_(max-height:560px)]:gap-1.5 [@media(orientation:landscape)_and_(max-height:560px)]:px-2 [@media(orientation:landscape)_and_(max-height:560px)]:py-1.5 [@media(orientation:landscape)_and_(max-height:560px)]:sm:gap-2 [@media(orientation:landscape)_and_(max-height:560px)]:sm:px-2 [@media(orientation:landscape)_and_(max-height:560px)]:sm:py-2 [@media(orientation:landscape)_and_(max-height:560px)]:[&>div:first-child]:hidden {viewOnlyOnDesktop
 			? 'hidden md:flex'
-			: ''}"
+			: ''} {cabecalho.recolhido ? 'md:!hidden' : ''}"
 		style="background: hsl(var(--card) / 0.75); backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(14px) saturate(1.3);"
 	>
-		<div
-			class="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border pb-2"
-			role="group"
-			aria-label="Legenda de status das disciplinas no fluxograma"
-		>
-			{#each statusLegendItems as item}
-				<span
-					class="inline-flex items-center gap-1.5 text-xs leading-tight font-medium text-foreground/95"
-				>
-					<span class="h-3 w-3 shrink-0 rounded-md {item.color}" aria-hidden="true"></span>
-					{item.label}
-				</span>
-			{/each}
-		</div>
+		<FluxogramaLegendaStatus class="border-b border-border pb-2" />
 
 		<div class="flex min-w-0 flex-wrap items-center gap-2 sm:gap-2.5">
 		{#if !store.state.isAnonymous}

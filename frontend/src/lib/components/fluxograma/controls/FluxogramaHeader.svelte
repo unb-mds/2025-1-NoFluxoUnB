@@ -1,10 +1,22 @@
 <script lang="ts">
-	import { ArrowLeft, Camera, RefreshCw, Home, LayoutGrid, Info } from 'lucide-svelte';
+	import {
+		ArrowLeft,
+		Camera,
+		RefreshCw,
+		Home,
+		LayoutGrid,
+		Info,
+		ChevronsUp,
+		ChevronsDown,
+		GraduationCap
+	} from 'lucide-svelte';
+	import FluxogramaLegendaStatus from '$lib/components/fluxograma/controls/FluxogramaLegendaStatus.svelte';
 	import FluxogramViewMenu from '$lib/components/fluxograma/controls/FluxogramViewMenu.svelte';
 	import ScreenshotChoiceModal from '$lib/components/fluxograma/modal/ScreenshotChoiceModal.svelte';
 	import { goto } from '$app/navigation';
 	import { ROUTES } from '$lib/config/routes';
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
+	import { fluxogramaCabecalhoStore as cabecalho } from '$lib/stores/fluxograma-cabecalho.store.svelte';
 	import { fluxogramaService } from '$lib/services/fluxograma.service';
 	import { authStore } from '$lib/stores/auth';
 	import { toast } from 'svelte-sonner';
@@ -101,7 +113,9 @@
 	Desktop (md+): uma única faixa — título à esquerda, matriz + reenviar + câmera alinhados à direita na mesma linha.
 -->
 <header
-	class="fluxo-header min-w-0 overflow-visible rounded-2xl border border-border p-3 px-4"
+	class="fluxo-header min-w-0 overflow-visible rounded-2xl border border-border p-3 px-4 {cabecalho.recolhido
+		? 'md:px-3 md:py-1.5'
+		: ''}"
 	style="background: hsl(var(--card) / 0.85); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); border-color: hsl(var(--border) / 0.9);"
 >
 	<div
@@ -116,9 +130,21 @@
 				>
 					<ArrowLeft class="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
 				</button>
-				<div class="min-w-0 flex-1 overflow-hidden">
-					<h1 class="truncate text-base font-black leading-tight text-foreground sm:text-lg md:text-xl lg:text-2xl">{courseName}</h1>
-					<div class="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+				<div
+					class="min-w-0 flex-1 overflow-hidden {cabecalho.recolhido
+						? 'md:flex md:flex-wrap md:items-center md:gap-x-3 md:gap-y-1'
+						: ''}"
+				>
+					<h1
+						class="truncate text-base font-black leading-tight text-foreground sm:text-lg md:text-xl {cabecalho.recolhido
+							? 'lg:text-xl'
+							: 'lg:text-2xl'}"
+					>
+						{courseName}
+					</h1>
+					<div
+						class="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 {cabecalho.recolhido ? 'md:mt-0' : ''}"
+					>
 						{#if tipoCurso?.trim()}
 							<span
 								class="inline-flex shrink-0 items-center rounded-md border border-border bg-muted/60 px-2 py-0.5 text-xs font-medium text-foreground/90 backdrop-blur-sm"
@@ -147,6 +173,10 @@
 							<p class="min-w-0 truncate text-xs text-muted-foreground sm:text-sm">{matrizCurricular}</p>
 						{/if}
 					</div>
+					{#if cabecalho.recolhido}
+						<!-- Recolhido, a barra da legenda some: a legenda vem compacta para cá -->
+						<FluxogramaLegendaStatus compacta class="hidden md:flex" />
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -156,7 +186,7 @@
 			md+: flex em linha (md:contents repassa filhos ao flex pai).
 		-->
 		<div
-			class="flex w-full min-w-0 shrink-0 flex-col gap-2 md:flex-row md:flex-wrap md:items-center md:justify-end md:gap-2"
+			class="flex w-full min-w-0 shrink-0 flex-col gap-2 md:w-auto md:flex-row md:flex-wrap md:items-center md:justify-end md:gap-2"
 		>
 			{#if matrizes.length > 1 && onMatrizChange}
 				<div
@@ -211,7 +241,7 @@
 			{#if !store.state.isAnonymous && !showConfirmDelete}
 				<div class="flex w-full min-w-0 flex-row items-center gap-2 md:contents">
 					<!-- Legenda e Créditos/Horas: no desktop ficam na barra Assistente/Optativas -->
-					<div class="flex items-center gap-2 md:hidden">
+					<div class="flex items-center gap-2 {cabecalho.recolhido ? '' : 'md:hidden'}">
 						{#if onOpenFluxogramHelp}
 							<button
 								type="button"
@@ -227,6 +257,17 @@
 							<FluxogramViewMenu />
 						{/if}
 					</div>
+					{#if cabecalho.recolhido}
+						<!-- Recolhido, a legenda some: o atalho principal dela vem para cá -->
+						<a
+							href={ROUTES.PLANO_FORMATURA}
+							title="Monte sua previsão de formatura semestre a semestre"
+							class="nf-cta-glow hidden h-10 shrink-0 items-center gap-1.5 rounded-full border border-primary/60 bg-primary px-4 text-sm font-semibold text-primary-foreground transition-[filter] hover:brightness-110 md:inline-flex"
+						>
+							<GraduationCap class="h-4 w-4 shrink-0" />
+							Planejar formatura
+						</a>
+					{/if}
 					<button
 						onclick={() => (showConfirmDelete = true)}
 						class="inline-flex min-h-9 min-w-0 flex-1 items-center justify-center gap-1 rounded-md border border-border bg-muted/60 px-2 py-1.5 text-[10px] font-medium text-muted-foreground backdrop-blur-md transition-all duration-150 hover:border-foreground/20 hover:bg-foreground/10 hover:text-foreground md:h-10 md:w-auto md:flex-none md:rounded-full md:px-4 md:py-2 md:text-sm"
@@ -247,7 +288,7 @@
 				</div>
 			{:else}
 				<div class="flex w-full justify-end gap-2 md:contents">
-					<div class="flex items-center gap-2 md:hidden">
+					<div class="flex items-center gap-2 {cabecalho.recolhido ? '' : 'md:hidden'}">
 						{#if onOpenFluxogramHelp}
 							<button
 								type="button"
@@ -274,6 +315,21 @@
 					</button>
 				</div>
 			{/if}
+			<!-- Desktop: recolhe o cabeçalho e a legenda para o diagrama ganhar altura -->
+			<button
+				type="button"
+				onclick={() => cabecalho.alternar()}
+				class="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-muted/60 text-foreground/80 backdrop-blur-md transition-all duration-150 hover:border-primary/35 hover:bg-primary/15 hover:text-foreground md:inline-flex"
+				aria-label={cabecalho.recolhido ? 'Expandir cabeçalho e legenda' : 'Recolher cabeçalho e legenda'}
+				aria-pressed={cabecalho.recolhido}
+				title={cabecalho.recolhido ? 'Expandir cabeçalho' : 'Recolher cabeçalho'}
+			>
+				{#if cabecalho.recolhido}
+					<ChevronsDown class="h-5 w-5" />
+				{:else}
+					<ChevronsUp class="h-5 w-5" />
+				{/if}
+			</button>
 		</div>
 	</div>
 

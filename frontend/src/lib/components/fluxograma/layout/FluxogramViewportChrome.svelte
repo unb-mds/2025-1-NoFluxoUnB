@@ -1,4 +1,5 @@
 <script lang="ts">
+	import FluxogramaLegendaStatus from '$lib/components/fluxograma/controls/FluxogramaLegendaStatus.svelte';
 	import {
 		ZoomIn,
 		ZoomOut,
@@ -225,47 +226,54 @@
 	data-fluxogram-viewport-chrome
 >
 	<!-- HUD no modo tela cheia -->
-	{#if focusMode && courseData && userFluxograma}
+	<!-- Progresso (logado) e, abaixo, a legenda de status: o cabeçalho e a barra
+	     da legenda não aparecem na tela cheia -->
+	{#if focusMode}
 		<div
-			class="pointer-events-none absolute top-[max(0.75rem,env(safe-area-inset-top,0px))] right-0 left-0 z-[40] flex justify-center {compactTouch
-				? 'px-16'
-				: ''}"
+			class="pointer-events-none absolute top-[max(0.75rem,env(safe-area-inset-top,0px))] right-0 left-0 z-[40] flex flex-col items-center gap-1.5 px-16"
 		>
+			{#if courseData && userFluxograma}
+				<div
+					class="pointer-events-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 rounded-full border border-border bg-background/80 px-4 py-2 text-xs backdrop-blur-md dark:bg-black/50 sm:text-sm"
+				>
+					<div class="flex items-center gap-1.5 text-foreground">
+						{#if integralizacaoLoading}
+							<Loader2 class="h-4 w-4 shrink-0 animate-spin text-emerald-600 dark:text-green-400" />
+							<span class="font-medium"
+								>— <span class="hidden text-muted-foreground sm:inline">concluído</span></span
+							>
+						{:else}
+							<GraduationCap class="h-4 w-4 text-emerald-600 dark:text-green-400" />
+							<span class="font-medium"
+								>{progressPct}% <span class="hidden text-muted-foreground sm:inline">concluído</span></span
+							>
+						{/if}
+					</div>
+					<div class="h-3 w-px bg-foreground/20"></div>
+					<div class="flex items-center gap-1.5 text-foreground">
+						<Calendar class="h-4 w-4 text-amber-700 dark:text-amber-400" />
+						<span class="font-medium"
+							>{userFluxograma.semestreAtual}º
+							<span class="hidden text-muted-foreground sm:inline">sem.</span></span
+						>
+					</div>
+					<div class="h-3 w-px bg-foreground/20"></div>
+					<div class="flex items-center gap-1.5 text-foreground">
+						<TrendingUp class="h-4 w-4 text-primary dark:text-purple-400" />
+						{#if formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}
+							<span class="font-medium"
+								>IRA: {formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}</span
+							>
+						{:else}
+							<span class="font-medium text-muted-foreground">{IRA_NAO_ENCONTRADO}</span>
+						{/if}
+					</div>
+				</div>
+			{/if}
 			<div
-				class="pointer-events-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 rounded-full border border-border bg-background/80 px-4 py-2 text-xs backdrop-blur-md dark:bg-black/50 sm:text-sm"
+				class="pointer-events-auto max-w-full rounded-2xl border border-border bg-background/80 px-3 py-1.5 backdrop-blur-md dark:bg-black/50"
 			>
-				<div class="flex items-center gap-1.5 text-foreground">
-					{#if integralizacaoLoading}
-						<Loader2 class="h-4 w-4 shrink-0 animate-spin text-emerald-600 dark:text-green-400" />
-						<span class="font-medium"
-							>— <span class="hidden text-muted-foreground sm:inline">concluído</span></span
-						>
-					{:else}
-						<GraduationCap class="h-4 w-4 text-emerald-600 dark:text-green-400" />
-						<span class="font-medium"
-							>{progressPct}% <span class="hidden text-muted-foreground sm:inline">concluído</span></span
-						>
-					{/if}
-				</div>
-				<div class="h-3 w-px bg-foreground/20"></div>
-				<div class="flex items-center gap-1.5 text-foreground">
-					<Calendar class="h-4 w-4 text-amber-700 dark:text-amber-400" />
-					<span class="font-medium"
-						>{userFluxograma.semestreAtual}º
-						<span class="hidden text-muted-foreground sm:inline">sem.</span></span
-					>
-				</div>
-				<div class="h-3 w-px bg-foreground/20"></div>
-				<div class="flex items-center gap-1.5 text-foreground">
-					<TrendingUp class="h-4 w-4 text-primary dark:text-purple-400" />
-					{#if formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}
-						<span class="font-medium"
-							>IRA: {formatarIraParaExibicao(userFluxograma.ira, userFluxograma.iraTexto)}</span
-						>
-					{:else}
-						<span class="font-medium text-muted-foreground">{IRA_NAO_ENCONTRADO}</span>
-					{/if}
-				</div>
+				<FluxogramaLegendaStatus compacta class="justify-center" />
 			</div>
 		</div>
 	{/if}
