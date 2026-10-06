@@ -22,6 +22,8 @@ import { MateriasController } from './controllers/materias_controller';
 import { AssistenteController } from './controllers/assistente_controller';
 import { PlanejamentoController } from './controllers/PlanejamentoController';
 import { ChatController } from './controllers/chat_controller';
+import { createReadyHandler, supabaseProbe } from './utils/readiness';
+import { createShutdown } from './utils/shutdown';
 
 // Log loaded environment variables (for debugging)
 logger.info('Environment variables loaded:');
@@ -32,14 +34,8 @@ logger.info(`  SUPABASE_KEY: ${!!process.env.SUPABASE_KEY}`);
 SupabaseWrapper.init();
 logger.info('Supabase client initialized');
 
-// Handle CTRL+C
-process.on('SIGINT', () => {
-    process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-    process.exit(0);
-});
+// Marcado no início do shutdown: /ready passa a responder 503 enquanto drena.
+let shuttingDown = false;
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
@@ -76,10 +72,14 @@ router.get('/', (_req: Request, res: Response) => {
     });
 });
 
-// Health check endpoint for Kubernetes probes
+// Liveness: só confirma que o processo responde (não toca no banco, para uma
+// instabilidade do Supabase não virar restart em loop dos pods).
 router.get('/health', (_req: Request, res: Response) => {
     res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
+
+// Readiness: 503 se o Supabase não responder em 2 s ou durante o shutdown.
+router.get('/ready', createReadyHandler({ probe: supabaseProbe, isShuttingDown: () => shuttingDown }));
 
 controllers.forEach(controller => {
     Object.keys(controller.routes).forEach(route_name => {
@@ -172,6 +172,16 @@ applyBodyParsers(app);
 app.use(router);
 
 const port = process.env.PORT ?? 3000;
-app.listen(port, () => {
+const server = app.listen(port, () => {
     logger.info(`Server running on port ${port}`);
 });
+
+// SIGTERM (rollout do k8s) e CTRL+C: para de aceitar conexões e espera as
+// requisições em andamento terminarem antes de sair (ver utils/shutdown.ts).
+const shutdown = createShutdown(server, {
+    exit: (code) => process.exit(code),
+    log: (message) => logger.warn(message),
+    onStart: () => { shuttingDown = true; },
+});
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));

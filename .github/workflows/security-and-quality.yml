@@ -51,6 +51,21 @@ jobs:
       # para o bundle final. As deps de produção devem ficar sem vulns.
       run: npm audit --audit-level=moderate --omit=dev
 
+    # Frontend (pré-mortem 27/09/2026, R56): antes nenhum workflow auditava
+    # frontend/. O npm audit lê só o package-lock.json, dispensa npm ci.
+    # --audit-level=high: o frontend é SPA estática (nginx), boa parte das
+    # advisories de vite/rollup/postcss só afeta o build/dev-server.
+    - name: Run npm audit (frontend)
+      working-directory: frontend
+      # TODO(R56): em 28/09/2026 o audit acusa 8 vulns high (@sveltejs/kit,
+      # devalue, cookie, nanoid, picomatch, postcss, rollup, vite, ws), todas
+      # com fix via `npm audit fix`, mas ele sobe kit/svelte/vite e precisa de
+      # vitest + build + teste manual. Depois desse upgrade (e de decidir entre
+      # package-lock e pnpm-lock, que o Dockerfile usa), remover esta linha
+      # para o step voltar a bloquear.
+      continue-on-error: true
+      run: npm audit --audit-level=high --omit=dev
+
     # ── Relatórios informativos: só no agendamento semanal ──────────────────
     - name: Setup Python
       if: github.event_name == 'schedule'

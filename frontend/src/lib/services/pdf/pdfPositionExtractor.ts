@@ -173,24 +173,30 @@ const RE_VALID_STATUS = /^(APR|REP|REPF|REPMF|CANC|DISP|TRANC|MATR|CUMP)$/;
 const RE_PERIOD = /^(\d{4}\.?\d?|--)$/;
 const RE_CODE = /^[A-Z]{2,}\d{3,}$/;
 const RE_PROFESSOR_START = /(?:^|\b)(?:Dr\.|Dra\.|MSc\.|Prof\.)\s/i;
-const RE_PROFESSOR_HOURS = /\(\d+h\)/;
+// Nome de disciplina do SIGAA nunca tem "(NNh)": qualquer linha com isso é sobra
+// da lista de professores da linha de cima, não importa o tamanho (pré-mortem R36).
+const RE_PROFESSOR_HOURS = /\(\d+\s*h\)/;
 
+// Rótulos que também abrem nome de disciplina ("TRABALHO DE CONCLUSÃO DE CURSO 1",
+// "ATENÇÃO PRIMÁRIA À SAÚDE", "CURRÍCULO", "CAMPUS MULTIMÍDIA"...) são testados SEM
+// o flag /i: no SIGAA o rótulo vem em Title Case e o nome da disciplina em CAIXA
+// ALTA. Com /i, 39 disciplinas do catálogo sumiam do histórico (pré-mortem R4).
 const RE_METADATA_PATTERNS = [
-  /^SIGAA\b/i, /^UnB\b/i, /^DEG\b/i, /^SAA\b/i, /^Campus\b/i,
+  /^SIGAA\b/i, /^UnB\b/i, /^DEG\b/i, /^SAA\b/i, /^Campus\b/,
   /^Credenciada\b/i, /^na seção/i, /^Histórico Escolar/i, /^Dados/i,
   /^Nome:/i, /^Data de/i, /^Nacionalidade/i, /^Nº do/i, /^Curso:/i,
-  /^Status:/i, /^Índices/i, /^Ênfase/i, /^IRA:/i, /^Currículo/i, /^MP:/i,
+  /^Status:/i, /^Índices/i, /^Ênfase/i, /^IRA:/i, /^Currículo/, /^MP:/i,
   /^Reconhecimento/i, /^Ano\s*\/?\s*Período/i, /^Forma de/i,
   /^Período Letivo/i, /^Suspens[õo]es/i, /^Prorrogações/i,
-  /^Tipo Saída/i, /^Data da/i, /^Trabalho de/i, /^Para verificar/i,
+  /^Tipo Saída/i, /^Data da/i, /^Trabalho de/, /^Para verificar/i,
   /^Página/i, /^e o código/i, /^Componentes Curriculares/i,
-  /^Código\s+Componente/i, /^Observações/i, /^Atenção/i, /^Menções/i,
+  /^Código\s+Componente/i, /^Observações/i, /^Atenção/, /^Menções/i,
   /^Equivalências/i, /^Matrícula/i, /^Perfil/i, /^Prazo/i,
   /^Legenda/i, /^SIGLA/i, /^Carga Horária/i, /^Obrigatórias/i, /^Optativos/i,
   /^Complementares/i, /^Total/i, /^Exigido/i, /^Integralizado/i,
-  /^Pendente/i, /^Nenhum/i, /^Descrição/i, /^INGRESSANTE/i,
+  /^Pendente/i, /^Nenhum/i, /^Descrição/, /^INGRESSANTE/i,
   /^Letivo\s+Componente/i, /^\d+\s*períodos?\s*letivos?/i,
-  /^Sistema Integrado/i, /^Universidade/i, /^Decanato/i, /^Secretaria/i,
+  /^Sistema Integrado/i, /^Universidade/, /^Decanato/i, /^Secretaria/i,
   /^Centro de Vivência/i, /^Asa Norte/i, /^CEP\b/i, /^Leonardo\b/i,
   /^Portaria/i, /^ENEM/i,
 ];
@@ -233,6 +239,9 @@ function classifyRow(
       } else {
         // Might be a period continuation or something else
         if (/^\.\d$/.test(t)) {
+          period = period + t;
+        } else if (/^\d$/.test(t) && /^\d{4}\.$/.test(period)) {
+          // "2020." + "2" em itens separados
           period = period + t;
         }
       }
@@ -286,11 +295,9 @@ function classifyRow(
   else if (content === 'Letivo' || /^Ano\/?Período$/i.test(content)) {
     rowType = 'header';
   }
-  // Check if metadata
-  else if (isMetadataText(content) || isMetadataText(period + ' ' + content)) {
-    rowType = 'metadata';
-  }
-  // Check for discipline data row (has period + code + data columns)
+  // Check for discipline data row (has period + code + data columns).
+  // Vem ANTES do teste de metadata: uma linha com período/código e situação
+  // válida é disciplina mesmo que o nome comece com palavra de rótulo.
   else if ((period || code) && RE_VALID_STATUS.test(situacao)) {
     rowType = 'data';
   }
@@ -298,10 +305,14 @@ function classifyRow(
     // Might be data with merged situacao into nota
     rowType = 'data';
   }
+  // Check if metadata
+  else if (isMetadataText(content) || isMetadataText(period + ' ' + content)) {
+    rowType = 'metadata';
+  }
   // Name-only row: only content column items, no data columns
   else if (content && !period && !code && !ch && !turma && !situacao) {
     // Is this a continuation (professor leftover like "(30h)") or a discipline name?
-    if (RE_PROFESSOR_HOURS.test(content) && content.length < 20) {
+    if (RE_PROFESSOR_HOURS.test(content)) {
       rowType = 'continuation';
     } else if (RE_PROFESSOR_START.test(content)) {
       rowType = 'continuation';
@@ -442,9 +453,10 @@ export function extractDisciplinasFromPositions(
     // Extract period
     let anoPeriodo = row.period === '--' ? '' : row.period;
     if (anoPeriodo && !/^\d{4}\.\d$/.test(anoPeriodo)) {
-      // Try to fix partial period like "2022" → might be missing ".X"
+      // Período truncado ("2022."): desconhecido. Antes virava "2022.0", um
+      // período que não existe no SIGAA (pré-mortem R37).
       if (/^\d{4}\.$/.test(anoPeriodo)) {
-        anoPeriodo = anoPeriodo + '0';
+        anoPeriodo = '';
       }
     }
 

@@ -28,6 +28,7 @@ import {
 	calcularNumeroSemestre,
 	extrairDadosAcademicos,
 	extrairPeriodoLetivoAtual,
+	extrairDisciplinasPendentes,
 	type DisciplinaExtraida,
 	type EquivalenciaExtraida,
 	type DadosAcademicos
@@ -170,71 +171,20 @@ function extrairEquivalencias(text: string): EquivalenciaExtraida[] {
 	return equivalencias;
 }
 
-function extrairDisciplinasPendentes(text: string): DisciplinaExtraida[] {
-	const disciplinas: DisciplinaExtraida[] = [];
+const MSG_NAO_E_HISTORICO =
+	'Este PDF não parece ser um histórico escolar do SIGAA/UnB. ' +
+	'Baixe o histórico em SIGAA > Ensino > Emitir Histórico e envie o arquivo gerado.';
 
-	const pendMatch = text.match(
-		/Componentes Curriculares Obrigat[óo]rios Pendentes:\s*(\d+)/i
-	);
-	if (!pendMatch) return disciplinas;
-
-	const pendIdx = text.indexOf(pendMatch[0]);
-	const pendSection = text.substring(pendIdx);
-	const linhas = pendSection.split('\n');
-
-	const reHeader = /^C[óo]digo\s+Componente/i;
-	let started = false;
-
-	for (const linha of linhas) {
-		if (reHeader.test(linha.trim())) {
-			started = true;
-			continue;
-		}
-		if (!started) continue;
-
-		if (
-			/^(Observações|Equivalências|Para verificar|Atenção|SIGAA|Componentes Curriculares Optativos)/i.test(
-				linha.trim()
-			)
-		) {
-			break;
-		}
-
-		const m = linha.match(
-			/^\s*([A-Z]{2,}\d{3,}|ENADE|-)\s+(.+?)\s+(?:(Matriculado(?:\s+em\s+Equivalente)?)\s+)?(\d+)\s*h/i
-		);
-		if (m) {
-			const [, codigo, nome, matriculado, chStr] = m;
-			if (codigo === '-') continue;
-			if (/^(?:Dr\.|Dra\.|MSc\.|Prof\.)\s/i.test(nome.trim())) continue;
-			if (/\(\d+h\)/i.test(nome)) continue;
-
-			const cleanNome = nome
-				.replace(/^[^a-zA-ZÀ-ÿ0-9]+/, '')
-				.replace(/[^a-zA-ZÀ-ÿ0-9]+$/, '')
-				.replace(/\s{2,}/g, ' ')
-				.trim();
-
-			disciplinas.push({
-				tipo_dado: 'Disciplina Pendente',
-				nome: cleanNome,
-				status: matriculado ? 'MATR' : 'PENDENTE',
-				mencao: '-',
-				creditos: Math.floor(parseInt(chStr) / 15),
-				codigo: codigo === 'ENADE' ? 'ENADE' : codigo,
-				carga_horaria: parseInt(chStr),
-				ano_periodo: '',
-				prefixo: '',
-				professor: '',
-				turma: '',
-				frequencia: null,
-				nota: null,
-				...(matriculado ? { observacao: matriculado } : {}),
-			});
-		}
-	}
-
-	return disciplinas;
+/**
+ * Assinatura mínima do histórico do SIGAA. Qualquer outro PDF com texto
+ * (declaração de matrícula, comprovante, ementa) era "processado com sucesso"
+ * com 0 disciplinas e uma matriz inventada (pré-mortem R12). A regra é OR entre
+ * marcadores, com espaços opcionais porque o pdf.js às vezes cola as palavras
+ * ("ComponentesCurriculares").
+ */
+function pareceHistoricoSigaa(texto: string): boolean {
+	if (/Hist[óo]rico\s*Escolar/i.test(texto)) return true;
+	return /Curr[ií]culo\s*:/i.test(texto) && /Componentes\s*Curriculares/i.test(texto);
 }
 
 /**
@@ -262,6 +212,11 @@ export async function parsePdf(file: File): Promise<ParsedPdfResult> {
 			'Nenhuma informação textual pôde ser extraída do PDF. ' +
 				'O PDF pode ser uma imagem de baixa qualidade, estar vazio ou corrompido.'
 		);
+	}
+
+	if (!pareceHistoricoSigaa(textoTotal)) {
+		console.error(`${LOG_PREFIX} Text does not look like a SIGAA histórico — aborting`);
+		throw new Error(MSG_NAO_E_HISTORICO);
 	}
 
 	console.log(`${LOG_PREFIX} Text extraction done — ${textoTotal.length} chars, ${positionedPages.length} pages of positioned items (${(performance.now() - startTime).toFixed(0)}ms elapsed)`);
@@ -343,8 +298,27 @@ export async function parsePdf(file: File): Promise<ParsedPdfResult> {
 
 	// 5. Pending disciplines (regex on flat text — these are in a separate section)
 	console.time(`${LOG_PREFIX} pendingDisciplines`);
+	// Usa o extrator do pdfDataExtractor, que tolera o cabeçalho colado
+	// ("ComponentesCurriculares ObrigatóriosPendentes:29"), "MatriculadoemEquivalente"
+	// e o formato detalhado (código na linha da EMENTA). A cópia simplificada que
+	// ficava aqui devolvia 0 pendentes nesses layouts (pré-mortem R40).
 	const pendentes = extrairDisciplinasPendentes(textoTotal);
+	const pendentesDeclarados = textoTotal.match(
+		/Componentes\s*Curriculares\s*Obrigat[óo]rios\s*Pendentes:\s*(\d+)/i
+	);
+	if (pendentesDeclarados && Number(pendentesDeclarados[1]) !== pendentes.length) {
+		console.warn(
+			`${LOG_PREFIX} Pending disciplines: PDF declares ${pendentesDeclarados[1]}, extracted ${pendentes.length}`
+		);
+	}
 	console.timeEnd(`${LOG_PREFIX} pendingDisciplines`);
+
+	// Histórico sem nenhuma disciplina cursada nem pendente não é um histórico
+	// que o fluxograma consiga usar: antes seguia com "sucesso" e 0 disciplinas.
+	if (disciplinas.length === 0 && pendentes.length === 0) {
+		console.error(`${LOG_PREFIX} No disciplines (regular or pending) found — aborting`);
+		throw new Error(MSG_NAO_E_HISTORICO);
+	}
 
 	// 6. Equivalências (regex)
 	console.time(`${LOG_PREFIX} equivalencias`);
@@ -357,13 +331,13 @@ export async function parsePdf(file: File): Promise<ParsedPdfResult> {
 	// 7. Build the full disciplinas array with metadata entries
 	const allDisciplinas: DisciplinaExtraida[] = [...disciplinas, ...pendentes];
 
-	// Add status count entry
+	// Add status count entry. Conta sobre as disciplinas regulares já
+	// consolidadas: contar as siglas no texto inteiro somava a legenda do rodapé
+	// (+1 em cada sigla) e cada "Matriculado" da seção de pendentes (pré-mortem R41).
 	const countMap: Record<string, number> = {};
-	const rePendencias = /\b(APR|CANC|DISP|MATR|REP|REPF|REPMF|TRANC|CUMP)\b/gi;
-	let statMatch: RegExpExecArray | null;
-	while ((statMatch = rePendencias.exec(textoTotal)) !== null) {
-		const key = statMatch[1].toUpperCase();
-		countMap[key] = (countMap[key] || 0) + 1;
+	for (const d of disciplinas) {
+		const key = String(d.status ?? '').trim().toUpperCase();
+		if (key) countMap[key] = (countMap[key] || 0) + 1;
 	}
 	if (Object.keys(countMap).length > 0) {
 		allDisciplinas.push({

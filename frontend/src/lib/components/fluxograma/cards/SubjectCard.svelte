@@ -16,6 +16,8 @@
 		getSubjectChain
 	} from '$lib/utils/curriculum-graph';
 	import MateriaNaturezaBadge from '$lib/components/materia/MateriaNaturezaBadge.svelte';
+	import { Check, Circle, CircleDashed, Clock, Lock, X } from 'lucide-svelte';
+	import { subjectCardAriaLabel } from './subject-card-colors';
 
 	interface Props {
 		materia: MateriaModel;
@@ -186,6 +188,19 @@
 	});
 
 	/**
+	 * Status não pode depender só da cor (aprovado vs. disponível dá 1.18:1 de
+	 * luminância): ícone ao lado do código + status no nome acessível.
+	 */
+	const statusIcon: Record<SubjectStatusValue, typeof Check> = {
+		[SubjectStatusEnum.COMPLETED]: Check,
+		[SubjectStatusEnum.IN_PROGRESS]: Clock,
+		[SubjectStatusEnum.AVAILABLE]: Circle,
+		[SubjectStatusEnum.FAILED]: X,
+		[SubjectStatusEnum.LOCKED]: Lock,
+		[SubjectStatusEnum.NOT_STARTED]: CircleDashed
+	};
+
+	/**
 	 * Superfície por status. Light (padrão): fundo pastel + faixa esquerda de 4px
 	 * + texto escuro na cor do status (≥ 4,5:1). Dark: os preenchimentos sólidos
 	 * históricos, sem faixa (border-l volta a 1px e herda a cor da borda).
@@ -204,6 +219,26 @@
 		[SubjectStatusEnum.NOT_STARTED]:
 			'bg-muted text-muted-foreground border-l-border-strong dark:bg-[#161625] dark:text-foreground/80'
 	};
+	let StatusIcon = $derived(statusIcon[status]);
+
+	let showPrereqBadge = $derived(!store.state.isAnonymous && (hasPrereqs || dependentCount > 0));
+
+	let ariaLabel = $derived.by(() => {
+		const etiquetas: string[] = [];
+		if (naturezaBadge === 'modulo_livre') etiquetas.push('módulo livre');
+		else if (naturezaBadge === 'optatoria') etiquetas.push('optatória');
+		else if (naturezaBadge === 'optativa') etiquetas.push('optativa');
+		if (concluidaPorEquivalencia) etiquetas.push('concluída por equivalência');
+		else if (concluidaPorAproveitamento) etiquetas.push('aproveitamento de estudos');
+		return subjectCardAriaLabel({
+			codigo: materia.codigoMateria,
+			nome: materia.nomeMateria,
+			creditos: materia.creditos,
+			status,
+			prereqsCompleted: showPrereqBadge && hasPrereqs ? prereqsCompleted : undefined,
+			etiquetas
+		});
+	});
 
 	let cardClasses = $derived.by(() => {
 		const surface = surfaceMap[status];
@@ -378,12 +413,13 @@
 	ontouchend={handleTouchEnd}
 	ontouchcancel={handleTouchCancel}
 	tabindex="0"
-	aria-label={`${materia.codigoMateria} ${materia.nomeMateria}, ${materia.creditos} créditos, ${getStatusLabel(status)}`}
+	aria-label={ariaLabel}
 >
 	<!-- WCAG 1.4.1: o status não pode depender só da cor — texto para leitores de tela. -->
 	<span class="sr-only">Status: {getStatusLabel(status)}</span>
 	<div class="mb-1 flex shrink-0 items-center justify-between gap-1">
-		<span class="text-[length:clamp(11px,5.8cqw,13.5px)] font-semibold uppercase tracking-wider opacity-100">
+		<span class="flex min-w-0 items-center gap-1 text-[length:clamp(11px,5.8cqw,13.5px)] font-semibold uppercase tracking-wider opacity-100">
+			<StatusIcon class="h-3 w-3 shrink-0" strokeWidth={2.75} aria-hidden="true" />
 			{materia.codigoMateria}
 		</span>
 		<div class="flex items-center gap-1">
@@ -430,7 +466,7 @@
 	{/if}
 
 	<!-- Prerequisite indicator badge -->
-	{#if !store.state.isAnonymous && (hasPrereqs || dependentCount > 0)}
+	{#if showPrereqBadge}
 		<div class="absolute left-0 -bottom-1.5 flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[length:clamp(9px,5cqw,11px)] font-bold {prereqsCompleted ? 'bg-emerald-700 text-emerald-50 dark:bg-green-500/72 dark:text-foreground/95' : 'bg-amber-700 text-amber-50 dark:bg-amber-500/72 dark:text-foreground/95'}">
 			{#if hasPrereqs}
 				<span>{prereqsCompleted ? '✓' : '!'}</span>

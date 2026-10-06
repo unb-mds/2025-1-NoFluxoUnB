@@ -13,9 +13,20 @@ export interface CargaHorariaIntegralizada {
 	total: number;
 }
 
-function pct(exigido: number, realizado: number): number {
+/**
+ * Percentual cumprido. Só chega a 100 quando realizado >= exigido: arredondar
+ * para cima mostrava 100% com horas ainda faltando (ex.: 3840 de 3855 h).
+ * Manter igual a `pct` em frontend/src/lib/services/integralizacao.service.ts.
+ */
+export function pct(exigido: number, realizado: number): number {
 	if (exigido <= 0) return 0;
-	return Math.min(100, Math.round((realizado / exigido) * 100));
+	if (realizado >= exigido) return 100;
+	return Math.max(0, Math.min(99, Math.floor((realizado / exigido) * 100)));
+}
+
+/** CH vinda do body/banco pode chegar como string ou negativa: normaliza para número >= 0. */
+function ch(valor: unknown): number {
+	return Math.max(0, Number(valor) || 0);
 }
 
 export interface IntegralizacaoResult {
@@ -62,16 +73,16 @@ export async function calcularIntegralizacao(
 
 	if (!matriz) return null;
 
-	const exObr = matriz.ch_obrigatoria_exigida ?? 0;
-	const exOpt = matriz.ch_optativa_exigida ?? 0;
-	const exCompl = matriz.ch_complementar_exigida ?? 0;
-	const exTotal = matriz.ch_total_exigida ?? 0;
+	const exObr = ch(matriz.ch_obrigatoria_exigida);
+	const exOpt = ch(matriz.ch_optativa_exigida);
+	const exCompl = ch(matriz.ch_complementar_exigida);
+	const exTotal = ch(matriz.ch_total_exigida);
 
-	const reObr = cargaHorariaIntegralizada.obrigatoria ?? 0;
-	const reOpt = cargaHorariaIntegralizada.optativa ?? 0;
-	const reCompl = cargaHorariaIntegralizada.complementar ?? 0;
-	const reTotal = cargaHorariaIntegralizada.total > 0
-		? cargaHorariaIntegralizada.total
+	const reObr = ch(cargaHorariaIntegralizada.obrigatoria);
+	const reOpt = ch(cargaHorariaIntegralizada.optativa);
+	const reCompl = ch(cargaHorariaIntegralizada.complementar);
+	const reTotal = ch(cargaHorariaIntegralizada.total) > 0
+		? ch(cargaHorariaIntegralizada.total)
 		: reObr + reOpt + reCompl;
 
 	return {

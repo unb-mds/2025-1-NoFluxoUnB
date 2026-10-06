@@ -17,8 +17,12 @@
 	import MateriasConcluidasModal from '$lib/components/fluxograma/modal/MateriasConcluidasModal.svelte';
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
 	import { matchesFluxogramCompactTouchMode } from '$lib/utils/fluxogram-viewport';
+	import { scheduleCenterFluxogramaViewport as scheduleCenterFluxogramaViewportShared } from '$lib/utils/fluxogram-initial-focus';
 	import { authStore } from '$lib/stores/auth';
 	import { getIntegralizacao } from '$lib/services/integralizacao.service';
+	import { iniciarCarregamento } from '$lib/utils/carregamento-cancelavel';
+	import { escolherCargaFluxograma } from '$lib/utils/fluxograma-carga';
+	import { ROUTES } from '$lib/config/routes';
 	import { supabaseDataService } from '$lib/services/supabase-data.service';
 	import { onMount, tick } from 'svelte';
 	import { Loader2, AlertTriangle, ArrowRightLeft, ListChecks, ChevronDown } from 'lucide-svelte';
@@ -195,63 +199,79 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 		const fluxo = userFluxograma;
 		const cc = course?.curriculoCompleto;
 		void store.diagramLayoutRevision;
+		// Fonte única do cálculo (a troca de matriz só recarrega o curso). Cada execução
+		// cancela a anterior: resposta velha não sobrescreve a nova, e erro não prende o spinner.
+		const idCurso = course?.idCurso;
+		const cancelarMatrizes = idCurso
+			? iniciarCarregamento(() => supabaseDataService.getMatrizesByCurso(idCurso), {
+					ok: (m) => {
+						matrizes = m.map((x) => ({ curriculoCompleto: x.curriculoCompleto }));
+					},
+					erro: (e) => console.warn('Erro ao carregar matrizes do curso:', e)
+				})
+			: undefined;
 		if (!cc || !fluxo) {
-			// if (course?.idCurso && !cc) {
-			if (course?.idCurso) {
-				supabaseDataService.getMatrizesByCurso(course.idCurso).then((m) => {
-					matrizes = m.map((x) => ({ curriculoCompleto: x.curriculoCompleto }));
-				});
-			}
 			integralizacao = null;
 			integralizacaoLoading = false;
-			return;
+			return () => cancelarMatrizes?.();
 		}
 		integralizacaoLoading = true;
-		getIntegralizacao({
-			curriculoCompleto: cc,
-			dadosFluxograma: fluxo,
-			cargaHorariaIntegralizada: store.cargaHorariaIntegralizada,
-			equivalencias: course?.equivalencias,
-			recalcularPorDisciplinas: eSimulacaoOutroCurso
-		}).then((r) => {
-			integralizacao = r;
-			integralizacaoLoading = false;
-		});
-		if (course?.idCurso) {
-			supabaseDataService.getMatrizesByCurso(course.idCurso).then((m) => {
-				matrizes = m.map((x) => ({ curriculoCompleto: x.curriculoCompleto }));
-			});
-		}
+		const cancelarIntegralizacao = iniciarCarregamento(
+			() =>
+				getIntegralizacao({
+					curriculoCompleto: cc,
+					dadosFluxograma: fluxo,
+					cargaHorariaIntegralizada: store.cargaHorariaIntegralizada,
+					equivalencias: course?.equivalencias,
+					recalcularPorDisciplinas: eSimulacaoOutroCurso
+				}),
+			{
+				ok: (r) => {
+					integralizacao = r;
+				},
+				erro: (e) => {
+					integralizacao = null;
+					console.error('Erro ao calcular integralização:', e);
+				},
+				fim: () => {
+					integralizacaoLoading = false;
+				}
+			}
+		);
+		return () => {
+			cancelarIntegralizacao();
+			cancelarMatrizes?.();
+		};
 	});
 
-	function normalizarChaveNome(valor: string | null | undefined): string {
-		return (valor ?? '').trim().toLowerCase();
+	/** Já pedimos algum carregamento? Evita mostrar "Curso não encontrado" antes do onMount. */
+	let cargaIniciada = $state(false);
+
+	/**
+	 * Carrega a matriz certa (a do aluno, a do ?matriz= ou a padrão pelo nome).
+	 * Lê $page e o usuário na hora da chamada: o "Tentar novamente" repete a mesma
+	 * escolha do carregamento inicial em vez de cair sempre na matriz padrão.
+	 */
+	function carregar() {
+		const carga = escolherCargaFluxograma(
+			authStore.getUser(),
+			courseName,
+			$page.url.searchParams.get('matriz')
+		);
+		cargaIniciada = true;
+		if (!carga) return;
+		if (carga.tipo === 'curriculo') {
+			store.loadCourseDataByCurriculoCompleto(carga.valor, carga.anonymous);
+		} else {
+			store.loadCourseData(carga.valor, carga.anonymous);
+		}
 	}
 
 	onMount(() => {
 		if (courseName) {
 			store.setConnectionMode(matchesFluxogramCompactTouchMode() ? 'direct' : 'all');
-			const user = authStore.getUser();
-			const anonymous = !user?.dadosFluxograma;
-			const matrizParam = $page.url.searchParams.get('matriz');
-
-		const matrizDoAluno = user?.dadosFluxograma?.matrizCurricular;
-		const mesmoCurso =
-			!!matrizDoAluno &&
-			normalizarChaveNome(user?.dadosFluxograma?.nomeCurso) === normalizarChaveNome(courseName);
-
-		if (mesmoCurso) {
-			// 1) É o curso da própria pessoa e já temos a matriz dela (veio do histórico) — usa direto.
-			store.loadCourseDataByCurriculoCompleto(matrizDoAluno!, anonymous);
-		} else if (matrizParam) {
-			// 2) Veio de um card específico em /fluxogramas — respeita a escolha.
-			store.loadCourseDataByCurriculoCompleto(matrizParam, anonymous);
-		} else {
-			// 3) Sem contexto — carrega uma matriz padrão; a pessoa pode trocar
-			//    pelo seletor "Trocar matriz" que já existe no header.
-			store.loadCourseData(courseName, anonymous);
 		}
-		}
+		carregar();
 
 		return () => {
 			store.reset();
@@ -259,32 +279,9 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 	});
 
 	async function handleMatrizChange(curriculoCompleto: string) {
+		// A integralização é recalculada pelo $effect quando courseData muda
+		// (com recalcularPorDisciplinas = eSimulacaoOutroCurso).
 		await store.loadCourseDataByCurriculoCompleto(curriculoCompleto);
-		if (userFluxograma) {
-			integralizacaoLoading = true;
-			try {
-				const course = store.state.courseData;
-				const recalc = course != null
-					? (() => {
-							const matrizOrigem = normalizarChaveMatriz(userFluxograma.matrizCurricular);
-							const matrizExibida = normalizarChaveMatriz(course.curriculoCompleto);
-							if (matrizOrigem && matrizExibida) return matrizOrigem !== matrizExibida;
-							return (userFluxograma.nomeCurso ?? '').trim().toLowerCase() !==
-								(course.nomeCurso ?? '').trim().toLowerCase();
-						})()
-					: false;
-				const r = await getIntegralizacao({
-					curriculoCompleto,
-					dadosFluxograma: userFluxograma,
-					cargaHorariaIntegralizada: store.cargaHorariaIntegralizada,
-					equivalencias: course?.equivalencias,
-					recalcularPorDisciplinas: recalc
-				});
-				integralizacao = r;
-			} finally {
-				integralizacaoLoading = false;
-			}
-		}
 	}
 
 	function handleSubjectClick(materia: MateriaModel) {
@@ -308,47 +305,8 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 		chainDialogSubject = null;
 	}
 
-	function centerFluxogramaViewport() {
-		const viewport = fluxogramaViewportRef;
-		if (!viewport) return;
-		const scrollRoot = viewport.querySelector<HTMLElement>('[data-fluxogram-scroll-root]');
-		if (!scrollRoot) return;
-		const columns = [...scrollRoot.querySelectorAll<HTMLElement>('.semester-column')];
-		if (columns.length === 0) {
-			scrollRoot.scrollLeft = 0;
-			return;
-		}
-		const margemEsquerda = Math.max(16, Math.round(scrollRoot.clientWidth * 0.08));
-		// Mobile: abre no semestre atual do aluno — a pergunta nº 1 é "onde estou agora?"
-		const semestreAtual = store.userFluxograma?.semestreAtual;
-		let alvo: HTMLElement | null = null;
-		if (semestreAtual && matchesFluxogramCompactTouchMode()) {
-			alvo = scrollRoot.querySelector<HTMLElement>(`[data-semester="${semestreAtual}"]`);
-		}
-		if (!alvo) {
-			alvo = [...columns].sort((a, b) => a.offsetLeft - b.offsetLeft)[0];
-		}
-		// getBoundingClientRect independe da mecânica do zoom (CSS zoom vs transform)
-		const rootRect = scrollRoot.getBoundingClientRect();
-		const alvoRect = alvo.getBoundingClientRect();
-		const targetLeft = scrollRoot.scrollLeft + (alvoRect.left - rootRect.left) - margemEsquerda;
-		scrollRoot.scrollLeft = Math.max(0, targetLeft);
-	}
-
 	function scheduleCenterFluxogramaViewport(): () => void {
-		let cancelled = false;
-		const timers: ReturnType<typeof setTimeout>[] = [];
-		const run = () => {
-			if (cancelled) return;
-			centerFluxogramaViewport();
-		};
-		requestAnimationFrame(run);
-		timers.push(setTimeout(run, 220));
-		timers.push(setTimeout(run, 520));
-		return () => {
-			cancelled = true;
-			for (const t of timers) clearTimeout(t);
-		};
+		return scheduleCenterFluxogramaViewportShared(() => fluxogramaViewportRef, store);
 	}
 
 	$effect(() => {
@@ -364,7 +322,8 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 		delete document.body.dataset.fluxogramaFocusMode;
 	});
 
-	// Mobile: primeiro paint já posicionado no semestre atual do aluno (fora do modo foco).
+	// Mobile: primeiro paint já posicionado pela regra única pickInitialFocusSemester
+	// (semestre atual do aluno ou, sem ele, 1º nível pendente), fora do modo foco.
 	let didInitialMobileCenter = false;
 	$effect(() => {
 		if (didInitialMobileCenter) return;
@@ -421,12 +380,7 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 			<h2 class="mb-2 text-lg font-semibold text-foreground">Erro ao carregar fluxograma</h2>
 			<p class="mb-4 text-sm text-red-700 dark:text-red-300/80">{store.state.error}</p>
 			<button
-				onclick={() => {
-				if (courseName) {
-					const u = authStore.getUser();
-					store.loadCourseData(courseName, !u?.dadosFluxograma);
-				}
-			}}
+				onclick={carregar}
 				class="rounded-full bg-foreground/10 px-6 py-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/20"
 			>
 				Tentar novamente
@@ -616,5 +570,18 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 				onclose={() => (showMateriasConcluidasModal = false)}
 			/>
 		{/if}
+	{:else if cargaIniciada || !courseName}
+		<!-- Nada carregando, sem erro e sem curso (ex.: URL sem curso): não deixa a tela em branco. -->
+		<div class="mx-auto max-w-md rounded-2xl border border-border bg-card/80 p-8 text-center backdrop-blur-md">
+			<AlertTriangle class="mx-auto mb-3 h-8 w-8 text-amber-600 dark:text-amber-400" />
+			<h2 class="mb-2 text-lg font-semibold text-foreground">Curso não encontrado</h2>
+			<p class="mb-4 text-sm text-muted-foreground">Escolha um curso na lista de fluxogramas.</p>
+			<a
+				href={ROUTES.FLUXOGRAMAS}
+				class="inline-block rounded-full bg-foreground/10 px-6 py-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/20"
+			>
+				Ver fluxogramas
+			</a>
+		</div>
 	{/if}
 </div>

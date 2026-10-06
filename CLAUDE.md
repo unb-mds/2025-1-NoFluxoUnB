@@ -31,7 +31,8 @@ Guia de orientação para agentes de IA (e humanos chegando agora). O produto vi
 | `no_fluxo_frontend/`, `test_historicos/`, `testes/`, `docs_testes/` | não rastreadas | Sobras locais no disco; ignorar. |
 
 Deploy: 3 alvos containerizados (`k8s.backend.Dockerfile`, `k8s.frontend-svelte.Dockerfile`,
-`k8s.mcp-agent.Dockerfile`) via `deploy.yml` no push da main.
+`k8s.mcp-agent.Dockerfile`) via `deploy.yml`, que roda quando o CI (`pipelineCI.yml`)
+termina **verde** na main (`workflow_run`); `workflow_dispatch` manual continua sem gate.
 
 ## Comandos essenciais
 

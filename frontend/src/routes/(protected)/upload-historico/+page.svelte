@@ -56,6 +56,10 @@
 <main
 	class="relative z-10 flex min-h-[calc(100vh-64px)] flex-col items-center overflow-hidden px-3 pb-10 sm:px-4 sm:pb-14"
 >
+	<!--
+		Glows roxos decorativos: só no escuro. No claro o roxo a 32% escurece a página
+		atrás do cabeçalho e do "Preencha manualmente" e derruba o contraste.
+	-->
 	<div
 		aria-hidden="true"
 		class="glow glow--top pointer-events-none absolute -top-40 -left-40 h-[700px] w-[700px] rounded-full"
@@ -79,7 +83,7 @@
 			<div class="mb-6 flex justify-center">
 				<button
 					type="button"
-					class="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-6 py-3.5 text-[15px] font-semibold text-accent-foreground shadow-sm transition-all hover:border-primary/50 hover:bg-primary/20 hover:text-primary sm:w-auto sm:py-2.5 sm:text-sm sm:font-medium dark:text-purple-300 dark:hover:text-purple-200"
+					class="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-6 py-3.5 text-[15px] font-semibold text-accent-foreground shadow-sm transition-all hover:border-primary/50 hover:bg-primary/20 hover:text-foreground sm:w-auto sm:py-2.5 sm:text-sm sm:font-medium dark:text-purple-300 dark:hover:text-purple-200"
 					onclick={openManualMode}
 				>
 					Preencha manualmente
@@ -109,7 +113,7 @@
 					aluno subir o PDF de novo por causa de um clique fora do modal.
 				-->
 				<div class="error-state">
-					<div class="error-icon">
+					<div class="error-icon error-icon--warning">
 						<AlertTriangle class="size-10 text-amber-700 dark:text-amber-400" stroke-width="2" />
 					</div>
 					<div class="error-copy">
@@ -257,8 +261,23 @@
 		align-items: center;
 		justify-content: center;
 		border-radius: 9999px;
+		background: hsl(var(--status-danger) / 0.1);
+		border: 1px solid hsl(var(--status-danger) / 0.3);
+	}
+
+	.error-icon--warning {
+		background: hsl(var(--status-warning) / 0.1);
+		border-color: hsl(var(--status-warning) / 0.3);
+	}
+
+	/*
+	 * Escuro (produção): o círculo mantém o tint e a borda vermelhos da main nos
+	 * dois avisos (o red-600 da main). Os tokens de status valem só no claro.
+	 */
+	:global(.dark) .error-icon,
+	:global(.dark) .error-icon--warning {
 		background: hsl(0 72% 51% / 0.1);
-		border: 1px solid hsl(0 72% 51% / 0.22);
+		border-color: hsl(0 72% 51% / 0.22);
 	}
 
 	.error-copy {

@@ -178,8 +178,10 @@ export function extrairMatrizCurricular(texto: string): string | null {
   m = normalizedText.match(/Curr[ií]culo:\s*\n?(\d+\/-?\d+)\s*-\s*(\d{4}\.\d)/mi);
   if (m) return `${m[1].trim()} - ${m[2]}`;
 
-  // Sem label: "6360/1 - 2017.1" ou só "60810/1" no texto
-  m = normalizedText.match(/(\d+\/-?\d+)(?:\s*-\s*\d{4}\.\d)?/m);
+  // Sem label: "6360/1 - 2017.1" ou só "60810/1" no texto. Exige 3+ dígitos
+  // antes da barra e nada de dígito/barra colado antes: sem isso a data
+  // "16/01/1962" do cabeçalho virava a matriz "16/01" (pré-mortem R12).
+  m = normalizedText.match(/(?<![\d/])(\d{3,}\/-?\d+)(?:\s*-\s*\d{4}\.\d)?/m);
   if (m) return m[1].trim();
 
   return null;
@@ -328,19 +330,26 @@ export function extrairCargaHorariaIntegralizada(texto: string): {
 		}
 	}
 
-	// Estratégia C: Buscar bloco entre "Integralizado" e "Carga Horária" ou "Legenda"
-	const blocoIntegral = s.match(/Integralizado\s*\n([\s\S]{0,400}?)(?=Carga Horária|Legenda|Complementares|$)/i);
+	// Estratégia C: Buscar bloco entre "Integralizado" e o próximo rótulo da tabela.
+	// Só aceita se a soma bater com o total; antes somava os 3 primeiros números sem
+	// validar e, com Complementares em branco, cruzava para a linha seguinte e
+	// devolvia um total inventado (pré-mortem R18). Sem validação → null.
+	const blocoIntegral = s.match(
+		/Integralizado\s*\n([\s\S]{0,400}?)(?=Carga Horária|Legenda|Complementares|Pendente|Exigido|$)/i
+	);
 	if (blocoIntegral) {
 		const nums = [...blocoIntegral[1].matchAll(/(\d+)\s*h/gi)].map((m) => parseInt(m[1], 10));
-		if (nums.length >= 3) {
-			// Se 3 valores: optativa, obrigatoria, complementar (ordem do PDF)
-			const [a, b, c] = nums;
-			return {
-				obrigatoria: b ?? 0,
-				optativa: a ?? 0,
-				complementar: c ?? 0,
-				total: (a ?? 0) + (b ?? 0) + (c ?? 0)
-			};
+		if (nums.length >= 4) {
+			const [obrigatoria, optativa, complementar, total] = nums;
+			if (Math.abs(obrigatoria + optativa + complementar - total) <= 10) {
+				return { obrigatoria, optativa, complementar, total };
+			}
+		} else if (nums.length === 3) {
+			// Complementares em branco: obrigatória, optativa e total
+			const [obrigatoria, optativa, total] = nums;
+			if (Math.abs(obrigatoria + optativa - total) <= 10) {
+				return { obrigatoria, optativa, complementar: 0, total };
+			}
 		}
 	}
 
@@ -401,7 +410,9 @@ export function calcularNumeroSemestre(
   const validStatuses = new Set(['APR', 'DISP', 'REP', 'REPF', 'REPMF', 'CUMP']);
   const uniqueSemesters = new Set<string>();
   for (const d of disciplinas) {
-    if (validStatuses.has(d.status) && d.ano_periodo) {
+    // Só semestres regulares (.1/.2): o SIGAA não conta verão (.3/.4) no
+    // Período Letivo Atual, e isto é o fallback para quando ele falta (pré-mortem R37).
+    if (validStatuses.has(d.status) && /^\d{4}\.[12]$/.test(d.ano_periodo)) {
       uniqueSemesters.add(d.ano_periodo);
     }
   }
@@ -412,8 +423,19 @@ export function calcularNumeroSemestre(
 // ─── Helpers for name/professor line detection ───
 
 /** Full metadata exclusion pattern — used both for skipping data lines and for prevLine name checks */
-const RE_METADATA_LINE =
-  /^(SIGAA|UnB|DEG|SAA|Campus|Credenciada|na seção|Histórico|Dados|Nome:|Data de|Nacionalidade|Nº do|Curso:|Status:|Índices|Ênfase|IRA:|Currículo|Reconhecimento|Ano \/|Forma de|Período Letivo Atual|Suspensões|Prorrogações|Tipo Saída|Data de Saída|Trabalho|Data da|Componentes Curriculares|Ano\/Período|Letivo\s+Componente|Legenda|SIGLA|Para verificar|Página|e o código|Carga Horária|Obrigatórias|Exigido|Integralizado|Pendente\s|Código\s+Componente|Observações|Atenção|Menções|Equivalências|Matrícula|Perfil|INGRESSANTE|Optativos|Complementares|Total|REP\s|REPF\s|REPMF\s|TRANC\s|CUMP\s|APR\s|CANC\s|DISP\s|MATR\s|Nenhum|Descrição|Fecha|Turma|Frequência|\d+\s*h\s*$)/i;
+const RE_METADATA_LINE_CI =
+  /^(SIGAA|UnB|DEG|SAA|Credenciada|na seção|Histórico|Dados|Nome:|Data de|Nacionalidade|Nº do|Curso:|Status:|Índices|Ênfase|IRA:|Reconhecimento|Ano \/|Forma de|Período Letivo Atual|Suspensões|Prorrogações|Tipo Saída|Data de Saída|Data da|Componentes Curriculares|Ano\/Período|Letivo\s+Componente|Legenda|SIGLA|Para verificar|Página|e o código|Carga Horária|Obrigatórias|Exigido|Integralizado|Pendente\s|Código\s+Componente|Observações|Menções|Equivalências|Matrícula|Perfil|INGRESSANTE|Optativos|Complementares|Total|REP\s|REPF\s|REPMF\s|TRANC\s|CUMP\s|APR\s|CANC\s|DISP\s|MATR\s|Nenhum|Fecha|Turma|Frequência|\d+\s*h\s*$)/i;
+
+/**
+ * Rótulos que também abrem nome de disciplina ("TRABALHO DE CONCLUSÃO DE CURSO 1",
+ * "ATENÇÃO PRIMÁRIA À SAÚDE", "CURRÍCULO", "CAMPUS MULTIMÍDIA"): sem /i, porque no
+ * SIGAA o rótulo vem em Title Case e o nome da disciplina em CAIXA ALTA (pré-mortem R4).
+ */
+const RE_METADATA_LINE_CS = /^(Campus|Currículo|Trabalho|Atenção|Descrição)/;
+
+function isMetadataLine(line: string): boolean {
+  return RE_METADATA_LINE_CI.test(line) || RE_METADATA_LINE_CS.test(line);
+}
 
 /** Detects professor lines: starts with Dr./Dra./MSc./Prof. or contains "(XXh)" pattern */
 function isProfessorLine(line: string): boolean {
@@ -434,7 +456,7 @@ function isValidNameLine(
   if (!/^[A-ZÀ-ÿ]/.test(line)) return false;
   if (reDataLine.test(line)) return false;
   if (reSituacao.test(line)) return false;
-  if (RE_METADATA_LINE.test(line)) return false;
+  if (isMetadataLine(line)) return false;
   if (/^\d{4}\.\d/.test(line)) return false;
   if (isProfessorLine(line)) return false;
   // Skip lines that look like pending discipline entries: "CODE  NAME  CH h" or "CODE-NAME..."
@@ -481,7 +503,7 @@ function extrairDisciplinasDaLinha(
     const line = linhas[i];
 
     // Skip header/footer/legend lines
-    if (RE_METADATA_LINE.test(line.trim())) {
+    if (isMetadataLine(line.trim())) {
       continue;
     }
 
@@ -581,8 +603,9 @@ function extrairDisciplinasDaLinha(
       // Normalize periodo
       let anoPeriodo = periodo === '--' ? '' : periodo;
       if (anoPeriodo && !/^\d{4}\.\d$/.test(anoPeriodo)) {
+        // Período truncado ("2022."): desconhecido, não "2022.0" (pré-mortem R37)
         if (/^\d{4}\.$/.test(anoPeriodo)) {
-          anoPeriodo = anoPeriodo + '0';
+          anoPeriodo = '';
         }
       }
 
@@ -625,8 +648,9 @@ function extrairDisciplinasDaLinha(
 
         let anoPeriodo = periodo === '--' ? '' : periodo;
         if (anoPeriodo && !/^\d{4}\.\d$/.test(anoPeriodo)) {
+          // Período truncado ("2022."): desconhecido, não "2022.0" (pré-mortem R37)
           if (/^\d{4}\.$/.test(anoPeriodo)) {
-            anoPeriodo = anoPeriodo + '0';
+            anoPeriodo = '';
           }
         }
 
@@ -719,7 +743,7 @@ function extrairDisciplinasDetalhado(
 /**
  * Extract pending disciplines from "Componentes Curriculares Obrigatórios Pendentes" section.
  */
-function extrairDisciplinasPendentes(text: string): DisciplinaExtraida[] {
+export function extrairDisciplinasPendentes(text: string): DisciplinaExtraida[] {
   const disciplinas: DisciplinaExtraida[] = [];
 
   // Find ALL occurrences of the pending header (handles page breaks and concatenated text)
