@@ -1,4 +1,7 @@
-name: ci 
+name: Docs (mkdocs)
+# Publica o site MkDocs no gh-pages. Não se chama "ci": o deploy.yml escuta o
+# workflow "CI" (pipelineCI.yml) por nome, e um nome parecido aqui arriscaria
+# disparar o deploy de produção pelo fim do build de docs.
 on:
   push:
     branches:

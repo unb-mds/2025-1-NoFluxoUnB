@@ -1,9 +1,17 @@
 name: Deploy
 
+# Só publica o que passou no CI (pré-mortem 27/09/2026, R23). Antes o deploy
+# disparava no push da main em paralelo com o CI e publicava mesmo com teste
+# vermelho. Agora ele espera o workflow "CI" (pipelineCI.yml) terminar na main
+# e o job só roda se a conclusão for success; run cancelado (push mais novo
+# em cima, concurrency do CI) não publica — o run do push seguinte publica.
+# Hotfix urgente continua possível pelo workflow_dispatch, que não tem gate.
+# Atenção: workflow_run sempre usa a versão deste arquivo na branch default.
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       target:
@@ -25,8 +33,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: production
+    # event == 'push' e head_repository: `branches: [main]` também casa com um
+    # PR de fork cuja branch se chama main — sem isso, código de fora rodaria
+    # aqui com os segredos de produção.
+    # path: `workflows: ["CI"]` casa pelo nome do workflow, não pelo arquivo.
+    # Se outro workflow ganhar um nome que colida com "CI" (o de docs já se
+    # chamou "ci "), o deploy dispararia sem o gate de testes. O path do run
+    # identifica o arquivo sem ambiguidade.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.path == '.github/workflows/pipelineCI.yml' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     steps:
+      # Publica exatamente o commit que passou no CI (no workflow_run o
+      # github.sha é o HEAD atual da main, que pode já ser outro commit).
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-python@v5
         with:
