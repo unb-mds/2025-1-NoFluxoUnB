@@ -49,10 +49,10 @@ export const RELEASE_EVENTO: {
 	quando: '6 e 7 de novembro',
 	onde: 'Centro Cultural ADUnB, Brasília',
 	texto:
-		'Fomos convidados para o **VII INOVATEC**, o congresso internacional de inovação em saúde e tecnologia: vamos estar com **stand na feira** e **apresentação no palco**. Bora com a gente mostrar a força dos estudantes da UnB!',
+		'Fomos convidados para o **VII INOVATEC**, o congresso internacional de inovação em saúde e tecnologia: vamos estar com **stand na feira** e **apresentação no palco**. Bora com a gente mostrar a força dos estudantes da UnB! A inscrição para visitar a **feira**, onde fica o nosso stand, é **gratuita**.',
 	destaque: 'Quem passar no nosso stand leva brindes exclusivos do NoFluxo 🎁',
-	href: 'https://inovatecdf.com.br/',
-	cta: 'Conhecer o evento'
+	href: 'https://inovatecdf.com.br/index.php/incricoes/',
+	cta: 'Garantir meu ingresso'
 };
 
 /** Aviso curto de algo em construção (sem link). Deixe vazio para ocultar. */
