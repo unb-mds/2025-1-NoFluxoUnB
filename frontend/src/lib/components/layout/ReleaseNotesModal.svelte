@@ -10,7 +10,18 @@
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { fade, fly } from 'svelte/transition';
-	import { Sparkles, X, Upload, PartyPopper, Heart } from 'lucide-svelte';
+	import {
+		Sparkles,
+		X,
+		Upload,
+		PartyPopper,
+		Heart,
+		CalendarDays,
+		MapPin,
+		Gift,
+		ArrowUpRight,
+		Hammer
+	} from 'lucide-svelte';
 	import { authStore } from '$lib/stores/auth';
 	import { ROUTES } from '$lib/config/routes';
 	import {
@@ -18,6 +29,8 @@
 		RELEASE_TITULO,
 		RELEASE_NOVIDADES,
 		RELEASE_NOTA_EQUIPE,
+		RELEASE_EVENTO,
+		RELEASE_EM_CONSTRUCAO,
 		FLUXOGRAMA_SCHEMA_VERSION
 	} from '$lib/config/release';
 
@@ -45,8 +58,15 @@
 		return out;
 	}
 
+	/** Força a exibição sem login nem localStorage (página de pré-visualização). */
+	let { previsualizar = false }: { previsualizar?: boolean } = $props();
+
 	let authState = $derived($authStore);
 	let visivel = $state(false);
+
+	$effect(() => {
+		if (previsualizar) visivel = true;
+	});
 
 	const chaveStorage = (idUser: number) => `nofluxo:release-vista:${idUser}`;
 
@@ -116,7 +136,7 @@
 			TrocarTurmaDialog.
 		-->
 		<div
-			class="relative z-10 flex max-h-[88dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-nofluxoLg dark:shadow-2xl"
+			class="relative z-10 flex max-h-[88dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-nofluxoLg dark:shadow-2xl"
 			transition:fly={{ y: 24, duration: 250 }}
 		>
 			<!-- Header -->
@@ -144,6 +164,49 @@
 
 			<!-- Novidades (overscroll-contain: rolar aqui não arrasta a página) -->
 			<div class="min-h-0 overflow-y-auto overscroll-contain px-6 py-6">
+				{#if RELEASE_EVENTO}
+					<!-- Evento em destaque -->
+					<section
+						class="mb-6 rounded-xl border border-primary/30 bg-primary/10 px-4 py-4"
+						aria-label={RELEASE_EVENTO.titulo}
+					>
+						<p class="text-[11px] font-semibold uppercase tracking-widest text-primary dark:text-ai">
+							{RELEASE_EVENTO.kicker}
+						</p>
+						<h3 class="mt-1 text-[15px] font-bold leading-snug text-foreground">
+							{RELEASE_EVENTO.titulo}
+						</h3>
+						<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium text-muted-foreground">
+							<span class="flex items-center gap-1.5">
+								<CalendarDays class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+								{RELEASE_EVENTO.quando}
+							</span>
+							<span class="flex items-center gap-1.5">
+								<MapPin class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+								{RELEASE_EVENTO.onde}
+							</span>
+						</div>
+						<p class="mt-3 text-[13px] leading-relaxed text-foreground/80">
+							{#each segmentos(RELEASE_EVENTO.texto) as s}
+								{#if s.negrito}<strong class="text-foreground">{s.valor}</strong>{:else}{s.valor}{/if}
+							{/each}
+						</p>
+						<p class="mt-3 flex items-start gap-2 text-[13px] font-semibold leading-relaxed text-foreground">
+							<Gift class="mt-0.5 h-4 w-4 shrink-0 text-primary dark:text-ai" aria-hidden="true" />
+							{RELEASE_EVENTO.destaque}
+						</p>
+						<a
+							href={RELEASE_EVENTO.href}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+						>
+							{RELEASE_EVENTO.cta}
+							<ArrowUpRight class="h-4 w-4" aria-hidden="true" />
+						</a>
+					</section>
+				{/if}
+
 				<ul class="flex flex-col gap-3">
 					{#each RELEASE_NOVIDADES as novidade}
 						<li class="flex items-start gap-2.5">
@@ -152,6 +215,15 @@
 						</li>
 					{/each}
 				</ul>
+
+				{#if RELEASE_EM_CONSTRUCAO}
+					<p
+						class="mt-4 flex items-start gap-2.5 rounded-lg border border-dashed border-border px-3 py-2.5 text-xs leading-relaxed text-muted-foreground"
+					>
+						<Hammer class="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+						{RELEASE_EM_CONSTRUCAO}
+					</p>
+				{/if}
 
 				{#if dadosDesatualizados}
 					<div class="mt-5 rounded-xl border border-amber-500/25 bg-amber-600/10 px-4 py-3.5">
