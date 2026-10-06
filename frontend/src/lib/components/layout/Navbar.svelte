@@ -102,7 +102,7 @@
 			</div>
 
 			<div
-				class="flex min-w-0 flex-1 items-center justify-end lg:flex-initial lg:justify-end lg:gap-1"
+				class="flex min-w-0 flex-1 items-center justify-end gap-2 lg:flex-initial lg:justify-end lg:gap-1"
 			>
 				<div class="hidden items-center gap-1.5 lg:flex">
 					<A11yMenu />
@@ -120,6 +120,8 @@
 						>
 					{/if}
 				</div>
+				<!-- Celular: acessibilidade sempre à mão na barra, sem abrir o menu -->
+				<A11yMenu class="lg:hidden" />
 				<button
 					type="button"
 					class="text-foreground/90 hover:text-foreground ring-offset-background focus-visible:ring-ring/40 inline-flex shrink-0 touch-manipulation items-center justify-center rounded-lg p-1.5 outline-none focus-visible:ring-2 lg:hidden"
@@ -170,9 +172,10 @@
 					>
 				{/if}
 			</div>
+			<A11yMenu class="ml-auto lg:hidden" />
 			<button
 				type="button"
-				class="text-foreground/90 hover:text-foreground ring-offset-background focus-visible:ring-ring/40 ml-auto inline-flex shrink-0 touch-manipulation items-center justify-center rounded-lg p-1.5 outline-none focus-visible:ring-2 lg:hidden"
+				class="text-foreground/90 hover:text-foreground ring-offset-background focus-visible:ring-ring/40 inline-flex shrink-0 touch-manipulation items-center justify-center rounded-lg p-1.5 outline-none focus-visible:ring-2 lg:hidden"
 				onclick={toggleMobileMenu}
 				aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
 			>
