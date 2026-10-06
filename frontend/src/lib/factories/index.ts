@@ -397,6 +397,26 @@ export function buildDadosFluxogramaUserFromCasarResponse(
 
 		const equiv = equivalenciaByCode.get(codigoUpper);
 		const isAprovada = isMateriaAprovada(base);
+
+		// R17: a obrigatória foi reprovada/está em curso, mas o RPC a integralizou por uma
+		// equivalente aprovada. A tentativa REP/MATR dá lugar à equivalência; senão o
+		// código já está em codigosJaIncluidos, a entrada concluida_equivalencia nunca
+		// entra e o fluxograma salvo diverge do percentual do resumo.
+		if (equiv && !isAprovada) {
+			return createDadosMateriaFromJson({
+				...raw,
+				codigo: codigoMatriz,
+				status: equiv.status,
+				mencao: equiv.mencao,
+				professor: equiv.professor,
+				ano_periodo: equiv.ano_periodo,
+				frequencia: null,
+				turma: null,
+				tipo_dado: 'equivalencia',
+				codigo_equivalente: equiv.codigo_equivalente,
+				nome_equivalente: equiv.nome_equivalente
+			});
+		}
 		const usarComoEquivalencia =
 			isAprovada && (equiv || (foiCursadaComoEquivalente && (codigoHist || nomeHist)));
 

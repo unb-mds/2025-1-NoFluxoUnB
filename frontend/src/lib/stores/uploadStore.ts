@@ -17,6 +17,7 @@ import {
 	injetarEquivalenciasDoPdf
 } from '$lib/factories';
 import { FLUXOGRAMA_SCHEMA_VERSION } from '$lib/config/release';
+import { matrizResolvidaParaSalvar } from '$lib/utils/matriz-resolvida';
 import { supabaseDataService } from '$lib/services/supabase-data.service';
 
 export type UploadState = 'initial' | 'uploading' | 'processing' | 'success' | 'error';
@@ -257,7 +258,11 @@ function createUploadStore() {
 					...currentState.extractedData,
 					curso_extraido: courseName,
 					curso_selecionado: courseName,
-					...(selected?.id_curso != null && { id_curso_selecionado: selected.id_curso })
+					...(selected?.id_curso != null && { id_curso_selecionado: selected.id_curso }),
+					// A matriz escolhida no modal. Sem ela, um PDF sem ano ("8117/-2")
+					// empata de novo entre as mesmas matrizes e o RPC devolve outro
+					// COURSE_SELECTION. matriz_curricular fica com o que veio do PDF.
+					...(selected?.matriz_curricular && { matriz_selecionada: selected.matriz_curricular })
 				};
 				const result = await uploadService.casarDisciplinas(dataWithCourse);
 				stopProgressSimulation();
@@ -310,7 +315,8 @@ function createUploadStore() {
 					nomeCurso: ext?.curso_extraido ?? '',
 					matricula: ext?.matricula ?? '',
 					anoAtual: ext?.semestre_atual ?? '',
-					matrizCurricular: ext?.matriz_curricular ?? '',
+					// Matriz que o RPC usou (inclui a escolhida no COURSE_SELECTION), não a do PDF.
+					matrizCurricular: matrizResolvidaParaSalvar(cd as { matriz_curricular?: unknown }, ext?.matriz_curricular),
 					semestreAtual: ext?.numero_semestre ?? 0,
 					suspensoes: ext?.suspensoes ?? []
 				};
