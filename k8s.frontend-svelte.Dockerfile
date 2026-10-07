@@ -27,8 +27,11 @@ ARG PUBLIC_ENVIRONMENT=production
 ARG GIT_SHA=
 
 # Build the SvelteKit app (outputs to ./build as static files)
+# O adapter já gerou health.json.gz/.br com o conteúdo antigo e o nginx
+# (gzip_static) os entrega a quem aceita gzip: apagar para todos verem o commit.
 RUN pnpm build \
-    && printf '{"status":"ok","commit":"%s"}\n' "$GIT_SHA" > build/health.json
+    && printf '{"status":"ok","commit":"%s"}\n' "$GIT_SHA" > build/health.json \
+    && rm -f build/health.json.gz build/health.json.br
 
 # ── Production (nginx) ────────────────────────────────────────────────────
 FROM nginx:1.27-alpine
