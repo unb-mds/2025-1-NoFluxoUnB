@@ -23,9 +23,12 @@ ARG PUBLIC_SUPABASE_ANON_KEY
 ARG PUBLIC_API_URL=https://api-nofluxo.crianex.com
 ARG PUBLIC_REDIRECT_URL=https://no-fluxo.crianex.com
 ARG PUBLIC_ENVIRONMENT=production
+# Commit publicado: vai para /health.json para o workflow confirmar o rollout
+ARG GIT_SHA=
 
 # Build the SvelteKit app (outputs to ./build as static files)
-RUN pnpm build
+RUN pnpm build \
+    && printf '{"status":"ok","commit":"%s"}\n' "$GIT_SHA" > build/health.json
 
 # ── Production (nginx) ────────────────────────────────────────────────────
 FROM nginx:1.27-alpine
@@ -60,6 +63,7 @@ server {
     # Health check endpoint (static/health.json → build/health.json)
     location = /health.json {
         add_header Content-Type application/json;
+        add_header Cache-Control "no-store";
         try_files /health.json =404;
     }
 

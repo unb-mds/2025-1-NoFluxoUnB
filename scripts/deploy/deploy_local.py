@@ -341,6 +341,10 @@ def _collect_build_args(cfg: AppConfig) -> list[str]:
     for key in cfg.build_arg_keys:
         value = require_env(key)
         out.append(f"{key}={value}")
+    for key in cfg.build_arg_optional_keys:
+        value = os.environ.get(key, "").strip()
+        if value:
+            out.append(f"{key}={value}")
     return out
 
 
