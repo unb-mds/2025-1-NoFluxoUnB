@@ -231,6 +231,9 @@ export async function construirMateriasGrade(
 			// que impede a optativa que destrava uma obrigatória de ser descartada
 			// junto com as demais quando a carga optativa do aluno já fechou.
 			optatoria: vivas.has(codigo),
+			// Semestre na matriz: a montagem prefere a mais atrasada dentro do mesmo
+			// degrau (`fatorAtraso`). Optativa vem com 0 e não ganha nada.
+			nivel: courseMap.get(codigo)?.nivel || undefined,
 			turmas: (ofertaPorCodigo.get(codigo) ?? []).map(({ turma, codigoOfertado }) => ({
 				turma,
 				mask: slotMaskFromHorario(turma.horario),
@@ -262,6 +265,15 @@ export interface SemeaduraResultado {
 	naturezasSaturadas?: NaturezaCH[];
 	/** Pendentes da matriz sem turma no período — ver `PoolRecomendado`. */
 	pendentesSemOferta?: number;
+}
+
+/**
+ * O que quem pede a semeadura (o Passo 1 do wizard) pode ajustar. Ausente = o
+ * limite do plano de formatura e o escopo `periodo-atual`, como sempre foi.
+ */
+export interface OpcoesSemeadura {
+	limiteCreditos?: number;
+	escopo?: 'periodo-atual' | 'todas-pendentes';
 }
 
 /**
@@ -545,8 +557,9 @@ export interface PoolRecomendado {
  *    filtro nenhum: matrícula é fato consumado, não recomendação. O crédito delas
  *    é debitado do orçamento antes de o app sugerir qualquer coisa — recomendar 24
  *    créditos por cima de 12 já cursados dá uma grade impossível de se matricular.
- * 2. **Obrigatórias pendentes** com turma no período, requisito cumprido antes de
- *    pendente e a mais atrasada (menor `nivel`) primeiro.
+ * 2. **Obrigatórias pendentes** com turma no período, a mais atrasada (menor
+ *    `nivel`) primeiro. Quem tem pré-requisito que não fecha nem com o que ele
+ *    cursa agora fica de fora (dependência "em curso" entra, depois das livres).
  * 3. **Optativas**, só com o crédito que sobrar — e entre elas, primeiro as que
  *    destravam alguma obrigatória (as "optatórias").
  *
@@ -582,6 +595,15 @@ export async function montarPoolRecomendado(
 		 * matérias que nem iam entrar.
 		 */
 		cursandoOcupaOrcamento?: boolean;
+		/**
+		 * `periodo-atual` (o padrão) semeia só o prefixo que cabe no limite — a
+		 * lista já é uma grade viável. `todas-pendentes` põe na lista TODA
+		 * obrigatória pendente com turma no turno aceito (e as optatórias), sem
+		 * cortar por crédito: quem escolhe dentro do limite é o solver, que enxerga
+		 * as alternativas em vez de receber um único encaixe pronto. Optativas
+		 * comuns continuam pelo orçamento — semear dezenas delas só enche a lista.
+		 */
+		escopo?: 'periodo-atual' | 'todas-pendentes';
 	}
 ): Promise<PoolRecomendado> {
 	const base = opts.base ?? { mask: 0n, creditos: 0, turnos: TODOS_OS_TURNOS };
@@ -623,6 +645,9 @@ export async function montarPoolRecomendado(
 	);
 	const candidatas = [...obrigatorias, ...optativas]
 		.map((c) => c.materia)
+		// Pré-requisito que não fecha nem com o que ele cursa agora: a matrícula seria
+		// recusada, então não é recomendação. O aluno ainda pode adicioná-la na mão.
+		.filter((m) => m.nivelPreRequisito !== 'pendente')
 		.filter(
 			(m) =>
 				m.optatoria === true ||
@@ -630,12 +655,30 @@ export async function montarPoolRecomendado(
 				!naturezasSaturadas.includes(m.natureza as NaturezaCH)
 		);
 
-	const recomendadas = escolherComOrcamento(
-		candidatas,
-		opts.limiteCreditos,
-		{ ...base, creditos: base.creditos + creditosEmCurso },
-		tetoPorNatureza(opts.situacao)
-	);
+	const orcamentoBase = { ...base, creditos: base.creditos + creditosEmCurso };
+	let recomendadas: MateriaGrade[];
+	if (opts.escopo === 'todas-pendentes') {
+		// Tudo que conta para a formatura e tem turma num turno aceito entra; o
+		// solver corta pelo limite depois. O resto (optativa comum) pelo orçamento.
+		const ehNucleo = (m: MateriaGrade) => m.natureza === 'obrigatoria' || m.optatoria === true;
+		const nucleo = candidatas.filter(
+			(m) => ehNucleo(m) && m.turmas.some((t) => turmaRespeitaTurnos(t.mask, base.turnos))
+		);
+		const resto = escolherComOrcamento(
+			candidatas.filter((m) => !ehNucleo(m)),
+			opts.limiteCreditos,
+			orcamentoBase,
+			tetoPorNatureza(opts.situacao)
+		);
+		recomendadas = [...nucleo, ...resto];
+	} else {
+		recomendadas = escolherComOrcamento(
+			candidatas,
+			opts.limiteCreditos,
+			orcamentoBase,
+			tetoPorNatureza(opts.situacao)
+		);
+	}
 
 	return {
 		materias: [...materiasEmCurso, ...recomendadas],

@@ -21,6 +21,7 @@ import { z } from "zod";
 import { Agent, run, tool, OutputGuardrailTripwireTriggered } from "@openai/agents";
 import type { OutputGuardrail } from "@openai/agents";
 import { SupabaseWrapper } from "../../../supabase_wrapper";
+import { resolveIdUserPorEmail } from "../aluno_identidade";
 import { montarDadosPlano } from "../../../controllers/PlanejamentoController";
 import {
     parseFluxograma,
@@ -81,22 +82,6 @@ function parseExprOrNull(raw: unknown): ExpressaoLogicaRecursiva | null {
     return parseExpressaoLogicaFromDb(raw);
 }
 
-/**
- * resolveIdUserPorEmail — reimplementado aqui, não reexportado de
- * integralizacao_actuator.ts, seguindo o padrão de duplicação já aceito no
- * restante do pipeline (ver `filtrarPorOfertaAtiva` em optativas_actuator.ts:
- * "reimplementado aqui — não reexportado do Darcy legado"). Mantém este
- * atuador self-contained.
- */
-async function resolveIdUserPorEmail(email: string): Promise<string | null> {
-    const { data, error } = await SupabaseWrapper.get()
-        .from("users")
-        .select("id_user")
-        .eq("email", email)
-        .maybeSingle();
-    if (error || !data?.id_user) return null;
-    return String(data.id_user);
-}
 
 function parseEmbeddingVector(raw: unknown): number[] | null {
     if (Array.isArray(raw)) return raw.map(Number);
@@ -581,7 +566,9 @@ export function createGradeAgent(
     curriculoCompleto: string,
     freeMaskStr: string,
     periodoAtivo: string,
-    codigosNaGrade: string[] = []
+    codigosNaGrade: string[] = [],
+    /** Semestre do aluno (do perfil) — corte do escopo "período atual" do montar_grade. */
+    numeroPeriodo?: number
 ): Agent {
     let ultimosCandidatos: CandidatoGrade[] | null = null;
     let ultimasOpcoes: OpcaoGrade<TurmaOferta>[] | null = null;
@@ -632,6 +619,7 @@ export function createGradeAgent(
             const params: ParametrosMontador = {
                 email,
                 curriculoCompleto,
+                numeroPeriodo,
                 escopo: escopo ?? "periodo_atual",
                 turnosPermitidos: turnos && turnos.length > 0 ? turnos : undefined,
                 essencial: essencial || undefined,
@@ -669,7 +657,9 @@ export function createGradeAgent(
     const agent = new Agent({
         name: "AtuadorGrade",
         instructions:
-            "Você responde pedidos de preencher horário livre / buraco na grade E pedidos de MONTAR/REARRANJAR a grade inteira, ambos dentro do Montador de Grade. " +
+            "Você responde pedidos de preencher horário livre / buraco na grade E pedidos de MONTAR/REARRANJAR a grade inteira (o pedido pode vir de qualquer tela do app; o botão leva o aluno ao Montador de Grade). " +
+            "Existem só DOIS formatos de marcador, sem nenhum outro campo: [MONTAR_GRADE|COD,COD] = SUGESTÃO de matérias, sem turma escolhida; " +
+            "[MONTAR_GRADE|COD:IDTURMA,COD:IDTURMA] = GRADE PRONTA, com a turma de cada matéria. Nunca acrescente turnos, professores ou outros campos ao marcador. " +
             "Pra preencher um horário livre específico: use a tool recomendar_por_horario_livre — nunca cite uma matéria que não veio dela. " +
             "Se a lista de candidatos vier vazia, diga que não achou nada que caiba nesse horário, sem inventar código. " +
             "CO-REQUISITOS: se um candidato vier com 'coRequisitos' não-vazio, essas matérias têm que ser cursadas NO MESMO semestre — " +
@@ -685,8 +675,9 @@ export function createGradeAgent(
             "e se o professor pedido foi atendido ('professorEssencialAtendido') — nunca prometa 'vou tentar encaixar': o resultado já está pronto. " +
             "Se pediu professor e ele não coube em nenhuma turma, diga isso citando a métrica, mas a matéria essencial nunca fica de fora só por causa " +
             "de professor — professor é preferência de desempate, não filtro. " +
-            "Confirme a opção escolhida ('escolhida') em uma frase curta e inclua no final [MONTAR_GRADE|CODIGO:IDTURMA,CODIGO:IDTURMA,...] com CADA " +
+            "Confirme a opção escolhida ('escolhida') em uma frase curta e inclua no final o marcador de GRADE PRONTA [MONTAR_GRADE|CODIGO:IDTURMA,CODIGO:IDTURMA,...] com CADA " +
             "par código:idTurma exatamente como veio em 'materias' da opção escolhida — nunca invente um idTurma, nunca omita o ':idTurma'. " +
+            "(O backend reescreve esse marcador a partir da opção calculada, então ele nunca diverge da grade real.) " +
             "Responda em português brasileiro, direto e conciso.",
         model: createMaritacaModel(),
         tools: [recomendarTool, montarGradeTool],

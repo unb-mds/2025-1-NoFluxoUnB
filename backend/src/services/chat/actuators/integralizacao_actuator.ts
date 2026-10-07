@@ -13,18 +13,9 @@ import { z } from "zod";
 import { Agent, run, tool, OutputGuardrailTripwireTriggered } from "@openai/agents";
 import type { OutputGuardrail } from "@openai/agents";
 import { SupabaseWrapper } from "../../../supabase_wrapper";
+import { resolveIdUserPorEmail } from "../aluno_identidade";
 import { createMaritacaModel } from "../model_provider";
 
-async function resolveIdUserPorEmail(email: string): Promise<string | null> {
-    const { data, error } = await SupabaseWrapper.get()
-        .from("users")
-        .select("id_user")
-        .eq("email", email)
-        .maybeSingle();
-
-    if (error || !data?.id_user) return null;
-    return String(data.id_user);
-}
 
 export async function consultarIntegralizacao(email: string): Promise<string> {
     const idUser = await resolveIdUserPorEmail(email);

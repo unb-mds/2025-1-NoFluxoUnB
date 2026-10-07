@@ -258,4 +258,80 @@ describe('montarPoolRecomendado', () => {
 
 		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0002']);
 	});
+
+	/**
+	 * Pré-requisito que não fecha nem contando o que ele cursa agora: a matrícula
+	 * seria recusada. Recomendar isso é recomendar uma grade impossível.
+	 */
+	it('não semeia matéria com pré-requisito pendente', async () => {
+		curso.materias = [materiaDaMatriz('OBR0001', 1, 0, 1), materiaDaMatriz('OBR0002', 2, 0, 2)];
+		curso.preRequisitos = [
+			{ idMateria: 2, idPreRequisito: 1, codigoMateriaRequisito: 'XYZ0001', expressaoLogica: null }
+		];
+		todasComOferta();
+
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
+
+		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0001']);
+	});
+
+	it('dependência em curso continua sendo semeada', async () => {
+		curso.materias = [materiaDaMatriz('MATR0001', 1, 0, 1), materiaDaMatriz('OBR0002', 2, 0, 2)];
+		curso.preRequisitos = [
+			{ idMateria: 2, idPreRequisito: 1, codigoMateriaRequisito: 'MATR0001', expressaoLogica: null }
+		];
+		todasComOferta();
+		current.add('MATR0001');
+
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
+
+		expect(r.materias.map((m) => m.codigo)).toEqual(['MATR0001', 'OBR0002']);
+	});
+
+	it('carimba o nível da matriz na matéria (desempate por atraso)', async () => {
+		curso.materias = [materiaDaMatriz('OBR0001', 3, 0, 1), materiaDaMatriz('OPT0001', 0, 1, 2)];
+		todasComOferta();
+
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
+
+		expect(r.materias.find((m) => m.codigo === 'OBR0001')?.nivel).toBe(3);
+		expect(r.materias.find((m) => m.codigo === 'OPT0001')?.nivel).toBeUndefined();
+	});
+
+	/**
+	 * "Todas as pendentes": o solver escolhe dentro do limite, então a lista leva
+	 * toda obrigatória com oferta — inclusive as que conflitam entre si ou passam
+	 * do limite, que é justamente o que dá alternativa para a montagem.
+	 */
+	it('todas-pendentes semeia toda obrigatória com oferta, sem cortar por crédito', async () => {
+		curso.materias = [
+			materiaDaMatriz('OBR0001', 1, 0, 1),
+			materiaDaMatriz('OBR0002', 2, 0, 2),
+			materiaDaMatriz('OBR0003', 3, 0, 3),
+			materiaDaMatriz('OPT0001', 0, 1, 4)
+		];
+		todasComOferta();
+		horarioDe = new Map([
+			['OBR0001', '2M12'],
+			['OBR0002', '2M12'],
+			['OBR0003', '3M12'],
+			['OPT0001', '4M12']
+		]);
+
+		const periodo = await montarPoolRecomendado('2026.2', { limiteCreditos: 8 });
+		expect(periodo.materias.map((m) => m.codigo)).toEqual(['OBR0001', 'OBR0003']);
+
+		const todas = await montarPoolRecomendado('2026.2', {
+			limiteCreditos: 8,
+			escopo: 'todas-pendentes'
+		});
+		// Optativa comum continua pelo prefixo do orçamento (num peso menor, o solver
+		// só a encaixa se sobrar espaço depois das obrigatórias).
+		expect(todas.materias.map((m) => m.codigo)).toEqual([
+			'OBR0001',
+			'OBR0002',
+			'OBR0003',
+			'OPT0001'
+		]);
+	});
 });

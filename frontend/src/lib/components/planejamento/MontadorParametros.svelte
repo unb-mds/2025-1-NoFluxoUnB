@@ -8,14 +8,12 @@
 	 * solver. `essencial`/`professorPreferidoEssencial`/`turnosEssencial` só valem
 	 * quando uma disciplina essencial foi escolhida — nulos/vazios quando não.
 	 *
-	 * `limiteCreditos`/`essencial`/`professorPreferidoEssencial` mapeiam direto pro
-	 * `MontarOpts` que `gradeStore.montarOpcoes` já aceita. `escopo` e
-	 * `turnosEssencial` ainda não têm um parâmetro correspondente no store/rota —
-	 * `escopo` fica só de UI por ora (a semeadura via `onSemear` já traz o que dá
-	 * pra montar, sem distinguir os dois modos hoje) e `turnosEssencial` é
-	 * persistido via `preferenciasGradeService.salvar` (não é filtro do solver:
-	 * só o turno GLOBAL — `gradeStore.turnosPermitidos`, reusado abaixo — filtra
-	 * turma hoje).
+	 * `limiteCreditos`/`essencial`/`professorPreferidoEssencial`/`turnosEssencial`
+	 * mapeiam direto pro `MontarOpts` de `gradeStore.montarOpcoes`
+	 * (`turnosEssencial` filtra só as turmas da essencial e também é persistido via
+	 * `preferenciasGradeService.salvar`). `limiteCreditos` e `escopo` também vão
+	 * para a semeadura (`onSemear`): `todas-pendentes` põe na lista toda
+	 * obrigatória pendente com oferta e deixa o solver escolher dentro do limite.
 	 */
 	export interface ParametrosMontagem {
 		escopo: EscopoMontagem;
@@ -24,6 +22,8 @@
 		essencial: string | null;
 		professorPreferidoEssencial: string | null;
 		turnosEssencial: Turno[];
+		/** Nomes das estratégias de ranking que o solver deve testar (nunca vazio). */
+		estrategias: string[];
 	}
 </script>
 
@@ -65,15 +65,30 @@
 
 	/**
 	 * As 3 estratégias padrão do solver (`construirEstrategiasPadrao` em
-	 * `grade.store.svelte.ts`) — `montarOpcoes` sempre roda as 3, sem seleção do
-	 * aluno (o solver não expõe um jeito de escolher um subconjunto), então aqui é
-	 * só um preview informativo do que "Gerar opções" vai testar.
+	 * `grade.store.svelte.ts`). O aluno escolhe quais testar; `montarOpcoes`
+	 * filtra pelo nome (`estrategias`).
 	 */
 	const ESTRATEGIAS_PADRAO: ReadonlyArray<{ nome: string; descricao: string }> = [
 		{ nome: 'Menos dias', descricao: 'Concentra as aulas no menor número de dias' },
 		{ nome: 'Menos lacunas', descricao: 'Reduz os furos entre uma aula e outra' },
 		{ nome: 'Semana equilibrada', descricao: 'Distribui a carga igual pelos dias' }
 	];
+
+	let estrategiasSel = $state<Set<string>>(
+		new Set(
+			valorInicial?.estrategias?.length
+				? valorInicial.estrategias
+				: ESTRATEGIAS_PADRAO.map((e) => e.nome)
+		)
+	);
+	function toggleEstrategia(nome: string): void {
+		const next = new Set(estrategiasSel);
+		if (next.has(nome)) {
+			if (next.size === 1) return; // nunca zera: pelo menos uma estratégia
+			next.delete(nome);
+		} else next.add(nome);
+		estrategiasSel = next;
+	}
 
 	const TURNO_OPCOES: ReadonlyArray<[Turno, string]> = [
 		['M', 'Manhã'],
@@ -145,7 +160,8 @@
 			limiteCreditos,
 			essencial: essencialCodigo,
 			professorPreferidoEssencial: essencialCodigo ? professorPreferidoEssencial : null,
-			turnosEssencial: essencialCodigo ? [...turnosEssencial] : []
+			turnosEssencial: essencialCodigo ? [...turnosEssencial] : [],
+			estrategias: ESTRATEGIAS_PADRAO.map((e) => e.nome).filter((n) => estrategiasSel.has(n))
 		});
 	}
 </script>
@@ -200,17 +216,25 @@
 		</div>
 	</section>
 
-	<!-- Estratégias — preview do que "Gerar opções" testa (sempre as 3, sem seleção). -->
+	<!-- Estratégias — o aluno escolhe quais o "Gerar opções" testa (pelo menos uma). -->
 	<section>
 		<p class="mb-1.5 text-[10px] font-medium tracking-wide text-white/40 uppercase">
-			Estratégias testadas automaticamente
+			Estratégias a testar
 		</p>
 		<div class="grid gap-2 sm:grid-cols-3">
 			{#each ESTRATEGIAS_PADRAO as estrategia (estrategia.nome)}
-				<div class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-white/60">
-					<span class="block text-xs font-semibold text-white/80">{estrategia.nome}</span>
+				{@const ativa = estrategiasSel.has(estrategia.nome)}
+				<button
+					type="button"
+					aria-pressed={ativa}
+					onclick={() => toggleEstrategia(estrategia.nome)}
+					class="touch-manipulation rounded-xl border px-3 py-2 text-left transition-colors {ativa
+						? 'border-purple-300/45 bg-purple-500/18 text-purple-100'
+						: 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10'}"
+				>
+					<span class="block text-xs font-semibold">{estrategia.nome}</span>
 					<span class="block text-[10px] opacity-70">{estrategia.descricao}</span>
-				</div>
+				</button>
 			{/each}
 		</div>
 	</section>

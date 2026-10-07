@@ -7,9 +7,10 @@
 import { authStore } from '$lib/stores/auth';
 import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
 import { planoFormaturaService } from '$lib/services/plano-formatura.service';
-import { mensagemErroChat } from '$lib/utils/ai-errors';
+import { darcyStore } from '$lib/stores/darcy.store.svelte';
 import type {
 	PlanoFormatura,
+	PlanoFormaturav2,
 	PreferenciasPlano,
 	PreferenciaModuloLivre,
 	PlannerChatMessage,
@@ -32,7 +33,7 @@ export interface PlanoFormaturaStoreState {
 	error: string | null;
 	/** Indica se o modal de onboarding deve estar aberto. */
 	showOnboarding: boolean;
-	/** Mensagens do chat agente planejador. */
+	/** Mensagens da conversa única com a Darcy (`darcyStore`). */
 	chatMessages: PlannerChatMessage[];
 	/** Restrições ativas (adiar/priorizar). */
 	restricoes: RestricoesPlano;
@@ -48,9 +49,7 @@ function createPlanoFormaturaStore() {
 	let preferencias = $state<PreferenciasPlano>({ ...DEFAULT_PREFERENCIAS });
 	let error = $state<string | null>(null);
 	let showOnboarding = $state(false);
-	let chatMessages = $state<PlannerChatMessage[]>([]);
 	let restricoes = $state<RestricoesPlano>({ adiar: [], priorizar: [] });
-	let chatLoading = $state(false);
 
 	// Mirror the Svelte 4 writable authStore into a $state variable so that
 	// $derived expressions can reactively track auth changes.
@@ -111,9 +110,10 @@ function createPlanoFormaturaStore() {
 		get semestresRestantes() { return semestresRestantes; },
 		get formaturaEstimada() { return formaturaEstimada; },
 		get needsOnboarding() { return needsOnboarding; },
-		get chatMessages() { return chatMessages; },
+		/** Conversa única da Darcy (a mesma das outras telas). */
+		get chatMessages() { return darcyStore.mensagens; },
 		get restricoes() { return restricoes; },
-		get chatLoading() { return chatLoading; },
+		get chatLoading() { return darcyStore.carregando; },
 
 
 		/**
@@ -288,59 +288,32 @@ function createPlanoFormaturaStore() {
 
 
 		/**
-		 * Envia uma mensagem para o agente planejador e recebe resposta com possível atualização de plano.
+		 * Envia uma mensagem para a Darcy a partir do Plano de Formatura. A conversa é
+		 * a mesma de todas as telas (`darcyStore`); quem aplica `plano`/`restricoes`
+		 * da resposta é `aplicarPlanoDoChat`/`aplicarRestricoesDoChat`, registrados
+		 * pela rota do plano como handlers da superfície.
 		 */
 		async enviarMensagem(mensagem: string): Promise<void> {
-			chatMessages = [...chatMessages, { role: 'user', content: mensagem }];
-			chatLoading = true;
+			await darcyStore.enviar(mensagem);
+		},
 
-			try {
-				const curriculo = getCurriculoCompleto();
-				if (!curriculo) throw new Error('Dados do curso não carregados');
+		/** Plano que uma tool de plano da Darcy recalculou (adiar, mover, ajustar carga…). */
+		aplicarPlanoDoChat(novo: PlanoFormaturav2): void {
+			plano = novo;
+			status = 'success';
+		},
 
-				const resposta = await planoFormaturaService.chat(
-					chatMessages,
-					{
-						curriculoCompleto: curriculo,
-						codigosConcluidos: getCodigosConcluidos(),
-						semestreAtual: getSemestreAtual(),
-						limiteCreditos: preferencias.limiteCreditos,
-						objetivo: preferencias.objetivo,
-						trabalha: preferencias.trabalha
-					},
-					restricoes
-				);
+		/** Restrições que a Darcy alterou — atualiza e persiste em background. */
+		aplicarRestricoesDoChat(novas: RestricoesPlano): void {
+			restricoes = novas;
+			preferencias = { ...preferencias, restricoes: novas };
 
-				// Atualiza chat com resposta do agente
-				chatMessages = [...chatMessages, { role: 'assistant', content: resposta.reply }];
-
-				// Se o agente retornar um plano atualizado, usa-o
-				if (resposta.plano) {
-					plano = resposta.plano;
-				}
-
-				// Atualiza restrições e persiste no backend em background
-				if (resposta.restricoes) {
-					restricoes = resposta.restricoes;
-					preferencias = { ...preferencias, restricoes: resposta.restricoes };
-					
-					const idUser = getIdUser();
-					if (idUser) {
-						// Salva de forma silenciosa para o usuário não perder as edições do bot
-						planoFormaturaService.savePreferencias(idUser, preferencias).catch(() => {
-							console.warn('Falha ao persistir restrições do agente em background.');
-						});
-					}
-				}
-			} catch (err) {
-				// Antes o chat ficava mudo em erro (só setava `error`, que ninguém
-				// renderiza). Agora responde com bolha: texto próprio pra "sem
-				// créditos" da Maritaca, fallback genérico pro resto.
-				const bolha = mensagemErroChat(err);
-				error = bolha;
-				chatMessages = [...chatMessages, { role: 'assistant', content: bolha }];
-			} finally {
-				chatLoading = false;
+			const idUser = getIdUser();
+			if (idUser) {
+				// Salva de forma silenciosa para o usuário não perder as edições do bot
+				planoFormaturaService.savePreferencias(idUser, preferencias).catch(() => {
+					console.warn('Falha ao persistir restrições do agente em background.');
+				});
 			}
 		},
 
@@ -355,14 +328,6 @@ function createPlanoFormaturaStore() {
 		},
 
 		/**
-		 * Limpa o histórico do chat (ex: ao gerar novo plano).
-		 */
-		clearChat(): void {
-			chatMessages = [];
-			chatLoading = false;
-		},
-
-		/**
 		 * Reseta o store para o estado inicial.
 		 */
 		reset(): void {
@@ -371,9 +336,7 @@ function createPlanoFormaturaStore() {
 			preferencias = { ...DEFAULT_PREFERENCIAS };
 			error = null;
 			showOnboarding = false;
-			chatMessages = [];
 			restricoes = { adiar: [], priorizar: [] };
-			chatLoading = false;
 
 			const idUser = getIdUser();
 			if (idUser) {

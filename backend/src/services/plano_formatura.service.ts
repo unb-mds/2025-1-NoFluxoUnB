@@ -678,6 +678,10 @@ export interface DisciplinaFluxo {
     tipo_dado?: string;
     nome?: string;
     creditos?: number;
+    /** Turma da matrícula real (MATR), como o histórico SIGAA registra (ex.: "01"). */
+    turma?: string;
+    /** Professor da matrícula real (MATR), como o histórico SIGAA registra. */
+    professor?: string;
 }
 
 /**
@@ -729,6 +733,11 @@ export function parseFluxograma(fluxograma_atual_str: string | null | undefined)
                         tipo_dado: disc.tipo_dado,
                         nome: disc.nome,
                         creditos: disc.creditos,
+                        turma: typeof disc.turma === "string" && disc.turma.trim() ? disc.turma.trim() : undefined,
+                        professor:
+                            typeof disc.professor === "string" && disc.professor.trim()
+                                ? disc.professor.trim()
+                                : undefined,
                     });
                 }
             }

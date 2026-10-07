@@ -85,7 +85,7 @@ jest.mock("../src/controllers/PlanejamentoController", () => ({
     resolverPeriodoAtivo: async () => "2026.2",
 }));
 
-import { montarGrade, docenteBate, normDocente, type ParametrosMontador } from "../src/services/grade/montador_grade.service";
+import { montarGrade, docenteBate, normDocente, turmaRealDaMatricula, type ParametrosMontador } from "../src/services/grade/montador_grade.service";
 
 const CARGA_ZERADA = { total: 0, obrigatoria: 0, optativa: 0, complementar: 0 };
 const EXIGIDA_PADRAO = { total: 600, obrigatoria: 400, optativa: 200, complementar: 0 };
@@ -300,5 +300,126 @@ describe("montarGrade — incluirCursando", () => {
         for (const opcao of resultado.opcoes) {
             expect(opcao.resultado.selecao.has("FGA0002")).toBe(false);
         }
+    });
+});
+
+describe("montarGrade — pré-requisito pendente fora da montagem (não-essencial)", () => {
+    function turmasBasicas() {
+        db.turmas.push({ id_turmas: 10, id_materia: 1, turma: "A", docente: null, horario: "2M12", local: null, ano_periodo: "2026.2", vagas_ofertadas: null, vagas_ocupadas: null, vagas_sobrando: null });
+        db.turmas.push({ id_turmas: 11, id_materia: 2, turma: "A", docente: null, horario: "3M12", local: null, ano_periodo: "2026.2", vagas_ofertadas: null, vagas_ocupadas: null, vagas_sobrando: null });
+    }
+
+    it("matéria com pré-requisito que não fecha não entra em nenhuma opção; o resto monta", async () => {
+        turmasBasicas();
+        const pendente = { ...FGA0001_ESSENCIAL, preRequisitos: { condicoes: ["FGA0000"], operador: "E" } };
+        mockarDados({ materiasMapeadas: [pendente, FGA0002_NORMAL] });
+
+        const resultado = await montarGrade(PARAMS_PADRAO);
+
+        expect(resultado.opcoes.length).toBeGreaterThan(0);
+        for (const opcao of resultado.opcoes) {
+            expect(opcao.resultado.selecao.has("FGA0001")).toBe(false);
+            expect(opcao.resultado.selecao.has("FGA0002")).toBe(true);
+        }
+    });
+
+    it("OU com uma alternativa cumprida conta como desbloqueada", async () => {
+        turmasBasicas();
+        const comOu = { ...FGA0001_ESSENCIAL, preRequisitos: { condicoes: ["FGA0000", "FGA0003"], operador: "OU" } };
+        mockarDados({
+            materiasMapeadas: [comOu, FGA0002_NORMAL],
+            fluxograma: [[{ codigo: "FGA0003", status: "APR" }]],
+        });
+
+        const resultado = await montarGrade(PARAMS_PADRAO);
+
+        expect(resultado.opcoes[0].resultado.selecao.has("FGA0001")).toBe(true);
+    });
+
+    it("pré-requisito que o aluno cursa agora (MATR) conta como encaminhado e a matéria entra", async () => {
+        turmasBasicas();
+        const dependeDeCursando = { ...FGA0001_ESSENCIAL, preRequisitos: { condicoes: ["FGA0003"], operador: "E" } };
+        mockarDados({
+            materiasMapeadas: [dependeDeCursando, FGA0002_NORMAL],
+            fluxograma: [[{ codigo: "FGA0003", status: "MATR" }]],
+        });
+
+        const resultado = await montarGrade(PARAMS_PADRAO);
+
+        expect(resultado.opcoes[0].resultado.selecao.has("FGA0001")).toBe(true);
+    });
+});
+
+describe("montarGrade — essencial não derruba matéria em curso", () => {
+    it("essencial que conflita com uma MATR fica de fora; a MATR permanece", async () => {
+        db.turmas.push({ id_turmas: 10, id_materia: 1, turma: "A", docente: null, horario: "2M12", local: null, ano_periodo: "2026.2", vagas_ofertadas: null, vagas_ocupadas: null, vagas_sobrando: null });
+        db.turmas.push({ id_turmas: 11, id_materia: 2, turma: "A", docente: null, horario: "2M12", local: null, ano_periodo: "2026.2", vagas_ofertadas: null, vagas_ocupadas: null, vagas_sobrando: null });
+        mockarDados({
+            materiasMapeadas: [FGA0001_ESSENCIAL, FGA0002_NORMAL],
+            fluxograma: [[{ codigo: "FGA0002", status: "MATR" }]],
+        });
+
+        const resultado = await montarGrade({ ...PARAMS_PADRAO, essencial: "FGA0001" });
+
+        for (const opcao of resultado.opcoes) {
+            expect(opcao.resultado.selecao.has("FGA0002")).toBe(true);
+            expect(opcao.resultado.selecao.has("FGA0001")).toBe(false);
+        }
+    });
+});
+
+describe("montarGrade — matéria em curso fica na turma real da matrícula", () => {
+    function turmaFisica(id: number, turma: string, docente: string, horario: string) {
+        return { id_turmas: id, id_materia: 2, turma, docente, horario, local: null, ano_periodo: "2026.2", vagas_ofertadas: null, vagas_ocupadas: null, vagas_sobrando: null };
+    }
+
+    it("usa a turma do histórico mesmo havendo turmas \"melhores\" e fora dos turnos pedidos", async () => {
+        // A real é 24M12 (manhã); o aluno pediu só tarde — a matrícula não muda por isso.
+        db.turmas.push(turmaFisica(20, "A", "OUTRO PROFESSOR", "35T23"));
+        db.turmas.push(turmaFisica(21, "B", "RAFAEL MORGADO", "24M12"));
+        mockarDados({
+            materiasMapeadas: [FGA0002_NORMAL],
+            fluxograma: [[{ codigo: "FGA0002", status: "MATR", ano_periodo: "2026.2", turma: "B", professor: "RAFAEL MORGADO" }]],
+        });
+
+        const resultado = await montarGrade({ ...PARAMS_PADRAO, turnosPermitidos: ["T"] });
+
+        expect(resultado.opcoes.length).toBeGreaterThan(0);
+        for (const opcao of resultado.opcoes) {
+            expect(opcao.resultado.selecao.get("FGA0002")?.turma.id_turmas).toBe(21);
+        }
+    });
+
+    it("matrícula de outro período não fixa turma (a oferta é de outro semestre)", async () => {
+        db.turmas.push(turmaFisica(20, "A", "X", "35T23"));
+        db.turmas.push(turmaFisica(21, "B", "Y", "24M12"));
+        mockarDados({
+            materiasMapeadas: [FGA0002_NORMAL],
+            fluxograma: [[{ codigo: "FGA0002", status: "MATR", ano_periodo: "2026.1", turma: "B" }]],
+        });
+
+        const resultado = await montarGrade({ ...PARAMS_PADRAO, turnosPermitidos: ["T"] });
+
+        // Sem turma real válida vale o filtro de turno normal: só a de tarde.
+        expect(resultado.opcoes[0].resultado.selecao.get("FGA0002")?.turma.id_turmas).toBe(20);
+    });
+});
+
+describe("turmaRealDaMatricula", () => {
+    const t = (id: number, turma: string, docente: string | null) =>
+        ({ id_turmas: id, id_materia: 1, turma, docente, horario: null, local: null, ano_periodo: "2026.2", vagas_ofertadas: null, vagas_ocupadas: null, vagas_sobrando: null });
+
+    it("casa pelo código da turma ignorando zeros à esquerda", () => {
+        expect(turmaRealDaMatricula([t(1, "01", "A"), t(2, "02", "B")], { turma: "2" })?.id_turmas).toBe(2);
+    });
+
+    it("sem casar pela turma, usa o professor quando ele tem uma turma só (sem acento, nome parcial)", () => {
+        const turmas = [t(1, "A", "FULANO"), t(2, "B", "RAFAEL MORGADO SILVA"), t(3, "C", "CICLANA, OUTRO")];
+        expect(turmaRealDaMatricula(turmas, { turma: "Z", professor: "Rafael Morgado" })?.id_turmas).toBe(2);
+        expect(turmaRealDaMatricula(turmas, { professor: "ciclana" })?.id_turmas).toBe(3);
+    });
+
+    it("professor com duas turmas não vira palpite", () => {
+        expect(turmaRealDaMatricula([t(1, "A", "RAFAEL"), t(2, "B", "RAFAEL")], { professor: "Rafael" })).toBeNull();
     });
 });

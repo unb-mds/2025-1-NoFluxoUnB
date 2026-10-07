@@ -68,6 +68,12 @@ export interface MateriaGrade {
 	 * junto com as outras optativas quando a carga optativa já está cumprida.
 	 */
 	optatoria?: boolean;
+	/**
+	 * Semestre esperado na matriz (1 = primeiro). É o que faz a montagem preferir a
+	 * matéria mais atrasada quando duas do mesmo degrau disputam o horário — ver
+	 * `fatorAtraso`. Ausente (ou 0, caso das optativas) = sem preferência.
+	 */
+	nivel?: number;
 }
 
 interface Cenario {
@@ -202,6 +208,30 @@ export function pesoDaNatureza(
 	return saturada(situacao, natureza) ? PESO_SATURADO : PESO_NECESSARIA;
 }
 
+/** Nível a partir do qual o atraso não dá mais vantagem nenhuma. */
+const NIVEL_TETO_ATRASO = 16;
+/** Vantagem máxima (fração do próprio peso) da matéria do 1º semestre. */
+export const ATRASO_MAX = 0.5;
+
+/**
+ * Multiplicador de peso pelo atraso: entre duas matérias do MESMO degrau, a de
+ * semestre mais baixo na matriz vale um pouco mais — é a que mais atrasa a
+ * formatura e a que mais destrava o resto.
+ *
+ * Por que nunca cruza degrau: o fator vai de 1 a `1 + ATRASO_MAX` (1,5). Duas
+ * matérias de um degrau continuam valendo mais que uma só do mesmo degrau (2 >
+ * 1,5), então encaixar mais matérias segue ganhando de escolher a mais atrasada;
+ * e a conta de `FATOR_ENTRE_DEGRAUS` passa a exigir `1,5·N < 1000` em vez de
+ * `N < 1000` — folga de sobra para qualquer pool que caiba na tela. O bônus de
+ * turma (professor/estratégia, `epsilonSeguro`) continua abaixo de
+ * `PESO_SATURADO`, que é o menor peso possível (fator ≥ 1).
+ */
+export function fatorAtraso(nivel: number | undefined): number {
+	if (!nivel || nivel < 1) return 1;
+	const n = Math.min(nivel, NIVEL_TETO_ATRASO);
+	return 1 + (ATRASO_MAX * (NIVEL_TETO_ATRASO - n)) / (NIVEL_TETO_ATRASO - 1);
+}
+
 /** Docentes comparáveis: sem espaços redundantes, caixa alta. */
 function normDocente(nome: string | null | undefined): string {
 	return (nome ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
@@ -222,38 +252,6 @@ export function docenteBate(docenteCru: string | null | undefined, alvo: string)
 		.split(',')
 		.map((nome) => normDocente(nome))
 		.some((nome) => nome.length > 0 && nome.includes(alvoNorm));
-}
-
-/** Quantidade de dias distintos (de 6) que uma máscara de horário ocupa. */
-function diasOcupadosPelaMask(mask: bigint): number {
-	let dias = 0;
-	for (let dia = 0; dia < 6; dia++) {
-		if (((mask >> BigInt(dia * 16)) & 0xffffn) !== 0n) dias++;
-	}
-	return dias;
-}
-
-/** Módulos ocupados (de 16) num dia específico (0=Seg..5=Sáb) da máscara. */
-function modulosOcupadosNoDia(mask: bigint, dia: number): number {
-	let seg = (mask >> BigInt(dia * 16)) & 0xffffn;
-	let n = 0;
-	while (seg > 0n) {
-		if (seg & 1n) n++;
-		seg >>= 1n;
-	}
-	return n;
-}
-
-/** Amplitude (último módulo − primeiro + 1) ocupada num dia — mede dispersão interna. */
-function amplitudeNoDia(mask: bigint, dia: number): number {
-	let min = -1;
-	let max = -1;
-	for (let bit = 0; bit < 16; bit++) {
-		if ((mask & (1n << BigInt(dia * 16 + bit))) === 0n) continue;
-		if (min === -1) min = bit;
-		max = bit;
-	}
-	return min === -1 ? 0 : max - min + 1;
 }
 
 /**
@@ -297,43 +295,29 @@ function pendenciasPreRequisitoDe(idMateria: number): string[] {
 }
 
 /**
- * As 3 `RankingStrategy` padrão de `montarOpcoes`: cada uma pontua uma turma
- * isoladamente (o solver não enxerga o resto da seleção nesse ponto), então são
- * heurísticas de VIÉS — o que de fato compara as opções depois é a métrica
- * agregada que `autoMontarGradeOpcoes` calcula sobre a grade inteira já montada.
- * O papel de cada estratégia aqui é só puxar o solver pra soluções distintas o
- * bastante pra valer a pena comparar.
+ * As 3 `RankingStrategy` padrão de `montarOpcoes`. Cada uma avalia a grade
+ * INTEIRA (métricas de `autoMontarGradeOpcoes`) e escolhe entre as grades que já
+ * empatam em matérias e preferências — nunca troca matéria por semana mais
+ * bonita. A versão anterior pontuava turma por turma e não enxergava o furo
+ * entre duas matérias: "Menos lacunas" chegava a devolver a grade com mais furo.
  *
- * `epsilon` é o mesmo teto de `epsilonSeguro` usado para o bônus de professor —
- * a documentação de `epsilonSeguro` já reserva a folga de 2× exatamente para os
- * dois bônus (professor + estratégia) conviverem na mesma turma sem um deslocar
- * matéria por cima do outro.
+ * O custo é lexicográfico (menor é melhor): o primeiro número é o critério da
+ * estratégia, os seguintes só desempatam.
  */
-function construirEstrategiasPadrao(epsilon: number): RankingStrategy<TurmaOferta>[] {
+function construirEstrategiasPadrao(): RankingStrategy<TurmaOferta>[] {
 	return [
 		{
-			// Prefere turmas que ocupam menos dias distintos — concentra a semana.
 			nome: 'Menos dias',
-			pontuar: (t) => epsilon * (6 - diasOcupadosPelaMask(t.mask))
+			avaliar: (m) => [m.diasComAula, m.minutosDeLacuna]
 		},
 		{
-			// Prefere turmas sem buraco interno (amplitude == módulos ocupados no dia).
 			nome: 'Menos lacunas',
-			pontuar: (t) => {
-				let bonus = 0;
-				for (let dia = 0; dia < 6; dia++) {
-					const ocupados = modulosOcupadosNoDia(t.mask, dia);
-					if (ocupados === 0) continue;
-					if (amplitudeNoDia(t.mask, dia) === ocupados) bonus += epsilon;
-				}
-				return bonus;
-			}
+			avaliar: (m) => [m.minutosDeLacuna, m.diasComAula]
 		},
 		{
-			// Prefere turmas espalhadas por mais dias — o oposto de "Menos dias",
-			// pra reduzir a carga concentrada num único dia.
+			// Carga parecida em todo dia útil; furo desempata.
 			nome: 'Semana equilibrada',
-			pontuar: (t) => epsilon * diasOcupadosPelaMask(t.mask)
+			avaliar: (m) => [m.variancaCargaDiaria, m.minutosDeLacuna]
 		}
 	];
 }
@@ -430,6 +414,13 @@ function createGradeStore() {
 	 * a grade é decisão do aluno — ver `incluirCursando`.
 	 */
 	let cursandoAtual = $state<Set<string>>(new Set());
+	/**
+	 * Turma real (id_turmas) da matrícula de cada matéria em curso, vinda do
+	 * histórico SIGAA. Quem define é a rota (`definirTurmasReais`). É a fonte de
+	 * verdade da turma de uma matéria em curso — independe do cenário ativo e da
+	 * trava, que podem ser apagados ("Limpar a grade", cenário novo).
+	 */
+	let turmasReais = $state<Record<string, number>>({});
 	/**
 	 * Códigos travados: `montarAutomatico` nunca reatribui a turma deles, só ocupa o
 	 * horário pras outras matérias otimizarem em volta. Uma matéria de `cursandoAtual`
@@ -594,11 +585,12 @@ function createGradeStore() {
 		 */
 		turnosEssencial?: Turno[];
 		/**
-		 * Que universo de matérias considerar — o store sempre resolve sobre `pool`
-		 * como ele está no momento da chamada; quem decide o que ENTRA em `pool` para
-		 * cada escopo é a semeadura de cima (rota, via `onSemear`/`grade-pool.service`,
-		 * Fase 2 da UI), não este método. Aceito aqui só para fechar o contrato com
-		 * `MontadorParametros`/`MontadorGradeView` — sem efeito próprio no solver hoje.
+		 * Que universo de matérias considerar. O store sempre resolve sobre `pool`
+		 * como ele está no momento da chamada; quem aplica o escopo é a semeadura
+		 * (`onSemear` → `montarPoolRecomendado`): `todas-pendentes` põe na lista toda
+		 * obrigatória pendente com oferta e deixa o solver escolher dentro do limite;
+		 * `periodo-atual` semeia só o prefixo que cabe no limite. Aqui o campo não
+		 * tem efeito próprio.
 		 */
 		escopo?: 'periodo-atual' | 'todas-pendentes';
 	}
@@ -643,8 +635,22 @@ function createGradeStore() {
 		const candidatas = pool
 			// Modo desligado: a matéria em curso não é candidata — sai da grade e
 			// devolve o horário e o crédito dela para as outras.
-			.filter((m) => !travadasAtivas.has(m.codigo))
-			.filter((m) => incluirCursando || !cursandoAtual.has(m.codigo));
+			// Travada só sai do solver se a turma dela está neste cenário (vira horário
+			// pré-ocupado). Num cenário novo ela não tem turma aqui, e excluí-la fazia a
+			// matéria sumir da montagem em vez de entrar na turma real.
+			.filter((m) => !(travadasAtivas.has(m.codigo) && selecaoAtiva.has(m.codigo)))
+			.filter((m) => incluirCursando || !cursandoAtual.has(m.codigo))
+			// Pré-requisito que não fecha nem contando o que ele cursa agora: a
+			// matrícula seria recusada, então a montagem automática não a propõe. Ela
+			// continua na lista (o aluno pode escolher turma na mão). Exceções: a
+			// `essencial`, que o aluno pediu explicitamente (se não couber, o
+			// diagnóstico explica o porquê), e a matrícula que já aconteceu.
+			.filter(
+				(m) =>
+					m.nivelPreRequisito !== 'pendente' ||
+					m.codigo === essencialCodigo ||
+					cursandoAtivo.has(m.codigo)
+			);
 
 		// Bônus seguro de professor — mesmo teto para todas as matérias desta
 		// montagem, dado o tamanho do pool que pode entrar junto na mesma grade.
@@ -669,7 +675,7 @@ function createGradeStore() {
 				const turnosEssencialSet = new Set<Turno>(opts.turnosEssencial);
 				turmasNoTurno = turmasNoTurno.filter((t) => turmaRespeitaTurnos(t.mask, turnosEssencialSet));
 			}
-			const turmas: Array<TurmaCandidata<TurmaOferta>> = docenteAlvo
+			let turmas: Array<TurmaCandidata<TurmaOferta>> = docenteAlvo
 				? turmasNoTurno.map((t) =>
 						docenteBate(t.turma.docente, docenteAlvo) ? { ...t, bonus: bonusProfessor } : t
 					)
@@ -681,17 +687,31 @@ function createGradeStore() {
 			// `essencial` (que também não pode ser barrada por crédito). A natureza
 			// da matriz entra pelo `peso`, logo abaixo.
 			const matriculaReal = cursandoAtivo.has(m.codigo);
+
+			// Matrícula com turma real conhecida só tem UMA turma possível — a dela,
+			// fora de qualquer filtro de turno. Sem isto a turma real só sobrevivia
+			// enquanto estivesse travada no cenário ativo: "Limpar a grade", um
+			// cenário novo ou uma seleção antiga errada deixavam o solver trocar a
+			// turma de uma matéria que o aluno já cursa.
+			const idReal = matriculaReal ? turmasReais[m.codigo] : undefined;
+			const turmaReal =
+				idReal !== undefined ? m.turmas.find((t) => t.turma.id_turmas === idReal) : undefined;
+			if (turmaReal) turmas = [turmaReal];
+
 			return {
 				chave: m.codigo,
 				turmas,
 				creditos: m.creditos,
 				obrigatoria: matriculaReal || essencialAqui,
 				essencial: essencialAqui,
+				// Dentro do degrau, a mais atrasada na matriz vale um pouco mais
+				// (`fatorAtraso`, nunca cruza degrau). Matrícula real não precisa.
 				peso: matriculaReal
 					? PESO_CURSANDO
-					: prioritarias.has(m.codigo)
-						? PESO_PRIORITARIA
-						: pesoDaNatureza(m.natureza, situacao, m.optatoria === true)
+					: (prioritarias.has(m.codigo)
+							? PESO_PRIORITARIA
+							: pesoDaNatureza(m.natureza, situacao, m.optatoria === true)) *
+						fatorAtraso(m.nivel)
 			};
 		});
 
@@ -956,6 +976,7 @@ function createGradeStore() {
 			// montador) não pode herdar travas/cursando da sessão anterior do store —
 			// quem sabe o estado atual é a rota, via `definirCursandoAtual` logo após.
 			cursandoAtual = new Set();
+			turmasReais = {};
 			travadas = new Set();
 
 			const key = cenariosKey(idUser, periodo);
@@ -1142,6 +1163,37 @@ function createGradeStore() {
 			if (jaEscolhidas.length > 0) travadas = new Set([...travadas, ...jaEscolhidas]);
 		},
 
+		/**
+		 * Registra a turma real de cada matéria em curso e corrige o cenário ativo:
+		 * seleção restaurada que aponta outra turma (ex.: escolhida por uma montagem
+		 * antiga) volta para a da matrícula, e a matéria trava. Seleção que conflitaria
+		 * com outra matéria não é forçada aqui — a próxima montagem já respeita a
+		 * turma real e resolve em volta dela.
+		 */
+		definirTurmasReais(mapa: Record<string, number>): void {
+			turmasReais = Object.fromEntries(
+				Object.entries(mapa).map(([c, id]) => [c.trim().toUpperCase(), id])
+			);
+			const corrigir: Record<string, number> = {};
+			for (const [codigo, idReal] of Object.entries(turmasReais)) {
+				if (!cursandoAtual.has(codigo)) continue;
+				const atual = cenarioAtivo?.selecao[codigo];
+				if (atual === idReal) continue;
+				const tg = pool
+					.find((m) => m.codigo === codigo)
+					?.turmas.find((t) => t.turma.id_turmas === idReal);
+				if (!tg) continue;
+				const conflita = [...selecaoAtiva].some(
+					([c, t]) => c !== codigo && hasConflict(tg.mask, t.mask)
+				);
+				if (!conflita) corrigir[codigo] = idReal;
+			}
+			if (Object.keys(corrigir).length > 0) {
+				updateAtivo((sel) => ({ ...sel, ...corrigir }));
+				travadas = new Set([...travadas, ...Object.keys(corrigir)]);
+			}
+		},
+
 		/** Destrava manualmente — o aluno quer que "Montar grade" mexa nessa também. */
 		destravar(codigo: string): void {
 			if (!travadas.has(codigo)) return;
@@ -1236,8 +1288,7 @@ function createGradeStore() {
 			opts?: MontarOpts & { estrategias?: string[]; maxOpcoes?: number }
 		): OpcaoGrade<TurmaOferta>[] {
 			const entrada = construirEntradaSolver(opts);
-			const epsilon = epsilonSeguro(PESO_SATURADO, Math.max(entrada.candidatasCount, 1));
-			const padrao = construirEstrategiasPadrao(epsilon);
+			const padrao = construirEstrategiasPadrao();
 			const nomesEscolhidos = new Set(opts?.estrategias ?? []);
 			const estrategias =
 				nomesEscolhidos.size > 0 ? padrao.filter((e) => nomesEscolhidos.has(e.nome)) : padrao;

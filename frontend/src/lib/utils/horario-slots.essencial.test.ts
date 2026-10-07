@@ -4,6 +4,7 @@ import {
 	diagnosticarEssenciais,
 	hasConflict,
 	MAX_NOS_MONTAGEM,
+	slotMaskFromHorario,
 	type MateriaTurmas
 } from './horario-slots';
 
@@ -228,5 +229,32 @@ describe('diagnosticarEssenciais', () => {
 			mascaraInicial: ocupado
 		});
 		expect(erros).toEqual([{ tipo: 'ESSENCIAL_CONFLITO', chave: 'ESS', colideCom: [] }]);
+	});
+});
+
+describe('essencial x matrícula em curso', () => {
+	it('essencial não derruba matéria em curso (obrigatoria) que conflita com ela', () => {
+		const cursando: MateriaTurmas<string> = {
+			chave: 'CURSANDO',
+			obrigatoria: true,
+			peso: 1_000_000_000_000,
+			turmas: [{ mask: slotMaskFromHorario('24M12'), turma: 'c1' }]
+		};
+		const essencial: MateriaTurmas<string> = {
+			chave: 'ESS',
+			essencial: true,
+			obrigatoria: true,
+			peso: 1_000_000,
+			turmas: [{ mask: slotMaskFromHorario('24M12'), turma: 'e1' }]
+		};
+		const outra: MateriaTurmas<string> = {
+			chave: 'OUTRA',
+			peso: 1_000_000,
+			turmas: [{ mask: slotMaskFromHorario('35T23'), turma: 'o1' }]
+		};
+		const r = autoMontarGrade([cursando, essencial, outra]);
+		expect(r.selecao.has('CURSANDO')).toBe(true);
+		expect(r.naoAlocadas).toContain('ESS');
+		expect(r.selecao.has('OUTRA')).toBe(true);
 	});
 });

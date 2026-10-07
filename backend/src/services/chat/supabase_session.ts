@@ -15,8 +15,74 @@ import type { AgentInputItem } from "@openai/agents";
 import type { Session } from "@openai/agents";
 import { SupabaseWrapper } from "../../supabase_wrapper";
 
+/** Quantos itens da sessão entram em cada `run` (o perfil do aluno já cobre o que é estável). */
+export const JANELA_PADRAO_ITENS = 30;
+
+export interface MensagemVisivel {
+    role: "user" | "assistant";
+    content: string;
+}
+
+function textoDoItem(item: any): string {
+    const c = item?.content;
+    if (typeof c === "string") return c;
+    if (Array.isArray(c)) {
+        return c
+            .map((p: any) => (typeof p === "string" ? p : typeof p?.text === "string" ? p.text : ""))
+            .join("")
+            .trim();
+    }
+    return "";
+}
+
+function ehMensagemDoUsuario(item: any): boolean {
+    return item?.role === "user" && (item?.type === undefined || item?.type === "message");
+}
+
+function ehMensagemDaDarcy(item: any): boolean {
+    return item?.role === "assistant" && (item?.type === undefined || item?.type === "message");
+}
+
+/**
+ * Corta o começo da janela até a primeira mensagem do aluno. Uma janela que começa
+ * no meio de um turno deixaria um resultado de tool sem a chamada que o originou,
+ * e o modelo recusa histórico assim.
+ */
+export function aparaInicioDaJanela(itens: AgentInputItem[]): AgentInputItem[] {
+    const inicio = itens.findIndex(ehMensagemDoUsuario);
+    return inicio <= 0 ? (inicio === 0 ? itens : []) : itens.slice(inicio);
+}
+
+/**
+ * Só o que o aluno viu: as mensagens dele e a resposta FINAL da Darcy de cada turno
+ * (sem chamadas de tool nem textos intermediários antes de uma tool).
+ */
+export function mensagensVisiveis(itens: AgentInputItem[]): MensagemVisivel[] {
+    const out: MensagemVisivel[] = [];
+    let respostaPendente: string | null = null;
+    const fecharTurno = () => {
+        if (respostaPendente) out.push({ role: "assistant", content: respostaPendente });
+        respostaPendente = null;
+    };
+    for (const item of itens) {
+        if (ehMensagemDoUsuario(item)) {
+            fecharTurno();
+            const texto = textoDoItem(item);
+            if (texto) out.push({ role: "user", content: texto });
+        } else if (ehMensagemDaDarcy(item)) {
+            const texto = textoDoItem(item);
+            if (texto) respostaPendente = texto;
+        }
+    }
+    fecharTurno();
+    return out;
+}
+
 export class SupabaseSession implements Session {
-    constructor(private readonly sessionId: string) {}
+    constructor(
+        private readonly sessionId: string,
+        private readonly janela: number = JANELA_PADRAO_ITENS
+    ) {}
 
     async getSessionId(): Promise<string> {
         const { data: existente, error: erroBusca } = await SupabaseWrapper.get()
@@ -42,7 +108,26 @@ export class SupabaseSession implements Session {
         return this.sessionId;
     }
 
+    /**
+     * Últimos itens da sessão, em ordem cronológica. Sem `limit` explícito vale a
+     * janela da instância — antes carregava a sessão inteira e o prompt crescia sem
+     * limite. A janela é aparada para começar numa mensagem do aluno.
+     */
     async getItems(limit?: number): Promise<AgentInputItem[]> {
+        if (limit === undefined) {
+            return aparaInicioDaJanela(await this.carregarRecentes(this.janela));
+        }
+        return this.carregarRecentes(limit);
+    }
+
+    /** Conversa visível para as telas (`GET /chat/historico`), últimas `max` mensagens. */
+    async listarMensagensVisiveis(max: number = 50): Promise<MensagemVisivel[]> {
+        // Cada mensagem visível pode vir acompanhada de várias de tool; lê folgado.
+        const itens = aparaInicioDaJanela(await this.carregarRecentes(max * 6));
+        return mensagensVisiveis(itens).slice(-max);
+    }
+
+    private async carregarRecentes(limit?: number): Promise<AgentInputItem[]> {
         await this.getSessionId();
 
         let query = SupabaseWrapper.get()
@@ -101,6 +186,41 @@ export class SupabaseSession implements Session {
         const [ultimo] = linhas;
         await SupabaseWrapper.get().from("chat_items").delete().eq("id", ultimo.id);
         return ultimo.item;
+    }
+
+    /**
+     * Troca o texto da última resposta da Darcy gravada pelo SDK. O `run` grava o
+     * texto do modelo; quando o controller ajusta a resposta (marcador de grade
+     * canônico), é o texto final que precisa ficar na sessão — tanto para o
+     * `/chat/historico` mostrar o mesmo botão quanto para as próximas runs verem o
+     * que o aluno viu. Devolve `false` se não achou resposta para trocar.
+     */
+    async substituirUltimaResposta(texto: string): Promise<boolean> {
+        const { data, error } = await SupabaseWrapper.get()
+            .from("chat_items")
+            .select("id, item")
+            .eq("session_id", this.sessionId)
+            .order("created_at", { ascending: false })
+            .limit(20);
+        if (error) {
+            throw new Error(`Falha ao ler a última resposta da sessão ${this.sessionId}: ${error.message}`);
+        }
+        const linhas = (data ?? []) as Array<{ id: number; item: any }>;
+        const alvo = linhas.find((l) => ehMensagemDaDarcy(l.item));
+        if (!alvo) return false;
+
+        const item = { ...alvo.item };
+        item.content = Array.isArray(item.content)
+            ? [{ type: "output_text", text: texto }]
+            : texto;
+        const { error: erroUpdate } = await SupabaseWrapper.get()
+            .from("chat_items")
+            .update({ item })
+            .eq("id", alvo.id);
+        if (erroUpdate) {
+            throw new Error(`Falha ao atualizar a resposta da sessão ${this.sessionId}: ${erroUpdate.message}`);
+        }
+        return true;
     }
 
     async clearSession(): Promise<void> {

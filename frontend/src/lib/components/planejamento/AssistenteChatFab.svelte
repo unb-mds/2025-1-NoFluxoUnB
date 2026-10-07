@@ -1,29 +1,36 @@
 <script lang="ts">
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
-	import { montadorChatStore } from '$lib/stores/assistente-chat.store.svelte';
+	import { darcyStore } from '$lib/stores/darcy.store.svelte';
 	import { gradeStore } from '$lib/stores/grade.store.svelte';
-	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
+	import type { EstadoMontador } from '$lib/services/chat.service';
 	import { Bot, X, RefreshCw } from 'lucide-svelte';
 	import { scale } from 'svelte/transition';
 	import { backOut, cubicOut } from 'svelte/easing';
 	import type { OpcaoGradeChat } from '$lib/types/plano-formatura';
+	import type { AcoesChat } from '$lib/utils/chat-acoes';
 
-	// Botão flutuante do chatbot (mesmo padrão do Plano de Formatura), embutindo o
-	// Darcy com contexto 'montador' — recomenda só matérias com turma — e o botão
-	// "+ grade" nos códigos, que insere a matéria no pool via onAddToGrade.
+	// Botão flutuante do chatbot (mesmo padrão do Plano de Formatura), embutindo a
+	// Darcy na superfície 'montador'. As ações do chat aqui agem direto na grade
+	// ("Adicionar à grade" no chip, "Usar esta turma", "Aplicar esta grade") — o
+	// catálogo está em docs/darcy-unificada.md. A conversa é a mesma das outras
+	// telas (`darcyStore`).
 	let {
 		onAddToGrade,
-		onMontarGrade
+		onUsarTurma,
+		onAplicarGrade
 	}: {
 		onAddToGrade: (codigo: string) => void;
-		onMontarGrade: (
-			codigos: string[],
-			turnos?: string[],
-			docentes?: Record<string, string>,
-			incluirCursando?: boolean,
-			opcaoGrade?: OpcaoGradeChat
-		) => void;
+		onUsarTurma: (codigo: string, idTurma: number) => void;
+		/** Seleção pronta em `opcaoGrade`; sem ela, `codigos` são a sugestão a montar. */
+		onAplicarGrade: (codigos: string[], opcaoGrade?: OpcaoGradeChat) => void;
 	} = $props();
+
+	const acoes: AcoesChat = $derived({
+		verTurmas: false,
+		adicionarAGrade: onAddToGrade,
+		usarTurma: onUsarTurma,
+		grade: { modo: 'aplicar', executar: onAplicarGrade }
+	});
 
 	let isChatOpen = $state(false);
 	let prefillText = $state('');
@@ -32,13 +39,35 @@
 	// Um controle fora deste componente (ex.: "Pedir pra Darcy" no card de uma
 	// matéria) pode pedir a abertura do chat já com um texto começado.
 	$effect(() => {
-		const pedido = montadorChatStore.pedidoAbertura;
+		const pedido = darcyStore.pedidoAbertura;
 		if (!pedido) return;
 		isChatOpen = true;
 		prefillText = pedido.texto;
 		prefillNonce = pedido.nonce;
-		montadorChatStore.consumirPedidoAbertura();
+		darcyStore.consumirPedidoAbertura();
 	});
+
+	/**
+	 * O que a Darcy precisa saber da tela: a grade aberta. O resto do aluno
+	 * (concluídas, plano, preferências) o backend lê do banco. `opcaoGrade` não tem
+	 * handler aqui de propósito — quem aplica é o botão "Aplicar esta grade" da
+	 * mensagem, no clique do aluno (`onAplicarGrade`).
+	 */
+	function estadoMontador(): EstadoMontador {
+		return {
+			tipo: 'montador',
+			grade: [...gradeStore.selecao].map(([codigo, t]) => ({
+				codigo,
+				idTurma: t.turma.id_turmas
+			})),
+			creditos: gradeStore.creditosSelecionados,
+			turnos: [...gradeStore.turnosPermitidos],
+			incluirCursando: gradeStore.incluirCursando,
+			horarioLivre: gradeStore.freeMask.toString()
+		};
+	}
+
+	$effect(() => darcyStore.registrarSuperficie({ superficie: 'montador', estado: estadoMontador }));
 
 	let chatW = $state(384);
 	let chatH = $state(550);
@@ -152,17 +181,7 @@
 	];
 
 	function onSend(msg: string) {
-		const curriculoCompleto = fluxogramaStore.state.courseData?.curriculoCompleto ?? undefined;
-		montadorChatStore.enviarMensagem(msg, {
-			contexto: 'montador',
-			curriculoCompleto,
-			horarioLivre: gradeStore.freeMask.toString(),
-			turnos: [...gradeStore.turnosPermitidos],
-			// Matérias com turma já escolhida nesta grade — mesma fonte de onde sai o
-			// freeMask (selecao → combinedMask). O backend usa pra não recomendar
-			// duplicata e pra não deixá-las valerem como pré-requisito (mesmo semestre).
-			codigosNaGrade: [...gradeStore.selecao.keys()]
-		});
+		darcyStore.enviar(msg);
 	}
 </script>
 
@@ -203,19 +222,18 @@
 		</div>
 
 		<ChatPanel
-			messages={montadorChatStore.chatMessages}
-			loading={montadorChatStore.chatLoading}
+			messages={darcyStore.mensagens}
+			loading={darcyStore.carregando}
 			{promptStarters}
 			draggable={true}
 			title="Darcy AI"
 			assistantName="Darcy AI"
 			placeholder="Ex: optativas sobre redes com turma aberta..."
-			interactiveBadges={true}
+			{acoes}
 			{onSend}
-			{onAddToGrade}
-			{onMontarGrade}
 			{prefillText}
 			{prefillNonce}
+			onNovaConversa={() => darcyStore.novaConversa()}
 		>
 			{#snippet emptyState()}
 				<div
@@ -228,8 +246,8 @@
 					Peça optativas por tema, ou <span class="font-bold text-emerald-200">módulo livre</span>
 					por área de interesse — mostro só o que
 					<span class="font-bold text-emerald-200">tem turma</span>
-					neste semestre. Toque em <span class="font-bold text-emerald-200">+ grade</span> pra jogar na
-					sua grade.
+					neste semestre. Toque numa matéria da resposta pra
+					<span class="font-bold text-emerald-200">adicionar à grade</span>.
 				</p>
 			{/snippet}
 		</ChatPanel>

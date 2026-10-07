@@ -168,4 +168,4 @@
 />
 
 <!-- Presente na tela real: flutua sobre o rodapé e precisa de folga embaixo. -->
-<AssistenteChatFab onAddToGrade={onAdd} onMontarGrade={() => {}} />
+<AssistenteChatFab onAddToGrade={onAdd} onUsarTurma={() => {}} onAplicarGrade={() => {}} />

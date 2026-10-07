@@ -22,6 +22,7 @@ import { EndpointController, RequestType } from "../interfaces";
 import { Pair, Utils } from "../utils";
 import { Request, Response } from "express";
 import { SupabaseWrapper } from "../supabase_wrapper";
+import { invalidarPerfilAluno } from "../services/chat/perfil_cache";
 import { createControllerLogger } from "../utils/controller_logger";
 import { logAiUsage } from "../utils/ai_usage_logger";
 import {
@@ -30,7 +31,7 @@ import {
     expandirOfertaComEquivalencias,
     calcularSemestreAtualStr,
 } from "../services/plano_formatura.service";
-import { PlanejadorAgenteService, type MensagemChat, type AgenteContexto } from "../services/planejador_agente.service";
+import type { AgenteContexto } from "../services/agente/context";
 import { AI_SEM_CREDITOS_BODY, isMaritacaSemCreditos } from "../config/maritaca_errors";
 import { sugerirModuloLivre } from "../services/chat/actuators/modulo_livre_actuator";
 import { DificuldadeAgenteService } from "../services/dificuldade_agente.service";
@@ -762,108 +763,6 @@ export const PlanejamentoController: EndpointController = {
                 }
             }
         ),
-        "chat": new Pair(
-            RequestType.POST,
-            async (req: Request, res: Response) => {
-                const logger = createControllerLogger("PlanejamentoController", "chat");
-                const startTime = Date.now();
-
-                try {
-                    // ========== JWT AUTHENTICATION ==========
-                    if (!await Utils.checkAuthorization(req as Request)) {
-                        logger.warn("Autorização falhou");
-                        return res.status(401).json({ error: "Usuário não autorizado" });
-                    }
-
-                    const id_user = req.headers["user-id"] || req.headers["User-ID"];
-                    if (!id_user) {
-                        logger.warn("User-ID header não encontrado");
-                        return res.status(401).json({ error: "User-ID não informado" });
-                    }
-
-                    logger.info(`Chat agente planejador para usuário: ${id_user}`);
-
-                    // ========== VERIFICAR DISPONIBILIDADE DO MARITACA ==========
-                    const svc = new PlanejadorAgenteService();
-                    if (!svc.isAvailable()) {
-                        logger.warn("Maritaca API não disponível");
-                        return res.status(503).json({
-                            error: "Serviço de agente temporariamente indisponível",
-                        });
-                    }
-
-                    // ========== PARSE BODY ==========
-                    const body = req.body;
-                    if (!isObject(body)) {
-                        return res.status(400).json({ error: "Body inválido" });
-                    }
-
-                    // Mensagens do chat
-                    const messages = Array.isArray(body.messages) ? body.messages : [];
-                    if (
-                        !messages.every(
-                            (m) =>
-                                isObject(m) &&
-                                (m.role === "user" || m.role === "assistant") &&
-                                typeof m.content === "string"
-                        )
-                    ) {
-                        return res.status(400).json({
-                            error: "messages deve ser array de { role, content }",
-                        });
-                    }
-
-                    const historico: MensagemChat[] = messages.map(
-                        (m: any) => ({ role: m.role, content: m.content })
-                    );
-
-                    // ========== MONTAR CONTEXTO DO AGENTE (com plano) ==========
-                    const { ctx, status: statusErr, error: erroMontagem } = await montarContextoAgente(
-                        id_user as string,
-                        body.planoInput,
-                        body.restricoes
-                    );
-                    if (erroMontagem || !ctx) {
-                        logger.warn(`Erro ao montar contexto: ${erroMontagem}`);
-                        return res.status(statusErr || 500).json({ error: erroMontagem || "Erro interno ao montar contexto" });
-                    }
-
-                    // ========== CONVERSAR COM AGENTE ==========
-                    logger.info(`Iniciando conversa com agente. Histórico: ${historico.length} mensagens`);
-                    const resultado = await svc.conversar(historico, ctx);
-
-                    logger.info(`Conversa concluída. Resposta: ${resultado.reply.slice(0, 50)}...`);
-
-                    const ultimaMsgUsuario = historico.slice().reverse().find((m) => m.role === "user");
-                    logAiUsage({
-                        endpoint: "planejamento-chat",
-                        durationMs: Date.now() - startTime,
-                        success: true,
-                        requestExcerpt: ultimaMsgUsuario?.content ?? "",
-                        usage: resultado.usage,
-                    });
-
-                    await resolverNomesSemestreAtual(resultado.plano);
-
-                    return res.status(200).json({
-                        reply: resultado.reply,
-                        plano: resultado.plano ?? undefined,
-                        restricoes: resultado.restricoes,
-                    });
-                } catch (err: any) {
-                    if (isMaritacaSemCreditos(err)) {
-                        logger.error("Chat do planejador: Maritaca sem créditos ativos");
-                        return res.status(503).json(AI_SEM_CREDITOS_BODY);
-                    }
-                    logger.error(
-                        `Erro ao processar chat: ${err?.message || String(err)}`
-                    );
-                    return res.status(500).json({
-                        error: err?.message || "Erro ao processar mensagem do chat",
-                    });
-                }
-            }
-        ),
         // ==========================================================
         // Preferências de turno/professor por matéria — tabela dedicada
         // `preferencias_grade` (docs/superpowers/specs — Montador de Grade).
@@ -979,6 +878,7 @@ export const PlanejamentoController: EndpointController = {
                         logger.error(`Erro ao salvar preferência: ${error.message}`);
                         return res.status(500).json({ error: error.message });
                     }
+                    invalidarPerfilAluno(id_user as string);
                     return res.status(200).json({ ok: true });
                 } catch (err: any) {
                     logger.error(`Erro ao salvar preferência: ${err?.message || String(err)}`);
@@ -1012,6 +912,7 @@ export const PlanejamentoController: EndpointController = {
                         logger.error(`Erro ao remover preferência: ${error.message}`);
                         return res.status(500).json({ error: error.message });
                     }
+                    invalidarPerfilAluno(id_user as string);
                     return res.status(200).json({ ok: true });
                 } catch (err: any) {
                     logger.error(`Erro ao remover preferência: ${err?.message || String(err)}`);

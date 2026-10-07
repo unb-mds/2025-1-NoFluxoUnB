@@ -154,3 +154,17 @@ describe("horario_slots (backend) — essencial (Fase 1a)", () => {
         expect(typeof r.truncado).toBe("boolean");
     });
 });
+
+describe("autoMontarGrade (backend) — essencial x matrícula em curso", () => {
+    it("essencial não derruba matéria em curso (obrigatoria) que conflita com ela", () => {
+        const materias: Array<MateriaTurmas<TurmaFake>> = [
+            { chave: "CURSANDO", obrigatoria: true, peso: 1_000_000_000_000, turmas: [{ mask: slotMaskFromHorario("24M12"), turma: { id: "c" } }] },
+            { chave: "ESS", essencial: true, obrigatoria: true, peso: 1_000_000, turmas: [{ mask: slotMaskFromHorario("24M12"), turma: { id: "e" } }] },
+            { chave: "OUTRA", peso: 1_000_000, turmas: [{ mask: slotMaskFromHorario("35T23"), turma: { id: "o" } }] },
+        ];
+        const r = autoMontarGrade(materias);
+        expect(r.selecao.has("CURSANDO")).toBe(true);
+        expect(r.naoAlocadas).toContain("ESS");
+        expect(r.selecao.has("OUTRA")).toBe(true);
+    });
+});

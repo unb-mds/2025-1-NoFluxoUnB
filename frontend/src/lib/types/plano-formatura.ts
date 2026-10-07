@@ -26,7 +26,7 @@ export type PlannerChatRole = 'user' | 'assistant';
  * Seleção exata que o backend já resolveu no orquestrador (`opcaoGrade` de
  * `ChatService.OrquestradorChatResponse`) — espelhada aqui pra `PlannerChatMessage`
  * poder carregar isso por mensagem sem acoplar o tipo de mensagem do chat ao
- * client HTTP. Ver `assistente-chat.store.svelte.ts` (quem preenche) e
+ * client HTTP. Ver `darcy.store.svelte.ts` (quem preenche) e
  * `ChatPanel.svelte` (quem lê, no clique do botão "Montar grade").
  */
 export interface OpcaoGradeChat {

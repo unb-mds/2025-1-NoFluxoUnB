@@ -131,3 +131,72 @@ describe("horario_slots (backend) — autoMontarGradeOpcoes (Fase 1c)", () => {
         expect(metricas.minutosDeLacuna).toBe(0); // nenhum furo dentro de um único bloco por dia.
     });
 });
+
+describe("horario_slots (backend) — estratégias que avaliam a grade inteira", () => {
+    type T = { id: number; horario: string };
+    let proximoId = 1;
+    const mat = (chave: string, ...hs: string[]): MateriaTurmas<T> => ({
+        chave,
+        peso: 1_000_000,
+        creditos: 4,
+        turmas: hs.map((h) => ({ mask: slotMaskFromHorario(h), turma: { id: proximoId++, horario: h } })),
+    });
+    // Cenário do experimento que motivou a mudança (mesmo do frontend).
+    const pool = () => [
+        mat("A", "24M12", "35T23", "35N12"),
+        mat("B", "24M34", "35M12", "24T45"),
+        mat("C", "35M34", "24T23", "6M1234"),
+        mat("D", "35T45", "24N12", "6T2345"),
+        mat("E", "24T23", "35M12", "35T23"),
+    ];
+    const ESTRATEGIAS: RankingStrategy<T>[] = [
+        { nome: "Menos dias", avaliar: (m) => [m.diasComAula, m.minutosDeLacuna] },
+        { nome: "Menos lacunas", avaliar: (m) => [m.minutosDeLacuna, m.diasComAula] },
+        { nome: "Semana equilibrada", avaliar: (m) => [m.variancaCargaDiaria, m.minutosDeLacuna] },
+    ];
+
+    it("cada estratégia vence no próprio critério e nenhuma perde matéria", () => {
+        // Uma estratégia por chamada: sem o dedupe esconder quem convergiu.
+        const porNome = new Map(
+            ESTRATEGIAS.map((e) => [e.nome, autoMontarGradeOpcoes(pool(), 0n, 20, [e], 6, (t) => t.id)[0]])
+        );
+        const todas = [...porNome.values()];
+        const dias = porNome.get("Menos dias")!;
+        const lacunas = porNome.get("Menos lacunas")!;
+        const equilibrada = porNome.get("Semana equilibrada")!;
+
+        for (const o of todas) expect(o.resultado.selecao.size).toBe(5);
+        for (const o of todas) {
+            expect(dias.metricas.diasComAula).toBeLessThanOrEqual(o.metricas.diasComAula);
+            expect(lacunas.metricas.minutosDeLacuna).toBeLessThanOrEqual(o.metricas.minutosDeLacuna);
+            expect(equilibrada.metricas.variancaCargaDiaria).toBeLessThanOrEqual(o.metricas.variancaCargaDiaria);
+        }
+        // Regressão: a "Menos lacunas" antiga devolvia mais furo que a "Menos dias".
+        expect(lacunas.metricas.minutosDeLacuna).toBeLessThan(dias.metricas.minutosDeLacuna);
+    });
+
+    it("métrica nunca troca o professor preferido (bônus) por uma semana mais bonita", () => {
+        const materias: Array<MateriaTurmas<T>> = [
+            {
+                chave: "A",
+                turmas: [
+                    { mask: slotMaskFromHorario("2M12"), turma: { id: 1, horario: "2M12" } },
+                    { mask: slotMaskFromHorario("3T12"), turma: { id: 2, horario: "3T12" }, bonus: 1e-4 },
+                ],
+            },
+            { chave: "B", turmas: [{ mask: slotMaskFromHorario("2M34"), turma: { id: 3, horario: "2M34" } }] },
+        ];
+        const [opcao] = autoMontarGradeOpcoes(materias, 0n, undefined, [ESTRATEGIAS[0]]);
+        expect(opcao.resultado.selecao.get("A")!.turma.id).toBe(2);
+    });
+
+    it("duas matérias coladas (M12 + M34) não geram lacuna", () => {
+        // M2 termina 09:50 e M3 começa 10:00 — a pausa regular de 10 min não é furo.
+        const materias: Array<MateriaTurmas<T>> = [
+            { chave: "A", turmas: [{ mask: slotMaskFromHorario("2M12"), turma: { id: 1, horario: "2M12" } }] },
+            { chave: "B", turmas: [{ mask: slotMaskFromHorario("2M34"), turma: { id: 2, horario: "2M34" } }] },
+        ];
+        const [opcao] = autoMontarGradeOpcoes(materias, 0n, undefined, [ESTRATEGIAS[1]]);
+        expect(opcao.metricas.minutosDeLacuna).toBe(0);
+    });
+});

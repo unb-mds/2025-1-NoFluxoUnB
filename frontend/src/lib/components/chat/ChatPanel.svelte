@@ -1,11 +1,30 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { Sparkles, SendHorizontal, Bot, CalendarPlus } from 'lucide-svelte';
+	import {
+		Sparkles,
+		SendHorizontal,
+		Bot,
+		CalendarPlus,
+		MessageSquarePlus,
+		MessageCircleQuestion,
+		CalendarSearch,
+		Plus,
+		ArrowUpRight
+	} from 'lucide-svelte';
 	import { formatHorarioSigaa, compactarFaixasHorarias, formatLocalSigaa } from '$lib/utils/sigaa';
 	import ChatWrapper from '$lib/components/chat/ChatWrapper.svelte';
 	import ChatBubble from '$lib/components/chat/ChatBubble.svelte';
 	import ChatLoader from '$lib/components/chat/ChatLoader.svelte';
 	import MarqueeText from '$lib/components/ui/MarqueeText.svelte';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
+	import {
+		parseMensagemChat,
+		fatiaSegura,
+		indiceRespostaViva,
+		mensagemPerguntarSobre
+	} from '$lib/utils/chat-markers';
+	import { acoesForaDoMontador, type AcoesChat } from '$lib/utils/chat-acoes';
 	import type { Snippet } from 'svelte';
 	import type { OpcaoGradeChat } from '$lib/types/plano-formatura';
 
@@ -37,14 +56,13 @@
 		assistantName = 'Darcy AI',
 		placeholder = 'Pergunte alguma coisa...',
 		draggable = false,
-		interactiveBadges = false,
+		acoes,
 		onSend,
-		onAddToGrade,
-		onMontarGrade,
 		nomesMaterias,
 		emptyState,
 		prefillText,
-		prefillNonce
+		prefillNonce,
+		onNovaConversa
 	}: {
 		messages: ChatMsg[];
 		loading?: boolean;
@@ -53,26 +71,17 @@
 		assistantName?: string;
 		placeholder?: string;
 		draggable?: boolean;
-		/** Quando true, os códigos de matéria viram botões clicáveis (envia o código). */
-		interactiveBadges?: boolean;
+		/**
+		 * O que chips de matéria, cards de turma e o bloco de grade fazem nesta tela
+		 * (`$lib/utils/chat-acoes`). Sem a prop, vale o comportamento de fora do
+		 * Montador: "Ver turmas" no chip e "Abrir no Montador" na grade.
+		 */
+		acoes?: AcoesChat;
 		onSend: (msg: string) => void;
-		/** Quando definido, cada badge de código ganha um botão "+ grade". */
-		onAddToGrade?: (codigo: string) => void;
-		/** Quando definido, o marcador [MONTAR_GRADE|COD,...|TURNOS|DOCENTES] vira um botão de ação. */
-		onMontarGrade?: (
-			codigos: string[],
-			turnos?: string[],
-			docentes?: Record<string, string>,
-			incluirCursando?: boolean,
-			/**
-			 * Seleção já resolvida pelo backend (`msg.opcaoGrade`) — quando presente,
-			 * quem trata o clique aplica ela direto via `gradeStore.aplicarSelecao`, sem
-			 * recomputar a partir de `codigos`/`docentes` (que continuam sendo o
-			 * fallback pra quando o backend não resolveu, `undefined`).
-			 */
-			opcaoGrade?: OpcaoGradeChat
-		) => void;
-		/** Mapa código→nome: chips de matéria exibem o nome (código vira tooltip). */
+		/**
+		 * Mapa código→nome extra (ex.: optativas do plano fora da matriz). A matriz
+		 * do curso (`fluxogramaStore`) já entra sozinha.
+		 */
 		nomesMaterias?: Map<string, string>;
 		emptyState?: Snippet;
 		/**
@@ -83,11 +92,56 @@
 		 */
 		prefillText?: string;
 		prefillNonce?: number;
+		/**
+		 * Quando definido, o cabeçalho ganha "Nova conversa" (com confirmação inline):
+		 * a conversa é uma só entre as telas, então apagar vale pra todas.
+		 */
+		onNovaConversa?: () => void;
 	} = $props();
+
+	let confirmandoNovaConversa = $state(false);
+
+	const acoesEfetivas = $derived<AcoesChat>(acoes ?? acoesForaDoMontador());
+
+	/** Matriz do curso + o mapa extra da tela: chip mostra nome em toda tela. */
+	const nomes = $derived.by(() => {
+		const mapa = new Map<string, string>();
+		for (const m of fluxogramaStore.state.courseData?.materias ?? []) {
+			if (m.codigoMateria && m.nomeMateria) {
+				mapa.set(m.codigoMateria.trim().toUpperCase(), m.nomeMateria);
+			}
+		}
+		for (const [c, n] of nomesMaterias ?? []) mapa.set(c.trim().toUpperCase(), n);
+		return mapa;
+	});
 
 	/** "INTRODUÇÃO A COMPUTAÇÃO GRÁFICA" → "Introdução A Computação Gráfica". */
 	function nomeBonito(nome: string): string {
 		return nome.toLowerCase().replace(/(^|[\s(])\p{L}/gu, (c) => c.toUpperCase());
+	}
+
+	function nomeDe(codigo: string): string | undefined {
+		const n = nomes.get(codigo);
+		return n ? nomeBonito(n) : undefined;
+	}
+
+	/** Só a última resposta (sem nada depois, sem carregando) tem ações vivas. */
+	const respostaViva = $derived(indiceRespostaViva(messages, loading));
+
+	/** Grade do bloco: `opcaoGrade` da mensagem manda; senão, os pares do marcador. */
+	function opcaoDoBloco(
+		msg: ChatMsg,
+		selecao: Array<{ codigo: string; idTurma: number }>
+	): OpcaoGradeChat | undefined {
+		if (msg.opcaoGrade) return msg.opcaoGrade;
+		return selecao.length > 0 ? { estrategia: 'Darcy', selecao } : undefined;
+	}
+
+	function rotuloGrade(pronta: boolean, codigos: string[]): string {
+		if (acoesEfetivas.grade.modo === 'abrir') return 'Abrir no Montador';
+		if (pronta) return 'Aplicar esta grade';
+		const lista = codigos.map((c) => nomeDe(c) ?? c);
+		return `Montar grade com ${lista.join(', ')}`;
 	}
 
 	let messageInput = $state('');
@@ -111,19 +165,6 @@
 	// Controle NÃO-reativo de qual mensagem está animando — se o efeito lesse
 	// typingMsg, mudá-lo dentro dele dispararia re-execução e mataria o timer.
 	let animando: ChatMsg | null = null;
-
-	/**
-	 * Fatia o texto sem cortar no meio de um marcador de formatação — um
-	 * `[BOTAO|...]` ou `**negrito**` pela metade renderizaria cru no chat.
-	 */
-	function fatiaSegura(texto: string, n: number): string {
-		let out = texto.slice(0, n);
-		const abre = out.lastIndexOf('[');
-		if (abre >= 0 && out.indexOf(']', abre) === -1) out = out.slice(0, abre);
-		const asteriscos = out.split('**').length - 1;
-		if (asteriscos % 2 === 1) out = out.slice(0, out.lastIndexOf('**'));
-		return out;
-	}
 
 	$effect(() => {
 		const ultima = messages[messages.length - 1];
@@ -163,121 +204,6 @@
 		}
 	}
 
-	// Parser compartilhado: badges de código, blocos [TURMA|...], [BOTAO|...] e **negrito**.
-	function parseMessage(text: string) {
-		// Tipografia: itens de lista viram bullet de verdade e o excesso de linhas
-		// em branco é colapsado — o texto cru do modelo era corrido demais de ler.
-		text = text
-			.replace(/\n{3,}/g, '\n\n')
-			.replace(/^[ \t]*[-*]\s+/gm, '•  ')
-			.replace(/^[ \t]*(\d+)[.)]\s+/gm, '$1.  ');
-		const regex =
-			/(\b[A-Z]{3,4}\d{4}\b)|(\[TURMA\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|([^|\]]+)(?:\|([^\]]+))?\])|(\[BOTAO\|([^|\]]+)(?:\|([^\]]+))?\])|(\*\*([^*\n]+)\*\*)|(\[MONTAR_GRADE\|([^\]]+)\])/g;
-		const blocks: any[] = [];
-		let currentBubble: any[] = [];
-		let lastIndex = 0;
-		let match;
-
-		function flushBubble() {
-			if (currentBubble.length > 0) {
-				const hasContent = currentBubble.some(
-					(s) =>
-						s.type === 'badge' || s.type === 'bold' || (s.type === 'text' && s.value.trim() !== '')
-				);
-				if (hasContent) {
-					blocks.push({ type: 'bubble', segments: currentBubble });
-				}
-				currentBubble = [];
-			}
-		}
-
-		while ((match = regex.exec(text)) !== null) {
-			if (match.index > lastIndex) {
-				currentBubble.push({ type: 'text', value: text.substring(lastIndex, match.index) });
-			}
-
-			if (match[1]) {
-				currentBubble.push({ type: 'badge', value: match[1] });
-			} else if (match[2]) {
-				flushBubble();
-				blocks.push({
-					type: 'turma',
-					value: {
-						turma: match[3].trim(),
-						prof: match[4].trim(),
-						horario: match[5].trim(),
-						local: match[6].trim(),
-						vagas: match[7].trim(),
-						periodo: match[8] ? match[8].trim() : undefined
-					}
-				});
-			} else if (match[9]) {
-				flushBubble();
-				blocks.push({
-					type: 'button',
-					label: match[10].trim().replace(/([a-z])([A-Z])/g, '$1 $2'),
-					message: match[11] ? match[11].trim() : match[10].trim()
-				});
-			} else if (match[12]) {
-				currentBubble.push({ type: 'bold', value: match[13] });
-			} else if (match[14]) {
-				flushBubble();
-				// [MONTAR_GRADE|COD1,COD2|M,N|COD3=Fulano|0] → códigos (1º) + turnos (2º) +
-				// professor por matéria (3º, opcional — "CODIGO=Nome" separados por ;) +
-				// incluir as matérias em curso (4º, opcional: "0" = montar sem elas).
-				// Campos ausentes são tolerados: a variante antiga de 2 campos segue válida.
-				const partes = (match[15] ?? '').split('|');
-				const codigos = (partes[0] ?? '')
-					.split(',')
-					.map((c) => c.trim().toUpperCase())
-					.filter(Boolean);
-				const turnos = (partes[1] ?? '')
-					.split(',')
-					.map((t) => t.trim().toUpperCase())
-					.filter((t) => t === 'M' || t === 'T' || t === 'N');
-				const docentes: Record<string, string> = {};
-				for (const par of (partes[2] ?? '').split(';')) {
-					const [cod, ...resto] = par.split('=');
-					const codigo = (cod ?? '').trim().toUpperCase();
-					const nome = resto.join('=').trim();
-					if (codigo && nome) docentes[codigo] = nome;
-				}
-				// Só "0" desliga; ausente ou qualquer outra coisa mantém o padrão (ligado).
-				const incluirCursando = (partes[3] ?? '').trim() === '0' ? false : undefined;
-				if (
-					codigos.length > 0 ||
-					turnos.length > 0 ||
-					Object.keys(docentes).length > 0 ||
-					incluirCursando === false
-				)
-					blocks.push({ type: 'montarGrade', codigos, turnos, docentes, incluirCursando });
-			}
-			lastIndex = regex.lastIndex;
-		}
-
-		if (lastIndex < text.length) {
-			currentBubble.push({ type: 'text', value: text.substring(lastIndex) });
-		}
-		flushBubble();
-
-		// Agrupar botões consecutivos para ficarem lado a lado.
-		const finalBlocks: any[] = [];
-		for (const block of blocks) {
-			if (block.type === 'button') {
-				const lastBlock = finalBlocks[finalBlocks.length - 1];
-				if (lastBlock && lastBlock.type === 'buttonGroup') {
-					lastBlock.buttons.push(block);
-				} else {
-					finalBlocks.push({ type: 'buttonGroup', buttons: [block] });
-				}
-			} else {
-				finalBlocks.push(block);
-			}
-		}
-
-		return finalBlocks;
-	}
-
 	$effect(() => {
 		const msgs = messages.length;
 		const isLoading = loading;
@@ -309,6 +235,43 @@
 				>Powered by Maritaca AI</span
 			>
 		</div>
+		{#if onNovaConversa && messages.length > 0}
+			<div class="ml-auto flex shrink-0 items-center gap-1 pl-2">
+				{#if confirmandoNovaConversa}
+					<span class="hidden text-[11px] text-white/60 sm:inline">Apagar a conversa?</span>
+					<button
+						type="button"
+						onclick={() => {
+							confirmandoNovaConversa = false;
+							onNovaConversa?.();
+						}}
+						disabled={loading}
+						class="rounded-full border border-red-400/40 bg-red-500/15 px-2.5 py-1 text-[11px] font-medium text-red-100 transition-colors hover:bg-red-500/30 disabled:opacity-40"
+					>
+						Apagar conversa
+					</button>
+					<button
+						type="button"
+						onclick={() => (confirmandoNovaConversa = false)}
+						class="rounded-full px-2 py-1 text-[11px] text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+					>
+						Cancelar
+					</button>
+				{:else}
+					<button
+						type="button"
+						onclick={() => (confirmandoNovaConversa = true)}
+						disabled={loading}
+						class="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-white/50 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
+						title="Começar uma conversa nova (apaga esta em todas as telas)"
+						aria-label="Nova conversa"
+					>
+						<MessageSquarePlus class="h-3.5 w-3.5" />
+						<span class="hidden sm:inline">Nova conversa</span>
+					</button>
+				{/if}
+			</div>
+		{/if}
 	</div>
 
 	<div class="relative z-10 flex flex-1 flex-col overflow-hidden p-0">
@@ -365,186 +328,232 @@
 					</div>
 				</div>
 			{:else}
-				{#each messages as msg (msg)}
+				{#each messages as msg, mi (msg)}
 					{@const conteudo =
 						msg === typingMsg && typingShown < msg.content.length
 							? fatiaSegura(msg.content, typingShown)
 							: msg.content}
-					{#each parseMessage(conteudo) as block, i}
-						{#if block.type === 'bubble'}
+					{@const viva = mi === respostaViva}
+					{#each parseMensagemChat(conteudo) as block, i}
+						{#if block.tipo === 'bolha'}
 							<ChatBubble
 								role={msg.role}
 								name={i === 0 ? (msg.role === 'user' ? 'Você' : assistantName) : undefined}
 							>
-								{#each block.segments as segment}
-									{#if segment.type === 'badge'}
-										{@const nomeChip = nomesMaterias?.get(segment.value)}
-										{@const rotulo = nomeChip ? nomeBonito(nomeChip) : segment.value}
-										<span class="mx-0.5 inline-flex max-w-full items-center gap-0.5">
-											{#if interactiveBadges}
-												<button
-													type="button"
-													onclick={() => enviarTexto(segment.value)}
-													disabled={loading}
-													title={nomeChip ? segment.value : `Ver ${segment.value}`}
-													class="badge-glow inline-flex cursor-pointer items-center rounded-md border border-indigo-400/60 bg-indigo-500/20 px-1.5 py-0.5 text-xs font-bold tracking-wide text-white backdrop-blur-md transition-all hover:-translate-y-px hover:border-indigo-300 hover:bg-indigo-500/40 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 {nomeChip
+								{#each block.segmentos as segment}
+									{#if segment.tipo === 'codigo'}
+										{@const nomeChip = nomeDe(segment.valor)}
+										{@const rotulo = nomeChip ?? segment.valor}
+										{#if msg.role === 'assistant'}
+											<!-- Chip de matéria: o clique abre as ações desta tela (catálogo em
+											     docs/darcy-unificada.md). O ::after aumenta a área de toque para
+											     ~32px sem mexer na altura da linha do texto. -->
+											<DropdownMenu.Root>
+												<DropdownMenu.Trigger
+													title={nomeChip ? `${nomeChip} (${segment.valor})` : segment.valor}
+													class="chip-materia relative mx-0.5 inline-flex max-w-full cursor-pointer items-center rounded-md border border-indigo-400/50 bg-indigo-500/20 px-1.5 py-px text-left align-baseline text-[12.5px] leading-snug font-semibold text-white transition-colors after:absolute after:-inset-y-1.5 after:inset-x-0 after:content-[''] hover:border-indigo-300 hover:bg-indigo-500/35 focus-visible:ring-2 focus-visible:ring-indigo-300/60 focus-visible:outline-none {nomeChip
 														? ''
-														: 'font-mono'}"><MarqueeText text={rotulo} maxWidth={220} /></button
+														: 'font-mono'}"
 												>
-											{:else}
-												<span
-													title={nomeChip ? segment.value : undefined}
-													class="inline-flex items-center rounded-md border border-white/20 bg-white/10 px-1.5 py-0.5 text-xs font-bold tracking-wide text-white shadow-sm backdrop-blur-md {nomeChip
-														? ''
-														: 'font-mono'}"><MarqueeText text={rotulo} maxWidth={220} /></span
+													<span class="line-clamp-2 [overflow-wrap:anywhere]">{rotulo}</span>
+												</DropdownMenu.Trigger>
+												<DropdownMenu.Content
+													align="start"
+													class="z-[200] min-w-48 border-white/10 bg-zinc-900/95 text-white backdrop-blur-xl"
 												>
-											{/if}
-											{#if onAddToGrade}
-												<button
-													type="button"
-													onclick={() => onAddToGrade?.(segment.value)}
-													title={`Adicionar ${segment.value} à grade`}
-													class="inline-flex items-center rounded-md border border-emerald-400/50 bg-emerald-500/15 px-1 py-0.5 text-[10px] font-semibold text-emerald-100 transition-colors hover:bg-emerald-500/30 active:scale-95"
-													>+ grade</button
-												>
-											{/if}
-										</span>
-									{:else if segment.type === 'bold'}
-										<strong class="font-bold text-white">{segment.value}</strong>
+													<DropdownMenu.Label class="max-w-64 truncate text-[11px] text-white/50">
+														{segment.valor}{nomeChip ? ` · ${nomeChip}` : ''}
+													</DropdownMenu.Label>
+													<DropdownMenu.Item
+														class="min-h-9 cursor-pointer"
+														disabled={loading}
+														onclick={() =>
+															enviarTexto(mensagemPerguntarSobre(segment.valor, nomeChip))}
+													>
+														<MessageCircleQuestion class="h-4 w-4" /> Perguntar sobre
+													</DropdownMenu.Item>
+													{#if acoesEfetivas.verTurmas}
+														<DropdownMenu.Item
+															class="min-h-9 cursor-pointer"
+															disabled={loading}
+															onclick={() => enviarTexto(`/turmas ${segment.valor}`)}
+														>
+															<CalendarSearch class="h-4 w-4" /> Ver turmas
+														</DropdownMenu.Item>
+													{/if}
+													{#if acoesEfetivas.adicionarAGrade}
+														<DropdownMenu.Item
+															class="min-h-9 cursor-pointer"
+															onclick={() => acoesEfetivas.adicionarAGrade?.(segment.valor)}
+														>
+															<Plus class="h-4 w-4" /> Adicionar à grade
+														</DropdownMenu.Item>
+													{/if}
+												</DropdownMenu.Content>
+											</DropdownMenu.Root>
+										{:else}
+											<span
+												class="font-mono font-semibold {segment.negrito ? 'text-white' : ''}"
+												>{segment.valor}</span
+											>
+										{/if}
+									{:else if segment.negrito}
+										<strong class="font-bold whitespace-pre-wrap text-white">{segment.valor}</strong>
 									{:else}
-										<span class="whitespace-pre-wrap">{segment.value}</span>
+										<span class="whitespace-pre-wrap">{segment.valor}</span>
 									{/if}
 								{/each}
 							</ChatBubble>
-						{:else if block.type === 'turma'}
+						{:else if block.tipo === 'turma'}
+							{@const t = block.turma}
 							<div
-								class="relative my-2 flex w-[95%] flex-col gap-4 self-center overflow-hidden rounded-3xl border border-indigo-500/40 bg-linear-to-br from-indigo-500/10 to-fuchsia-500/10 p-5 shadow-2xl backdrop-blur-2xl sm:w-[85%]"
+								class="relative my-2 flex w-full max-w-[88%] min-w-0 flex-col gap-4 overflow-hidden rounded-3xl border border-indigo-500/40 bg-linear-to-br from-indigo-500/10 to-fuchsia-500/10 p-4 shadow-2xl backdrop-blur-2xl sm:p-5"
 							>
 								<div
 									class="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-indigo-500/30 blur-2xl"
 								></div>
 
 								<div
-									class="relative z-10 mb-1 flex flex-wrap items-center justify-between gap-2 border-b border-indigo-400/20 pb-3"
+									class="relative z-10 flex flex-wrap items-center justify-between gap-2 border-b border-indigo-400/20 pb-3"
 								>
-									<div class="flex items-center gap-2.5">
-										<span class="text-xl font-black tracking-tight text-white"
-											>Turma {block.value.turma}</span
+									<div class="flex min-w-0 flex-wrap items-center gap-2">
+										<span class="text-lg font-black tracking-tight text-white sm:text-xl"
+											>Turma {t.turma}</span
 										>
-										{#if block.value.periodo}
+										{#if t.codigo}
+											<span class="font-mono text-xs font-semibold text-indigo-200/80"
+												>{nomeDe(t.codigo) ?? t.codigo}</span
+											>
+										{/if}
+										{#if t.periodo}
 											<span
 												class="rounded-full border border-indigo-400/40 bg-indigo-500/25 px-2.5 py-0.5 text-xs font-bold text-indigo-200 shadow-sm"
-												>{block.value.periodo}</span
+												>{t.periodo}</span
 											>
 										{/if}
 									</div>
 									<span
-										class="rounded-full border border-indigo-400/30 bg-indigo-500/30 px-3 py-1.5 text-[11px] font-bold tracking-widest text-white shadow-inner"
-										>{block.value.vagas} VAGAS</span
+										class="rounded-full border border-indigo-400/30 bg-indigo-500/30 px-3 py-1 text-[11px] font-bold tracking-wider text-white shadow-inner"
+										>{t.vagas} vagas</span
 									>
 								</div>
 
-								<div class="relative z-10 space-y-4">
-									<div>
+								<div class="relative z-10 min-w-0 space-y-4">
+									<div class="min-w-0">
 										<p class="mb-1 text-[11px] font-bold tracking-widest text-indigo-200 uppercase">
 											Professor
 										</p>
-										<p class="text-base font-bold text-white drop-shadow-md">{block.value.prof}</p>
+										<p class="text-[15px] font-bold break-words text-white">{t.professor}</p>
 									</div>
 
-									<div class="flex flex-col gap-5 sm:flex-row sm:gap-8">
-										<div class="flex-1">
+									<div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:gap-8">
+										<div class="min-w-0 flex-1">
 											<p
 												class="mb-1.5 text-[11px] font-bold tracking-widest text-indigo-200 uppercase"
 											>
 												Horário
 											</p>
-											{#if formatHorarioSigaa(block.value.horario).length > 0}
+											{#if formatHorarioSigaa(t.horario).length > 0}
 												<div class="space-y-1.5">
-													{#each formatHorarioSigaa(block.value.horario) as linha}
-														<div class="flex items-center gap-3 text-[14px]">
-															<span class="w-8 font-bold text-white">{linha.dia}</span>
-															<span class="font-medium text-white/90"
+													{#each formatHorarioSigaa(t.horario) as linha}
+														<div class="flex items-baseline gap-3 text-[14px]">
+															<span class="w-8 shrink-0 font-bold text-white">{linha.dia}</span>
+															<span class="min-w-0 font-medium break-words text-white/90"
 																>{compactarFaixasHorarias(linha.faixas)}</span
 															>
 														</div>
 													{/each}
 												</div>
 											{:else}
-												<p class="text-[14px] font-medium text-white/90">{block.value.horario}</p>
+												<p class="text-[14px] font-medium break-words text-white/90">{t.horario}</p>
 											{/if}
 										</div>
 
-										<div class="flex-1">
+										<div class="min-w-0 flex-1">
 											<p
 												class="mb-1.5 text-[11px] font-bold tracking-widest text-indigo-200 uppercase"
 											>
 												Local
 											</p>
-											{#if formatLocalSigaa(block.value.local).length > 0}
+											{#if formatLocalSigaa(t.local).length > 0}
 												<div class="space-y-1.5">
-													{#each formatLocalSigaa(block.value.local) as localLinha}
-														<p class="text-[14px] leading-snug font-medium text-white/90">
+													{#each formatLocalSigaa(t.local) as localLinha}
+														<p
+															class="text-[14px] leading-snug font-medium [overflow-wrap:anywhere] text-white/90"
+														>
 															{localLinha}
 														</p>
 													{/each}
 												</div>
 											{:else}
-												<p class="text-[14px] font-medium text-white/90">{block.value.local}</p>
+												<p class="text-[14px] font-medium [overflow-wrap:anywhere] text-white/90">
+													{t.local}
+												</p>
 											{/if}
 										</div>
 									</div>
 								</div>
-							</div>
-						{:else if block.type === 'buttonGroup'}
-							<div class="mt-2 mr-4 ml-10 flex w-[85%] flex-col gap-2 self-start">
-								{#each block.buttons as btn}
+
+								{#if acoesEfetivas.usarTurma && t.codigo && t.idTurma}
+									{@const codigoTurma = t.codigo}
+									{@const idTurma = t.idTurma}
 									<button
 										type="button"
-										onclick={() => {
-											messageInput = btn.message;
-											enviar();
-										}}
-										class="w-full cursor-pointer rounded-xl border px-4 py-2.5 text-left text-sm font-medium tracking-wide shadow-md backdrop-blur-md transition-all active:scale-[0.98]
-											{btn.label.toLowerCase() === 'sim' || btn.label.toLowerCase().includes('aplicar')
-											? 'border-emerald-500/40 bg-emerald-600/30 text-emerald-50 shadow-[0_0_15px_rgba(16,185,129,0.15)] hover:bg-emerald-600/50'
-											: btn.label.toLowerCase() === 'não' ||
-												  btn.label.toLowerCase() === 'nao' ||
-												  btn.label.toLowerCase().includes('cancelar')
-												? 'border-rose-500/40 bg-rose-600/30 text-rose-50 shadow-[0_0_15px_rgba(244,63,94,0.15)] hover:bg-rose-600/50'
-												: 'border-indigo-500/40 bg-indigo-600/30 text-indigo-50 shadow-[0_0_15px_rgba(99,102,241,0.15)] hover:bg-indigo-600/50'}"
+										disabled={!viva}
+										onclick={() => acoesEfetivas.usarTurma?.(codigoTurma, idTurma)}
+										class="relative z-10 inline-flex min-h-9 items-center justify-center gap-1.5 self-start rounded-full border border-emerald-400/40 bg-emerald-500/20 px-4 py-1.5 text-sm font-semibold text-emerald-50 transition-colors hover:bg-emerald-500/35 disabled:cursor-not-allowed disabled:opacity-40"
 									>
-										{btn.label}
+										<CalendarPlus class="h-4 w-4 shrink-0" /> Usar esta turma
+									</button>
+								{/if}
+							</div>
+						{:else if block.tipo === 'botoes'}
+							<!-- Respostas rápidas: pílulas que quebram linha; só a última resposta
+							     responde (as antigas ficam só para leitura). -->
+							<div class="mb-4 flex max-w-[88%] flex-wrap gap-2">
+								{#each block.botoes as btn}
+									{@const r = btn.rotulo.trim().toLowerCase()}
+									<button
+										type="button"
+										disabled={!viva}
+										onclick={() => enviarTexto(btn.mensagem)}
+										title={btn.mensagem !== btn.rotulo ? btn.mensagem : undefined}
+										class="min-h-9 max-w-full cursor-pointer rounded-full border px-4 py-1.5 text-left text-[13px] font-medium break-words whitespace-normal transition-colors active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40
+											{r === 'sim'
+											? 'border-emerald-500/40 bg-emerald-600/25 text-emerald-50 hover:bg-emerald-600/45'
+											: r === 'não' || r === 'nao'
+												? 'border-rose-500/40 bg-rose-600/25 text-rose-50 hover:bg-rose-600/45'
+												: 'border-indigo-500/40 bg-indigo-600/25 text-indigo-50 hover:bg-indigo-600/45'}"
+									>
+										{btn.rotulo}
 									</button>
 								{/each}
 							</div>
-						{:else if block.type === 'montarGrade' && onMontarGrade}
-							{@const nomesDocentes = Object.values(block.docentes ?? {})}
-							<div class="mt-2 mr-4 ml-10 w-[85%] self-start">
+						{:else if block.tipo === 'grade'}
+							{@const opcao = opcaoDoBloco(msg, block.selecao)}
+							{@const abrir = acoesEfetivas.grade.modo === 'abrir'}
+							<!-- Aplicar/abrir uma grade sugerida antes continua valendo, por isso
+							     este bloco não depende de ser a última resposta. -->
+							<div class="mb-4 max-w-[88%]">
 								<button
 									type="button"
-									onclick={() =>
-										onMontarGrade?.(
-											block.codigos,
-											block.turnos,
-											block.docentes,
-											block.incluirCursando,
-											msg.opcaoGrade
-										)}
-									class="flex w-full items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-600/25 px-4 py-2.5 text-left text-sm font-semibold text-emerald-50 shadow-[0_0_15px_rgba(16,185,129,0.15)] backdrop-blur-md transition-all hover:bg-emerald-600/45 active:scale-[0.98]"
+									onclick={() => acoesEfetivas.grade.executar(block.codigos, opcao)}
+									class="flex w-full min-w-0 items-start gap-2.5 rounded-2xl border border-emerald-500/40 bg-emerald-600/20 px-4 py-2.5 text-left text-emerald-50 transition-colors hover:bg-emerald-600/40 active:scale-[0.99]"
 								>
-									<CalendarPlus class="h-4 w-4 shrink-0" />
-									<span>
-										{[
-											'Montar grade',
-											block.codigos.length > 0 ? `priorizando ${block.codigos.join(', ')}` : null,
-											block.turnos.length > 0
-												? `· ${block.turnos.map((t: string) => ({ M: 'manhã', T: 'tarde', N: 'noite' })[t] ?? t).join(' e ')}`
-												: null,
-											nomesDocentes.length > 0 ? `· com ${nomesDocentes.join(', ')}` : null
-										]
-											.filter(Boolean)
-											.join(' ')}
+									{#if abrir}
+										<ArrowUpRight class="mt-0.5 h-4 w-4 shrink-0" />
+									{:else}
+										<CalendarPlus class="mt-0.5 h-4 w-4 shrink-0" />
+									{/if}
+									<span class="min-w-0">
+										<span class="block text-sm font-semibold break-words"
+											>{rotuloGrade(!!opcao, block.codigos)}</span
+										>
+										{#if abrir || opcao}
+											<span class="mt-0.5 block text-[12px] break-words text-emerald-100/70">
+												{block.codigos.map((c) => nomeDe(c) ?? c).join(' · ')}
+											</span>
+										{/if}
 									</span>
 								</button>
 							</div>
@@ -583,37 +592,3 @@
 		</div>
 	</div>
 </ChatWrapper>
-
-<style>
-	/* Glow pulsante nos códigos de matéria clicáveis — deixa óbvio que dá pra apertar. */
-	.badge-glow {
-		box-shadow:
-			0 0 8px rgba(129, 140, 248, 0.55),
-			inset 0 0 6px rgba(129, 140, 248, 0.25);
-		animation: badgePulse 2s ease-in-out infinite;
-	}
-	.badge-glow:hover {
-		animation: none;
-		box-shadow:
-			0 0 18px rgba(129, 140, 248, 0.95),
-			inset 0 0 8px rgba(129, 140, 248, 0.4);
-	}
-	@keyframes badgePulse {
-		0%,
-		100% {
-			box-shadow:
-				0 0 6px rgba(129, 140, 248, 0.4),
-				inset 0 0 5px rgba(129, 140, 248, 0.2);
-		}
-		50% {
-			box-shadow:
-				0 0 15px rgba(129, 140, 248, 0.9),
-				inset 0 0 8px rgba(129, 140, 248, 0.4);
-		}
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.badge-glow {
-			animation: none;
-		}
-	}
-</style>

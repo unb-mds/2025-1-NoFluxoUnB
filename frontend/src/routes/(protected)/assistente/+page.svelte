@@ -3,14 +3,21 @@
 	import PageMeta from '$lib/components/seo/PageMeta.svelte';
 	import PageBackground from '$lib/components/effects/PageBackground.svelte';
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
-	import { assistenteChatStore } from '$lib/stores/assistente-chat.store.svelte';
+	import { darcyStore } from '$lib/stores/darcy.store.svelte';
 	import { authStore } from '$lib/stores/auth';
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
 	import { Bot } from 'lucide-svelte';
+	import { isOptativa } from '$lib/types/materia';
+	import { satisfazPreRequisitos } from '$lib/types/curso';
 
-	// Carrega os dados do curso (se o aluno tiver fluxograma) para que o store
-	// monte o planoInput e o agente ganhe as tools de plano/histórico. Sem matriz,
-	// segue em modo leve (recomendação/ementa/turmas) — não redireciona.
+	// Tela cheia da MESMA conversa das outras telas (`darcyStore`). O contexto do
+	// aluno a Darcy lê do banco; o curso só é carregado aqui pros starters
+	// personalizados e pros nomes nos chips. Sem `acoes`, o ChatPanel usa as de
+	// fora do Montador ("Ver turmas", "Abrir no Montador").
+	$effect(() =>
+		darcyStore.registrarSuperficie({ superficie: 'assistente', estado: () => ({ tipo: 'assistente' }) })
+	);
+
 	onMount(async () => {
 		if (!fluxogramaStore.state.courseData) {
 			const curriculoCompleto = authStore.getUser()?.dadosFluxograma?.matrizCurricular ?? null;
@@ -18,43 +25,73 @@
 				try {
 					await fluxogramaStore.loadCourseDataByCurriculoCompleto(curriculoCompleto);
 				} catch {
-					// Falha ao carregar curso → agente opera em modo leve.
+					// Sem curso carregado só perdemos o starter personalizado.
 				}
 			}
 		}
 	});
 
-	// Starters do chat-agente da Assistente: recomendação, ementa, turmas e histórico.
-	// O primeiro é personalizado — pergunta a opinião real de alunos sobre uma
-	// matéria que o próprio aluno está cursando agora, quando o fluxograma já
-	// carregou (mesmo padrão de starters dinâmicos do PlannerChatPanel).
+	/** "CÁLCULO 2" → "Cálculo 2" para o badge do starter. */
+	function nomeCurto(nome: string): string {
+		return nome.toLowerCase().replace(/(^|[\s(])\p{L}/gu, (c) => c.toUpperCase());
+	}
+
+	// Starters do /assistente a partir do que o aluno tem de fato: uma matéria que
+	// ele cursa agora e a próxima obrigatória que já pode pegar. Sem fluxograma
+	// carregado, só os genéricos (que não citam matéria nenhuma).
 	const promptStarters = $derived.by(() => {
 		const starters = [];
-
 		const courseData = fluxogramaStore.state.courseData;
-		const currentCodes = fluxogramaStore.currentCodes;
-		if (courseData && currentCodes.size > 0) {
-			const materiaAtual = courseData.materias.find((m) => currentCodes.has(m.codigoMateria));
-			if (materiaAtual) {
+		const cursando = fluxogramaStore.currentCodes;
+		const concluidas = fluxogramaStore.completedCodes;
+
+		if (courseData) {
+			const atual = courseData.materias.find((m) => cursando.has(m.codigoMateria));
+			if (atual) {
 				starters.push({
-					prefix: 'O que os alunos acham de',
-					badge: materiaAtual.nomeMateria,
-					suffix: '?',
-					message: `O que os alunos acham de ${materiaAtual.nomeMateria} (${materiaAtual.codigoMateria})? Vale a pena eu me preparar mais pra ela?`
+					prefix: 'Dicas pra',
+					badge: nomeCurto(atual.nomeMateria),
+					suffix: '',
+					message: `Estou cursando ${atual.nomeMateria} (${atual.codigoMateria}). O que os alunos acham dela e como me preparar?`
+				});
+			}
+
+			const proxima = courseData.materias
+				.filter(
+					(m) =>
+						!isOptativa(m) &&
+						!concluidas.has(m.codigoMateria) &&
+						!cursando.has(m.codigoMateria) &&
+						satisfazPreRequisitos(
+							courseData.preRequisitos.filter((pr) => pr.idMateria === m.idMateria),
+							concluidas
+						)
+				)
+				.sort((a, b) => a.nivel - b.nivel)[0];
+			if (proxima) {
+				starters.push({
+					prefix: 'Turmas de',
+					badge: nomeCurto(proxima.nomeMateria),
+					suffix: '',
+					message: `/turmas ${proxima.codigoMateria}`
 				});
 			}
 		}
 
-		starters.push({ prefix: 'Recomenda matérias sobre', badge: 'IA', suffix: '', message: 'Quero descobrir disciplinas sobre inteligência artificial' });
-		starters.push({ prefix: 'Explica a ementa de', badge: 'Cálculo 1', suffix: '', message: 'Explique o conteúdo de Cálculo 1' });
-		starters.push({ prefix: 'Quais as', badge: 'turmas', suffix: 'de uma matéria?', message: 'Quais as turmas de MAT0025?' });
-		starters.push({ prefix: 'O que já', badge: 'concluí', suffix: 'no meu curso?', message: 'O que eu já concluí no meu curso?' });
+		starters.push({ prefix: 'Quanto', badge: 'falta', suffix: 'pra me formar?', message: 'Quanto falta pra eu me formar?' });
+		starters.push({
+			prefix: 'Recomenda',
+			badge: 'optativas',
+			suffix: 'sobre um tema',
+			message: 'Recomende optativas sobre ',
+			populateOnly: true
+		});
 
 		return starters.slice(0, 4);
 	});
 
 	function onSend(msg: string) {
-		assistenteChatStore.enviarMensagem(msg);
+		darcyStore.enviar(msg);
 	}
 </script>
 
@@ -68,14 +105,14 @@
 
 <div class="relative z-10 mx-auto flex h-[calc(100dvh-5.75rem)] min-h-0 w-full max-w-none flex-col px-2 pb-2 sm:h-[calc(100dvh-6.5rem)] sm:px-3 sm:pb-3 lg:px-6">
 	<ChatPanel
-		messages={assistenteChatStore.chatMessages}
-		loading={assistenteChatStore.chatLoading}
+		messages={darcyStore.mensagens}
+		loading={darcyStore.carregando}
 		{promptStarters}
 		title="Darcy AI"
 		assistantName="Darcy AI"
-		placeholder="Ex: recomenda matérias sobre redes, ou /turmas MAT0025..."
-		interactiveBadges={true}
+		placeholder="Ex: recomenda matérias sobre redes, ou quantos créditos me faltam?"
 		{onSend}
+		onNovaConversa={() => darcyStore.novaConversa()}
 	>
 		{#snippet emptyState()}
 			<div class="w-16 h-16 rounded-3xl bg-pink-500/10 border border-pink-500/50 flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(236,72,153,0.15)] backdrop-blur-md shrink-0">

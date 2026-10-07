@@ -306,63 +306,7 @@ export function autoMontarGrade<T>(
     mascaraInicial: bigint = 0n,
     orcamentoCreditos?: number
 ): AutoMontarResult<T> {
-    const pesoBase = (m: MateriaTurmas<T>) => m.peso ?? 1;
-    /**
-     * Peso efetivo de `essencial`: dominante sobre a soma de todas as
-     * não-essenciais do pool, calculado por chamada (não um degrau fixo — a escada
-     * do chamador não tem espaço sobrando entre PRIORITARIA e CURSANDO). Ver nota
-     * completa no espelho frontend (`frontend/src/lib/utils/horario-slots.ts`,
-     * mesmo comentário em `MateriaTurmas.essencial` e aqui). Isto substitui uma
-     * tentativa anterior de desabilitar a Opção B só para essencial, que não
-     * bastava: numa essencial que CONFLITA com uma matéria de peso alto, a
-     * otimização por soma de peso a descarta na alocação em si, sem nunca passar
-     * pela Opção B — só o peso dominante resolve os dois casos (conflito e
-     * ausência de turma) com o mesmo mecanismo.
-     */
-    const somaNaoEssenciais = materias.reduce(
-        (acc, m) => acc + (m.essencial === true ? 0 : pesoBase(m)),
-        0
-    );
-    const pesoDominanteEssencial = somaNaoEssenciais + 1;
-    const pesoDe = (m: MateriaTurmas<T>) =>
-        m.essencial === true ? pesoDominanteEssencial : pesoBase(m);
-    const creditosDe = (m: MateriaTurmas<T>) => m.creditos ?? 0;
-    const bonusDe = (t: TurmaCandidata<T>) => t.bonus ?? 0;
-    /**
-     * Cabe no teto de créditos, dado o quanto já foi gasto? Obrigatória e essencial
-     * sempre cabem — sem orçamento, todo mundo cabe. Checar `essencial` aqui
-     * também (defesa em profundidade, não só confiar que quem monta os dados setou
-     * `obrigatoria = matriculaReal || essencial`) garante "essencial ignora o
-     * limite de horas" nesta função, não como disciplina do chamador.
-     */
-    const cabeNoOrcamento = (m: MateriaTurmas<T>, gasto: number): boolean =>
-        orcamentoCreditos === undefined || m.obrigatoria === true || m.essencial === true
-            ? true
-            : gasto + creditosDe(m) <= orcamentoCreditos;
-    const melhorBonusDe = (m: MateriaTurmas<T>) =>
-        m.turmas.reduce((max, t) => Math.max(max, bonusDe(t)), 0);
-
-    // Matérias de maior peso primeiro (e essenciais nos primeiros índices — ver
-    // efeito colateral documentado abaixo) e, dentro de cada uma, as turmas que mais
-    // atendem à preferência — assim o primeiro mergulho já encontra uma solução boa
-    // e a poda descarta o resto cedo.
-    //
-    // Turmas com a mesma máscara são intercambiáveis para o encaixe (só o horário
-    // importa), então basta manter a de maior bônus: corta um fator de ramificação
-    // grande, já que é comum a matéria ter várias turmas no mesmo horário.
-    const ordenadas = [...materias]
-        .sort((a, b) => {
-            if (a.essencial === true && b.essencial !== true) return -1;
-            if (a.essencial !== true && b.essencial === true) return 1;
-            return pesoDe(b) - pesoDe(a);
-        })
-        .map((m) => {
-            const porMask = new Map<bigint, TurmaCandidata<T>>();
-            for (const t of [...m.turmas].sort((x, y) => bonusDe(y) - bonusDe(x))) {
-                if (!porMask.has(t.mask)) porMask.set(t.mask, t);
-            }
-            return { ...m, turmas: [...porMask.values()] };
-        });
+    const { pesoDe, creditosDe, cabeNoOrcamento, ordenadas } = regrasDoSolver(materias, orcamentoCreditos);
 
     let melhorSelecao: Map<string, TurmaCandidata<T>> = new Map();
     let melhorPeso = -1;
@@ -393,17 +337,8 @@ export function autoMontarGrade<T>(
      * limite superior legítimo — só bem mais apertado que ignorar créditos.
      */
     function limiteSuperior(i: number, accMask: bigint, gasto: number): number {
-        let total = 0;
-        for (let j = i; j < ordenadas.length; j++) {
-            const m = ordenadas[j];
-            if (!cabeNoOrcamento(m, gasto)) continue;
-            for (const t of m.turmas) {
-                if (hasConflict(t.mask, accMask)) continue;
-                total += pesoDe(m) + bonusDe(t);
-                break;
-            }
-        }
-        return total;
+        const { peso, bonus } = limiteSuperiorSeparado(ordenadas, pesoDe, cabeNoOrcamento, i, accMask, gasto);
+        return peso + bonus;
     }
 
     function recurse(i: number, accMask: bigint): void {
@@ -451,15 +386,125 @@ export function autoMontarGrade<T>(
 
     recurse(0, mascaraInicial);
 
+    return resultadoDaSelecao(materias, melhorSelecao, truncado);
+}
+
+function bonusDe<T>(t: TurmaCandidata<T>): number {
+    return t.bonus ?? 0;
+}
+
+/**
+ * Regras compartilhadas por `autoMontarGrade` e `enumerarGradesOtimas` (espelho
+ * de `regrasDoSolver` no frontend): peso efetivo, créditos, teto de orçamento e
+ * a lista ordenada/deduplicada da busca. As duas buscas têm de concordar
+ * exatamente nisto — senão "a melhor grade" de uma não seria uma das empatadas
+ * da outra.
+ */
+function regrasDoSolver<T>(materias: Array<MateriaTurmas<T>>, orcamentoCreditos?: number) {
+    const pesoBase = (m: MateriaTurmas<T>) => m.peso ?? 1;
+    /**
+     * Peso efetivo de `essencial`: dominante sobre a soma de todas as
+     * não-essenciais do pool, calculado por chamada (não um degrau fixo — a escada
+     * do chamador não tem espaço sobrando entre PRIORITARIA e CURSANDO). Ver nota
+     * completa no espelho frontend (`frontend/src/lib/utils/horario-slots.ts`,
+     * mesmo comentário em `MateriaTurmas.essencial` e aqui). Isto substitui uma
+     * tentativa anterior de desabilitar a Opção B só para essencial, que não
+     * bastava: numa essencial que CONFLITA com uma matéria de peso alto, a
+     * otimização por soma de peso a descarta na alocação em si, sem nunca passar
+     * pela Opção B — só o peso dominante resolve os dois casos (conflito e
+     * ausência de turma) com o mesmo mecanismo.
+     *
+     * Matrícula real (`obrigatoria` sem ser essencial) fica fora da soma: a
+     * essencial domina todo o resto, mas não derruba matéria que o aluno já cursa.
+     */
+    const somaNaoEssenciais = materias.reduce(
+        (acc, m) => acc + (m.essencial === true || m.obrigatoria === true ? 0 : pesoBase(m)),
+        0
+    );
+    const pesoDominanteEssencial = somaNaoEssenciais + 1;
+    const pesoDe = (m: MateriaTurmas<T>) =>
+        m.essencial === true ? pesoDominanteEssencial : pesoBase(m);
+    const creditosDe = (m: MateriaTurmas<T>) => m.creditos ?? 0;
+    /**
+     * Cabe no teto de créditos, dado o quanto já foi gasto? Obrigatória e essencial
+     * sempre cabem — sem orçamento, todo mundo cabe. Checar `essencial` aqui
+     * também (defesa em profundidade, não só confiar que quem monta os dados setou
+     * `obrigatoria = matriculaReal || essencial`) garante "essencial ignora o
+     * limite de horas" nesta função, não como disciplina do chamador.
+     */
+    const cabeNoOrcamento = (m: MateriaTurmas<T>, gasto: number): boolean =>
+        orcamentoCreditos === undefined || m.obrigatoria === true || m.essencial === true
+            ? true
+            : gasto + creditosDe(m) <= orcamentoCreditos;
+
+    // Matérias de maior peso primeiro (essenciais nos primeiros índices) e, dentro
+    // de cada uma, as turmas que mais atendem à preferência — assim o primeiro
+    // mergulho já encontra uma solução boa e a poda descarta o resto cedo.
+    //
+    // Turmas com a mesma máscara são intercambiáveis para o encaixe (só o horário
+    // importa), então basta manter a de maior bônus: corta um fator de ramificação
+    // grande, já que é comum a matéria ter várias turmas no mesmo horário.
+    const ordenadas = [...materias]
+        .sort((a, b) => {
+            if (a.essencial === true && b.essencial !== true) return -1;
+            if (a.essencial !== true && b.essencial === true) return 1;
+            return pesoDe(b) - pesoDe(a);
+        })
+        .map((m) => {
+            const porMask = new Map<bigint, TurmaCandidata<T>>();
+            for (const t of [...m.turmas].sort((x, y) => bonusDe(y) - bonusDe(x))) {
+                if (!porMask.has(t.mask)) porMask.set(t.mask, t);
+            }
+            return { ...m, turmas: [...porMask.values()] };
+        });
+
+    return { pesoDe, creditosDe, cabeNoOrcamento, ordenadas };
+}
+
+/**
+ * Limite superior do que ainda dá para somar do índice `i` em diante, com peso e
+ * bônus separados (ver `limiteSuperior` em `autoMontarGrade` para o porquê de ser
+ * sensível ao acumulado). Separados porque `enumerarGradesOtimas` compara os dois
+ * em ordem lexicográfica; `autoMontarGrade` só soma.
+ */
+function limiteSuperiorSeparado<T>(
+    ordenadas: ReadonlyArray<MateriaTurmas<T>>,
+    pesoDe: (m: MateriaTurmas<T>) => number,
+    cabeNoOrcamento: (m: MateriaTurmas<T>, gasto: number) => boolean,
+    i: number,
+    accMask: bigint,
+    gasto: number
+): { peso: number; bonus: number } {
+    let peso = 0;
+    let bonus = 0;
+    for (let j = i; j < ordenadas.length; j++) {
+        const m = ordenadas[j];
+        if (!cabeNoOrcamento(m, gasto)) continue;
+        for (const t of m.turmas) {
+            if (hasConflict(t.mask, accMask)) continue;
+            peso += pesoDe(m);
+            bonus += bonusDe(t);
+            break;
+        }
+    }
+    return { peso, bonus };
+}
+
+/** Monta o `AutoMontarResult` de uma seleção já escolhida (naoAlocadas, preferências). */
+function resultadoDaSelecao<T>(
+    materias: Array<MateriaTurmas<T>>,
+    selecao: Map<string, TurmaCandidata<T>>,
+    truncado: boolean
+): AutoMontarResult<T> {
     const naoAlocadas: string[] = [];
     const preferenciasNaoAtendidas: string[] = [];
     for (const m of materias) {
-        const escolhida = melhorSelecao.get(m.chave);
+        const escolhida = selecao.get(m.chave);
         if (!escolhida) {
             naoAlocadas.push(m.chave);
             continue;
         }
-        const melhor = melhorBonusDe(m);
+        const melhor = m.turmas.reduce((max, t) => Math.max(max, bonusDe(t)), 0);
         // Só reporta quem declarou preferência (melhor > 0) e não conseguiu o melhor.
         if (melhor > 0 && bonusDe(escolhida) < melhor) preferenciasNaoAtendidas.push(m.chave);
     }
@@ -472,7 +517,7 @@ export function autoMontarGrade<T>(
     // cada sub-solve dispararia outro diagnóstico, que dispararia outro sub-solve,
     // sem parar. Preencher `erros` é responsabilidade de quem chama
     // (`diagnosticarEssenciais`, explicitamente, depois do solve principal).
-    return { selecao: melhorSelecao, naoAlocadas, preferenciasNaoAtendidas, truncado, erros: [] };
+    return { selecao, naoAlocadas, preferenciasNaoAtendidas, truncado, erros: [] };
 }
 
 /**
@@ -565,16 +610,39 @@ export function diagnosticarEssenciais<T>(
 
 // ─── Múltiplas opções com scoring (Fase 1c) ──────────────────────────────────
 
-/** Strategy de ranking: cada estratégia pontua turma×matéria e vira uma OpcaoGrade. */
+/**
+ * Uma forma de escolher entre grades igualmente boas (ex.: "menos dias", "menos
+ * lacunas", "semana equilibrada") — espelho do contrato do frontend.
+ *
+ * O caminho principal é `avaliar`: custo da grade INTEIRA, a partir das métricas
+ * dela. Pontuar turma por turma (`pontuar`, o contrato antigo) não enxerga o
+ * resto da semana — o furo entre DUAS matérias, que é o que o aluno sente, fica
+ * invisível. Medido no frontend: a "Menos lacunas" antiga devolvia a grade com
+ * quase o dobro de furo da "Menos dias".
+ *
+ * `pontuar` continua aceito (bônus ADICIONAL sobre o `bonus` da turma). Quando os
+ * dois existem, vale `avaliar`.
+ */
 export interface RankingStrategy<T> {
     nome: string;
-    pontuar(turma: TurmaCandidata<T>, materia: MateriaTurmas<T>): number;
+    pontuar?(turma: TurmaCandidata<T>, materia: MateriaTurmas<T>): number;
+    /**
+     * Custo da grade montada, comparado em ordem lexicográfica (menor é melhor):
+     * o primeiro número é o critério, os seguintes desempatam. Só escolhe entre
+     * grades que já empatam em matérias e preferências — nunca troca uma matéria
+     * por uma semana mais bonita.
+     */
+    avaliar?(metricas: MetricasOpcao): readonly number[];
 }
 
 export interface MetricasOpcao {
     diasComAula: number;
     minutosDeLacuna: number;
     horasTotais: number;
+    /**
+     * Variância populacional dos minutos de aula por dia, seg–sex (dias vazios =
+     * 0); o sábado só entra na conta quando tem aula.
+     */
     variancaCargaDiaria: number;
     professorEssencialAtendido: boolean;
 }
@@ -584,6 +652,9 @@ export interface OpcaoGrade<T> {
     resultado: AutoMontarResult<T>;
     metricas: MetricasOpcao;
 }
+
+/** Pausa regular entre dois pares de módulos (ex.: 09:50→10:00) — não é furo. */
+const INTERVALO_REGULAR_MIN = 10;
 
 function minutosDesde(horaStr: string): number {
     const [h, m] = horaStr.split(":").map(Number);
@@ -623,19 +694,26 @@ function calcularMetricas<T>(
             minutosNoDia += minutosDesde(ultimo.fim) - minutosDesde(primeiro.inicio);
         }
         // Lacuna: intervalo entre blocos do mesmo dia (nunca antes do primeiro nem
-        // depois do último — isso não é "furo", é o dia começar/terminar ali).
+        // depois do último — isso não é "furo", é o dia começar/terminar ali). O
+        // intervalo regular entre pares de módulos (09:50→10:00) também não conta:
+        // é o mesmo que existe dentro de uma aula longa.
         for (let i = 1; i < blocos.length; i++) {
             const fimAnterior = SLOTS_DIA[blocos[i - 1].offsetStart + blocos[i - 1].span - 1].fim;
             const inicioAtual = SLOTS_DIA[blocos[i].offsetStart].inicio;
-            minutosDeLacuna += Math.max(0, minutosDesde(inicioAtual) - minutosDesde(fimAnterior));
+            const minutos = minutosDesde(inicioAtual) - minutosDesde(fimAnterior);
+            if (minutos > INTERVALO_REGULAR_MIN) minutosDeLacuna += minutos;
         }
         minutosPorDia.push(minutosNoDia);
         minutosTotais += minutosNoDia;
     }
 
-    const mediaPorDia = minutosPorDia.reduce((a, b) => a + b, 0) / (minutosPorDia.length || 1);
+    // Variância sobre seg–sex, e o sábado só entra se tiver aula: contá-lo vazio
+    // faria "Semana equilibrada" empurrar matéria para o sábado só para baixar a
+    // variância — o oposto do que o aluno quer de uma semana equilibrada.
+    const diasDaConta = minutosPorDia[5] > 0 ? minutosPorDia : minutosPorDia.slice(0, 5);
+    const mediaPorDia = diasDaConta.reduce((a, b) => a + b, 0) / (diasDaConta.length || 1);
     const variancaCargaDiaria =
-        minutosPorDia.reduce((acc, m) => acc + (m - mediaPorDia) ** 2, 0) / (minutosPorDia.length || 1);
+        diasDaConta.reduce((acc, m) => acc + (m - mediaPorDia) ** 2, 0) / (diasDaConta.length || 1);
 
     return {
         diasComAula,
@@ -733,11 +811,144 @@ function repararGulosoSobTruncamento<T>(
     return { ...resultado, selecao, naoAlocadas, preferenciasNaoAtendidas, erros };
 }
 
+/** Teto de grades empatadas que `enumerarGradesOtimas` guarda para as estratégias compararem. */
+export const MAX_GRADES_CANDIDATAS = 500;
+
 /**
- * Gera até `maxOpcoes` grades (default 6), uma por `RankingStrategy`, cada uma
- * rodando `autoMontarGrade` com o bônus da estratégia somado por CIMA do bônus
- * que o chamador já tiver definido (nunca substitui). Dedupe por assinatura de
- * seleção — estratégias diferentes podem convergir pra mesma grade.
+ * Folga na comparação de bônus: são frações somadas em ordens diferentes em
+ * ramos diferentes, então dois empates de verdade podem diferir no último bit.
+ */
+const TOLERANCIA_BONUS = 1e-9;
+
+/** Folga relativa na comparação de peso — ordens de grandeza abaixo do menor degrau (1). */
+function toleranciaPeso(total: number): number {
+    return 64 * Number.EPSILON * Math.max(1, Math.abs(total));
+}
+
+/**
+ * Todas as grades (até `MAX_GRADES_CANDIDATAS`) que empatam no topo do que o
+ * solver otimiza: mesma soma de peso de matéria e mesma soma de bônus de
+ * preferência (professor). É o universo em que uma `RankingStrategy.avaliar`
+ * pode escolher sem violar a escada de pesos. Espelho de `enumerarGradesOtimas`
+ * no frontend.
+ *
+ * `semente` é o resultado de `autoMontarGrade` para as mesmas matérias: entra
+ * como primeira candidata e fixa a régua da poda, o que corta a busca quase só
+ * para os empates. Se a semente veio truncada e a enumeração achar algo melhor,
+ * a régua sobe e as candidatas antigas saem.
+ */
+function enumerarGradesOtimas<T>(
+    materias: Array<MateriaTurmas<T>>,
+    mascaraInicial: bigint,
+    orcamentoCreditos: number | undefined,
+    semente: Map<string, TurmaCandidata<T>>
+): Array<Map<string, TurmaCandidata<T>>> {
+    const { pesoDe, creditosDe, cabeNoOrcamento, ordenadas } = regrasDoSolver(materias, orcamentoCreditos);
+    let melhorPeso = 0;
+    let melhorBonus = 0;
+    for (const m of ordenadas) {
+        const t = semente.get(m.chave);
+        if (!t) continue;
+        melhorPeso += pesoDe(m);
+        melhorBonus += bonusDe(t);
+    }
+    let candidatas: Array<Map<string, TurmaCandidata<T>>> = [new Map(semente)];
+    const assinatura = (sel: Map<string, TurmaCandidata<T>>) =>
+        [...sel]
+            .map(([c, t]) => `${c}:${t.mask}`)
+            .sort()
+            .join(",");
+    let vistas = new Set([assinatura(semente)]);
+
+    const atual = new Map<string, TurmaCandidata<T>>();
+    let nos = 0;
+
+    // Peso/bônus/créditos descem como argumento (soma só para frente, sem `-=` no
+    // retorno): a soma de uma folha sai na mesma ordem que a da semente, e um
+    // empate exato não se perde em erro de arredondamento acumulado.
+    function recurse(i: number, accMask: bigint, pesoAtual: number, bonusAtual: number, creditosAtual: number): void {
+        if (nos >= MAX_NOS_MONTAGEM) return;
+        nos++;
+        const tolPeso = toleranciaPeso(melhorPeso);
+
+        if (i >= ordenadas.length) {
+            const mesmoPeso = Math.abs(pesoAtual - melhorPeso) <= tolPeso;
+            const melhorQue =
+                (!mesmoPeso && pesoAtual > melhorPeso) ||
+                (mesmoPeso && bonusAtual > melhorBonus + TOLERANCIA_BONUS);
+            if (melhorQue) {
+                melhorPeso = pesoAtual;
+                melhorBonus = bonusAtual;
+                candidatas = [new Map(atual)];
+                vistas = new Set([assinatura(atual)]);
+                return;
+            }
+            const empata = mesmoPeso && Math.abs(bonusAtual - melhorBonus) <= TOLERANCIA_BONUS;
+            if (empata && candidatas.length < MAX_GRADES_CANDIDATAS) {
+                const a = assinatura(atual);
+                if (!vistas.has(a)) {
+                    vistas.add(a);
+                    candidatas.push(new Map(atual));
+                }
+            }
+            return;
+        }
+
+        // Poda lexicográfica (peso, depois bônus). Diferente de `autoMontarGrade`,
+        // o empate NÃO é podado — é justamente o que interessa aqui —, a não ser
+        // que a lista de candidatas já esteja cheia.
+        const lim = limiteSuperiorSeparado(ordenadas, pesoDe, cabeNoOrcamento, i, accMask, creditosAtual);
+        const pesoMax = pesoAtual + lim.peso;
+        const bonusMax = bonusAtual + lim.bonus;
+        if (pesoMax < melhorPeso - tolPeso) return;
+        const pesoSupera = pesoMax > melhorPeso + tolPeso;
+        if (!pesoSupera && bonusMax < melhorBonus - TOLERANCIA_BONUS) return;
+        const podeSuperar = pesoSupera || bonusMax > melhorBonus + TOLERANCIA_BONUS;
+        if (!podeSuperar && candidatas.length >= MAX_GRADES_CANDIDATAS) return;
+
+        const m = ordenadas[i];
+        if (cabeNoOrcamento(m, creditosAtual)) {
+            for (const t of m.turmas) {
+                if (hasConflict(t.mask, accMask)) continue;
+                atual.set(m.chave, t);
+                recurse(
+                    i + 1,
+                    accMask | t.mask,
+                    pesoAtual + pesoDe(m),
+                    bonusAtual + bonusDe(t),
+                    creditosAtual + creditosDe(m)
+                );
+                atual.delete(m.chave);
+            }
+        }
+        recurse(i + 1, accMask, pesoAtual, bonusAtual, creditosAtual);
+    }
+
+    recurse(0, mascaraInicial, 0, 0, 0);
+    return candidatas;
+}
+
+/** Compara dois custos de `RankingStrategy.avaliar` em ordem lexicográfica. */
+function compararCusto(a: readonly number[], b: readonly number[]): number {
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+        const d = (a[i] ?? 0) - (b[i] ?? 0);
+        if (d !== 0) return d;
+    }
+    return 0;
+}
+
+/**
+ * Gera até `maxOpcoes` grades (default 6), uma por `RankingStrategy`.
+ *
+ * Estratégia com `avaliar` (o caminho normal): o solver roda UMA vez, as grades
+ * que empatam no topo (mesmas garantias de matéria e preferência) são
+ * enumeradas por `enumerarGradesOtimas`, e cada estratégia fica com a de menor
+ * custo segundo as métricas da semana inteira. Estratégia só com `pontuar`
+ * (legado): roda o solver com o bônus dela somado por CIMA do bônus que o
+ * chamador já tiver definido (nunca substitui).
+ *
+ * Dedupe por assinatura de seleção — estratégias diferentes podem convergir pra
+ * mesma grade.
  */
 export function autoMontarGradeOpcoes<T>(
     materias: Array<MateriaTurmas<T>>,
@@ -751,38 +962,74 @@ export function autoMontarGradeOpcoes<T>(
     const assinaturasVistas = new Set<string>();
     const essenciais = materias.filter((m) => m.essencial === true).map((m) => m.chave);
 
+    const professorEssencialAtendidoEm = (resultado: AutoMontarResult<T>): boolean =>
+        essenciais.length === 0
+            ? true
+            : essenciais.every((c) => resultado.selecao.has(c) && !resultado.preferenciasNaoAtendidas.includes(c));
+
+    // Candidatas empatadas, calculadas só se alguma estratégia avalia a grade
+    // inteira — e uma vez só, compartilhadas por todas elas.
+    type Candidata = { resultado: AutoMontarResult<T>; metricas: MetricasOpcao };
+    let candidatas: Candidata[] | null = null;
+    const obterCandidatas = (): Candidata[] => {
+        if (candidatas) return candidatas;
+        const semente = autoMontarGrade(materias, mascaraInicial, orcamentoCreditos);
+        candidatas = enumerarGradesOtimas(materias, mascaraInicial, orcamentoCreditos, semente.selecao).map(
+            (selecao) => {
+                let resultado = resultadoDaSelecao(materias, selecao, semente.truncado);
+                if (resultado.truncado) {
+                    resultado = repararGulosoSobTruncamento(materias, resultado, mascaraInicial, orcamentoCreditos);
+                }
+                return {
+                    resultado,
+                    metricas: calcularMetricas(resultado.selecao, professorEssencialAtendidoEm(resultado)),
+                };
+            }
+        );
+        return candidatas;
+    };
+
     for (const estrategia of estrategias) {
         if (opcoes.length >= maxOpcoes) break;
 
-        const materiasComBonus = materias.map((m) => ({
-            ...m,
-            turmas: m.turmas.map((t) => ({
-                ...t,
-                bonus: (t.bonus ?? 0) + estrategia.pontuar(t, m),
-            })),
-        }));
+        let escolhida: Candidata;
+        if (estrategia.avaliar) {
+            const avaliar = estrategia.avaliar;
+            const todas = obterCandidatas();
+            escolhida = todas[0];
+            let melhorCusto = avaliar(escolhida.metricas);
+            for (const c of todas) {
+                const custo = avaliar(c.metricas);
+                if (compararCusto(custo, melhorCusto) < 0) {
+                    escolhida = c;
+                    melhorCusto = custo;
+                }
+            }
+        } else {
+            const pontuar = estrategia.pontuar ?? (() => 0);
+            const materiasComBonus = materias.map((m) => ({
+                ...m,
+                turmas: m.turmas.map((t) => ({
+                    ...t,
+                    bonus: (t.bonus ?? 0) + pontuar(t, m),
+                })),
+            }));
 
-        let resultado = autoMontarGrade(materiasComBonus, mascaraInicial, orcamentoCreditos);
-        if (resultado.truncado) {
-            resultado = repararGulosoSobTruncamento(materiasComBonus, resultado, mascaraInicial, orcamentoCreditos);
+            let resultado = autoMontarGrade(materiasComBonus, mascaraInicial, orcamentoCreditos);
+            if (resultado.truncado) {
+                resultado = repararGulosoSobTruncamento(materiasComBonus, resultado, mascaraInicial, orcamentoCreditos);
+            }
+            escolhida = {
+                resultado,
+                metricas: calcularMetricas(resultado.selecao, professorEssencialAtendidoEm(resultado)),
+            };
         }
 
-        const assinatura = assinaturaDeSelecao(resultado.selecao, chaveTurma);
+        const assinatura = assinaturaDeSelecao(escolhida.resultado.selecao, chaveTurma);
         if (assinaturasVistas.has(assinatura)) continue;
         assinaturasVistas.add(assinatura);
 
-        const professorEssencialAtendido =
-            essenciais.length === 0
-                ? true
-                : essenciais.every(
-                      (c) => resultado.selecao.has(c) && !resultado.preferenciasNaoAtendidas.includes(c)
-                  );
-
-        opcoes.push({
-            estrategia: estrategia.nome,
-            resultado,
-            metricas: calcularMetricas(resultado.selecao, professorEssencialAtendido),
-        });
+        opcoes.push({ estrategia: estrategia.nome, ...escolhida });
     }
 
     return opcoes;

@@ -13,7 +13,7 @@
 	import { gradeStore } from '$lib/stores/grade.store.svelte';
 	import { unidadeCargaStore } from '$lib/stores/unidade-carga.store.svelte';
 	import { preferenciasGradeService } from '$lib/services/preferencias-grade.service';
-	import type { SemeaduraResultado } from '$lib/services/grade-pool.service';
+	import type { OpcoesSemeadura, SemeaduraResultado } from '$lib/services/grade-pool.service';
 	import type { SituacaoAcademica } from '$lib/services/situacao-academica.service';
 	import type { TurmaOferta } from '$lib/services/turmas.service';
 	import type { Turno, OpcaoGrade, ErroMontagem } from '$lib/utils/horario-slots';
@@ -79,7 +79,7 @@
 		 * não render nada, matérias da matriz — e devolve o que entrou, por procedência.
 		 * Quem sabe do plano e da matriz é a rota, não a view.
 		 */
-		onSemear?: () => Promise<SemeaduraResultado>;
+		onSemear?: (opcoes?: OpcoesSemeadura) => Promise<SemeaduraResultado>;
 		/**
 		 * Refaz o preenchimento automático da primeira visita (recomendadas do plano
 		 * + matrículas reais do histórico), descartando edições. Quem sabe do
@@ -236,7 +236,7 @@
 		if (montando) return;
 		montando = true;
 		try {
-			const semeadas = (await onSemear?.()) ?? {
+			const semeadas = (await onSemear?.({ limiteCreditos: limiteSessao })) ?? {
 				adicionadas: [],
 				obrigatoriasSemOferta: [],
 				pendentesSemOferta: 0
@@ -380,14 +380,14 @@
 		gerandoOpcoes = true;
 		parametrosAtuais = params;
 		try {
-			await onSemear?.();
+			// A semeadura usa o limite e o escopo do Passo 1 — com o limite do plano,
+			// quem pede mais créditos recebia uma lista que nunca chegava lá.
+			await onSemear?.({ limiteCreditos: params.limiteCreditos, escopo: params.escopo });
 
 			// Persiste turno/professor da essencial pra próxima sessão puxar sozinha
-			// (`preferencias_grade` — a coluna `turnos` já é aceita e enviada por
-			// `preferenciasGradeService.salvar`). Não alimenta o solver desta chamada:
-			// hoje só o turno GLOBAL (`gradeStore.turnosPermitidos`, os pills reusados
-			// no painel) filtra turma — turno POR MATÉRIA ainda não tem parâmetro no
-			// `MontarOpts` do store.
+			// (`preferencias_grade`). O turno dela também vale já nesta montagem:
+			// `turnosEssencial` filtra só as turmas da essencial, por cima do turno
+			// global (`gradeStore.turnosPermitidos`).
 			if (params.essencial && (params.professorPreferidoEssencial || params.turnosEssencial.length > 0)) {
 				void preferenciasGradeService.salvar(params.essencial, {
 					turnos: params.turnosEssencial,
@@ -398,7 +398,9 @@
 			const opcoes = gradeStore.montarOpcoes({
 				limiteCreditos: params.limiteCreditos,
 				essencial: params.essencial ?? undefined,
-				professorPreferidoEssencial: params.professorPreferidoEssencial ?? undefined
+				professorPreferidoEssencial: params.professorPreferidoEssencial ?? undefined,
+				turnosEssencial: params.turnosEssencial,
+				estrategias: params.estrategias
 			});
 
 			opcoesGeradas = opcoes;
@@ -671,7 +673,7 @@
 			página inteira (é o mesmo motivo de a navbar `sticky top-0` nunca grudar).
 		-->
 		<div
-			class="-mx-3 mb-3 flex items-center gap-2 border-y border-white/10 bg-white/[0.03] px-3 py-2 sm:-mx-5 sm:px-5"
+			class="-mx-3 mb-3 flex touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain border-y border-white/10 bg-white/[0.03] px-3 py-2 [scrollbar-width:none] sm:-mx-5 sm:px-5 [&::-webkit-scrollbar]:hidden"
 		>
 			<button
 				type="button"
@@ -1410,7 +1412,7 @@
 				? 'Passo 1 de 2 — Configurar'
 				: 'Passo 2 de 2 — Resultados'}
 		>
-			<div class="max-h-[75dvh] overflow-y-auto p-3">
+			<div class="max-h-[70dvh] touch-pan-y overflow-y-auto overscroll-y-contain p-3">
 				{@render wizardMontador()}
 			</div>
 		</ResponsiveSheet>

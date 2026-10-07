@@ -19,6 +19,7 @@
  * tem como resolver a matriz. Adicionado como campo obrigatório.
  */
 import { SupabaseWrapper } from "../../supabase_wrapper";
+import { resolveIdUserPorEmail } from "../chat/aluno_identidade";
 import { montarDadosPlano, resolverPeriodoAtivo } from "../../controllers/PlanejamentoController";
 import {
     parseFluxograma,
@@ -61,8 +62,10 @@ export interface TurmaOferta {
 
 export interface ParametrosMontador {
     email: string;
-    /** Matriz do aluno (ex.: "8117/-2 - 2018.2") — sempre vem do cliente, ver nota acima. */
+    /** Matriz do aluno (ex.: "8117/-2 - 2018.2") — na Darcy única vem do perfil (banco), não do cliente. */
     curriculoCompleto: string;
+    /** Semestre do aluno — define o corte "período atual" do escopo. Ausente = 1 (comportamento antigo). */
+    numeroPeriodo?: number;
     escopo: "periodo_atual" | "todas_pendentes";
     limiteCreditos?: number;
     turnosPermitidos?: Array<"M" | "T" | "N">;
@@ -86,19 +89,6 @@ function norm(codigo: string): string {
     return (codigo || "").trim().toUpperCase();
 }
 
-/**
- * resolveIdUserPorEmail — reimplementado aqui, mesmo padrão de duplicação aceito no
- * resto do pipeline (ver `grade_actuator.ts`: "reimplementado aqui, não reexportado").
- */
-async function resolveIdUserPorEmail(email: string): Promise<string | null> {
-    const { data, error } = await SupabaseWrapper.get()
-        .from("users")
-        .select("id_user")
-        .eq("email", email)
-        .maybeSingle();
-    if (error || !data?.id_user) return null;
-    return String(data.id_user);
-}
 
 function parseExprOrNull(raw: unknown): ExpressaoLogicaRecursiva | null {
     if (raw == null) return null;
@@ -128,6 +118,44 @@ export function docenteBate(docenteCru: string | null | undefined, alvoNorm: str
         .includes(alvoNorm);
 }
 
+/** "01" e "1" são a mesma turma — o SIGAA ora zera à esquerda, ora não. */
+function normTurma(t: string): string {
+    return t.trim().toUpperCase().replace(/^0+(?=\d)/, "");
+}
+
+/** Nome comparável sem acento — o histórico e a oferta nem sempre acentuam igual. */
+function normNomeSemAcento(nome: string | null | undefined): string {
+    return normDocente(nome).normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+/**
+ * Turma da oferta que corresponde à matrícula real (histórico SIGAA) de uma matéria
+ * em curso — espelho de `encontrarTurmaReal` no frontend (`utils/turmas-reais.ts`).
+ *
+ * Casa primeiro pelo código da turma. Sem casamento, tenta pelo professor da
+ * matrícula, mas só aceita quando ele aponta UMA turma: com duas do mesmo
+ * professor, escolher uma seria trocar a matrícula do aluno por palpite.
+ */
+export function turmaRealDaMatricula(
+    turmas: TurmaOferta[],
+    matricula: { turma?: string; professor?: string }
+): TurmaOferta | null {
+    if (matricula.turma) {
+        const alvo = normTurma(matricula.turma);
+        const porTurma = turmas.find((t) => normTurma(t.turma ?? "") === alvo);
+        if (porTurma) return porTurma;
+    }
+    const prof = normNomeSemAcento(matricula.professor);
+    if (!prof) return null;
+    const doProfessor = turmas.filter((t) =>
+        (t.docente ?? "").split(",").some((d) => {
+            const nome = normNomeSemAcento(d);
+            return nome.length > 0 && (nome.includes(prof) || prof.includes(nome));
+        })
+    );
+    return doProfessor.length === 1 ? doProfessor[0] : null;
+}
+
 // ─── Escada de peso — espelho de grade.store.svelte.ts:109-176 (leitura só) ──────
 //
 // Só o subconjunto que esta Facade usa: não existe conceito de "prioritárias"
@@ -147,8 +175,6 @@ const PESO_SATURADO = 1;
  * turma escolhida conta), a soma máxima fica ordens de grandeza abaixo de 1.
  */
 const BONUS_PROFESSOR_PREFERIDO = 1e-4;
-/** Bônus das estratégias de ranking — menor ainda, pra nunca competir com o de professor. */
-const EPS_ESTRATEGIA = 1e-6;
 
 type NaturezaCH = "obrigatoria" | "optativa" | "modulo_livre";
 
@@ -230,53 +256,29 @@ function turnosDaMask(mask: bigint): Turno[] {
     return turnos;
 }
 
-/** Quantos dos 6 dias úteis a máscara toca. */
-function diasDistintos(mask: bigint): number {
-    let dias = 0;
-    for (let d = 0; d < 6; d++) {
-        const diaMask = ((1n << 16n) - 1n) << BigInt(d * 16);
-        if ((mask & diaMask) !== 0n) dias++;
-    }
-    return dias;
-}
-
 /**
- * Soma, por slot ocupado, a distância até a borda mais próxima do dia (0 ou 15).
- * Menor = turma concentrada nas pontas do dia, que tende a deixar menos furo entre
- * blocos de OUTRAS matérias no mesmo dia.
- */
-function bordaScore(mask: bigint): number {
-    let soma = 0;
-    for (let bit = 0; bit < 96; bit++) {
-        if ((mask & (1n << BigInt(bit))) === 0n) continue;
-        const offsetNoDia = bit % 16;
-        soma += Math.min(offsetNoDia, 15 - offsetNoDia);
-    }
-    return soma;
-}
-
-/**
- * Três estratégias de ranking (Fase 1c/3 do plano — Strategy pattern, já formalizado
- * em `horario_slots.ts:RankingStrategy`). Cada uma só enxerga UMA turma×matéria por
- * vez (contrato de `RankingStrategy.pontuar`), então são heurísticas por turma, não
- * cálculos sobre a grade inteira — a métrica exata e confiável (`MetricasOpcao`) só
- * existe DEPOIS do solve, sobre a seleção final. O objetivo aqui é só enviesar o
- * solver na direção de cada estratégia o bastante pra gerar opções diversas.
+ * Três estratégias de ranking — espelho de `construirEstrategiasPadrao` no
+ * frontend. Cada uma avalia a grade INTEIRA (`MetricasOpcao`) e escolhe entre as
+ * grades que já empatam em matérias e preferências — nunca troca matéria por
+ * semana mais bonita. A versão anterior pontuava turma por turma e não enxergava
+ * o furo entre duas matérias.
+ *
+ * O custo é lexicográfico (menor é melhor): o primeiro número é o critério, os
+ * seguintes só desempatam. Os NOMES são contrato com `grade_actuator.ts`
+ * (`ESTRATEGIA_PARA_NOME`) — não renomear sem atualizar lá.
  */
 const ESTRATEGIAS_RANKING: RankingStrategy<TurmaOferta>[] = [
     {
         nome: "Menos dias com aula",
-        pontuar: (t) => -diasDistintos(t.mask) * EPS_ESTRATEGIA,
+        avaliar: (m) => [m.diasComAula, m.minutosDeLacuna],
     },
     {
         nome: "Menos furos entre aulas",
-        pontuar: (t) => -bordaScore(t.mask) * EPS_ESTRATEGIA,
+        avaliar: (m) => [m.minutosDeLacuna, m.diasComAula],
     },
     {
         nome: "Semana equilibrada",
-        // Oposto da 1ª: espalhar as horas da matéria por mais dias, em vez de
-        // concentrar, tende a equilibrar a carga diária da semana inteira.
-        pontuar: (t) => diasDistintos(t.mask) * EPS_ESTRATEGIA,
+        avaliar: (m) => [m.variancaCargaDiaria, m.minutosDeLacuna],
     },
 ];
 
@@ -287,6 +289,8 @@ interface EntradaBase {
     creditos: number;
     obrigatoria: boolean;
     essencial: boolean;
+    /** Pré-requisito satisfeito (contando o que ele cursa agora)? Ver filtro antes do solve. */
+    desbloqueada: boolean;
 }
 
 /**
@@ -309,12 +313,21 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
     const { dados, error } = await montarDadosPlano(idUser, {
         ...PLANO_INPUT_PADRAO,
         curriculoCompleto: params.curriculoCompleto,
+        numeroPeriodo: params.numeroPeriodo && params.numeroPeriodo > 0 ? params.numeroPeriodo : PLANO_INPUT_PADRAO.numeroPeriodo,
     });
     if (error || !dados) throw new Error(error ?? "Não foi possível carregar o currículo do aluno.");
 
     const { completed, currentSemester } = parseFluxograma(dados.fluxogramaAtual);
     const completedNorm = new Set(completed);
     const cursandoNorm = new Set(currentSemester.map((m) => norm(m.codigo)));
+    // Turma/professor da matrícula real, só quando a matrícula é do período da
+    // oferta carregada — a turma "01" de outro semestre pode ter outro horário.
+    const matriculaPorCodigo = new Map<string, { turma?: string; professor?: string }>();
+    for (const m of currentSemester) {
+        const periodo = (m.ano_periodo ?? "").trim();
+        if (periodo && periodo !== periodoAtivo) continue;
+        if (m.turma || m.professor) matriculaPorCodigo.set(norm(m.codigo), { turma: m.turma, professor: m.professor });
+    }
 
     // MATR conta pra pré-requisito (estará concluída antes do semestre alvo — mesma
     // regra do Motor 2 / recomendarPorHorarioLivre), mas só sai do pool se o aluno
@@ -406,9 +419,13 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
         turnosComOferta.set(cod, [...turnosDisponiveis]);
 
         const ehEssencial = cod === essencialNorm;
-        const turmasFiltradas = turmasReais.filter((t) =>
-            turmaRespeitaTurnos(slotMaskFromHorario(t.horario), turnosPermitidosSet)
-        );
+        // Matéria em curso com turma real conhecida: essa é a ÚNICA turma possível,
+        // fora de qualquer filtro de turno — a matrícula já aconteceu.
+        const matricula = cursandoNorm.has(cod) ? matriculaPorCodigo.get(cod) : undefined;
+        const turmaDaMatricula = matricula ? turmaRealDaMatricula(turmasReais, matricula) : null;
+        const turmasFiltradas = turmaDaMatricula
+            ? [turmaDaMatricula]
+            : turmasReais.filter((t) => turmaRespeitaTurnos(slotMaskFromHorario(t.horario), turnosPermitidosSet));
 
         const candidatas: Array<TurmaCandidata<TurmaOferta>> = turmasFiltradas.map((t) => {
             const mask = slotMaskFromHorario(t.horario);
@@ -434,6 +451,7 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
             creditos: m.creditos,
             obrigatoria: matriculaReal || ehEssencial,
             essencial: ehEssencial,
+            desbloqueada: matriculaReal || isDesbloqueada(m, cumpridasExpandido),
         };
     }
 
@@ -453,6 +471,7 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
             creditos: 0,
             obrigatoria: true,
             essencial: true,
+            desbloqueada: true,
         });
     }
 
@@ -466,8 +485,15 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
     const essencialPendencias = essencialNorm ? pendenciasPreRequisitoMap.get(essencialNorm) ?? [] : [];
     const essencialBloqueadaPorPreRequisito = essencialNorm !== null && essencialPendencias.length > 0;
 
+    // Mesma regra para as não-essenciais (espelho do frontend): pré-requisito que
+    // não fecha nem contando o que ele cursa agora faria a matrícula ser recusada,
+    // então a montagem não a propõe. Avaliado pela expressão lógica
+    // (`isDesbloqueada`), não pela lista de códigos de `pendenciasPreRequisito` —
+    // essa lista conta toda alternativa de um "OU" como pendente. Matrícula real
+    // nunca sai (já está desbloqueada por construção).
     const materiasParaSolver: Array<MateriaTurmas<TurmaOferta>> = materiasBase
         .filter((e) => !(e.essencial && essencialBloqueadaPorPreRequisito))
+        .filter((e) => e.essencial || e.desbloqueada)
         .map((e) => ({
             chave: e.chave,
             turmas: e.turmas,

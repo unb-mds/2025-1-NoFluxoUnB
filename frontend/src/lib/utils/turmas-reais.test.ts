@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	mesmaTurma,
 	turmasReaisDoHistorico,
+	professoresReaisDoHistorico,
 	encontrarTurmaReal,
 	type MateriaComTurmas
 } from './turmas-reais';
@@ -138,5 +139,51 @@ describe('encontrarTurmaReal', () => {
 	it('matéria sem nenhuma turma na oferta devolve null', () => {
 		const m = materia('FGA0240', []);
 		expect(encontrarTurmaReal(m, new Map([['FGA0240', '01']]))).toBeNull();
+	});
+});
+
+describe('encontrarTurmaReal — plano B pelo professor', () => {
+	const fisica: MateriaComTurmas = {
+		codigo: 'IFD0171',
+		turmas: [
+			{ turma: { id_turmas: 1, turma: 'A', docente: 'FULANO DE TAL' } },
+			{ turma: { id_turmas: 2, turma: 'B', docente: 'RAFAEL MORGADO SILVA' } },
+			{ turma: { id_turmas: 3, turma: 'C', docente: 'CICLANA, OUTRO NOME' } }
+		]
+	};
+
+	it('sem casamento pela turma, acha pela turma do professor do histórico', () => {
+		const reais = new Map([['IFD0171', '05']]);
+		const profs = new Map([['IFD0171', 'Rafael Morgado Silva']]);
+		expect(encontrarTurmaReal(fisica, reais, profs)).toBe(2);
+	});
+
+	it('código da turma continua tendo prioridade sobre o professor', () => {
+		const reais = new Map([['IFD0171', 'A']]);
+		const profs = new Map([['IFD0171', 'Rafael Morgado Silva']]);
+		expect(encontrarTurmaReal(fisica, reais, profs)).toBe(1);
+	});
+
+	it('professor com duas turmas não vira palpite', () => {
+		const m: MateriaComTurmas = {
+			codigo: 'X',
+			turmas: [
+				{ turma: { id_turmas: 1, turma: 'A', docente: 'RAFAEL MORGADO' } },
+				{ turma: { id_turmas: 2, turma: 'B', docente: 'RAFAEL MORGADO' } }
+			]
+		};
+		expect(encontrarTurmaReal(m, new Map(), new Map([['X', 'Rafael Morgado']]))).toBeNull();
+	});
+});
+
+describe('professoresReaisDoHistorico', () => {
+	it('mapeia o professor só das MATR do período ativo', () => {
+		const dados = historico(
+			dm({ codigoMateria: 'ifd0171', professor: 'RAFAEL MORGADO' }),
+			dm({ codigoMateria: 'MAT0025', professor: 'ANTIGO', anoPeriodo: '2026.1' })
+		);
+		const profs = professoresReaisDoHistorico(dados, '2026.2');
+		expect(profs.get('IFD0171')).toBe('RAFAEL MORGADO');
+		expect(profs.has('MAT0025')).toBe(false);
 	});
 });

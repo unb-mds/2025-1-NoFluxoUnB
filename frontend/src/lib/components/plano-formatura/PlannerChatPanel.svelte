@@ -4,6 +4,7 @@
 	import { Bot } from 'lucide-svelte';
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
 	import { authStore } from '$lib/stores/auth';
+	import { darcyStore } from '$lib/stores/darcy.store.svelte';
 
 	let authState = $derived($authStore);
 	const semestreAtual = $derived(authState.user?.dadosFluxograma?.semestreAtual ?? 1);
@@ -42,7 +43,7 @@
 		if (!plano || !plano.plano || plano.plano.length === 0) {
 			// Fallbacks
 			starters.push({ prefix: 'Como', badge: 'antecipar', suffix: 'minha formatura?', message: 'Como posso antecipar minha formatura?' });
-			starters.push({ prefix: 'Quais as turmas', badge: 'disponíveis?', suffix: '', message: 'Mostre as turmas ofertadas esse semestre' });
+			starters.push({ prefix: 'Quanto', badge: 'falta', suffix: 'pra me formar?', message: 'Quanto falta pra eu me formar?' });
 			return starters;
 		}
 
@@ -69,7 +70,7 @@
 			const m = criticas[0] as any;
 			starters.push({ prefix: 'Ver turmas de', badge: nomeParaBadge(m.codigo), suffix: '', message: `/turmas ${m.codigo}` });
 		} else {
-			starters.push({ prefix: 'Buscar', badge: 'turmas disponíveis', suffix: '', message: 'Mostre turmas com vagas sobrando' });
+			starters.push({ prefix: 'O que pegar no', badge: 'próximo semestre', suffix: '?', message: 'O que eu devo pegar no próximo semestre?' });
 		}
 
 		// 3. Adiar matéria próxima
@@ -80,8 +81,8 @@
 		}
 
 		// 4. Perguntas Gerais Fixas
-		starters.push({ prefix: 'Como posso', badge: 'adiantar', suffix: 'o curso?', message: 'Como posso antecipar minha formatura?' });
-		starters.push({ prefix: 'Tem como', badge: 'reduzir', suffix: 'a carga global?', message: 'Tem como reduzir a carga de créditos do meu plano?' });
+		starters.push({ prefix: 'Como', badge: 'antecipar', suffix: 'minha formatura?', message: 'Como posso antecipar minha formatura?' });
+		starters.push({ prefix: 'Tem como', badge: 'reduzir', suffix: 'a carga do plano?', message: 'Tem como reduzir a carga de créditos do meu plano?' });
 
 		const uniqueStarters = Array.from(new Map(starters.map(item => [item.message, item])).values());
 		return uniqueStarters.slice(0, 4);
@@ -102,6 +103,7 @@
 	assistantName="Darcy AI"
 	placeholder="Ex: Adie Física 1 para o próximo semestre..."
 	{onSend}
+	onNovaConversa={() => darcyStore.novaConversa()}
 >
 	{#snippet emptyState()}
 		<div class="w-16 h-16 rounded-3xl bg-pink-500/10 border border-pink-500/50 flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(236,72,153,0.15)] backdrop-blur-md shrink-0">

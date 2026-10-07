@@ -1,5 +1,11 @@
 # Orquestração do Chatbot Darcy AI
 
+> **Evolução:** este orquestrador virou a **Darcy única** — um agente, uma conversa e o
+> perfil do aluno no contexto para as telas Assistente, Plano e Montador. Contrato atual,
+> mapa do que entra no contexto/tool/nunca e a migration nova da sessão
+> (`20261007000000_chat_sessions_darcy.sql`, idempotente): **[darcy-unificada.md](darcy-unificada.md)**.
+> O resto deste documento é o histórico das fases 1–4.
+
 Status: Fases 1–4 implementadas em código e testadas (mocks). Schema do Supabase
 **pendente de reaplicação** — mudou de formato na Fase 1 revisada, ver seção Schema.
 

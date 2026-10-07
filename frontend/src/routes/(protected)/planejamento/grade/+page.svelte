@@ -17,6 +17,7 @@
 		invalidarContextoGrade,
 		candidatosModuloLivre,
 		type SemeaduraResultado,
+		type OpcoesSemeadura,
 		type PendenciaPreRequisito
 	} from '$lib/services/grade-pool.service';
 	import {
@@ -25,10 +26,15 @@
 	} from '$lib/services/situacao-academica.service';
 	import PreRequisitoConfirmDialog from '$lib/components/planejamento/PreRequisitoConfirmDialog.svelte';
 	import { vagaAssinaturasStore } from '$lib/stores/vaga-assinaturas.store.svelte';
+	import { darcyStore } from '$lib/stores/darcy.store.svelte';
 	import { getPeriodoAtivo } from '$lib/services/turmas.service';
 	import { preferenciasGradeService } from '$lib/services/preferencias-grade.service';
 	import { filtrarNaoCursados } from '$lib/utils/subject-codes';
-	import { turmasReaisDoHistorico, encontrarTurmaReal } from '$lib/utils/turmas-reais';
+	import {
+		turmasReaisDoHistorico,
+		professoresReaisDoHistorico,
+		encontrarTurmaReal
+	} from '$lib/utils/turmas-reais';
 	import { ROUTES } from '$lib/config/routes';
 	import type { SemestrePlano, ItemSemestre, MateriaPlano } from '$lib/types/plano-formatura';
 	import { CalendarDays, Loader2 } from 'lucide-svelte';
@@ -102,12 +108,21 @@
 	 */
 	function preencherTurmasReais(): void {
 		if (!periodo) return;
-		const reais = turmasReaisDoHistorico(authStore.getUser()?.dadosFluxograma, periodo);
-		if (reais.size === 0) return;
+		const dados = authStore.getUser()?.dadosFluxograma;
+		const reais = turmasReaisDoHistorico(dados, periodo);
+		const professores = professoresReaisDoHistorico(dados, periodo);
+		if (reais.size === 0 && professores.size === 0) return;
+		const ids: Record<string, number> = {};
 		for (const m of gradeStore.pool) {
-			if (!gradeStore.isCursandoAtual(m.codigo) || gradeStore.turmaSelecionada(m.codigo)) continue;
-			const idTurma = encontrarTurmaReal(m, reais);
-			if (idTurma != null) gradeStore.selecionarTurma(m.codigo, idTurma);
+			if (!gradeStore.isCursandoAtual(m.codigo)) continue;
+			const idTurma = encontrarTurmaReal(m, reais, professores);
+			if (idTurma != null) ids[m.codigo] = idTurma;
+		}
+		// Registra no store (fonte de verdade para a montagem) e corrige seleção
+		// restaurada que apontava outra turma; quem está sem turma ganha a real.
+		gradeStore.definirTurmasReais(ids);
+		for (const [codigo, idTurma] of Object.entries(ids)) {
+			if (!gradeStore.turmaSelecionada(codigo)) gradeStore.selecionarTurma(codigo, idTurma);
 		}
 	}
 
@@ -144,12 +159,15 @@
 	 * Roda a cada montagem e é idempotente: só entra o que falta na lista, o que o
 	 * aluno tirou na lixeira não volta, e matéria já cursada nunca entra.
 	 */
-	async function semear(): Promise<SemeaduraResultado> {
+	async function semear(opcoes?: OpcoesSemeadura): Promise<SemeaduraResultado> {
 		if (!periodo) return { adicionadas: [], obrigatoriasSemOferta: [] };
 
 		const { materias, obrigatoriasSemOferta, naturezasSaturadas, pendentesSemOferta } =
 			await montarPoolRecomendado(periodo, {
-			limiteCreditos,
+			// O limite que o aluno escolheu no Passo 1 vale mais que o do plano:
+			// semear 24 créditos para quem pediu 30 deixa o solver sem o que encaixar.
+			limiteCreditos: opcoes?.limiteCreditos ?? limiteCreditos,
+			escopo: opcoes?.escopo,
 			ordemDoPlano: codigosRecomendados(),
 			// A lixeira não vale para matrícula em curso: quem quer a MATR fora da grade
 			// usa o botão "matérias em curso", que a esconde sem perder a informação.
@@ -246,6 +264,10 @@
 			preencherTurmasReais();
 			invalidarContextoGrade();
 			status = 'ready';
+			// Grade que a Darcy montou em outra tela ("Abrir no Montador"): aplica agora
+			// que o pool e as turmas reais estão prontos.
+			const pendente = darcyStore.consumirGradePendente();
+			if (pendente) aplicarGradeDoChat(pendente.codigos, pendente.opcaoGrade);
 			// Situação do aluno em background: a grade já está montável sem ela, e
 			// nenhuma falha desta camada pode segurar a tela. Quando chega, o store
 			// passa a pesar as matérias pelo que de fato falta.
@@ -446,6 +468,33 @@
 	}
 
 	/**
+	 * Bloco de grade do chat ("Aplicar esta grade" / "Montar grade com X, Y"), ou a
+	 * grade que veio de outra tela por "Abrir no Montador". `opcaoGrade` = seleção
+	 * pronta; sem ela, os códigos são a sugestão a montar.
+	 */
+	function aplicarGradeDoChat(codigos: string[], opcaoGrade?: OpcaoGradeDoChat): void {
+		void montarGradeComPrioridade(codigos, undefined, undefined, undefined, opcaoGrade);
+	}
+
+	/** "Usar esta turma" num card de turma do chat. */
+	async function usarTurmaDoChat(codigo: string, idTurma: number): Promise<void> {
+		const c = codigo.trim().toUpperCase();
+		if (!gradeStore.hasMateria(c)) await adicionarAoPool(c);
+		if (!gradeStore.hasMateria(c)) {
+			toast.error(avisoAdd ?? `Não consegui adicionar ${c} à lista.`);
+			return;
+		}
+		const r = gradeStore.selecionarTurma(c, idTurma);
+		if (r.ok) {
+			toast.success(`Turma de ${c} adicionada à grade.`);
+		} else if (r.conflitaCom) {
+			toast.error(`Essa turma de ${c} bate horário com ${r.conflitaCom}.`);
+		} else {
+			toast.error(`Essa turma de ${c} não está na oferta deste período.`);
+		}
+	}
+
+	/**
 	 * Resposta do aluno sobre módulo livre.
 	 *
 	 * Persiste porque a pergunta não deve voltar a cada visita — nem para quem
@@ -565,7 +614,11 @@
 	/>
 
 	<!-- Chatbot flutuante (Darcy) — recomenda optativas com turma e insere na grade -->
-	<AssistenteChatFab onAddToGrade={adicionarComAviso} onMontarGrade={montarGradeComPrioridade} />
+	<AssistenteChatFab
+		onAddToGrade={adicionarComAviso}
+		onUsarTurma={usarTurmaDoChat}
+		onAplicarGrade={aplicarGradeDoChat}
+	/>
 
 	<PreRequisitoConfirmDialog
 		{pendencias}
