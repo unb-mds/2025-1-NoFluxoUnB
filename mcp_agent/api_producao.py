@@ -470,7 +470,13 @@ def resolver_tool_call(msg_ia):
 @app.get("/health")
 async def health_check():
     """Endpoint para verificar se a API está funcionando"""
-    return {"status": "healthy", "service": "Darcy AI", "version": "2.0"}
+    # commit (GIT_SHA, injetado pelo deploy): o workflow confere a versão no ar
+    return {
+        "status": "healthy",
+        "service": "Darcy AI",
+        "version": "2.0",
+        "commit": os.getenv("GIT_SHA"),
+    }
 
 
 # Busca semântica PURA (embeddings), sem LLM. Exposta como TOOL para o agente

@@ -74,8 +74,14 @@ router.get('/', (_req: Request, res: Response) => {
 
 // Liveness: só confirma que o processo responde (não toca no banco, para uma
 // instabilidade do Supabase não virar restart em loop dos pods).
+// `commit` (GIT_SHA, injetado pelo deploy) permite ao workflow confirmar que a
+// versão publicada é a que está respondendo — ver scripts/deploy/verificar_rollout.py.
 router.get('/health', (_req: Request, res: Response) => {
-    res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+    res.status(200).json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        commit: process.env.GIT_SHA || null,
+    });
 });
 
 // Readiness: 503 se o Supabase não responder em 2 s ou durante o shutdown.

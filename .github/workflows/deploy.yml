@@ -78,6 +78,8 @@ jobs:
 
       - name: Deploy
         env:
+          # Commit publicado: vai para o /health de cada app (ver verificar_rollout.py)
+          GIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
           DEPLOY_API_URL: ${{ secrets.DEPLOY_API_URL }}
           DEPLOY_API_KEY: ${{ secrets.DEPLOY_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -97,3 +99,12 @@ jobs:
             --platform linux/amd64 \
             --wait \
             --stream-logs
+
+      # A Deploy API responde sucesso sem esperar os pods novos (em 06/10/2026 o
+      # backend ficou na versão antiga com este workflow verde). Só passa quando
+      # cada app responde, no endereço público, com o commit publicado.
+      - name: Verificar rollout
+        run: |
+          python scripts/deploy/verificar_rollout.py "${{ github.event.inputs.target || 'all' }}" \
+            --commit "${{ github.event.workflow_run.head_sha || github.sha }}" \
+            --timeout 600
