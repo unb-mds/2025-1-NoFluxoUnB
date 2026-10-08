@@ -54,7 +54,7 @@
 		},
 		{
 			name: 'Vinícius Pereira',
-			githubUsername: 'Vinicius-Ribeiro04',
+			githubUsername: 'viniiribeiro',
 			funcao: 'Frontend e renderização do fluxograma',
 			specialties: ['Frontend', 'Design', 'Canvas'],
 			linkedin: 'https://www.linkedin.com/in/vinicius-ribeiro-6192b2270/',

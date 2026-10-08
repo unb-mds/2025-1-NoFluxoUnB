@@ -9,28 +9,21 @@
 
 <br/>
 
-[![CI](https://github.com/unb-mds/2025-1-NoFluxoUnB/actions/workflows/pipelineCI.yml/badge.svg)](https://github.com/unb-mds/2025-1-NoFluxoUnB/actions/workflows/pipelineCI.yml)
-[![Deploy](https://github.com/unb-mds/2025-1-NoFluxoUnB/actions/workflows/deploy.yml/badge.svg)](https://github.com/unb-mds/2025-1-NoFluxoUnB/actions/workflows/deploy.yml)
-[![Licença](https://img.shields.io/github/license/unb-mds/2025-1-NoFluxoUnB?color=6c38e5)](./LICENSE)
-[![Último commit](https://img.shields.io/github/last-commit/unb-mds/2025-1-NoFluxoUnB?color=6c38e5)](https://github.com/unb-mds/2025-1-NoFluxoUnB/commits/main)
-[![Contribuidores](https://img.shields.io/github/contributors/unb-mds/2025-1-NoFluxoUnB?color=6c38e5)](https://github.com/unb-mds/2025-1-NoFluxoUnB/graphs/contributors)
-[![Stars](https://img.shields.io/github/stars/unb-mds/2025-1-NoFluxoUnB?style=social)](https://github.com/unb-mds/2025-1-NoFluxoUnB/stargazers)
+### Seu curso inteiro num mapa só. Saiba o que cursar agora e quanto falta para formar.
 
-**[🌐 Acessar o NoFluxo](https://no-fluxo.crianex.com)** ·
-**[📖 Documentação](https://unb-mds.github.io/2025-1-NoFluxoUnB/)** ·
-**[📋 Board](https://github.com/orgs/unb-mds/projects/29)** ·
-**[🎨 Protótipo](https://www.figma.com/design/uy5ZwJGkuzjRaeREouMSlI/-arquivado--Prototipo-e-IDV-No-FLX-UnB?node-id=0-1&p=f&t=wMKM19zNX9jK3v7F-0)** ·
-**[🤝 Contribuir](./CONTRIBUTING.md)**
+<br/>
+
+<a href="https://no-fluxo.crianex.com"><img src="https://img.shields.io/badge/Acessar%20o%20NoFluxo%20%E2%80%94%20%C3%A9%20gr%C3%A1tis-6c38e5?style=for-the-badge" alt="Acessar o NoFluxo — é grátis" height="44"></a>
+
+<sub>Funciona no computador e no celular · sem instalar nada · para todos os cursos da UnB</sub>
 
 </div>
 
 ---
 
-## ✨ O que é
+## Planejar o curso não deveria ser um quebra-cabeça
 
-O **NoFluxo UnB** é o fluxograma acadêmico interativo da Universidade de Brasília. O estudante envia o histórico do SIGAA e vê, em segundos, onde está no curso: o que já cumpriu, o que pode cursar agora, o que está travado por pré-requisito e quanto falta para formar — com um assistente de IA, o **Darcy**, para ajudar a escolher optativas e montar o plano.
-
-Nasceu como projeto do Squad 03 em Métodos de Desenvolvimento de Software (MDS 2025/1, FGA/UnB) e hoje é um produto da **[Crianex](https://crianex.com)**, mantido por parte do time original.
+Pré-requisito que trava tudo, equivalência que ninguém explica, optativa que você não sabe se conta, aquele "quanto falta mesmo?" a cada matrícula. O **NoFluxo** junta tudo isso num fluxograma interativo do **seu** curso, montado a partir do **seu** histórico.
 
 <div align="center">
   <picture>
@@ -39,120 +32,58 @@ Nasceu como projeto do Squad 03 em Métodos de Desenvolvimento de Software (MDS 
   </picture>
 </div>
 
-## 🧭 Funcionalidades
+## Como funciona
 
-| | |
-|---|---|
-| 🗺️ **Fluxograma interativo** | Todos os cursos da UnB, por matriz e turno. Cadeia de pré-requisitos ao passar o mouse, equivalências, optativas e módulo livre, zoom legível na abertura e modo tela cheia. |
-| 📄 **Histórico do SIGAA** | Envie o PDF e o fluxograma se pinta sozinho: aprovadas, matriculadas, disponíveis, reprovadas e bloqueadas. PDFs que não são histórico são recusados com aviso claro. |
-| 📊 **Integralização** | Percentual honesto por natureza (obrigatórias, optativas, módulo livre), horas que faltam e IRA. |
-| 🎓 **Plano de Formatura** | Previsão semestre a semestre até a formatura, com limite de créditos e sugestões de optativas. |
-| 🧩 **Montador de Grade** | Monta a grade do próximo semestre com as turmas ofertadas. |
-| 🤖 **Darcy (IA)** | Recomenda optativas pelos seus interesses a partir das ementas. Exclusivo para quem está logado, com cota diária gratuita e rastreamento de custo no painel de administração. |
-| 🌗 **Modo claro e escuro** | Os dois temas seguem o mesmo design system, com contraste medido em testes. |
-| ♿ **Acessibilidade** | Alto contraste, texto ampliado, fonte de leitura facilitada (Lexend), reduzir movimento e foco reforçado — no desktop e no celular. |
+| 1️⃣ Escolha seu curso | 2️⃣ Envie seu histórico | 3️⃣ Planeje sem medo |
+|:---:|:---:|:---:|
+| Todos os cursos da UnB, por matriz e turno. Dá para explorar sem criar conta. | Mande o PDF do SIGAA e o fluxograma se pinta sozinho: o que você já fez, o que pode cursar e o que ainda está travado. | Monte a previsão de formatura e a grade do próximo semestre, com sugestões feitas para você. |
 
 <div align="center">
   <img src="assets/readme/fluxograma-temas.gif" alt="Fluxograma de Engenharia de Software alternando entre o tema escuro e o claro" width="92%">
   <br/>
-  <sub>Fluxograma de Engenharia de Software nos temas escuro e claro.</sub>
+  <sub>Fluxograma de Engenharia de Software — no tema escuro ou claro, como você preferir.</sub>
 </div>
 
-<br/>
+## O que você ganha
+
+- 🗺️ **Clareza na hora da matrícula** — veja de uma vez o que já está liberado e o que cada matéria destrava.
+- 🔗 **Equivalências e optativas sem dor de cabeça** — o que você já cursou aparece reconhecido, inclusive módulo livre.
+- 📊 **Quanto falta, de verdade** — percentual honesto por tipo de disciplina e as horas que ainda faltam.
+- 🎓 **Plano de Formatura** — sua previsão semestre a semestre até o diploma.
+- 🧩 **Montador de Grade** — a grade do próximo semestre montada com as turmas ofertadas.
+- 🤖 **Darcy, seu assistente acadêmico** — conte do que você gosta e ele sugere optativas que combinam com você. Gratuito para quem tem conta.
+
+## Feito para todo mundo
 
 <table align="center">
   <tr>
     <td align="center" valign="top" width="26%">
       <img src="assets/readme/mobile-acessibilidade.jpg" alt="Menu de acessibilidade no celular" width="220"><br/>
-      <sub>Acessibilidade sempre à mão no celular.</sub>
+      <sub>Acessibilidade a um toque.</sub>
     </td>
-    <td align="center" valign="top">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="assets/readme/crianex-dark.jpg">
-        <img src="assets/readme/crianex-light.jpg" alt="Seção Crianex na página inicial" width="100%">
-      </picture><br/>
-      <sub>Um produto <code>/cria._nex&gt;</code>.</sub>
+    <td valign="top">
+
+- ♿ **Acessibilidade de verdade** — alto contraste, texto ampliado, fonte de leitura facilitada, menos movimento e foco reforçado, no computador e no celular.
+- 🌗 **Modo claro e escuro** — escolha o seu ou siga o do seu aparelho.
+- 📱 **No bolso** — o mesmo NoFluxo no celular, sem instalar app.
+- 🔒 **Seus dados, seu controle** — consulte como visitante ou crie uma conta para salvar seu progresso.
+
     </td>
   </tr>
 </table>
 
-## 🎨 Design system
+## Feito por estudantes, para estudantes
 
-Dois temas — **escuro** (padrão) e **claro** (paleta B) — sobre os mesmos tokens HSL. Nada pinta a tela com cor fixa: componentes usam os tokens de `frontend/src/app.css` (`:root` = claro, `.dark` = escuro) via Tailwind 4 e shadcn-svelte.
+O NoFluxo nasceu na própria UnB, como projeto de estudantes da FGA na disciplina de Métodos de Desenvolvimento de Software (2025/1). Hoje é um produto da **[Crianex](https://crianex.com)** e orienta milhares de estudantes da UnB — e segue sendo mantido por quem vive o problema todo semestre.
 
-| Token | Claro | Escuro | Uso |
-|---|---|---|---|
-| `--primary` | ![](https://img.shields.io/badge/-%236c38e5-6c38e5?style=flat-square) | ![](https://img.shields.io/badge/-%239e46f6-9e46f6?style=flat-square) | Ações principais, destaques, "UNB" da logo |
-| `--ai` | ![](https://img.shields.io/badge/-%235f2fd0-5f2fd0?style=flat-square) | ![](https://img.shields.io/badge/-%23c293fb-c293fb?style=flat-square) | Darcy e elementos de IA |
-| `--background` | ![](https://img.shields.io/badge/-%23fcfbfe-fcfbfe?style=flat-square) | ![](https://img.shields.io/badge/-%23050507-050507?style=flat-square) | Fundo da página |
-| `--foreground` | ![](https://img.shields.io/badge/-%23171320-171320?style=flat-square) | ![](https://img.shields.io/badge/-%23f7f7f8-f7f7f8?style=flat-square) | Texto |
-| `--crianex` | ![](https://img.shields.io/badge/-%23157f3c-157f3c?style=flat-square) | ![](https://img.shields.io/badge/-%234ade80-4ade80?style=flat-square) | Marca Crianex |
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/crianex-dark.jpg">
+    <img src="assets/readme/crianex-light.jpg" alt="Um produto Crianex" width="80%">
+  </picture>
+</div>
 
-**Status das disciplinas** — mesmas cores na faixa do card, na legenda e nas conexões:
-
-![Aprovado](https://img.shields.io/badge/Aprovado-059669?style=flat-square) ![Matriculado](https://img.shields.io/badge/Matriculado-7c3aed?style=flat-square) ![Disponível](https://img.shields.io/badge/Dispon%C3%ADvel-d97706?style=flat-square) ![Reprovado](https://img.shields.io/badge/Reprovado-dc2626?style=flat-square) ![Bloqueado](https://img.shields.io/badge/Bloqueado-6b7280?style=flat-square)
-
-**Tipografia** — Inter (interface) · Permanent Marker (logo NOFLX) · Rock Salt (mote) · Lexend (fonte de leitura) · JetBrains Mono (códigos e marca Crianex).
-
-**Regras** — texto ≥ 4,5:1 e elementos gráficos ≥ 3:1 nos dois temas, medidos sobre o fundo real da página por testes automatizados (`frontend/src/lib/styles/contraste.ts`); toda tela nova nasce em claro e escuro; animações respeitam `prefers-reduced-motion`. Guia completo em [`docs/design-system.md`](./docs/design-system.md).
-
-## 🏗️ Arquitetura
-
-```mermaid
-flowchart LR
-    A["👩‍🎓 Estudante"] --> F["Frontend<br/>SvelteKit 2 · Svelte 5 · Tailwind 4<br/>no-fluxo.crianex.com"]
-    F -- "catálogo, fluxogramas<br/>(RLS)" --> DB[("Supabase<br/>Postgres + pgvector")]
-    F -- "upload, Darcy,<br/>planejamento" --> B["Backend<br/>Node · Express · TypeScript"]
-    B --> DB
-    B -- "login + cota diária" --> D["Darcy<br/>FastAPI · Python"]
-    D --> M["Maritaca<br/>Sabiá"]
-    D --> G["Gemini<br/>embeddings"]
-    D --> DB
-    S["DBA<br/>scraping do SIGAA"] --> DB
-```
-
-Os três serviços (frontend, backend e Darcy) rodam em contêineres num cluster K3s da Crianex. O deploy só acontece com o CI verde e só termina quando cada serviço responde, no endereço público, com o commit publicado.
-
-## 🛡️ Qualidade e segurança
-
-- **CI** (GitHub Actions, filtrado por área): Vitest e axe/Playwright no frontend, Jest no backend, Pytest + Black + Flake8 no Python, `npm audit` e Code Quality.
-- **Deploy verificado**: workflow espera o rollout e confere o commit em `/health` de cada serviço.
-- **Dependências**: Dependabot com atualizações de segurança automáticas.
-- **Pré-mortem** (set/2026): riscos levantados com a pergunta *"6 meses depois o NoFluxo falhou — por quê?"*, provados por teste e corrigidos em PRs com regressão.
-- **Dados**: RLS no catálogo, IA paga só para usuários logados, segredos só por variável de ambiente.
-
-## 💻 Rodando localmente
-
-```bash
-# 1. Ambiente (venv Python + dependências Node)
-python scripts/setup_env.py --node
-
-# 2. Frontend — http://localhost:5173
-cd frontend && npm run dev
-
-# 3. Backend — porta 3325 com o .env.example (dev:full sobe também o Darcy)
-cd backend && npm run dev
-
-# 4. Testes
-cd frontend && npm run test:unit
-cd backend && npm test
-cd DBA/tests && python -m pytest
-```
-
-Variáveis de ambiente, Supabase local e solução de problemas: [CONTRIBUTING.md](./CONTRIBUTING.md).
-
-| Pasta | O que é |
-|---|---|
-| `frontend/` | SvelteKit 2 + Svelte 5 (runes) + Tailwind 4, SPA estática |
-| `backend/` | API Node/TypeScript + Express |
-| `mcp_agent/` | Darcy: FastAPI + Maritaca + Gemini + pgvector |
-| `DBA/` | Scraping do SIGAA, ingestão no Supabase, parser de PDF |
-| `supabase/migrations/` | SQL do banco |
-| `docs/` | Specs técnicas internas (design system, motores, investigações) |
-| `documentacao/` | Site público MkDocs (atas, requisitos, testes) |
-| `kubernetes_docs/` | Infra: cluster, registry e deploy |
-
-## 👥 Equipe
+## Quem faz
 
 ### Time atual
 
@@ -166,7 +97,7 @@ Variáveis de ambiente, Supabase local e solução de problemas: [CONTRIBUTING.m
   </tr>
 </table>
 
-### Fundadores — Squad 03 · MDS 2025/1 · FGA/UnB
+### Quem começou tudo — Squad 03 · MDS 2025/1 · FGA/UnB
 
 <table align="center">
   <tr>
@@ -179,7 +110,7 @@ Variáveis de ambiente, Supabase local e solução de problemas: [CONTRIBUTING.m
   <tr>
     <td align="center"><img src="https://github.com/staann.png" width="72" alt="Gustavo Choueiri"/><br/><sub><b>Gustavo Choueiri</b></sub></td>
     <td align="center"><img src="https://github.com/knz13.png" width="72" alt="Otavio Maya"/><br/><sub><b>Otavio Maya</b></sub></td>
-    <td align="center"><img src="https://github.com/Vinicius-Ribeiro04.png" width="72" alt="Vinícius Pereira"/><br/><sub><b>Vinícius Pereira</b></sub></td>
+    <td align="center"><img src="https://github.com/viniiribeiro.png" width="72" alt="Vinícius Pereira"/><br/><sub><b>Vinícius Pereira</b></sub></td>
     <td align="center"><img src="https://github.com/Vitor-Trancoso.png" width="72" alt="Vitor Marconi"/><br/><sub><b>Vitor Marconi</b></sub></td>
     <td></td>
   </tr>
@@ -188,5 +119,13 @@ Variáveis de ambiente, Supabase local e solução de problemas: [CONTRIBUTING.m
 ---
 
 <div align="center">
-  <sub>Código aberto sob a licença <a href="./LICENSE">GPL-3.0</a> · Um produto <a href="https://crianex.com"><code>/cria._nex&gt;</code></a></sub>
+
+### A vida do estudante não é linear. Cada um tem o seu próprio fluxo.
+
+<a href="https://no-fluxo.crianex.com"><img src="https://img.shields.io/badge/Encontre%20o%20seu%20fluxo-6c38e5?style=for-the-badge" alt="Encontre o seu fluxo" height="40"></a>
+
+<br/><br/>
+
+<sub>Sugestões e problemas: <a href="https://no-fluxo.crianex.com">suporte no próprio site</a> · Quer contribuir com o código? <a href="./CONTRIBUTING.md">CONTRIBUTING.md</a> · Código aberto sob <a href="./LICENSE">GPL-3.0</a><br/>Um produto <a href="https://crianex.com"><code>/cria._nex&gt;</code></a></sub>
+
 </div>
