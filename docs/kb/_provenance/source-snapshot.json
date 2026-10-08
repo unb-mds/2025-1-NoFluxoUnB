@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "head": "05e03ca2203f45c3cf08fcf83b0a30791a2bfca0",
+  "head": "d0d54f45d9489cfea87deb20fcd22bdade7e1130",
   "dossiers": [
     {
       "id": "SUB-ai",
@@ -3473,7 +3473,7 @@
         },
         {
           "path": "docs/capacity/build-monitoring-plan-2026-10-08.py",
-          "content_sha256": "341c890decf68d9982fdf5f1e4696c952de3e734fcadcdb52e41cf593c229287"
+          "content_sha256": "987ac81c45fc0e47575648fd66d8dc05e95e969e99d552f2cf427b610c163530"
         },
         {
           "path": "docs/capacity/monitoring-cost-estimate-2026-10-08.json",
@@ -3481,7 +3481,7 @@
         },
         {
           "path": "docs/capacity/monitoring-cost-model-2026-10-08.py",
-          "content_sha256": "d85e00e0adc9dacb4801af9c780d074fcea0f4f02874ee9407574ee8eb607da2"
+          "content_sha256": "6e6fc1c67691f2d109138a0257dbac9d06a94d151492c75093089a106bd0b4a3"
         },
         {
           "path": "docs/capacity/monitoring-plan-evidence-2026-10-08.json",
@@ -3517,7 +3517,7 @@
         },
         {
           "path": "docs/capacity/verify-monitoring-design-2026-10-08.py",
-          "content_sha256": "70732076a3413fec8a341610eb5dec71d5854c5b83453d08242ea6934089ec98"
+          "content_sha256": "a9039b74a6c892cf878de091ccb7fabc68d22bb7823f5019e5c7dd25a1098186"
         },
         {
           "path": "frontend/package.json",
@@ -4804,7 +4804,7 @@
         },
         {
           "path": "docs/capacity/build-monitoring-plan-2026-10-08.py",
-          "content_sha256": "341c890decf68d9982fdf5f1e4696c952de3e734fcadcdb52e41cf593c229287"
+          "content_sha256": "987ac81c45fc0e47575648fd66d8dc05e95e969e99d552f2cf427b610c163530"
         },
         {
           "path": "docs/capacity/monitoring-cost-estimate-2026-10-08.json",
@@ -4812,7 +4812,7 @@
         },
         {
           "path": "docs/capacity/monitoring-cost-model-2026-10-08.py",
-          "content_sha256": "d85e00e0adc9dacb4801af9c780d074fcea0f4f02874ee9407574ee8eb607da2"
+          "content_sha256": "6e6fc1c67691f2d109138a0257dbac9d06a94d151492c75093089a106bd0b4a3"
         },
         {
           "path": "docs/capacity/monitoring-plan-evidence-2026-10-08.json",
@@ -4848,7 +4848,7 @@
         },
         {
           "path": "docs/capacity/verify-monitoring-design-2026-10-08.py",
-          "content_sha256": "70732076a3413fec8a341610eb5dec71d5854c5b83453d08242ea6934089ec98"
+          "content_sha256": "a9039b74a6c892cf878de091ccb7fabc68d22bb7823f5019e5c7dd25a1098186"
         },
         {
           "path": "docs/chat-agente-planejador-spec.md",
@@ -8227,7 +8227,7 @@
         },
         {
           "path": "docs/capacity/build-monitoring-plan-2026-10-08.py",
-          "content_sha256": "341c890decf68d9982fdf5f1e4696c952de3e734fcadcdb52e41cf593c229287"
+          "content_sha256": "987ac81c45fc0e47575648fd66d8dc05e95e969e99d552f2cf427b610c163530"
         },
         {
           "path": "docs/capacity/monitoring-cost-estimate-2026-10-08.json",
@@ -8235,7 +8235,7 @@
         },
         {
           "path": "docs/capacity/monitoring-cost-model-2026-10-08.py",
-          "content_sha256": "d85e00e0adc9dacb4801af9c780d074fcea0f4f02874ee9407574ee8eb607da2"
+          "content_sha256": "6e6fc1c67691f2d109138a0257dbac9d06a94d151492c75093089a106bd0b4a3"
         },
         {
           "path": "docs/capacity/monitoring-plan-evidence-2026-10-08.json",
@@ -8271,7 +8271,7 @@
         },
         {
           "path": "docs/capacity/verify-monitoring-design-2026-10-08.py",
-          "content_sha256": "70732076a3413fec8a341610eb5dec71d5854c5b83453d08242ea6934089ec98"
+          "content_sha256": "a9039b74a6c892cf878de091ccb7fabc68d22bb7823f5019e5c7dd25a1098186"
         },
         {
           "path": "docs/marca-e-posicionamento.md",

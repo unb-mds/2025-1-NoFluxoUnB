@@ -11,20 +11,42 @@ import subprocess
 import tempfile
 
 folder = Path(__file__).resolve().parent
-pandoc = shutil.which('pandoc')
+pandoc = shutil.which("pandoc")
 if not pandoc:
-    raise SystemExit('Pandoc é necessário para regenerar o LaTeX.')
-work = tempfile.TemporaryDirectory(prefix='nofluxo-monitoring-plan-')
-body_path = Path(work.name) / 'body.tex'
-subprocess.run([pandoc,str(folder/'plano-monitoramento-capacidade-2026-10-08.md'),'--from','markdown','--to','latex','--syntax-highlighting=none','--output',str(body_path)],check=True)
-old=(folder/'relatorio-capacidade-nofluxo-2026-10-07.tex').read_text()
-preamble=old.split('\\begin{document}',1)[0]
-preamble=preamble.replace('NoFluxoUNB — Uso de recursos e avaliação de capacidade','NoFluxo — Plano de monitoramento e capacidade')
-preamble=preamble.replace('Cluster K3s, Supabase, Darcy e limites de crescimento','Plano de implementação, métricas de uso, retenção, validação e custo')
-preamble=preamble.replace('RECURSOS E CAPACIDADE','MONITORAMENTO E CAPACIDADE')
-preamble=preamble.replace('Recursos: 07/10/2026 · Atualização: 08/10/2026','Plano revisado · 8 de outubro de 2026')
-preamble+='''\n\\usepackage{longtable,calc,fancyvrb}\n\\DefineVerbatimEnvironment{verbatim}{Verbatim}{fontsize=\\scriptsize}\n\\providecommand{\\tightlist}{\\setlength{\\itemsep}{1pt}\\setlength{\\parskip}{0pt}}\n\\setcounter{tocdepth}{1}\n\\setlength{\\LTpre}{5pt}\n\\setlength{\\LTpost}{5pt}\n\\setlength{\\tabcolsep}{4pt}\n\\renewcommand{\\arraystretch}{1.2}\n'''
-cover=r'''\begin{document}
+    raise SystemExit("Pandoc é necessário para regenerar o LaTeX.")
+work = tempfile.TemporaryDirectory(prefix="nofluxo-monitoring-plan-")
+body_path = Path(work.name) / "body.tex"
+subprocess.run(
+    [
+        pandoc,
+        str(folder / "plano-monitoramento-capacidade-2026-10-08.md"),
+        "--from",
+        "markdown",
+        "--to",
+        "latex",
+        "--syntax-highlighting=none",
+        "--output",
+        str(body_path),
+    ],
+    check=True,
+)
+old = (folder / "relatorio-capacidade-nofluxo-2026-10-07.tex").read_text()
+preamble = old.split("\\begin{document}", 1)[0]
+preamble = preamble.replace(
+    "NoFluxoUNB — Uso de recursos e avaliação de capacidade",
+    "NoFluxo — Plano de monitoramento e capacidade",
+)
+preamble = preamble.replace(
+    "Cluster K3s, Supabase, Darcy e limites de crescimento",
+    "Plano de implementação, métricas de uso, retenção, validação e custo",
+)
+preamble = preamble.replace("RECURSOS E CAPACIDADE", "MONITORAMENTO E CAPACIDADE")
+preamble = preamble.replace(
+    "Recursos: 07/10/2026 · Atualização: 08/10/2026",
+    "Plano revisado · 8 de outubro de 2026",
+)
+preamble += """\n\\usepackage{longtable,calc,fancyvrb}\n\\DefineVerbatimEnvironment{verbatim}{Verbatim}{fontsize=\\scriptsize}\n\\providecommand{\\tightlist}{\\setlength{\\itemsep}{1pt}\\setlength{\\parskip}{0pt}}\n\\setcounter{tocdepth}{1}\n\\setlength{\\LTpre}{5pt}\n\\setlength{\\LTpost}{5pt}\n\\setlength{\\tabcolsep}{4pt}\n\\renewcommand{\\arraystretch}{1.2}\n"""
+cover = r"""\begin{document}
 \begin{titlepage}
 \thispagestyle{empty}
 \begin{tikzpicture}[remember picture,overlay]
@@ -79,38 +101,76 @@ Custo reproduzível, dados agregados de infraestrutura e recibo de revisão anex
 \endgroup
 \clearpage
 \fontsize{9.5}{12.1}\selectfont
-'''
-body=body_path.read_text()
-body=body.replace('\\section{','\\clearpage\n\\section{')
+"""
+body = body_path.read_text()
+body = body.replace("\\section{", "\\clearpage\n\\section{")
+
+
 def breakable_code(match):
-    value=match.group(1).replace(r'\ ', ' ')
-    for escaped,plain in [(r'\_', '_'),(r'\%', '%'),(r'\&','&'),(r'\#','#'),(r'\$','$')]:
-        value=value.replace(escaped,plain)
-    return r'{\footnotesize\ttfamily'+r'\ '.join(r'\nolinkurl{'+token+'}' for token in value.split(' '))+'}'
-body=re.sub(r'\\texttt\{([^{}]*)\}',breakable_code,body)
+    value = match.group(1).replace(r"\ ", " ")
+    for escaped, plain in [
+        (r"\_", "_"),
+        (r"\%", "%"),
+        (r"\&", "&"),
+        (r"\#", "#"),
+        (r"\$", "$"),
+    ]:
+        value = value.replace(escaped, plain)
+    return (
+        r"{\footnotesize\ttfamily"
+        + r"\ ".join(r"\nolinkurl{" + token + "}" for token in value.split(" "))
+        + "}"
+    )
+
+
+body = re.sub(r"\\texttt\{([^{}]*)\}", breakable_code, body)
 from decimal import Decimal
+
+
 def fix_table_width(match):
-    table=match.group(0)
-    widths=list(re.finditer(r'\\real\{([0-9.]+)\}',table))
+    table = match.group(0)
+    widths = list(re.finditer(r"\\real\{([0-9.]+)\}", table))
     if widths:
-        last=widths[-1]
-        remaining=Decimal(1)-sum(Decimal(w.group(1)) for w in widths[:-1])
-        table=table[:last.start(1)]+format(remaining,'.4f')+table[last.end(1):]
+        last = widths[-1]
+        remaining = Decimal(1) - sum(Decimal(w.group(1)) for w in widths[:-1])
+        table = table[: last.start(1)] + format(remaining, ".4f") + table[last.end(1) :]
     return table
-body=re.sub(r'\\begin\{longtable\}[\s\S]*?\\toprule',fix_table_width,body)
-body=body.replace('\\begin{quote}','\\begin{NFBox}{Diretriz do plano}').replace('\\end{quote}','\\end{NFBox}')
-body=body.replace('\\begin{longtable}', '\\small\n\\begin{longtable}')
-body=body.replace('\\toprule\\noalign{}', '\\toprule\\noalign{}\n\\rowcolor{NFAccent}')
-body=body.replace('\\begin{longtable}', '\\rowcolors{2}{NFSoft}{white}\n\\begin{longtable}')
+
+
+body = re.sub(r"\\begin\{longtable\}[\s\S]*?\\toprule", fix_table_width, body)
+body = body.replace("\\begin{quote}", "\\begin{NFBox}{Diretriz do plano}").replace(
+    "\\end{quote}", "\\end{NFBox}"
+)
+body = body.replace("\\begin{longtable}", "\\small\n\\begin{longtable}")
+body = body.replace(
+    "\\toprule\\noalign{}", "\\toprule\\noalign{}\n\\rowcolor{NFAccent}"
+)
+body = body.replace(
+    "\\begin{longtable}", "\\rowcolors{2}{NFSoft}{white}\n\\begin{longtable}"
+)
 # Keep the complete adversarial matrix and its note together at a legible size.
-matrix_start=body.index('\\section{Matriz de testes')
-matrix_end=body.index('\\clearpage\n\\section{Dimensionamento de armazenamento',matrix_start)
-matrix=body[matrix_start:matrix_end]
-matrix=matrix.replace('\\small\n\\rowcolors', '\\fontsize{8.5}{10}\\selectfont\n\\renewcommand{\\arraystretch}{1.0}\n\\rowcolors')
-matrix=matrix.replace('\\end{longtable}', '\\end{longtable}\n\\renewcommand{\\arraystretch}{1.2}\n\\fontsize{9.5}{12.1}\\selectfont')
-body=body[:matrix_start]+matrix+body[matrix_end:]
-tex=folder/'plano-monitoramento-capacidade-2026-10-08.tex'
-tex.write_text('% Gerado do Markdown pelo Pandoc; preâmbulo e marca seguem o relatório NoFluxo.\n'+preamble+cover+body+'\n\\end{document}\n')
-print('Generated standalone LaTeX:',tex)
+matrix_start = body.index("\\section{Matriz de testes")
+matrix_end = body.index(
+    "\\clearpage\n\\section{Dimensionamento de armazenamento", matrix_start
+)
+matrix = body[matrix_start:matrix_end]
+matrix = matrix.replace(
+    "\\small\n\\rowcolors",
+    "\\fontsize{8.5}{10}\\selectfont\n\\renewcommand{\\arraystretch}{1.0}\n\\rowcolors",
+)
+matrix = matrix.replace(
+    "\\end{longtable}",
+    "\\end{longtable}\n\\renewcommand{\\arraystretch}{1.2}\n\\fontsize{9.5}{12.1}\\selectfont",
+)
+body = body[:matrix_start] + matrix + body[matrix_end:]
+tex = folder / "plano-monitoramento-capacidade-2026-10-08.tex"
+tex.write_text(
+    "% Gerado do Markdown pelo Pandoc; preâmbulo e marca seguem o relatório NoFluxo.\n"
+    + preamble
+    + cover
+    + body
+    + "\n\\end{document}\n"
+)
+print("Generated standalone LaTeX:", tex)
 
 work.cleanup()
