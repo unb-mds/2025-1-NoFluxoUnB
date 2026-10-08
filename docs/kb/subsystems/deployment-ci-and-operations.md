@@ -173,7 +173,7 @@ as guardas estáticas de workflows.
 | --- | --- | --- |
 | `qualidade-python` | Python 3.11; Black 25.11.0 e Flake8 7.3.0; `black --check .`, `flake8 .` | Formatação/lint da raiz, com ignores/excludes de `setup.cfg`; não é teste funcional. |
 | `testes-python` | Instala Tesseract, idioma português, Poppler e requirements; `python -m pytest` em `DBA/tests` | `DBA/tests/pytest.ini` mede `expressao_parser` e `DBA.parse_pdf.pdf_parser_final`, com fail-under 45. Não executa automaticamente unittest de rollout ou toda a suíte do MCP agent. |
-| `testes-backend` | Node 20, `npm ci`, `npm test` em `backend` | Jest/ts-jest encontra `tests-ts/**/*.test.ts` e `src/**/__tests__/**/*.test.ts` conforme `backend/package.json`. |
+| `testes-backend` | Node 20, `npm ci`, `npm run lint` (ESLint; só erros reprovam, avisos ficam no log) e `npm test` em `backend` | Lint com `.eslintrc.js` + `tsconfig.eslint.json` cobrindo `src/` e `tests-ts/` (#248). Jest/ts-jest encontra `tests-ts/**/*.test.ts` e `src/**/__tests__/**/*.test.ts` conforme `backend/package.json`. |
 | `testes-frontend` | Node 20, `npm ci`, `npx vitest run --passWithNoTests` em `frontend` | Injeta `PUBLIC_*` sintéticos para importação do client Supabase; não executa build, `svelte-check` ou suíte Playwright geral. |
 | `Security and Code Quality` | Backend `npm audit --audit-level=moderate --omit=dev` e `tsc` com opções estritas | Runs em PR/push de `main`/`dev`; frontend audit high tem `continue-on-error: true` com TODO(R56). Não faz parte do gate de Deploy. |
 | Relatórios semanais do mesmo workflow | Safety, Bandit, ESLint, Flake8, Black, isort, mypy e dependências desatualizadas | Muitos comandos têm `|| true`; são informativos. Bandit e lint Python desses relatórios miram `DBA/tests/`. Cron `0 2 * * 0` é UTC. |
@@ -229,7 +229,8 @@ são excluídos dos artifacts; só os logs de scraping são publicados.
 [dependabot.yml](../../../.github/dependabot.yml) configura npm de backend
 semanalmente e GitHub Actions mensalmente, com grupos de segurança/produção/dev.
 Frontend está excluído por usar npm lockfile no CI e pnpm lockfile no build da
-imagem. Os dois devem permanecer coerentes; a configuração não comprova que
+imagem. `@openai/agents` fica fora do grupo `producao-minor-patch` (SDK 0.x quebra
+API em "minor"; #251) e vem em PR próprio. Os dois devem permanecer coerentes; a configuração não comprova que
 isso ocorre hoje ou que alertas atuais foram resolvidos.
 
 ## Bootstrap e limites dos runbooks
@@ -278,8 +279,11 @@ NoFluxo. `_deploy_payload` do produto não envia bloco `metrics`.
   ignora `DBA/dados/**`, exceto `cursos-de-graduacao.json`. O workflow configura
   a tentativa; não prova que arquivos novos desses padrões sejam adicionados.
 - `documentacao/testes/pipeline-ci.md` foi alinhado aos filtros de PR e aos
-  comandos reais. Configuração local de workflow não comprova branch protection
-  configurada ou resultado de um run recente.
+  comandos reais. Configuração local de workflow não comprova resultado de um run
+  recente. Branch protection da `main` (configurada no GitHub em 08/10/2026, #163;
+  lida pela API, não pelos arquivos do repo): exige Jest, Vitest, Pytest,
+  Black + Flake8, Security Scan e Code Quality; sem `enforce_admins` e sem `strict`;
+  force-push e exclusão bloqueados.
 - `GIT_SHA` é opcional no CLI/config e obrigatório por convenção do workflow.
   Um deploy manual local pode gerar versão sem commit e falhar na confirmação.
 - Configuração de audit frontend e a11y continua informativa; o gate automático

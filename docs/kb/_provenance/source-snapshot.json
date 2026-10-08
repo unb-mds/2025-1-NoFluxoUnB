@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "head": "734b27c034b4ed073f90f022f8f883db969c695b",
+  "head": "7371d5f3a4998bf3a364c7193e6d3830f2a1389b",
   "dossiers": [
     {
       "id": "SUB-ai",
@@ -65,7 +65,7 @@
         },
         {
           "path": "mcp_agent/requirements.txt",
-          "content_sha256": "3c25700f51bbad81e78e6889be7b44c5bef9fbece96a5da3b61e2344368e089b"
+          "content_sha256": "b1bf13fbc35665c041cfe0fc466fe9788096e90c17a49b0a4df7bd1e4ad66419"
         },
         {
           "path": "mcp_agent/sabia_utils.py",
@@ -160,7 +160,7 @@
         },
         {
           "path": "backend/.eslintrc.js",
-          "content_sha256": "d81c483018f58b4fa9c774478a363f70ad13195daf3dec16d7885e9b5b7d3bd1"
+          "content_sha256": "1891c60d65c89e58868c566d2d36a82686a7947e30b85530fd08c1b0ee8dafcc"
         },
         {
           "path": "backend/.gitignore",
@@ -216,11 +216,11 @@
         },
         {
           "path": "backend/package-lock.json",
-          "content_sha256": "5ab53373fcecfda78eaa57317bc824f0115f4ac0227da26637827d1254f40fc8"
+          "content_sha256": "68514d65571cf63463fb6c64e1e813e04aeab0eb3d96e59fe4d7361443eb6a91"
         },
         {
           "path": "backend/package.json",
-          "content_sha256": "be14edae55730b734e045b5c5a53dc30100e239ce35ff811c56ff9eb8dc67703"
+          "content_sha256": "0c431f548062c885361716118f22a2cdc655cd7f8c8fecd63fbfcc60ea16d715"
         },
         {
           "path": "backend/pdf_parser_port.json",
@@ -232,7 +232,7 @@
         },
         {
           "path": "backend/requirements_monitor.txt",
-          "content_sha256": "a117481ad1da415ff588ff39859c199afd4d97b6b02134b23669629fe7df7de9"
+          "content_sha256": "913e980691705d311ec24bc5354cfb9ceca1bec37f783c546bc31c59dfd02ab2"
         },
         {
           "path": "backend/run_tests.sh",
@@ -296,7 +296,7 @@
         },
         {
           "path": "backend/src/controllers/PlanejamentoController.ts",
-          "content_sha256": "fed09b04a111f838e40cb6d6d2f0673007cc086472f1f790346e08e9f5f339c3"
+          "content_sha256": "3399e3e26a5953f396966abf1310919ba8700231febcf9cd5606496f2b69efe0"
         },
         {
           "path": "backend/src/controllers/assistente_controller.ts",
@@ -308,19 +308,19 @@
         },
         {
           "path": "backend/src/controllers/cursos_controller.ts",
-          "content_sha256": "38e7adeca7d20697b0f3a45cd09d4907f4de7bc499cb46a51b4eea370453cd24"
+          "content_sha256": "80bbfdf066d80837af3b12bb8a07ce030cf4ce74b31a8958da839752f0c00e6f"
         },
         {
           "path": "backend/src/controllers/fluxograma_controller.ts",
-          "content_sha256": "6569d2af4490dd16629d7e14c5a2668ba7a67fea64ef01eb2e9fcfbef963f58e"
+          "content_sha256": "04253fb236ce12330fa2c3c4914223b4269cb652ab20b1a5036fea9a8f7d83eb"
         },
         {
           "path": "backend/src/controllers/materias_controller.ts",
-          "content_sha256": "a5ec733d2d3a87bf757532ae0ca1b2308de1f5bc58c25acca3acd9253abef030"
+          "content_sha256": "2ef4eee270cd5587ceef57fae3e88133730570874b133957cb997020a2395aaf"
         },
         {
           "path": "backend/src/controllers/users_controller.ts",
-          "content_sha256": "45d1edee887474e425e9d3e9887b61b270f558df166ce4a2fe97a0e9822dace5"
+          "content_sha256": "ff0540b59e802e4eb2c9dfc0d0edbf6610983b624dd37eace1a51b33e3d91734"
         },
         {
           "path": "backend/src/index.ts",
@@ -420,11 +420,11 @@
         },
         {
           "path": "backend/src/services/planejador_agente.service.ts",
-          "content_sha256": "4efa964536d55445f27f9d54247cdf91575b8fdc3264e303d713ab2247514b8d"
+          "content_sha256": "8948193b91f905a9c7ab12622126a6fa3ef1ab6786808d589c64f56f319aeaef"
         },
         {
           "path": "backend/src/services/plano_formatura.service.ts",
-          "content_sha256": "29fb33531365465103180f80e95667512a09f566e2c971f5d29512f11bbbdd05"
+          "content_sha256": "48fbddbcfdecf4fe15c9007b6f3d6ac99d7a564da64f49b99d45b4fb4ec567b8"
         },
         {
           "path": "backend/src/services/ragflow.service.ts",
@@ -448,7 +448,7 @@
         },
         {
           "path": "backend/src/utils.ts",
-          "content_sha256": "8399a4f253e800d5704f2b28f628931319d3a5857572fcf2ce587a7e5d2ac2bb"
+          "content_sha256": "0f4f8ad8b84cd3094873946ec723b2358fa95527fcfda7c9f23a9820177d1180"
         },
         {
           "path": "backend/src/utils/ai_usage_logger.ts",
@@ -497,10 +497,6 @@
         {
           "path": "backend/src/utils/text.utils.ts",
           "content_sha256": "e4bba7377f1289ff18f59ee0690f5c7e4cca0a366523312ea940dcbe4938a6d8"
-        },
-        {
-          "path": "backend/src/utils/web_search.ts",
-          "content_sha256": "cc171274777c362ad66a8217ecda09f343379f1fc17c1dd53182877f664ff05e"
         },
         {
           "path": "backend/start_and_monitor.py",
@@ -556,7 +552,7 @@
         },
         {
           "path": "backend/tests-ts/controller_logger.test.ts",
-          "content_sha256": "e4a0ebcd0ef0e4c77f9efc4f8a1b60ff05f1240a753620dea06c4feeb19c8c84"
+          "content_sha256": "026fcdbf757650e59c1408c340512302cdbed6ab649162009db22d3db20a180b"
         },
         {
           "path": "backend/tests-ts/cors-origins.test.ts",
@@ -600,7 +596,7 @@
         },
         {
           "path": "backend/tests-ts/distribuir-slots-fix.test.ts",
-          "content_sha256": "9a7eb986a6670cb2659373cdb76aa77a8917e28238040003167ebfb675b58833"
+          "content_sha256": "9fb968c4c6c77b5d118404953caa6e098cbbb86dce565e6a8c0f7ec594a62804"
         },
         {
           "path": "backend/tests-ts/double-rounding-fix.test.ts",
@@ -616,7 +612,7 @@
         },
         {
           "path": "backend/tests-ts/fluxograma_controller.routes.test.ts",
-          "content_sha256": "8c85570fdf8e62b62ff6e98571c4731a88b75ded8f38ff9afff9d53ff5ee5efc"
+          "content_sha256": "2689404ee30065ab207ce2d32b39b9e6920f990fc3ed5df5a052b5521aff0368"
         },
         {
           "path": "backend/tests-ts/fluxograma_controller.test.ts",
@@ -628,7 +624,7 @@
         },
         {
           "path": "backend/tests-ts/grade-actuator.test.ts",
-          "content_sha256": "1463749d14932af3b38482756615c75b14c26bfb215486d05532184cfd7949a9"
+          "content_sha256": "3eecf31d6bfecab3098956152a8197ee65aa0a2424634e5225bb6787ebefe439"
         },
         {
           "path": "backend/tests-ts/horario-slots-backend.test.ts",
@@ -640,7 +636,7 @@
         },
         {
           "path": "backend/tests-ts/logger-transports.test.ts",
-          "content_sha256": "0bac88a346aee970a2fe0bf1c04fc031436cc714fe32c107d273963bcf79a820"
+          "content_sha256": "92055067164894582d73674fa36121cb87702cf79cb6911d3df34f277b452b7b"
         },
         {
           "path": "backend/tests-ts/maritaca-errors.test.ts",
@@ -676,7 +672,7 @@
         },
         {
           "path": "backend/tests-ts/planejador-agente.test.ts",
-          "content_sha256": "a8503f790e5a00cacad64ef2e7e0798f20aa4cafd3c9fe1dc6da97a73f89f537"
+          "content_sha256": "080b8549812684d0cd151f6578eec94dc471840acaace27b565b9915660da9e5"
         },
         {
           "path": "backend/tests-ts/planejamento-corequisitos.test.ts",
@@ -751,6 +747,10 @@
           "content_sha256": "59eb50974680a816d8148bc87660b25623e69fe359032c75bfd55b31eb88a5a0"
         },
         {
+          "path": "backend/tsconfig.eslint.json",
+          "content_sha256": "f20bff23c82eb5e4a671a691b94f723878346fb0bfb4e709c8f57c994f770dda"
+        },
+        {
           "path": "backend/tsconfig.json",
           "content_sha256": "b8e35077fed6d0986702de68436434545e572163ce93ec72f224c145c1512e3e"
         },
@@ -772,7 +772,7 @@
         },
         {
           "path": "mcp_agent/requirements.txt",
-          "content_sha256": "3c25700f51bbad81e78e6889be7b44c5bef9fbece96a5da3b61e2344368e089b"
+          "content_sha256": "b1bf13fbc35665c041cfe0fc466fe9788096e90c17a49b0a4df7bd1e4ad66419"
         },
         {
           "path": "mcp_agent/sabia_utils.py",
@@ -863,7 +863,7 @@
       "files": [
         {
           "path": "DBA/README.md",
-          "content_sha256": "6e718399d27dd6530817d2efbdef252787d1ff35ee128377dffb0c101b8f7fe1"
+          "content_sha256": "83bbc75787194b3e53f5734765c80f5378d427ec10e50177315468539f2bc160"
         },
         {
           "path": "DBA/dados/cursos-de-graduacao.json",
@@ -915,11 +915,11 @@
         },
         {
           "path": "DBA/package-lock.json",
-          "content_sha256": "e14f64db9b7db78251ca150c1b9295c311622968eee8291de11e8642c138e706"
+          "content_sha256": "ae511757e1b700b3010632eaf0ac981147474d36c1613864775271e6f605ed7d"
         },
         {
           "path": "DBA/package.json",
-          "content_sha256": "f8476422f572501f087a0a98171302fa5fed60f01520fc6670617e38e872da4a"
+          "content_sha256": "888ef764fdc11322970a2c27f0844b6479d68d442f8b3eccd2a909c66a903e2b"
         },
         {
           "path": "DBA/parse_pdf/index.html",
@@ -931,7 +931,7 @@
         },
         {
           "path": "DBA/parse_pdf/requirements.txt",
-          "content_sha256": "4100f8505a14a7c08470e8326a1544a0438991c57a87b164aadb1ecf9c82a721"
+          "content_sha256": "a1d447385895a4a4f1899c327ff24b512e6b0cacac56172b5f297446e4eec23a"
         },
         {
           "path": "DBA/parse_pdf/testepdf2.pdf",
@@ -947,7 +947,7 @@
         },
         {
           "path": "DBA/scraping/requirements.txt",
-          "content_sha256": "9a46f4404ed38d45c390f13d60de142795d5bc058165f38df79961f457651f51"
+          "content_sha256": "95552189f60b0c495f0b06970ca002f6ba4c432ef479b74dc66377d11465e60c"
         },
         {
           "path": "DBA/scraping/scraping_calendario_academico.py",
@@ -1334,7 +1334,7 @@
       "files": [
         {
           "path": "backend/src/controllers/PlanejamentoController.ts",
-          "content_sha256": "fed09b04a111f838e40cb6d6d2f0673007cc086472f1f790346e08e9f5f339c3"
+          "content_sha256": "3399e3e26a5953f396966abf1310919ba8700231febcf9cd5606496f2b69efe0"
         },
         {
           "path": "backend/src/controllers/assistente_controller.ts",
@@ -1346,19 +1346,19 @@
         },
         {
           "path": "backend/src/controllers/cursos_controller.ts",
-          "content_sha256": "38e7adeca7d20697b0f3a45cd09d4907f4de7bc499cb46a51b4eea370453cd24"
+          "content_sha256": "80bbfdf066d80837af3b12bb8a07ce030cf4ce74b31a8958da839752f0c00e6f"
         },
         {
           "path": "backend/src/controllers/fluxograma_controller.ts",
-          "content_sha256": "6569d2af4490dd16629d7e14c5a2668ba7a67fea64ef01eb2e9fcfbef963f58e"
+          "content_sha256": "04253fb236ce12330fa2c3c4914223b4269cb652ab20b1a5036fea9a8f7d83eb"
         },
         {
           "path": "backend/src/controllers/materias_controller.ts",
-          "content_sha256": "a5ec733d2d3a87bf757532ae0ca1b2308de1f5bc58c25acca3acd9253abef030"
+          "content_sha256": "2ef4eee270cd5587ceef57fae3e88133730570874b133957cb997020a2395aaf"
         },
         {
           "path": "backend/src/controllers/users_controller.ts",
-          "content_sha256": "45d1edee887474e425e9d3e9887b61b270f558df166ce4a2fe97a0e9822dace5"
+          "content_sha256": "ff0540b59e802e4eb2c9dfc0d0edbf6610983b624dd37eace1a51b33e3d91734"
         },
         {
           "path": "backend/src/types/planejamento.ts",
@@ -1394,11 +1394,11 @@
         },
         {
           "path": "frontend/package-lock.json",
-          "content_sha256": "b5203ad5434ea3ccb3dc71b6d3ee16e4e52379d1b20fb27b4da9d53cb91bf412"
+          "content_sha256": "f5ff0f28a324771014b0e48a67d32ee79bb3577b34ad05503438f8db2fb5350a"
         },
         {
           "path": "frontend/package.json",
-          "content_sha256": "766c4209db1b2ca9a6c7aa2412901447356b1bf0530b73b013c0ff688b6234ac"
+          "content_sha256": "ff1dbf3b3fa1f6eebc54e82db8b755b085244310622554651d6e42d4f9f4d892"
         },
         {
           "path": "frontend/playwright.config.ts",
@@ -1406,7 +1406,7 @@
         },
         {
           "path": "frontend/pnpm-lock.yaml",
-          "content_sha256": "043f5384bfc6abea516a0452e5dbc16a35f06d6d734a8d29b2c5a0286340c19e"
+          "content_sha256": "a2b5c7b6b1b6608f368d1cbc6be1c9e4a7a9cfc466a5bf203ba46aa7818003be"
         },
         {
           "path": "frontend/postcss.config.js",
@@ -3333,7 +3333,7 @@
     {
       "id": "SUB-ops",
       "sourceFile": "docs/kb/subsystems/deployment-ci-and-operations.md",
-      "dossier_sha256": "9d84a27303249838283cd8adecd3b8c6534eb57c052f23ab68f3d95b4f47a840",
+      "dossier_sha256": "e4ec8a73f9965a341776d3ca078314bb2885e110dd902ae14a3907312319c973",
       "files": [
         {
           "path": ".github/ISSUE_TEMPLATE/template-de-feature.md",
@@ -3345,7 +3345,7 @@
         },
         {
           "path": ".github/dependabot.yml",
-          "content_sha256": "d1691f22edbbcb961c6084cd7ee54f87a7cd9324d43b12e72ba66583ef6cba6a"
+          "content_sha256": "4a748c45822247e3e17882656425cb394c87a169a637e738af34bc6b34d9d34c"
         },
         {
           "path": ".github/gitleaks-baseline.json",
@@ -3369,7 +3369,7 @@
         },
         {
           "path": ".github/workflows/pipelineCI.yml",
-          "content_sha256": "a4d5af5a6a992f672155a55848ae2bc84eba24ddae77818a02ef5f280075b3e5"
+          "content_sha256": "c4b98418122a4678ff54639259b459e10fa81fec33e2cc6cf2d0312e240f5e16"
         },
         {
           "path": ".github/workflows/scrape_calendario.yml",
@@ -3397,7 +3397,7 @@
         },
         {
           "path": "CONTRIBUTING.md",
-          "content_sha256": "26821c856cbc68302c312a110ae7fa23c467773b75193263784ea388eef0b25e"
+          "content_sha256": "828fd5ac863805ead90107d7d5d701a52478b55955cde1ab6b10d72028464e02"
         },
         {
           "path": "DOCKER_README.md",
@@ -3405,11 +3405,11 @@
         },
         {
           "path": "backend/package.json",
-          "content_sha256": "be14edae55730b734e045b5c5a53dc30100e239ce35ff811c56ff9eb8dc67703"
+          "content_sha256": "0c431f548062c885361716118f22a2cdc655cd7f8c8fecd63fbfcc60ea16d715"
         },
         {
           "path": "frontend/package.json",
-          "content_sha256": "766c4209db1b2ca9a6c7aa2412901447356b1bf0530b73b013c0ff688b6234ac"
+          "content_sha256": "ff1dbf3b3fa1f6eebc54e82db8b755b085244310622554651d6e42d4f9f4d892"
         },
         {
           "path": "k8s.backend.Dockerfile",
@@ -3537,11 +3537,11 @@
         },
         {
           "path": "mcp_agent/requirements.txt",
-          "content_sha256": "3c25700f51bbad81e78e6889be7b44c5bef9fbece96a5da3b61e2344368e089b"
+          "content_sha256": "b1bf13fbc35665c041cfe0fc466fe9788096e90c17a49b0a4df7bd1e4ad66419"
         },
         {
           "path": "package.json",
-          "content_sha256": "648a356909881ca7b6bd3fe93a12c68e0b7bc5868577befa6812880a625559a4"
+          "content_sha256": "c6445a8cb9973f6e6e2109a7feebd3bf19357201be226d33e29962ff9d141860"
         },
         {
           "path": "scripts/deploy/deploy_config.py",
@@ -3580,7 +3580,7 @@
         },
         {
           "path": ".github/dependabot.yml",
-          "content_sha256": "d1691f22edbbcb961c6084cd7ee54f87a7cd9324d43b12e72ba66583ef6cba6a"
+          "content_sha256": "4a748c45822247e3e17882656425cb394c87a169a637e738af34bc6b34d9d34c"
         },
         {
           "path": ".github/gitleaks-baseline.json",
@@ -3604,7 +3604,7 @@
         },
         {
           "path": ".github/workflows/pipelineCI.yml",
-          "content_sha256": "a4d5af5a6a992f672155a55848ae2bc84eba24ddae77818a02ef5f280075b3e5"
+          "content_sha256": "c4b98418122a4678ff54639259b459e10fa81fec33e2cc6cf2d0312e240f5e16"
         },
         {
           "path": ".github/workflows/scrape_calendario.yml",
@@ -3636,7 +3636,7 @@
         },
         {
           "path": "CLAUDE.md",
-          "content_sha256": "64d7ebb4b16df1804cd879f366b1141e5d90fecbcc9679bd6fa87144169e5991"
+          "content_sha256": "4a584148ba46a079d02f19ede4b5aaba36a7805fdfbed80f06de8a1eba323a77"
         },
         {
           "path": "CODE_OF_CONDUCT.md",
@@ -3648,11 +3648,11 @@
         },
         {
           "path": "CONTRIBUTING.md",
-          "content_sha256": "26821c856cbc68302c312a110ae7fa23c467773b75193263784ea388eef0b25e"
+          "content_sha256": "828fd5ac863805ead90107d7d5d701a52478b55955cde1ab6b10d72028464e02"
         },
         {
           "path": "DBA/README.md",
-          "content_sha256": "6e718399d27dd6530817d2efbdef252787d1ff35ee128377dffb0c101b8f7fe1"
+          "content_sha256": "83bbc75787194b3e53f5734765c80f5378d427ec10e50177315468539f2bc160"
         },
         {
           "path": "DBA/dados/cursos-de-graduacao.json",
@@ -3704,11 +3704,11 @@
         },
         {
           "path": "DBA/package-lock.json",
-          "content_sha256": "e14f64db9b7db78251ca150c1b9295c311622968eee8291de11e8642c138e706"
+          "content_sha256": "ae511757e1b700b3010632eaf0ac981147474d36c1613864775271e6f605ed7d"
         },
         {
           "path": "DBA/package.json",
-          "content_sha256": "f8476422f572501f087a0a98171302fa5fed60f01520fc6670617e38e872da4a"
+          "content_sha256": "888ef764fdc11322970a2c27f0844b6479d68d442f8b3eccd2a909c66a903e2b"
         },
         {
           "path": "DBA/parse_pdf/index.html",
@@ -3720,7 +3720,7 @@
         },
         {
           "path": "DBA/parse_pdf/requirements.txt",
-          "content_sha256": "4100f8505a14a7c08470e8326a1544a0438991c57a87b164aadb1ecf9c82a721"
+          "content_sha256": "a1d447385895a4a4f1899c327ff24b512e6b0cacac56172b5f297446e4eec23a"
         },
         {
           "path": "DBA/parse_pdf/testepdf2.pdf",
@@ -3736,7 +3736,7 @@
         },
         {
           "path": "DBA/scraping/requirements.txt",
-          "content_sha256": "9a46f4404ed38d45c390f13d60de142795d5bc058165f38df79961f457651f51"
+          "content_sha256": "95552189f60b0c495f0b06970ca002f6ba4c432ef479b74dc66377d11465e60c"
         },
         {
           "path": "DBA/scraping/scraping_calendario_academico.py",
@@ -4048,7 +4048,7 @@
         },
         {
           "path": "README.md",
-          "content_sha256": "438f0b0b79bd5b8dac8ec4a9a8ef0e33a31888b565dd754ae005657d168e5fbe"
+          "content_sha256": "9e854763fd7750629f07b619712b2bf2e587f3b396ee1c16c03e41d9c37c557c"
         },
         {
           "path": "backend/.dockerignore",
@@ -4056,7 +4056,7 @@
         },
         {
           "path": "backend/.eslintrc.js",
-          "content_sha256": "d81c483018f58b4fa9c774478a363f70ad13195daf3dec16d7885e9b5b7d3bd1"
+          "content_sha256": "1891c60d65c89e58868c566d2d36a82686a7947e30b85530fd08c1b0ee8dafcc"
         },
         {
           "path": "backend/.gitignore",
@@ -4112,11 +4112,11 @@
         },
         {
           "path": "backend/package-lock.json",
-          "content_sha256": "5ab53373fcecfda78eaa57317bc824f0115f4ac0227da26637827d1254f40fc8"
+          "content_sha256": "68514d65571cf63463fb6c64e1e813e04aeab0eb3d96e59fe4d7361443eb6a91"
         },
         {
           "path": "backend/package.json",
-          "content_sha256": "be14edae55730b734e045b5c5a53dc30100e239ce35ff811c56ff9eb8dc67703"
+          "content_sha256": "0c431f548062c885361716118f22a2cdc655cd7f8c8fecd63fbfcc60ea16d715"
         },
         {
           "path": "backend/pdf_parser_port.json",
@@ -4128,7 +4128,7 @@
         },
         {
           "path": "backend/requirements_monitor.txt",
-          "content_sha256": "a117481ad1da415ff588ff39859c199afd4d97b6b02134b23669629fe7df7de9"
+          "content_sha256": "913e980691705d311ec24bc5354cfb9ceca1bec37f783c546bc31c59dfd02ab2"
         },
         {
           "path": "backend/run_tests.sh",
@@ -4192,7 +4192,7 @@
         },
         {
           "path": "backend/src/controllers/PlanejamentoController.ts",
-          "content_sha256": "fed09b04a111f838e40cb6d6d2f0673007cc086472f1f790346e08e9f5f339c3"
+          "content_sha256": "3399e3e26a5953f396966abf1310919ba8700231febcf9cd5606496f2b69efe0"
         },
         {
           "path": "backend/src/controllers/assistente_controller.ts",
@@ -4204,19 +4204,19 @@
         },
         {
           "path": "backend/src/controllers/cursos_controller.ts",
-          "content_sha256": "38e7adeca7d20697b0f3a45cd09d4907f4de7bc499cb46a51b4eea370453cd24"
+          "content_sha256": "80bbfdf066d80837af3b12bb8a07ce030cf4ce74b31a8958da839752f0c00e6f"
         },
         {
           "path": "backend/src/controllers/fluxograma_controller.ts",
-          "content_sha256": "6569d2af4490dd16629d7e14c5a2668ba7a67fea64ef01eb2e9fcfbef963f58e"
+          "content_sha256": "04253fb236ce12330fa2c3c4914223b4269cb652ab20b1a5036fea9a8f7d83eb"
         },
         {
           "path": "backend/src/controllers/materias_controller.ts",
-          "content_sha256": "a5ec733d2d3a87bf757532ae0ca1b2308de1f5bc58c25acca3acd9253abef030"
+          "content_sha256": "2ef4eee270cd5587ceef57fae3e88133730570874b133957cb997020a2395aaf"
         },
         {
           "path": "backend/src/controllers/users_controller.ts",
-          "content_sha256": "45d1edee887474e425e9d3e9887b61b270f558df166ce4a2fe97a0e9822dace5"
+          "content_sha256": "ff0540b59e802e4eb2c9dfc0d0edbf6610983b624dd37eace1a51b33e3d91734"
         },
         {
           "path": "backend/src/index.ts",
@@ -4316,11 +4316,11 @@
         },
         {
           "path": "backend/src/services/planejador_agente.service.ts",
-          "content_sha256": "4efa964536d55445f27f9d54247cdf91575b8fdc3264e303d713ab2247514b8d"
+          "content_sha256": "8948193b91f905a9c7ab12622126a6fa3ef1ab6786808d589c64f56f319aeaef"
         },
         {
           "path": "backend/src/services/plano_formatura.service.ts",
-          "content_sha256": "29fb33531365465103180f80e95667512a09f566e2c971f5d29512f11bbbdd05"
+          "content_sha256": "48fbddbcfdecf4fe15c9007b6f3d6ac99d7a564da64f49b99d45b4fb4ec567b8"
         },
         {
           "path": "backend/src/services/ragflow.service.ts",
@@ -4344,7 +4344,7 @@
         },
         {
           "path": "backend/src/utils.ts",
-          "content_sha256": "8399a4f253e800d5704f2b28f628931319d3a5857572fcf2ce587a7e5d2ac2bb"
+          "content_sha256": "0f4f8ad8b84cd3094873946ec723b2358fa95527fcfda7c9f23a9820177d1180"
         },
         {
           "path": "backend/src/utils/ai_usage_logger.ts",
@@ -4393,10 +4393,6 @@
         {
           "path": "backend/src/utils/text.utils.ts",
           "content_sha256": "e4bba7377f1289ff18f59ee0690f5c7e4cca0a366523312ea940dcbe4938a6d8"
-        },
-        {
-          "path": "backend/src/utils/web_search.ts",
-          "content_sha256": "cc171274777c362ad66a8217ecda09f343379f1fc17c1dd53182877f664ff05e"
         },
         {
           "path": "backend/start_and_monitor.py",
@@ -4452,7 +4448,7 @@
         },
         {
           "path": "backend/tests-ts/controller_logger.test.ts",
-          "content_sha256": "e4a0ebcd0ef0e4c77f9efc4f8a1b60ff05f1240a753620dea06c4feeb19c8c84"
+          "content_sha256": "026fcdbf757650e59c1408c340512302cdbed6ab649162009db22d3db20a180b"
         },
         {
           "path": "backend/tests-ts/cors-origins.test.ts",
@@ -4496,7 +4492,7 @@
         },
         {
           "path": "backend/tests-ts/distribuir-slots-fix.test.ts",
-          "content_sha256": "9a7eb986a6670cb2659373cdb76aa77a8917e28238040003167ebfb675b58833"
+          "content_sha256": "9fb968c4c6c77b5d118404953caa6e098cbbb86dce565e6a8c0f7ec594a62804"
         },
         {
           "path": "backend/tests-ts/double-rounding-fix.test.ts",
@@ -4512,7 +4508,7 @@
         },
         {
           "path": "backend/tests-ts/fluxograma_controller.routes.test.ts",
-          "content_sha256": "8c85570fdf8e62b62ff6e98571c4731a88b75ded8f38ff9afff9d53ff5ee5efc"
+          "content_sha256": "2689404ee30065ab207ce2d32b39b9e6920f990fc3ed5df5a052b5521aff0368"
         },
         {
           "path": "backend/tests-ts/fluxograma_controller.test.ts",
@@ -4524,7 +4520,7 @@
         },
         {
           "path": "backend/tests-ts/grade-actuator.test.ts",
-          "content_sha256": "1463749d14932af3b38482756615c75b14c26bfb215486d05532184cfd7949a9"
+          "content_sha256": "3eecf31d6bfecab3098956152a8197ee65aa0a2424634e5225bb6787ebefe439"
         },
         {
           "path": "backend/tests-ts/horario-slots-backend.test.ts",
@@ -4536,7 +4532,7 @@
         },
         {
           "path": "backend/tests-ts/logger-transports.test.ts",
-          "content_sha256": "0bac88a346aee970a2fe0bf1c04fc031436cc714fe32c107d273963bcf79a820"
+          "content_sha256": "92055067164894582d73674fa36121cb87702cf79cb6911d3df34f277b452b7b"
         },
         {
           "path": "backend/tests-ts/maritaca-errors.test.ts",
@@ -4572,7 +4568,7 @@
         },
         {
           "path": "backend/tests-ts/planejador-agente.test.ts",
-          "content_sha256": "a8503f790e5a00cacad64ef2e7e0798f20aa4cafd3c9fe1dc6da97a73f89f537"
+          "content_sha256": "080b8549812684d0cd151f6578eec94dc471840acaace27b565b9915660da9e5"
         },
         {
           "path": "backend/tests-ts/planejamento-corequisitos.test.ts",
@@ -4645,6 +4641,10 @@
         {
           "path": "backend/tests-ts/utils/text.utils.test.ts",
           "content_sha256": "59eb50974680a816d8148bc87660b25623e69fe359032c75bfd55b31eb88a5a0"
+        },
+        {
+          "path": "backend/tsconfig.eslint.json",
+          "content_sha256": "f20bff23c82eb5e4a671a691b94f723878346fb0bfb4e709c8f57c994f770dda"
         },
         {
           "path": "backend/tsconfig.json",
@@ -5360,11 +5360,11 @@
         },
         {
           "path": "frontend/package-lock.json",
-          "content_sha256": "b5203ad5434ea3ccb3dc71b6d3ee16e4e52379d1b20fb27b4da9d53cb91bf412"
+          "content_sha256": "f5ff0f28a324771014b0e48a67d32ee79bb3577b34ad05503438f8db2fb5350a"
         },
         {
           "path": "frontend/package.json",
-          "content_sha256": "766c4209db1b2ca9a6c7aa2412901447356b1bf0530b73b013c0ff688b6234ac"
+          "content_sha256": "ff1dbf3b3fa1f6eebc54e82db8b755b085244310622554651d6e42d4f9f4d892"
         },
         {
           "path": "frontend/playwright.config.ts",
@@ -5372,7 +5372,7 @@
         },
         {
           "path": "frontend/pnpm-lock.yaml",
-          "content_sha256": "043f5384bfc6abea516a0452e5dbc16a35f06d6d734a8d29b2c5a0286340c19e"
+          "content_sha256": "a2b5c7b6b1b6608f368d1cbc6be1c9e4a7a9cfc466a5bf203ba46aa7818003be"
         },
         {
           "path": "frontend/postcss.config.js",
@@ -7264,7 +7264,7 @@
         },
         {
           "path": "mcp_agent/requirements.txt",
-          "content_sha256": "3c25700f51bbad81e78e6889be7b44c5bef9fbece96a5da3b61e2344368e089b"
+          "content_sha256": "b1bf13fbc35665c041cfe0fc466fe9788096e90c17a49b0a4df7bd1e4ad66419"
         },
         {
           "path": "mcp_agent/sabia_utils.py",
@@ -7304,7 +7304,7 @@
         },
         {
           "path": "package.json",
-          "content_sha256": "648a356909881ca7b6bd3fe93a12c68e0b7bc5868577befa6812880a625559a4"
+          "content_sha256": "c6445a8cb9973f6e6e2109a7feebd3bf19357201be226d33e29962ff9d141860"
         },
         {
           "path": "plans/README.md",
@@ -7320,11 +7320,11 @@
         },
         {
           "path": "scripts/docs-kb/kb.mjs",
-          "content_sha256": "908f914fd9112d04de8a0423940a81fcef9ded3a29e22ebad57927f86f86d216"
+          "content_sha256": "ebe646745cc9833462f7df3ea9f32697954d2dd8e623ee4e3d30f289aa890c90"
         },
         {
           "path": "scripts/docs-kb/kb.test.mjs",
-          "content_sha256": "18f7f0dfa538bef176ce88530acbf6360f4ac027c0722f4cfda9c0fbbe4695ff"
+          "content_sha256": "e831d7c808f39fd186dea6059790c0ab8a388b64e807bb8bf0155def490603e6"
         },
         {
           "path": "storymap.md",
@@ -7399,7 +7399,7 @@
         },
         {
           "path": "backend/.eslintrc.js",
-          "content_sha256": "d81c483018f58b4fa9c774478a363f70ad13195daf3dec16d7885e9b5b7d3bd1"
+          "content_sha256": "1891c60d65c89e58868c566d2d36a82686a7947e30b85530fd08c1b0ee8dafcc"
         },
         {
           "path": "backend/.gitignore",
@@ -7455,11 +7455,11 @@
         },
         {
           "path": "backend/package-lock.json",
-          "content_sha256": "5ab53373fcecfda78eaa57317bc824f0115f4ac0227da26637827d1254f40fc8"
+          "content_sha256": "68514d65571cf63463fb6c64e1e813e04aeab0eb3d96e59fe4d7361443eb6a91"
         },
         {
           "path": "backend/package.json",
-          "content_sha256": "be14edae55730b734e045b5c5a53dc30100e239ce35ff811c56ff9eb8dc67703"
+          "content_sha256": "0c431f548062c885361716118f22a2cdc655cd7f8c8fecd63fbfcc60ea16d715"
         },
         {
           "path": "backend/pdf_parser_port.json",
@@ -7471,7 +7471,7 @@
         },
         {
           "path": "backend/requirements_monitor.txt",
-          "content_sha256": "a117481ad1da415ff588ff39859c199afd4d97b6b02134b23669629fe7df7de9"
+          "content_sha256": "913e980691705d311ec24bc5354cfb9ceca1bec37f783c546bc31c59dfd02ab2"
         },
         {
           "path": "backend/run_tests.sh",
@@ -7535,7 +7535,7 @@
         },
         {
           "path": "backend/src/controllers/PlanejamentoController.ts",
-          "content_sha256": "fed09b04a111f838e40cb6d6d2f0673007cc086472f1f790346e08e9f5f339c3"
+          "content_sha256": "3399e3e26a5953f396966abf1310919ba8700231febcf9cd5606496f2b69efe0"
         },
         {
           "path": "backend/src/controllers/assistente_controller.ts",
@@ -7547,19 +7547,19 @@
         },
         {
           "path": "backend/src/controllers/cursos_controller.ts",
-          "content_sha256": "38e7adeca7d20697b0f3a45cd09d4907f4de7bc499cb46a51b4eea370453cd24"
+          "content_sha256": "80bbfdf066d80837af3b12bb8a07ce030cf4ce74b31a8958da839752f0c00e6f"
         },
         {
           "path": "backend/src/controllers/fluxograma_controller.ts",
-          "content_sha256": "6569d2af4490dd16629d7e14c5a2668ba7a67fea64ef01eb2e9fcfbef963f58e"
+          "content_sha256": "04253fb236ce12330fa2c3c4914223b4269cb652ab20b1a5036fea9a8f7d83eb"
         },
         {
           "path": "backend/src/controllers/materias_controller.ts",
-          "content_sha256": "a5ec733d2d3a87bf757532ae0ca1b2308de1f5bc58c25acca3acd9253abef030"
+          "content_sha256": "2ef4eee270cd5587ceef57fae3e88133730570874b133957cb997020a2395aaf"
         },
         {
           "path": "backend/src/controllers/users_controller.ts",
-          "content_sha256": "45d1edee887474e425e9d3e9887b61b270f558df166ce4a2fe97a0e9822dace5"
+          "content_sha256": "ff0540b59e802e4eb2c9dfc0d0edbf6610983b624dd37eace1a51b33e3d91734"
         },
         {
           "path": "backend/src/index.ts",
@@ -7659,11 +7659,11 @@
         },
         {
           "path": "backend/src/services/planejador_agente.service.ts",
-          "content_sha256": "4efa964536d55445f27f9d54247cdf91575b8fdc3264e303d713ab2247514b8d"
+          "content_sha256": "8948193b91f905a9c7ab12622126a6fa3ef1ab6786808d589c64f56f319aeaef"
         },
         {
           "path": "backend/src/services/plano_formatura.service.ts",
-          "content_sha256": "29fb33531365465103180f80e95667512a09f566e2c971f5d29512f11bbbdd05"
+          "content_sha256": "48fbddbcfdecf4fe15c9007b6f3d6ac99d7a564da64f49b99d45b4fb4ec567b8"
         },
         {
           "path": "backend/src/services/ragflow.service.ts",
@@ -7687,7 +7687,7 @@
         },
         {
           "path": "backend/src/utils.ts",
-          "content_sha256": "8399a4f253e800d5704f2b28f628931319d3a5857572fcf2ce587a7e5d2ac2bb"
+          "content_sha256": "0f4f8ad8b84cd3094873946ec723b2358fa95527fcfda7c9f23a9820177d1180"
         },
         {
           "path": "backend/src/utils/ai_usage_logger.ts",
@@ -7736,10 +7736,6 @@
         {
           "path": "backend/src/utils/text.utils.ts",
           "content_sha256": "e4bba7377f1289ff18f59ee0690f5c7e4cca0a366523312ea940dcbe4938a6d8"
-        },
-        {
-          "path": "backend/src/utils/web_search.ts",
-          "content_sha256": "cc171274777c362ad66a8217ecda09f343379f1fc17c1dd53182877f664ff05e"
         },
         {
           "path": "backend/start_and_monitor.py",
@@ -7795,7 +7791,7 @@
         },
         {
           "path": "backend/tests-ts/controller_logger.test.ts",
-          "content_sha256": "e4a0ebcd0ef0e4c77f9efc4f8a1b60ff05f1240a753620dea06c4feeb19c8c84"
+          "content_sha256": "026fcdbf757650e59c1408c340512302cdbed6ab649162009db22d3db20a180b"
         },
         {
           "path": "backend/tests-ts/cors-origins.test.ts",
@@ -7839,7 +7835,7 @@
         },
         {
           "path": "backend/tests-ts/distribuir-slots-fix.test.ts",
-          "content_sha256": "9a7eb986a6670cb2659373cdb76aa77a8917e28238040003167ebfb675b58833"
+          "content_sha256": "9fb968c4c6c77b5d118404953caa6e098cbbb86dce565e6a8c0f7ec594a62804"
         },
         {
           "path": "backend/tests-ts/double-rounding-fix.test.ts",
@@ -7855,7 +7851,7 @@
         },
         {
           "path": "backend/tests-ts/fluxograma_controller.routes.test.ts",
-          "content_sha256": "8c85570fdf8e62b62ff6e98571c4731a88b75ded8f38ff9afff9d53ff5ee5efc"
+          "content_sha256": "2689404ee30065ab207ce2d32b39b9e6920f990fc3ed5df5a052b5521aff0368"
         },
         {
           "path": "backend/tests-ts/fluxograma_controller.test.ts",
@@ -7867,7 +7863,7 @@
         },
         {
           "path": "backend/tests-ts/grade-actuator.test.ts",
-          "content_sha256": "1463749d14932af3b38482756615c75b14c26bfb215486d05532184cfd7949a9"
+          "content_sha256": "3eecf31d6bfecab3098956152a8197ee65aa0a2424634e5225bb6787ebefe439"
         },
         {
           "path": "backend/tests-ts/horario-slots-backend.test.ts",
@@ -7879,7 +7875,7 @@
         },
         {
           "path": "backend/tests-ts/logger-transports.test.ts",
-          "content_sha256": "0bac88a346aee970a2fe0bf1c04fc031436cc714fe32c107d273963bcf79a820"
+          "content_sha256": "92055067164894582d73674fa36121cb87702cf79cb6911d3df34f277b452b7b"
         },
         {
           "path": "backend/tests-ts/maritaca-errors.test.ts",
@@ -7915,7 +7911,7 @@
         },
         {
           "path": "backend/tests-ts/planejador-agente.test.ts",
-          "content_sha256": "a8503f790e5a00cacad64ef2e7e0798f20aa4cafd3c9fe1dc6da97a73f89f537"
+          "content_sha256": "080b8549812684d0cd151f6578eec94dc471840acaace27b565b9915660da9e5"
         },
         {
           "path": "backend/tests-ts/planejamento-corequisitos.test.ts",
@@ -7990,6 +7986,10 @@
           "content_sha256": "59eb50974680a816d8148bc87660b25623e69fe359032c75bfd55b31eb88a5a0"
         },
         {
+          "path": "backend/tsconfig.eslint.json",
+          "content_sha256": "f20bff23c82eb5e4a671a691b94f723878346fb0bfb4e709c8f57c994f770dda"
+        },
+        {
           "path": "backend/tsconfig.json",
           "content_sha256": "b8e35077fed6d0986702de68436434545e572163ce93ec72f224c145c1512e3e"
         },
@@ -8023,11 +8023,11 @@
         },
         {
           "path": "frontend/package-lock.json",
-          "content_sha256": "b5203ad5434ea3ccb3dc71b6d3ee16e4e52379d1b20fb27b4da9d53cb91bf412"
+          "content_sha256": "f5ff0f28a324771014b0e48a67d32ee79bb3577b34ad05503438f8db2fb5350a"
         },
         {
           "path": "frontend/package.json",
-          "content_sha256": "766c4209db1b2ca9a6c7aa2412901447356b1bf0530b73b013c0ff688b6234ac"
+          "content_sha256": "ff1dbf3b3fa1f6eebc54e82db8b755b085244310622554651d6e42d4f9f4d892"
         },
         {
           "path": "frontend/playwright.config.ts",
@@ -8035,7 +8035,7 @@
         },
         {
           "path": "frontend/pnpm-lock.yaml",
-          "content_sha256": "043f5384bfc6abea516a0452e5dbc16a35f06d6d734a8d29b2c5a0286340c19e"
+          "content_sha256": "a2b5c7b6b1b6608f368d1cbc6be1c9e4a7a9cfc466a5bf203ba46aa7818003be"
         },
         {
           "path": "frontend/postcss.config.js",
@@ -9927,7 +9927,7 @@
         },
         {
           "path": "mcp_agent/requirements.txt",
-          "content_sha256": "3c25700f51bbad81e78e6889be7b44c5bef9fbece96a5da3b61e2344368e089b"
+          "content_sha256": "b1bf13fbc35665c041cfe0fc466fe9788096e90c17a49b0a4df7bd1e4ad66419"
         },
         {
           "path": "mcp_agent/sabia_utils.py",

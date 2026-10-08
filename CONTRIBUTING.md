@@ -73,6 +73,21 @@ Em macOS/Linux com Bash, `npm run dev:full` na pasta backend inicia backend e ag
 
 Playwright requer Chromium instalado e usa servidor local Vite conforme `frontend/playwright.config.ts`. O CI principal roda Pytest, Jest e Vitest por filtros de área nos PRs; pushes em main/dev executam todos os seus jobs. Não executa automaticamente o E2E geral, build frontend ou `svelte-check`. Registre falhas e limitações reais da sua execução; quantidade histórica de erros não demonstra o estado do checkout atual.
 
+## Documentação de engenharia
+
+O mapa atual de implementação, contratos, testes disponíveis e limites conhecidos
+está na [base de conhecimento](./docs/kb/INDEX.md).
+
+```bash
+npm run kb:query -- "<pergunta>"
+npm run kb:check
+npm run kb:drift
+```
+
+O site acadêmico continua em `documentacao/`. Planos e guias obsoletos retirados
+são recuperáveis pelo [ledger de proveniência](./docs/kb/_provenance/document-retirement.csv).
+Fonte revisada, testes locais, schema exportado e estado servido são evidências distintas.
+
 ## Branch, commits e publicação
 
 Preserve mudanças existentes no checkout. Crie branch sem upstream de `origin/main`; por exemplo, a partir do ref pretendido e já disponível:
