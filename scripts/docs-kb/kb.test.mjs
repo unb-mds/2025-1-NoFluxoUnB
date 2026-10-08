@@ -249,6 +249,11 @@ test('drift tracks modified, added and deleted source paths without rewriting sn
   assert.deepEqual(drift.errors, []);
   assert.deepEqual(drift.stale[0].paths, ['source/a.ts', 'source/nested/b.ts', 'source/new.ts']);
   assert.equal(run('drift', [], root).code, 1);
+  // check: drift é aviso por padrão e erro com --strict
+  const check = run('check', [], root);
+  assert.equal(check.code, 0);
+  assert.match(check.output, /WARN STALE/);
+  assert.equal(run('check', ['--strict'], root).code, 1);
   assert.equal(read(snapshotPath), before);
   assert.equal(run('snapshot', [], root).code, 0);
   assert.equal(run('drift', [], root).code, 0);

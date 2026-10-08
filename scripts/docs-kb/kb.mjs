@@ -465,12 +465,21 @@ export function queryGraph(graph, question, limit = 20, { currentOnly = false } 
 export function run(command, args = [], root = REPO) {
   const result = buildGraph(root);
   if (command === 'check') {
+    // Drift de fonte é aviso por padrão: todo PR de código muda arquivos
+    // observados, e exigir snapshot renovado em cada um travaria PRs em paralelo
+    // (o snapshot é um JSON único). `--strict` volta a reprovar; `kb:drift`
+    // continua saindo com erro quando há drift.
+    const strict = args.includes('--strict');
     const errors = [...result.errors, ...validateInventories(root)];
     const drift = checkDrift(root, result.graph);
     errors.push(...drift.errors);
-    for (const item of drift.stale) errors.push(`STALE ${item.id}: ${item.reason}: ${item.paths.join(', ')}`);
-    return { code: errors.length ? 1 : 0, output: errors.length ? errors.map((error) => `ERROR ${error}`).join('\n')
-      : `KB valid: ${result.graph.nodes.filter((node) => node.type === 'subsystem').length} subsystems, ${result.graph.nodes.length} nodes, ${result.graph.edges.length} edges; inventories complete; snapshot current.` };
+    const staleLines = drift.stale.map((item) => `STALE ${item.id}: ${item.reason}: ${item.paths.join(', ')}`);
+    if (strict) errors.push(...staleLines);
+    if (errors.length) return { code: 1, output: errors.map((error) => `ERROR ${error}`).join('\n') };
+    const summary = `KB valid: ${result.graph.nodes.filter((node) => node.type === 'subsystem').length} subsystems, ${result.graph.nodes.length} nodes, ${result.graph.edges.length} edges; inventories complete; `;
+    if (!staleLines.length) return { code: 0, output: `${summary}snapshot current.` };
+    return { code: 0, output: [`${summary}snapshot stale for ${staleLines.length} dossier(s) — review them when touching the area, then run kb:snapshot.`,
+      ...staleLines.map((line) => `WARN ${line}`)].join('\n') };
   }
   if (result.errors.length) return { code: 1, output: result.errors.map((error) => `ERROR ${error}`).join('\n') };
   if (command === 'graph') return { code: 0, output: JSON.stringify(result.graph, null, 2) };

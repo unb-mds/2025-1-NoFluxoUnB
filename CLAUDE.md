@@ -9,7 +9,8 @@ O README atual aponta `no-fluxo.crianex.com`; domínio/revisão servida exigem v
 
 Consulte `npm run kb:query -- "<pergunta>"` e `docs/kb/INDEX.md` antes de exploração
 ampla. Leia e revise o dossier dono e consumidores da área na mesma mudança. Execute
-`npm run kb:check`; depois da revisão atualize o snapshot. O protocolo canônico é
+`npm run kb:check` (dossier desatualizado aparece como `WARN STALE`); ao revisar o
+dossier da área tocada, atualize o snapshot. O protocolo canônico é
 `docs/kb/_PROTOCOL.md`; decisões transversais estão em `PROJECT_WIDE_DECISIONS.md`.
 Fonte/testes, SQL/export, configuração de deploy e produção são estados distintos.
 

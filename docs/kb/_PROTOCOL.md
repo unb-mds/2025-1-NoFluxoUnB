@@ -33,7 +33,9 @@ não promove evidência a `verified-local` ou `verified-production`.
 ## Escopo da verificação
 
 Estágio `bootstrap`: checagens estruturais, vínculos e cobertura de inventário são gates
-locais; drift retorna código não zero para exigir revisão local, inclusive em bootstrap.
+locais. Drift de fonte aparece como `WARN STALE` no `kb:check` (código zero), para PRs
+de código em paralelo não conflitarem no snapshot; `kb:check --strict` e `kb:drift`
+retornam código não zero quando há drift.
 Não há job obrigatório novo no CI.
 O snapshot é a referência de hashes das superfícies owned/watched na revisão, não um
 recibo de deploy. O grafo é derivado do Markdown e metadados, sem banco/vetores/LLM.
