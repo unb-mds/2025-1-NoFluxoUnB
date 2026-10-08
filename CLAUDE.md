@@ -1,7 +1,9 @@
 # CLAUDE.md — mapa do repositório NoFluxoUNB
 
 Guia de orientação para agentes de IA (e humanos chegando agora). O produto vivo é
-**no-fluxo.com**: fluxograma acadêmico interativo da UnB com assistente de IA (Darcy).
+**NoFluxoUNB**: fluxograma acadêmico interativo da UnB com assistente de IA (Darcy).
+
+O README atual aponta `no-fluxo.crianex.com`; domínio/revisão servida exigem verificação de deploy.
 
 ## Regras de trabalho
 

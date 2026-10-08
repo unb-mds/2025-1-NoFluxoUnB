@@ -109,7 +109,7 @@ Deploy API são resolvidas em `main` antes do carregamento por alvo.
 | Dockerfile | Build | Runtime e limitações do artefato |
 | --- | --- | --- |
 | [k8s.backend.Dockerfile](../../../k8s.backend.Dockerfile) | Node 20 Alpine, `npm ci --ignore-scripts` com fallback para `npm install --ignore-scripts`, `npx tsc` | Node `dist/index.js`, usuário 1001, `/health` na porta 3325. Copia `node_modules` completo do builder, inclusive dependências de desenvolvimento; não embute parser Python/OCR. |
-| [k8s.frontend-svelte.Dockerfile](../../../k8s.frontend-svelte.Dockerfile) | Node 20 Bullseye, pnpm 10.12.1, `pnpm install --frozen-lockfile`, `pnpm build` | nginx 1.27 Alpine, SPA fallback para `index.html`, arquivos `/_app/` com cache de um ano e `gzip_static`; `/health.json` com `Cache-Control: no-store`. Gera JSON contendo `GIT_SHA`. |
+| [k8s.frontend-svelte.Dockerfile](../../../k8s.frontend-svelte.Dockerfile) | Node 20 Bullseye, pnpm 10.12.1, `pnpm install --frozen-lockfile`, `pnpm build` | nginx 1.27 Alpine, SPA fallback para `index.html`, arquivos `/_app/` com cache de um ano e `gzip_static`; `/health.json` com `Cache-Control: no-store`. Gera JSON contendo `GIT_SHA` e remove sidecars `health.json.gz`/`.br` gerados antes da sobrescrita, para `gzip_static` não servir o SHA antigo. |
 | [k8s.mcp-agent.Dockerfile](../../../k8s.mcp-agent.Dockerfile) | Python 3.11 slim, dependências de `mcp_agent/requirements.txt` instaladas em `/install` | Copia os módulos `*.py` da raiz de `mcp_agent`; Uvicorn `api_producao:app`, porta 8000, dois workers, usuário 1001. Não copia diretórios auxiliares na imagem final. |
 
 Os healthchecks de Docker e os `healthPath` enviados à Deploy API são camadas

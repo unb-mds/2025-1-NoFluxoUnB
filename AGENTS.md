@@ -2,7 +2,7 @@
 
 Guia de orientação para agentes de IA (e humanos chegando agora). O produto vivo é
 **NoFluxoUNB**: fluxograma acadêmico interativo da UnB com assistente de IA (Darcy).
-O README atual aponta `no-fluxo.com`; domínio/revisão servida precisam de verificação de deploy.
+O README atual aponta `no-fluxo.crianex.com`; domínio/revisão servida precisam de verificação de deploy.
 
 ## Base de conhecimento
 

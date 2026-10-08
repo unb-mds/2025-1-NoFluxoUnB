@@ -344,3 +344,9 @@ como guia atual de implementação.
 7. Não foi conferida operação pública, banco aplicado, disponibilidade de RPCs,
    bucket de anexos, dados recentes de turmas, custo/cota real da IA ou sincronismo
    de preferência entre dispositivos. Esses itens permanecem verificação runtime.
+
+## Rechecagem da base da PR
+
+A correção upstream do link GitHub de Vinícius em `SobreNosSection.svelte` foi
+incorporada da main; o diff contra main não introduz alteração de runtime nesse componente.
+O README/GIF da main foi preservado, com o router de engenharia KB acrescentado.

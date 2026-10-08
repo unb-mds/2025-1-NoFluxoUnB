@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "head": "c57fb02cc1b2ea3dd920a2566d01b66c6ef7f7a7",
+  "head": "734b27c034b4ed073f90f022f8f883db969c695b",
   "dossiers": [
     {
       "id": "SUB-ai",
@@ -1330,7 +1330,7 @@
     {
       "id": "SUB-frontend",
       "sourceFile": "docs/kb/subsystems/frontend-and-academic-planning.md",
-      "dossier_sha256": "95c99ba9a4cbeef59c618e0064c5c0c2a0374bac2398a67b3d97361aa1204850",
+      "dossier_sha256": "5350b97fc3bf66fd68dc191748985cc55172fe220a852bd784e4e24e62f970cb",
       "files": [
         {
           "path": "backend/src/controllers/PlanejamentoController.ts",
@@ -1734,7 +1734,7 @@
         },
         {
           "path": "frontend/src/lib/components/home/SobreNosSection.svelte",
-          "content_sha256": "bd1819563e6d9740558ddcb5333ef8d4bc851205f7a715168d60bc9980cb65c2"
+          "content_sha256": "0f4f75701c4210fa8f72819d7079c8ade37a60fe270583fe03dd7011fd4bc811"
         },
         {
           "path": "frontend/src/lib/components/icons/GoogleIcon.svelte",
@@ -3333,7 +3333,7 @@
     {
       "id": "SUB-ops",
       "sourceFile": "docs/kb/subsystems/deployment-ci-and-operations.md",
-      "dossier_sha256": "5e094f0363934c9ce984338f03a826be0e5bf48c9eefd132d3cbc53b6df40d18",
+      "dossier_sha256": "9d84a27303249838283cd8adecd3b8c6534eb57c052f23ab68f3d95b4f47a840",
       "files": [
         {
           "path": ".github/ISSUE_TEMPLATE/template-de-feature.md",
@@ -3417,7 +3417,7 @@
         },
         {
           "path": "k8s.frontend-svelte.Dockerfile",
-          "content_sha256": "dc3e112aa511b08e4cc094e876594bb0107cc2a1471ac946c827e36325d83b81"
+          "content_sha256": "bcacfdbf085456fc508ab0a51c712a4db32e35f821123565032bd1b9b749a4ec"
         },
         {
           "path": "k8s.mcp-agent.Dockerfile",
@@ -3568,7 +3568,7 @@
     {
       "id": "SUB-project",
       "sourceFile": "docs/kb/subsystems/project-and-documentation.md",
-      "dossier_sha256": "6809a165e16f3f63bf1aefb9f7f45e94fa562adafb4aca6699184d71f8b8206b",
+      "dossier_sha256": "fdfa9a7635b75e12e0b58f29cd7466c4f8930fad36959b0ba475c56a50b4caea",
       "files": [
         {
           "path": ".github/ISSUE_TEMPLATE/template-de-feature.md",
@@ -3632,11 +3632,11 @@
         },
         {
           "path": "AGENTS.md",
-          "content_sha256": "ec885c59515a46cd8f361391ce09b0dd39500a53af58fa70a78ff93fe6b98469"
+          "content_sha256": "49b654d9f6e6466e16e13ad8cde7c3bdf5307151f741f02218a6fae666416a3c"
         },
         {
           "path": "CLAUDE.md",
-          "content_sha256": "9b330ab8ebcb7c7fd21589e578ab62d15afb0fb0ab89b054433550c96f837f98"
+          "content_sha256": "64d7ebb4b16df1804cd879f366b1141e5d90fecbcc9679bd6fa87144169e5991"
         },
         {
           "path": "CODE_OF_CONDUCT.md",
@@ -4048,7 +4048,7 @@
         },
         {
           "path": "README.md",
-          "content_sha256": "9ebd997d57cc626dd7f0619ddb751d0ebc288a376077a544799166c84decf165"
+          "content_sha256": "438f0b0b79bd5b8dac8ec4a9a8ef0e33a31888b565dd754ae005657d168e5fbe"
         },
         {
           "path": "backend/.dockerignore",
@@ -5244,7 +5244,7 @@
         },
         {
           "path": "documentacao/index.md",
-          "content_sha256": "d24f1ffd1834838426e6387161e96d905dc1c92c19e1f705cbae0d66b5e263d0"
+          "content_sha256": "d37e5dcf28655aba2ada4fbe9f694b23b5345802081da36cfd2928526605c451"
         },
         {
           "path": "documentacao/planejamento/Requivitos/requisitos.md",
@@ -5700,7 +5700,7 @@
         },
         {
           "path": "frontend/src/lib/components/home/SobreNosSection.svelte",
-          "content_sha256": "bd1819563e6d9740558ddcb5333ef8d4bc851205f7a715168d60bc9980cb65c2"
+          "content_sha256": "0f4f75701c4210fa8f72819d7079c8ade37a60fe270583fe03dd7011fd4bc811"
         },
         {
           "path": "frontend/src/lib/components/icons/GoogleIcon.svelte",
@@ -7383,7 +7383,7 @@
     {
       "id": "SUB-security",
       "sourceFile": "docs/kb/subsystems/auth-security-and-privacy.md",
-      "dossier_sha256": "68e57f2c24c1c76b53a404d6c70048ffed355bc494ec515603b34ff4f877a0ca",
+      "dossier_sha256": "4df49d52134771210faacf957613a7f14488382a3cf25d50ed71f78398632cdc",
       "files": [
         {
           "path": ".gitleaks.toml",
@@ -8363,7 +8363,7 @@
         },
         {
           "path": "frontend/src/lib/components/home/SobreNosSection.svelte",
-          "content_sha256": "bd1819563e6d9740558ddcb5333ef8d4bc851205f7a715168d60bc9980cb65c2"
+          "content_sha256": "0f4f75701c4210fa8f72819d7079c8ade37a60fe270583fe03dd7011fd4bc811"
         },
         {
           "path": "frontend/src/lib/components/icons/GoogleIcon.svelte",

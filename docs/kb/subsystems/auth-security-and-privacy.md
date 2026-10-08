@@ -271,3 +271,9 @@ unit files exercise parsing and Sabiá utilities; a dedicated HTTP integration
 suite proving API-key rejection on every Python endpoint was not found in this
 source inspection. Full live authorization, retention, cross-user attack tests,
 provider settings, and deployed proxy/IP behavior remain unverified.
+
+## Publication-base recheck
+
+The upstream `SobreNosSection.svelte` change only updates a team GitHub username.
+It does not change the reviewed authentication or privacy contracts. No application
+runtime change is introduced relative to the PR's current main base.

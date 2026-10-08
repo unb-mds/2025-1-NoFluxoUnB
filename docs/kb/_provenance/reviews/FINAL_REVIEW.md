@@ -68,5 +68,15 @@ não viram aceitação de produção pela presença no catálogo.
 
 Mudanças abrangem documentação, templates de setup e tooling da KB; código de runtime,
 workflows, dados e SQL foram preservados. Trabalho concorrente em `docs/capacity/` e
-`output/` ficou fora da limpeza. Não houve commit, push, merge, deploy, migration,
-scraping nem chamada paga. A proposta de enforcement da KB no CI segue `OPEN-KB-001`.
+`output/` ficou fora da limpeza. Na etapa de auditoria não houve commit/push/merge/deploy/migration, scraping ou chamada paga.
+O pedido posterior de publicação autoriza commit/push e PR; não autoriza merge ou deploy. A proposta de enforcement da KB no CI segue `OPEN-KB-001`.
+
+## Preparação de commit e PR
+
+Em 2026-10-08 o usuário autorizou commit, push e PR para main. A branch foi rebased
+sobre `a667757b5c6432718840d6ee0b16939b3c04c83f`; preserva o README/GIF e as correções upstream de
+health sidecars e link de equipe. Essas diferenças foram relidas, a resolução do README
+mantém a apresentação da main e acrescenta o router KB, e inventário/snapshot foram
+renovados após essa revisão. Runtime/workflows desta PR não diferem da main de base.
+CSV ledgers usam LF, com checks de whitespace também sobre o conteúdo staged.
+Trabalho concorrente `docs/capacity/` e `output/` continua excluído do commit/PR.

@@ -6,7 +6,7 @@ Solicitação explícita em 2026-10-07; rechecagem final em 2026-10-08. Fonte Gi
 ## Árvore atual e proveniência
 
 Foram retirados 42 documentos obsoletos: 29 planos originais, 6 guias task-specific Motor 2,
-o guia MCP/stdin Sabiá,2 guias legados backend, o panorama LaTeX, o backlog frontend
+o guia MCP/stdin Sabiá, 2 guias legados backend, o panorama LaTeX, o backlog frontend
 superado e 2 planos de migração Kubernetes da arquitetura aposentada.
 [document-retirement.csv](document-retirement.csv) identifica cada caminho, original Git,
 SHA-256, tamanho, motivo, autorização e destino canônico. Não é pasta de arquivo com
@@ -47,3 +47,11 @@ Resultados finais efetivamente executados estão em [FINAL_REVIEW.md](reviews/FI
 
 Sem deploy, push, merge, SQL aplicado, scraping ou chamadas pagas. Runtime preservado;
 trabalho concorrente em `docs/capacity/` e `output/` permaneceu fora desta limpeza.
+
+## Publicação autorizada posteriormente
+
+O pedido de commit/push/PR em 2026-10-08 é uma etapa posterior à auditoria inicial.
+A apresentação atual do README e as duas correções de runtime upstream foram
+preservadas ao atualizar a base da branch; esta PR acrescenta documentação/tooling,
+sem alterações de runtime relativas à main. O manifesto mantém a revisão original
+necessária para recuperar os documentos retirados.

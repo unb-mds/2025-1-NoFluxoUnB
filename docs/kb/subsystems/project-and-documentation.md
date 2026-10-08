@@ -45,7 +45,7 @@ related:
 
 Integração do mapa de engenharia e governança documental. O produto descrito pela
 fonte atende planejamento acadêmico da UnB: catálogo/currículos, histórico, progresso,
-equivalências, planejamento e Darcy. `README.md` aponta `no-fluxo.com`; `AGENTS.md`
+equivalências, planejamento e Darcy. `README.md` aponta `no-fluxo.crianex.com`; `AGENTS.md`
 foi alinhado a essa referência documental nesta consolidação. Endereços documentados
 não constituem verificação de disponibilidade ou versão pública nesta revisão.
 
@@ -132,3 +132,10 @@ resultado explicitamente registrado como executado.
 Ao alterar contratos, revise dono e consumidores, atualize o inventário se necessário,
 execute `kb:check`, veja `kb:drift`, e só então atualize o snapshot depois da revisão
 documental. A mudança de protocolo não cria autorização de publicação.
+
+## Rechecagem antes da publicação
+
+A branch foi atualizada para a main de origem `a667757b5c6432718840d6ee0b16939b3c04c83f` antes da PR.
+O README mantém a apresentação/GIF/assets adicionados nessa main e recebeu links KB.
+A imagem/link GitHub de Vinícius em `documentacao/index.md` acompanha a correção upstream.
+Essas referências são documentação/configuração, sem verificação de disponibilidade pública.
