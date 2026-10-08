@@ -33,7 +33,7 @@ export const MateriasController: EndpointController = {
             const logger = createControllerLogger("FluxogramaController", "materias-from-codigos");
             logger.info("Buscando matérias por códigos");
 
-            var { codigos, id_curso } = req.body;
+            let { codigos, id_curso } = req.body;
 
             if (!codigos) {
                 logger.error("Códigos de matérias não informados");
@@ -48,7 +48,7 @@ export const MateriasController: EndpointController = {
             if (!Array.isArray(codigos)) {
 
                 if (typeof codigos === 'string') {
-                    // convert from json string to array
+                    // convert from json string to array
                     codigos = JSON.parse(codigos);
                 } else {
                     logger.error("Códigos de matérias não são um array");
@@ -57,7 +57,7 @@ export const MateriasController: EndpointController = {
             }
 
             if (typeof id_curso !== 'string') {
-                var numberAsId = parseInt(id_curso);
+                const numberAsId = parseInt(id_curso);
 
                 if (isNaN(numberAsId)) {
                     logger.error("ID do curso não é um número");
@@ -67,7 +67,7 @@ export const MateriasController: EndpointController = {
                 id_curso = numberAsId;
             }
 
-            var { data: materias, error: errorMaterias } = await SupabaseWrapper.get()
+            let { data: materias, error: errorMaterias } = await SupabaseWrapper.get()
                 .from("materias")
                 .select("*,materias_por_curso(id_curso,nivel)")
                 .in("codigo_materia", codigos);

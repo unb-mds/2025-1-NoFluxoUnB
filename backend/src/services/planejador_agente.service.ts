@@ -218,7 +218,7 @@ export class PlanejadorAgenteService {
         const tools = defaultRegistry.schemasFor(ctx);
 
         // Montar mensagens para o LLM
-        let mensagensLlm: any[] = [
+        const mensagensLlm: any[] = [
             { role: "system", content: systemPrompt },
             ...historicoTruncado.map((m) => ({
                 role: m.role,

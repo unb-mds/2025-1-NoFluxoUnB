@@ -625,6 +625,8 @@ describe("AtuadorGrade — revisor (código citado precisa estar nos candidatos)
         const agente = createGradeAgent("aluno@unb.br", "8117/-2 - 2018.2", freeMaskTotal.toString(), "2026.2");
         const resultado = await run(agente, "tenho um buraco na segunda de manhã, me recomenda algo");
         expect(String(resultado.finalOutput)).toContain("[MONTAR_GRADE|FGA0001]");
+        // 1ª chamada pede a tool, 2ª responde: aprovado de primeira, sem reexecução
+        expect(chamou).toBe(2);
     });
 
     it("reprova e reexecuta quando o código citado NÃO está nos candidatos — runGradeComRevisao corrige", async () => {

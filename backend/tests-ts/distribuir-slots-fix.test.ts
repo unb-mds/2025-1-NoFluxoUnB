@@ -15,7 +15,7 @@
 import {
     distribuirPorSemestres,
 } from "../src/services/plano_formatura.service";
-import type { MateriaInput, SemestrePlano, PreferenciasPlano } from "../src/types/planejamento";
+import type { MateriaInput, PreferenciasPlano } from "../src/types/planejamento";
 
 const prefsDefault: PreferenciasPlano = {
     limiteCreditos: 24,

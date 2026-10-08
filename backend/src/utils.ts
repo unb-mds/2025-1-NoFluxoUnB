@@ -90,7 +90,7 @@ export const Utils = {
         if (typeof token === "string" && token.startsWith("Bearer ")) {
             token = token.slice(7);
         }
-        var { data, error } = await SupabaseWrapper.get().auth.getUser(token);
+        const { data, error } = await SupabaseWrapper.get().auth.getUser(token);
         if (error) {
             utilsLogger.error(`Erro ao verificar autorização: ${error.message}`);
             return false;
@@ -104,7 +104,7 @@ export const Utils = {
         }
 
         // check on db if user exists
-        var { data: user, error: userError } = await SupabaseWrapper.get().from("users").select("*").eq("id_user", userId);
+        const { data: user, error: userError } = await SupabaseWrapper.get().from("users").select("*").eq("id_user", userId);
         if (userError) {
             utilsLogger.error(`Erro ao verificar usuário: ${userError.message}`);
             return false;
