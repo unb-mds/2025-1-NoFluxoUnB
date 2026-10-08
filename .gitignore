@@ -185,6 +185,8 @@ documentacao/pitch_vendas_investidor.*
 # Fontes e reconciliação financeira fornecidas pelo mantenedor.
 /docs/privado/
 /output/private/
+# PDFs/capas gerados dos relatórios de capacidade: ficam locais (fontes em docs/capacity/).
+/output/pdf/
 
 # Configuração local de agents (uso individual, não versionado).
 .agents/

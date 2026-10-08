@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "head": "d0d54f45d9489cfea87deb20fcd22bdade7e1130",
+  "head": "7e2d3296398c4448d6c9039ad24d9b451d9ca089",
   "dossiers": [
     {
       "id": "SUB-ai",
@@ -7611,7 +7611,7 @@
         },
         {
           "path": ".gitignore",
-          "content_sha256": "ad5c0e9a2db9f737af35330eb07da8ad34efb5a3188cd02d641fcc3583749027"
+          "content_sha256": "d55aa7e37ac911cf0ce72a6d1e3c1b0af04405e83fcd3ad9b2748545b377f82c"
         },
         {
           "path": ".gitleaks.toml",
