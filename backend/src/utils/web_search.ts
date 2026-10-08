@@ -1,4 +1,4 @@
-// @ts-ignore
+// @ts-expect-error -- googlethis não publica tipos
 import google from 'googlethis';
 
 export async function searchInternet(query: string): Promise<string> {

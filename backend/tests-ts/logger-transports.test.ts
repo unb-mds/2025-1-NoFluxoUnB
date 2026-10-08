@@ -52,6 +52,7 @@ describe('logger — transports por ambiente (R57)', () => {
     it('produção: cada linha é JSON parseável e sem códigos ANSI', () => {
         const logger = carregarLogger('production');
         const saida = capturarSaida(logger, () => logger.error('falhou algo'));
+        // eslint-disable-next-line no-control-regex -- procura justamente o ESC das cores ANSI
         expect(saida).not.toMatch(/\u001b\[/);
         const obj = JSON.parse(saida);
         expect(obj).toMatchObject({ level: 'error', message: 'falhou algo' });
