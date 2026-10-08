@@ -1,0 +1,68 @@
+{
+  "reviewed_on": "2026-10-08",
+  "status": "PLAN_REVIEWED_WITH_EXECUTION_GATES",
+  "review_method": "Three sequential adversarial passes by the same agent; not independent peer review. Code/metadata read, model examples and cost boundary checks only.",
+  "runtime_implementation_tested": false,
+  "production_load_test_run": false,
+  "production_changes": false,
+  "passed_design_examples": [
+    "R2 free threshold at 10 GB exactly and +1 byte",
+    "Class A/B whole-unit rounding with exhausted allowances",
+    "20 GiB at 80%: 10k model fits, 50k does not",
+    "R2 reserved storage at 50k: USD 0.075 with full free allowance",
+    "Event replay ten times gives one event/day presence in minimal SQLite model",
+    "One actor in two days yields daily sum two but window union one",
+    "Day boundary uses America/Sao_Paulo, not UTC or string truncation",
+    "Global p95 differs materially from average per-replica p95"
+  ],
+  "critical_design_findings_addressed": [
+    "Activity versus token refresh/neutral heartbeat and midnight interactions",
+    "Direct Supabase browser calls absent from backend traffic",
+    "NAT telemetry versus global product limiter",
+    "JWT verified identity and short isolated ingest credential",
+    "Multiprocess metrics and histogram population aggregation",
+    "SQLite acknowledgement/durability/single-writer/RWO distinction",
+    "Private ingest/admin/metrics boundaries",
+    "Identity key rotation and deletion across archives",
+    "Missing data and late replays cannot count as online/zero",
+    "Shared filesystem/PVC accounting and Grafana external Postgres",
+    "Cloud free tier availability/rounding/backups/local-volume sizing",
+    "Technical probes/preflight/telemetry excluded from product-demand capacity rate",
+    "Semantic journey outcome distinct from HTTP 200",
+    "Cohort and canonical alias resolution included in distinct-count data model",
+    "Exact three-decimal tariff outputs avoid float rounding ambiguity"
+  ],
+  "execution_gates_still_required": [
+    "Published runtime fingerprint and isolated test environment",
+    "JWT algorithm/SDK version and identity validation",
+    "Privacy/anonymous-data policy and purge/exclusion acceptance",
+    "R2 account/free allowance, private bucket and credential",
+    "Collector scheduling/PVC/physical disk and infrastructure cost",
+    "Actual private scraping and two-worker integration",
+    "Crash, replay, deletion, outage, overload and restore tests",
+    "Representative capacity/SLO tests and provider-credit budgets",
+    "Explicit approval before deployment, production writes/load or alert delivery"
+  ],
+  "artifacts": [
+    "plano-monitoramento-capacidade-2026-10-08.md",
+    "plano-monitoramento-capacidade-2026-10-08.tex",
+    "monitoring-cost-model-2026-10-08.py",
+    "monitoring-cost-estimate-2026-10-08.json",
+    "monitoring-plan-evidence-2026-10-08.json",
+    "build-monitoring-plan-2026-10-08.py",
+    "verify-monitoring-design-2026-10-08.py"
+  ],
+  "artifact_verification": {
+    "latex_desktop_compiler": "success on final source",
+    "pdf_pages": 25,
+    "pdf_sha256": "d5f2466b4411acfa110dedac04759eabb2e4059b1a0c3f557015ba5fee7ff83e",
+    "pdf_overfull_boxes": 0,
+    "pdf_text_outside_safe_horizontal_margin": 0,
+    "render_review": "All 25 pages reviewed in contact sheets; full-size dense/changed pages reviewed. Manual sequential review by same agent.",
+    "credential_value_scan_matches": 0,
+    "cost_json_matches_recomputed_model": true,
+    "design_examples_script": "verify-monitoring-design-2026-10-08.py",
+    "kb_check": "PASS: integrated inventories, links, ownership, drift and 26/26 KB tests",
+    "kb_review_receipt": "docs/kb/_provenance/reviews/MONITORING_PLAN_2026-10-08.md"
+  }
+}

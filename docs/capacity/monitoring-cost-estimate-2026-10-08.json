@@ -1,0 +1,178 @@
+{
+  "assumptions": {
+    "scenarios_authenticated_dau": [
+      60,
+      1000,
+      10000,
+      50000
+    ],
+    "anonymous_session_ratio": 1,
+    "signals_per_actor_day": 30,
+    "raw_retention_days": 7,
+    "raw_archive_bytes_per_signal": 200,
+    "raw_local_bytes_per_signal_with_indexes": 800,
+    "authenticated_identity_days": 35,
+    "anonymous_identity_days": 2,
+    "identity_bytes_per_actor_day": 200,
+    "identity_offsite_snapshot_copies": 3,
+    "archive_metric_series": 500,
+    "minute_retention_days": 30,
+    "five_minute_retention_days": 90,
+    "hourly_retention_total_days": 400,
+    "archive_bytes_per_metric_point": 32,
+    "local_bytes_per_metric_point_with_indexes": 160,
+    "daily_aggregate_rows": 200,
+    "daily_aggregate_bytes_per_row": 512,
+    "daily_aggregate_days": 400,
+    "diagnostic_log_budget_compressed_mb_day": 100,
+    "diagnostic_log_days": 7,
+    "capacity_receipts_archive_bytes_budget": 100000000,
+    "sizing_multiplier": 2,
+    "local_wal_reserved_bytes": 1073741824,
+    "local_scratch_reserved_bytes": 1073741824,
+    "collector_volume_gib": 20,
+    "collector_operational_volume_fraction": 0.8,
+    "r2_class_a_operations_budget_month": 100000,
+    "r2_class_b_operations_budget_month": 100000,
+    "r2_free_storage_gb_month": 10,
+    "r2_free_class_a_operations_month": 1000000,
+    "r2_free_class_b_operations_month": 10000000,
+    "r2_storage_usd_gb_month": "0.015",
+    "r2_class_a_usd_million": "4.50",
+    "r2_class_b_usd_million": "0.36",
+    "prometheus_new_series_target": 3000,
+    "prometheus_scrape_seconds": 15,
+    "prometheus_retention_days_observed": 15,
+    "prometheus_bytes_per_sample_estimate": 2,
+    "prometheus_index_wal_factor_assumed": 3
+  },
+  "pricing_checked_on": "2026-10-08",
+  "pricing_sources": [
+    "https://developers.cloudflare.com/r2/pricing/",
+    "https://supabase.com/pricing",
+    "https://prometheus.io/docs/prometheus/latest/storage/"
+  ],
+  "model_notes": [
+    "GB decimal; GiB binary. Steady-state upper sizing envelope, not measured compression or actual billed daily peak.",
+    "Every point/row sizing estimate already includes a 2x reserve, except explicitly fixed WAL/scratch and receipt budgets.",
+    "No per-request successful access log storage: all traffic has counters/histograms; domain/presence signals are budgeted separately.",
+    "Default anonymous traffic is assumed equal to authenticated DAU because real anonymous coverage is unknown.",
+    "Cloud billable units round upward. Free allowance is shared; availability has not been verified for this account.",
+    "Local infrastructure, operations labor, provider compute/network, taxes, optional traces and AI load tests are excluded from R2 prices.",
+    "No full SQLite snapshots in R2: immutable raw/metric partitions plus three compact identity snapshots; restoration replays archives.",
+    "Storage scenarios do not certify workload throughput or indicate users currently supported."
+  ],
+  "cloud_fixed_reserved_bytes": 4031840000,
+  "local_fixed_reserved_bytes": 9141403648,
+  "additional_prometheus_bytes_estimate_with_3x_factor": 1555200000,
+  "scenarios": [
+    {
+      "authenticated_dau": 60,
+      "anonymous_sessions_per_day_assumed": 60,
+      "signals_day": 3600,
+      "r2_reserved_bytes": 4044584000,
+      "r2_reserved_gb": 4.044584,
+      "local_reserved_bytes": 9182611648,
+      "local_reserved_gib": 8.552,
+      "fits_collector_20gib_at_80pct": true,
+      "r2_cost_with_free_tier_available": {
+        "billable_gb_units": 0,
+        "billable_class_a_million_units": 0,
+        "billable_class_b_million_units": 0,
+        "storage_usd_month": "0.000",
+        "operations_usd_month": "0.00",
+        "total_usd_month": "0.000"
+      },
+      "r2_conservative_cost_without_free_tier": {
+        "billable_gb_units": 5,
+        "billable_class_a_million_units": 1,
+        "billable_class_b_million_units": 1,
+        "storage_usd_month": "0.075",
+        "operations_usd_month": "4.86",
+        "total_usd_month": "4.935"
+      },
+      "raw_events_in_supabase_bytes_7d_with_margin": 40320000
+    },
+    {
+      "authenticated_dau": 1000,
+      "anonymous_sessions_per_day_assumed": 1000,
+      "signals_day": 60000,
+      "r2_reserved_bytes": 4244240000,
+      "r2_reserved_gb": 4.24424,
+      "local_reserved_bytes": 9828203648,
+      "local_reserved_gib": 9.153,
+      "fits_collector_20gib_at_80pct": true,
+      "r2_cost_with_free_tier_available": {
+        "billable_gb_units": 0,
+        "billable_class_a_million_units": 0,
+        "billable_class_b_million_units": 0,
+        "storage_usd_month": "0.000",
+        "operations_usd_month": "0.00",
+        "total_usd_month": "0.000"
+      },
+      "r2_conservative_cost_without_free_tier": {
+        "billable_gb_units": 5,
+        "billable_class_a_million_units": 1,
+        "billable_class_b_million_units": 1,
+        "storage_usd_month": "0.075",
+        "operations_usd_month": "4.86",
+        "total_usd_month": "4.935"
+      },
+      "raw_events_in_supabase_bytes_7d_with_margin": 672000000
+    },
+    {
+      "authenticated_dau": 10000,
+      "anonymous_sessions_per_day_assumed": 10000,
+      "signals_day": 600000,
+      "r2_reserved_bytes": 6155840000,
+      "r2_reserved_gb": 6.15584,
+      "local_reserved_bytes": 16009403648,
+      "local_reserved_gib": 14.91,
+      "fits_collector_20gib_at_80pct": true,
+      "r2_cost_with_free_tier_available": {
+        "billable_gb_units": 0,
+        "billable_class_a_million_units": 0,
+        "billable_class_b_million_units": 0,
+        "storage_usd_month": "0.000",
+        "operations_usd_month": "0.00",
+        "total_usd_month": "0.000"
+      },
+      "r2_conservative_cost_without_free_tier": {
+        "billable_gb_units": 7,
+        "billable_class_a_million_units": 1,
+        "billable_class_b_million_units": 1,
+        "storage_usd_month": "0.105",
+        "operations_usd_month": "4.86",
+        "total_usd_month": "4.965"
+      },
+      "raw_events_in_supabase_bytes_7d_with_margin": 6720000000
+    },
+    {
+      "authenticated_dau": 50000,
+      "anonymous_sessions_per_day_assumed": 50000,
+      "signals_day": 3000000,
+      "r2_reserved_bytes": 14651840000,
+      "r2_reserved_gb": 14.65184,
+      "local_reserved_bytes": 43481403648,
+      "local_reserved_gib": 40.495,
+      "fits_collector_20gib_at_80pct": false,
+      "r2_cost_with_free_tier_available": {
+        "billable_gb_units": 5,
+        "billable_class_a_million_units": 0,
+        "billable_class_b_million_units": 0,
+        "storage_usd_month": "0.075",
+        "operations_usd_month": "0.00",
+        "total_usd_month": "0.075"
+      },
+      "r2_conservative_cost_without_free_tier": {
+        "billable_gb_units": 15,
+        "billable_class_a_million_units": 1,
+        "billable_class_b_million_units": 1,
+        "storage_usd_month": "0.225",
+        "operations_usd_month": "4.86",
+        "total_usd_month": "5.085"
+      },
+      "raw_events_in_supabase_bytes_7d_with_margin": 33600000000
+    }
+  ]
+}

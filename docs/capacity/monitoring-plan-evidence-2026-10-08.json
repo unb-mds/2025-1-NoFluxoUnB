@@ -1,0 +1,173 @@
+{
+  "scope": "Read-only monitoring metadata on 8 October 2026. Earlier product usage is cited from dated audit; no production mutation.",
+  "source_revision": "b1ce5048ba008ab65b08bf891afc214fba09ee93",
+  "observed_at_utc": "2026-10-08T19:10:35.668668+00:00",
+  "prometheus": {
+    "namespace": "monitoring",
+    "name": "prometheus-kube-prometheus-prometheus",
+    "retention": "15d",
+    "retentionSize": "25GB",
+    "replicas": 1,
+    "resources": {
+      "limits": {
+        "cpu": "1000m",
+        "memory": "2Gi"
+      },
+      "requests": {
+        "cpu": "200m",
+        "memory": "512Mi"
+      }
+    },
+    "storage": {
+      "volumeClaimTemplate": {
+        "spec": {
+          "accessModes": [
+            "ReadWriteOnce"
+          ],
+          "resources": {
+            "requests": {
+              "storage": "30Gi"
+            }
+          },
+          "storageClassName": "monitoring-local"
+        }
+      }
+    },
+    "serviceMonitorSelector": {
+      "matchLabels": {
+        "release": "prometheus"
+      }
+    },
+    "serviceMonitorNamespaceSelector": {},
+    "podMonitorSelector": {
+      "matchLabels": {
+        "release": "prometheus"
+      }
+    }
+  },
+  "prometheus_runtime": {
+    "storageRetention": "15d or 25GiB",
+    "corruptionCount": 0,
+    "timeSeriesCount": null,
+    "startTime": "2026-02-11T00:01:35.27153045Z",
+    "lastConfigTime": "2026-10-03T05:22:59Z"
+  },
+  "tsdb_head": {
+    "numSeries": 134174,
+    "numLabelPairs": 8572,
+    "chunkCount": 274520,
+    "minTime": 1791482400020,
+    "maxTime": 1791486635030
+  },
+  "prometheus_directory_kib_measured": 8949361,
+  "prometheus_directory_gib": 8.5348,
+  "monitoring_volume_claims": [
+    {
+      "name": "alertmanager-prometheus-kube-prometheus-alertmanager-db-alertmanager-prometheus-kube-prometheus-alertmanager-0",
+      "status": "Bound",
+      "storage": "2Gi",
+      "class": "monitoring-local",
+      "accessModes": [
+        "ReadWriteOnce"
+      ]
+    },
+    {
+      "name": "data-postgresql-0",
+      "status": "Bound",
+      "storage": "10Gi",
+      "class": "local-path",
+      "accessModes": [
+        "ReadWriteOnce"
+      ]
+    },
+    {
+      "name": "grafana-nfs-pvc",
+      "status": "Bound",
+      "storage": "80Gi",
+      "class": "nfs-grafana",
+      "accessModes": [
+        "ReadWriteMany"
+      ]
+    },
+    {
+      "name": "prometheus-prometheus-kube-prometheus-prometheus-db-prometheus-prometheus-kube-prometheus-prometheus-0",
+      "status": "Bound",
+      "storage": "30Gi",
+      "class": "monitoring-local",
+      "accessModes": [
+        "ReadWriteOnce"
+      ]
+    },
+    {
+      "name": "storage-loki-0",
+      "status": "Bound",
+      "storage": "20Gi",
+      "class": "monitoring-local",
+      "accessModes": [
+        "ReadWriteOnce"
+      ]
+    }
+  ],
+  "details_observed_at_utc": "2026-10-08T19:16:42.745469+00:00",
+  "grafana_database_type": "postgres",
+  "grafana_database_env_override_present": false,
+  "pod_usage_lines": [
+    "POD                                                      NAME                     CPU(cores)   MEMORY(bytes)   ",
+    "alertmanager-prometheus-kube-prometheus-alertmanager-0   alertmanager             1m           59Mi            ",
+    "alertmanager-prometheus-kube-prometheus-alertmanager-0   config-reloader          1m           20Mi            ",
+    "goldpinger-74f9s                                         goldpinger-daemon        1m           45Mi            ",
+    "goldpinger-7c56s                                         goldpinger-daemon        1m           42Mi            ",
+    "goldpinger-ccrqb                                         goldpinger-daemon        1m           24Mi            ",
+    "loki-0                                                   loki                     18m          759Mi           ",
+    "loki-0                                                   loki-sc-rules            1m           90Mi            ",
+    "postgresql-0                                             postgresql               19m          59Mi            ",
+    "prometheus-grafana-6f594b4d7-csdcx                       grafana                  23m          169Mi           ",
+    "prometheus-grafana-6f594b4d7-csdcx                       grafana-sc-dashboard     1m           107Mi           ",
+    "prometheus-grafana-6f594b4d7-csdcx                       grafana-sc-datasources   1m           99Mi            ",
+    "prometheus-kube-prometheus-operator-6684894585-h4rbz     kube-prometheus-stack    3m           33Mi            ",
+    "prometheus-kube-state-metrics-78c7dd87b6-rsl7g           kube-state-metrics       3m           44Mi            ",
+    "prometheus-prometheus-kube-prometheus-prometheus-0       config-reloader          1m           27Mi            ",
+    "prometheus-prometheus-kube-prometheus-prometheus-0       prometheus               47m          1092Mi          ",
+    "prometheus-prometheus-node-exporter-cqtd7                node-exporter            3m           30Mi            ",
+    "prometheus-prometheus-node-exporter-h7qjn                node-exporter            4m           22Mi            ",
+    "prometheus-prometheus-node-exporter-mchkn                node-exporter            3m           14Mi            ",
+    "prometheus-prometheus-node-exporter-nn5pz                node-exporter            1m           10Mi            ",
+    "promtail-df2bs                                           promtail                 18m          113Mi           ",
+    "promtail-dq5x2                                           promtail                 16m          107Mi           ",
+    "promtail-gtpjl                                           promtail                 35m          133Mi           ",
+    "promtail-pvjcx                                           promtail                 21m          68Mi            "
+  ],
+  "volume_usage_warning": "Kubelet volume values describe nearly identical shared node filesystem usage, not independent PVC consumed bytes. Do not sum them or claim that capacityBytes equals the requested PVC size.",
+  "kubelet_volume_metrics": [
+    {
+      "pvc": "alertmanager-prometheus-kube-prometheus-alertmanager-db-alertmanager-prometheus-kube-prometheus-alertmanager-0",
+      "used_bytes": 126765116416,
+      "capacity_bytes": 201630278656,
+      "available_bytes": 66270775296
+    },
+    {
+      "pvc": "data-postgresql-0",
+      "used_bytes": 126769405952,
+      "capacity_bytes": 201630278656,
+      "available_bytes": 66266485760
+    },
+    {
+      "pvc": "storage-loki-0",
+      "used_bytes": 126765304832,
+      "capacity_bytes": 201630278656,
+      "available_bytes": 66270586880
+    },
+    {
+      "pvc": "prometheus-prometheus-kube-prometheus-prometheus-db-prometheus-prometheus-kube-prometheus-prometheus-0",
+      "used_bytes": 126769388544,
+      "capacity_bytes": 201630278656,
+      "available_bytes": 66266503168
+    }
+  ],
+  "limitations": [
+    "No Grafana database contents, API tokens, secrets or raw logs returned.",
+    "Provider R2 account/free allowance and cluster marginal storage/compute contract unverified.",
+    "NoFlow product runtime fingerprint from 7 October audit was not asserted current on 8 October.",
+    "Prometheus directory size is a read-only du measurement; runtime and top observations have different windows."
+  ]
+}

@@ -1,0 +1,156 @@
+{
+  "addendum_created_at_utc": "2026-10-08T05:00:54.780792+00:00",
+  "original_resource_snapshot_utc": "2026-10-08T02:41:56.598529+00:00",
+  "fresh_account_totals": {
+    "queried_at": "2026-10-08 04:55:35.556037+00",
+    "registered_accounts": 3671,
+    "public_profiles": 3620
+  },
+  "activity_definition": "Distinct current auth.users accounts with login, token_refreshed or user_signedup audit events. Aggregate only; includes automated session refresh and excludes unauthenticated visitors. UTC calendar days. Not a count of unique humans.",
+  "activity_window_utc": {
+    "from": "2026-10-01T00:00:00Z",
+    "to_exclusive": "2026-10-08T00:00:00Z"
+  },
+  "activity_daily": [
+    {
+      "day": "2026-10-01",
+      "active_authenticated_accounts": 80,
+      "login_accounts": 29,
+      "events": 343,
+      "unmatched_account_events": 0
+    },
+    {
+      "day": "2026-10-02",
+      "active_authenticated_accounts": 74,
+      "login_accounts": 25,
+      "events": 504,
+      "unmatched_account_events": 0
+    },
+    {
+      "day": "2026-10-03",
+      "active_authenticated_accounts": 38,
+      "login_accounts": 11,
+      "events": 165,
+      "unmatched_account_events": 0
+    },
+    {
+      "day": "2026-10-04",
+      "active_authenticated_accounts": 21,
+      "login_accounts": 2,
+      "events": 121,
+      "unmatched_account_events": 0
+    },
+    {
+      "day": "2026-10-05",
+      "active_authenticated_accounts": 54,
+      "login_accounts": 11,
+      "events": 201,
+      "unmatched_account_events": 0
+    },
+    {
+      "day": "2026-10-06",
+      "active_authenticated_accounts": 80,
+      "login_accounts": 25,
+      "events": 394,
+      "unmatched_account_events": 0
+    },
+    {
+      "day": "2026-10-07",
+      "active_authenticated_accounts": 73,
+      "login_accounts": 23,
+      "events": 491,
+      "unmatched_account_events": 0
+    }
+  ],
+  "activity_window": [
+    {
+      "active_accounts_7d": 263,
+      "auth_events": 2219
+    }
+  ],
+  "daily_activity_mean": 60,
+  "daily_activity_max": 80,
+  "rest_full_days_total": 104054,
+  "rest_daily_mean": 14864.857142857143,
+  "rest_requests_per_active_account_day_proxy": 247.74761904761905,
+  "auth_api_full_days_total": 5232,
+  "cpu_only_conditional_projection": {
+    "nofluxo-backend": {
+      "sampled_peak_cores": 0.05077136662267512,
+      "planning_cpu_cores": 0.35,
+      "load_multiplier": 6.893649379209061,
+      "conditional_daily_accounts": 413.6189627525437
+    },
+    "nofluxo-frontend": {
+      "sampled_peak_cores": 0.0007761182959262172,
+      "planning_cpu_cores": 0.35,
+      "load_multiplier": 450.96218171523844,
+      "conditional_daily_accounts": 27057.730902914307
+    },
+    "nofluxo-mcp-agent": {
+      "sampled_peak_cores": 0.025989859324318028,
+      "planning_cpu_cores": 0.35,
+      "load_multiplier": 13.466790859945679,
+      "conditional_daily_accounts": 808.0074515967408
+    }
+  },
+  "database_cpu_only_conditional_daily_accounts": 770.6422018348624,
+  "egress": {
+    "observed_gb": 1.16,
+    "elapsed_days_assumed": 24,
+    "planning_gb_per_30_days": 4,
+    "baseline_daily_accounts_proxy": 60,
+    "observed_mb_per_day": 48.333333333333336,
+    "effective_mb_per_account_day_proxy": 0.8055555555555556,
+    "conditional_daily_accounts": 165.51724137931035
+  },
+  "ai_complete_day_brasilia": {
+    "date": "2026-10-07",
+    "questions": 73,
+    "quota_active_accounts": 10,
+    "model_calls": 151,
+    "logged_accounts": 11,
+    "missing_price_calls": 0,
+    "estimated_cost": "3.7294",
+    "questions_per_quota_active_account": 7.3,
+    "all_model_cost_per_quota_active_account": 0.37294,
+    "planning_reais_per_day": 12,
+    "daily_accounts_mean_cost": 32,
+    "daily_accounts_p95_question_cost": 17
+  },
+  "account_storage_scenario": {
+    "existing_accounts": 3671,
+    "extra_account_bytes_assumed": 50000,
+    "operational_database_bytes": 400000000,
+    "total_accounts_conservative": 5311,
+    "total_accounts_current_db": 5616,
+    "activity_ratio_assumed": 0.016344320348678835
+  },
+  "limitations": [
+    "Resource snapshot unchanged; additional aggregate account and authentication queries on 8 October.",
+    "No write, load test or paid model call performed.",
+    "CPU-only projections assume linear demand and same daily burst profile; fixed work, memory, queues, IO, scheduling, provider quotas and network can dominate. They are not capacity certification.",
+    "Billing egress (about 24 days), recent daily authenticated activity (7 UTC days), service history (~7 days) and AI quota day (Brasilia) have different windows. Ratios are explicitly approximate.",
+    "Daily auth proxy excludes anonymous visits and can include session refresh without active human interaction.",
+    "Database growth of catalogs, auth history, indexes and bloat not measured per additional account."
+  ],
+  "documented_migration_options": {
+    "decision_id": "DEC-CAP-001",
+    "decision_status": "proposed",
+    "implementation_status": "not-implemented",
+    "documented_at": "2026-10-08",
+    "authorization_scope": "Documentation only, as requested by the maintainer.",
+    "realtime": {
+      "current_source": "frontend/src/lib/services/ticket.service.ts: TicketService.subscribeToMessages",
+      "proposed": "Authenticated backend WebSockets; shared upstream Supabase Realtime connection per consumer process, or central consumer with internal distribution.",
+      "capacity_effect": "Provider connection budget tracks upstream consumers and remaining direct clients. Backend socket/event/network capacity must be measured separately. Channels, event and provider transfer limits remain."
+    },
+    "edge_functions": {
+      "proposed": "Port logic to backend Express services/routes or bounded background execution.",
+      "capacity_effect": "Locally executed migrated operations stop invoking hosted Edge Functions; CPU, RAM, network and database demand move to backend. Proxying still consumes hosted invocations.",
+      "inventory_status": "No supabase/functions source directory in inspected checkout; published functions need separate inventory."
+    },
+    "pre_migration_estimates": "Existing CPU-only backend daily estimate excludes the proposed WebSocket gateway and ported function workload.",
+    "production_changes_performed": false
+  }
+}

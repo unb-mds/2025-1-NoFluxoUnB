@@ -9,6 +9,7 @@ watches:
   - package.json
   - CONTRIBUTING.md
   - DOCKER_README.md
+  - docs/capacity/**
 related:
   - SUB-backend
   - SUB-frontend
@@ -289,3 +290,17 @@ NoFluxo. `_deploy_payload` do produto não envia bloco `metrics`.
 Atualizações de operação devem começar pelas fontes específicas do produto
 (`APPS`, CLI, Dockerfiles e workflows) e registrar separadamente testes locais,
 execução de publicação, confirmação de versão pública e aceitação funcional.
+
+
+## Auditoria operacional e planejamento posterior
+
+As leituras externas de 07–08/10 são registradas separadamente em
+[auditoria de capacidade](../../capacity/nofluxo-capacity-2026-10-07.md) e
+[inventário de monitoramento](../../capacity/monitoring-plan-evidence-2026-10-08.json).
+Não alteram o status de revisão de fonte das seções acima. O
+[plano de monitoramento](../../capacity/plano-monitoramento-capacidade-2026-10-08.md)
+propõe reutilizar a stack observada, acrescentar métricas/atividade e persistir
+histórico isolado. DEC-CAP-001 e DEC-CAP-002 têm implementação `not-implemented`;
+SQLite/PVC, R2, dashboards, alertas e testes de carga são contratos propostos,
+com gates de identidade, privacidade, infraestrutura e recuperação. Nenhum deploy,
+SQL, alteração de cluster ou carga de produção foi realizado para esse plano.

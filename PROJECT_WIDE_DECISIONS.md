@@ -85,3 +85,39 @@ Evidence class: curated
 Fonte revisada, teste existente, teste executado, migration/export, configuração de
 deploy e observação em produção são estados distintos. Nenhum dossier desta rodada
 declara aceitação de produção. `docs/kb/_PROTOCOL.md` define as classes e limites.
+
+
+### DEC-CAP-001 — Documentar alternativa de Realtime e Edge no backend
+
+Decision status: proposed
+Implementation status: not-implemented
+Evidence class: owner-confirmed
+Accepted by: pedido do mantenedor para incluir a alternativa no relatório de capacidade
+Accepted at: 2026-10-08
+Supersedes: none
+
+Documentar a opção de clientes WebSocket no backend com conexão do servidor ao
+Supabase Realtime e a opção de portar Edge Functions ao backend. A aceitação é da
+inclusão da alternativa no estudo; a migração técnica permanece proposta.
+
+Implementation evidence:
+- `docs/capacity/relatorio-capacidade-nofluxo-2026-10-07.tex` — proposta e condições.
+- Não há migração, implantação ou capacidade do desenho novo validada.
+
+### DEC-CAP-002 — Planejar medição persistente de demanda e capacidade
+
+Decision status: effective
+Implementation status: not-implemented
+Evidence class: owner-confirmed
+Accepted by: pedido do mantenedor nesta conversa para plano aprofundado e revisado com custo de armazenamento
+Accepted at: 2026-10-08
+Supersedes: none
+
+Planejar a medição de quantos usuários são atendidos, qualidade das jornadas,
+recursos/cotas e capacidade validada, preservando histórico e estimando seu custo.
+As escolhas técnicas são propostas do plano; não se atribui a essa intenção uma
+aprovação de deploy, contratação, tratamento de dados ou carga em produção.
+
+Implementation evidence:
+- `docs/capacity/plano-monitoramento-capacidade-2026-10-08.md` — plano e critérios de execução.
+- `docs/capacity/monitoring-plan-review-2026-10-08.json` — revisão de desenho e exemplos locais, sem runtime futuro implementado.

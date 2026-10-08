@@ -16,6 +16,11 @@ deploy, disponibilidade de provedores, migrations aplicadas ou aceitação do pr
 | CI, testes, Docker, K3s, bootstrap, probes, verificação de rollout | [Deploy e operações](./subsystems/deployment-ci-and-operations.md) | Segurança, todas as camadas |
 | JWT, anonimato, administração, RLS, service role, uploads, privacidade | [Autenticação e segurança](./subsystems/auth-security-and-privacy.md) | Todos |
 
+## Auditoria e plano de capacidade
+
+- [Auditoria de recursos de 07/10](../capacity/nofluxo-capacity-2026-10-07.md): fotografia de produção e estimativas condicionais, sem ensaio de capacidade.
+- [Plano de monitoramento de 08/10](../capacity/plano-monitoramento-capacidade-2026-10-08.md): demanda, histórico, custo e critérios de implementação; propostas ainda não implementadas.
+
 ## Consulta e manutenção
 
 ```bash

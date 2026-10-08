@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "head": "734b27c034b4ed073f90f022f8f883db969c695b",
+  "head": "b1ce5048ba008ab65b08bf891afc214fba09ee93",
   "dossiers": [
     {
       "id": "SUB-ai",
@@ -3333,7 +3333,7 @@
     {
       "id": "SUB-ops",
       "sourceFile": "docs/kb/subsystems/deployment-ci-and-operations.md",
-      "dossier_sha256": "9d84a27303249838283cd8adecd3b8c6534eb57c052f23ab68f3d95b4f47a840",
+      "dossier_sha256": "b6a4b3589c5ff91b50cd1255f5c3c64586be883fc395f74f9013238acf60274a",
       "files": [
         {
           "path": ".github/ISSUE_TEMPLATE/template-de-feature.md",
@@ -3406,6 +3406,54 @@
         {
           "path": "backend/package.json",
           "content_sha256": "be14edae55730b734e045b5c5a53dc30100e239ce35ff811c56ff9eb8dc67703"
+        },
+        {
+          "path": "docs/capacity/build-monitoring-plan-2026-10-08.py",
+          "content_sha256": "d16f372ee9e1de8cd70d9718b71a3f9ad1502494ba671fd4ae7f24b383449a98"
+        },
+        {
+          "path": "docs/capacity/monitoring-cost-estimate-2026-10-08.json",
+          "content_sha256": "e754f8ce1ec1a6507daa631e5a4472bec20b8a76881976a71591876148efaeac"
+        },
+        {
+          "path": "docs/capacity/monitoring-cost-model-2026-10-08.py",
+          "content_sha256": "7ba2b917180a98faf5c9b8c421021e29bee26f20c99728b5d00cb89da134ce9d"
+        },
+        {
+          "path": "docs/capacity/monitoring-plan-evidence-2026-10-08.json",
+          "content_sha256": "a4438cd96a329185ceb40d58dc70595c031ea8b2283281b0ce1ee374349967c2"
+        },
+        {
+          "path": "docs/capacity/monitoring-plan-review-2026-10-08.json",
+          "content_sha256": "377399a068a1975717beccf3dada50516e064df464a38ec5168caf58739314b6"
+        },
+        {
+          "path": "docs/capacity/nofluxo-capacity-2026-10-07.evidence.json",
+          "content_sha256": "04cec4f2d5cb532c2048c39efdd58d9f80dea1142b941ff183e142644bdbe3e8"
+        },
+        {
+          "path": "docs/capacity/nofluxo-capacity-2026-10-07.md",
+          "content_sha256": "f43a490e593598e70e2c4d2928a607cd4046eb75b7d90cfe9abf160a747b963e"
+        },
+        {
+          "path": "docs/capacity/nofluxo-capacity-daily-estimates-2026-10-08.json",
+          "content_sha256": "460eef9d2d3790fe5847197b8cd7c3c4c90ffd9f39f411c1f8de55bd2753473c"
+        },
+        {
+          "path": "docs/capacity/plano-monitoramento-capacidade-2026-10-08.md",
+          "content_sha256": "dfe8b6822555f13e1281399f2bdb7db867d95746cd4d61398fd58147a5b659cb"
+        },
+        {
+          "path": "docs/capacity/plano-monitoramento-capacidade-2026-10-08.tex",
+          "content_sha256": "de95a8d10eedf30e1bbd20aec96840393d3428898c3510a3aee8ea6076e9e6e9"
+        },
+        {
+          "path": "docs/capacity/relatorio-capacidade-nofluxo-2026-10-07.tex",
+          "content_sha256": "ead952c9d2976dc519b01a94bb9c119f6373f0e31252cfcf474e06b52c94fff4"
+        },
+        {
+          "path": "docs/capacity/verify-monitoring-design-2026-10-08.py",
+          "content_sha256": "7cb9dca9a0fa9db43163e9a396caa53f1f7b9be4f68206b20833f2f2c0ea073b"
         },
         {
           "path": "frontend/package.json",
@@ -3568,7 +3616,7 @@
     {
       "id": "SUB-project",
       "sourceFile": "docs/kb/subsystems/project-and-documentation.md",
-      "dossier_sha256": "fdfa9a7635b75e12e0b58f29cd7466c4f8930fad36959b0ba475c56a50b4caea",
+      "dossier_sha256": "da1d2ab9d226b5c0b518f894eb290be42bdcdea0b46598495aa39a7ec9edd7ae",
       "files": [
         {
           "path": ".github/ISSUE_TEMPLATE/template-de-feature.md",
@@ -4657,6 +4705,54 @@
         {
           "path": "docs/PROJECT_DOCUMENTATION.md",
           "content_sha256": "706ac336fa9b947c279e957845dcca271e7354ff299806a8330f1fd44044568d"
+        },
+        {
+          "path": "docs/capacity/build-monitoring-plan-2026-10-08.py",
+          "content_sha256": "d16f372ee9e1de8cd70d9718b71a3f9ad1502494ba671fd4ae7f24b383449a98"
+        },
+        {
+          "path": "docs/capacity/monitoring-cost-estimate-2026-10-08.json",
+          "content_sha256": "e754f8ce1ec1a6507daa631e5a4472bec20b8a76881976a71591876148efaeac"
+        },
+        {
+          "path": "docs/capacity/monitoring-cost-model-2026-10-08.py",
+          "content_sha256": "7ba2b917180a98faf5c9b8c421021e29bee26f20c99728b5d00cb89da134ce9d"
+        },
+        {
+          "path": "docs/capacity/monitoring-plan-evidence-2026-10-08.json",
+          "content_sha256": "a4438cd96a329185ceb40d58dc70595c031ea8b2283281b0ce1ee374349967c2"
+        },
+        {
+          "path": "docs/capacity/monitoring-plan-review-2026-10-08.json",
+          "content_sha256": "377399a068a1975717beccf3dada50516e064df464a38ec5168caf58739314b6"
+        },
+        {
+          "path": "docs/capacity/nofluxo-capacity-2026-10-07.evidence.json",
+          "content_sha256": "04cec4f2d5cb532c2048c39efdd58d9f80dea1142b941ff183e142644bdbe3e8"
+        },
+        {
+          "path": "docs/capacity/nofluxo-capacity-2026-10-07.md",
+          "content_sha256": "f43a490e593598e70e2c4d2928a607cd4046eb75b7d90cfe9abf160a747b963e"
+        },
+        {
+          "path": "docs/capacity/nofluxo-capacity-daily-estimates-2026-10-08.json",
+          "content_sha256": "460eef9d2d3790fe5847197b8cd7c3c4c90ffd9f39f411c1f8de55bd2753473c"
+        },
+        {
+          "path": "docs/capacity/plano-monitoramento-capacidade-2026-10-08.md",
+          "content_sha256": "dfe8b6822555f13e1281399f2bdb7db867d95746cd4d61398fd58147a5b659cb"
+        },
+        {
+          "path": "docs/capacity/plano-monitoramento-capacidade-2026-10-08.tex",
+          "content_sha256": "de95a8d10eedf30e1bbd20aec96840393d3428898c3510a3aee8ea6076e9e6e9"
+        },
+        {
+          "path": "docs/capacity/relatorio-capacidade-nofluxo-2026-10-07.tex",
+          "content_sha256": "ead952c9d2976dc519b01a94bb9c119f6373f0e31252cfcf474e06b52c94fff4"
+        },
+        {
+          "path": "docs/capacity/verify-monitoring-design-2026-10-08.py",
+          "content_sha256": "7cb9dca9a0fa9db43163e9a396caa53f1f7b9be4f68206b20833f2f2c0ea073b"
         },
         {
           "path": "docs/chat-agente-planejador-spec.md",

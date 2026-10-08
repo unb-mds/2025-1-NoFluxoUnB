@@ -18,6 +18,7 @@ owns:
   - pnpm-workspace.yaml
   - scripts/docs-kb/**
   - docs/*.md
+  - docs/capacity/**
   - docs/investigacoes/**
   - docs/testes/**
   - documentacao/**
@@ -139,3 +140,13 @@ A branch foi atualizada para a main de origem `a667757b5c6432718840d6ee0b16939b3
 O README mantém a apresentação/GIF/assets adicionados nessa main e recebeu links KB.
 A imagem/link GitHub de Vinícius em `documentacao/index.md` acompanha a correção upstream.
 Essas referências são documentação/configuração, sem verificação de disponibilidade pública.
+
+
+## Plano de monitoramento e capacidade
+
+[Plano de 08/10](../../capacity/plano-monitoramento-capacidade-2026-10-08.md)
+é a entrada de implementação para a intenção DEC-CAP-002. Inclui LaTeX standalone,
+modelo de custo local, inventário agregado e registro de três revisões sequenciais
+pelo mesmo agente; não há alegação de revisão independente ou teste da futura
+implementação. A auditoria anterior permanece como evidência datada. Os artefatos
+em `docs/capacity/` não são documentação pública MkDocs nem mudam comportamento.

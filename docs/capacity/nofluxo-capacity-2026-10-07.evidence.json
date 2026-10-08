@@ -1,0 +1,2885 @@
+{
+  "observed_at_utc": "2026-10-08T02:41:56.598529+00:00",
+  "scope": "NoFluxo production read-only capacity inspection",
+  "source_commit": "c57fb02cc1b2ea3dd920a2566d01b66c6ef7f7a7",
+  "cluster_capacity": {
+    "success": true,
+    "nodes": [
+      {
+        "name": "cloud-control-pane",
+        "ready": true,
+        "schedulable": true,
+        "cpuAllocM": 4000,
+        "memAllocBytes": 16769056768,
+        "cpuReqM": 235,
+        "memReqBytes": 212860928,
+        "cpuUseM": 218.437846,
+        "memUseBytes": 3523551232,
+        "cpuReqPct": 6,
+        "memReqPct": 1,
+        "cpuUsePct": 5,
+        "memUsePct": 21,
+        "podCount": 7
+      },
+      {
+        "name": "non-business-node-1",
+        "ready": true,
+        "schedulable": true,
+        "cpuAllocM": 2000,
+        "memAllocBytes": 8339365888,
+        "cpuReqM": 1435,
+        "memReqBytes": 3830448128,
+        "cpuUseM": 199.356544,
+        "memUseBytes": 3909672960,
+        "cpuReqPct": 72,
+        "memReqPct": 46,
+        "cpuUsePct": 10,
+        "memUsePct": 47,
+        "podCount": 15
+      },
+      {
+        "name": "servidor-3",
+        "ready": true,
+        "schedulable": true,
+        "cpuAllocM": 4000,
+        "memAllocBytes": 16781987840,
+        "cpuReqM": 2985,
+        "memReqBytes": 4971298816,
+        "cpuUseM": 432.967008,
+        "memUseBytes": 6934278144,
+        "cpuReqPct": 75,
+        "memReqPct": 30,
+        "cpuUsePct": 11,
+        "memUsePct": 41,
+        "podCount": 37
+      },
+      {
+        "name": "servidor-4",
+        "ready": true,
+        "schedulable": true,
+        "cpuAllocM": 4000,
+        "memAllocBytes": 16781996032,
+        "cpuReqM": 2535,
+        "memReqBytes": 3501195264,
+        "cpuUseM": 255.758471,
+        "memUseBytes": 2790371328,
+        "cpuReqPct": 63,
+        "memReqPct": 21,
+        "cpuUsePct": 6,
+        "memUsePct": 17,
+        "podCount": 25
+      }
+    ],
+    "cluster": {
+      "cpuAllocM": 14000,
+      "memAllocBytes": 58672406528,
+      "cpuReqM": 7190,
+      "memReqBytes": 12515803136,
+      "cpuUseM": 1106.5198690000002,
+      "memUseBytes": 17157873664,
+      "cpuReqPct": 51,
+      "memReqPct": 21,
+      "cpuUsePct": 8,
+      "memUsePct": 29,
+      "readyNodes": 4,
+      "totalNodes": 4
+    },
+    "headroomPct": 75,
+    "level": "warn",
+    "reasons": [
+      "node servidor-3 CPU requests at 75%"
+    ],
+    "metricsAvailable": true,
+    "generatedAt": "2026-10-08T02:31:01.621Z"
+  },
+  "cluster_app_configuration": {
+    "deployments": [
+      {
+        "name": "nofluxo-backend",
+        "replicas": 1,
+        "nodeSelector": {
+          "workload-class": "non-business"
+        },
+        "affinity": null,
+        "strategy": {
+          "rollingUpdate": {
+            "maxSurge": 1,
+            "maxUnavailable": 0
+          },
+          "type": "RollingUpdate"
+        },
+        "containers": [
+          {
+            "name": "nofluxo-backend",
+            "resources": {
+              "limits": {
+                "cpu": "500m",
+                "memory": "512Mi"
+              },
+              "requests": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              }
+            },
+            "command": null,
+            "args": null,
+            "capacity_env": {}
+          }
+        ]
+      },
+      {
+        "name": "nofluxo-frontend",
+        "replicas": 1,
+        "nodeSelector": {
+          "workload-class": "non-business"
+        },
+        "affinity": null,
+        "strategy": {
+          "rollingUpdate": {
+            "maxSurge": 1,
+            "maxUnavailable": 0
+          },
+          "type": "RollingUpdate"
+        },
+        "containers": [
+          {
+            "name": "nofluxo-frontend",
+            "resources": {
+              "limits": {
+                "cpu": "500m",
+                "memory": "512Mi"
+              },
+              "requests": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              }
+            },
+            "command": null,
+            "args": null,
+            "capacity_env": {}
+          }
+        ]
+      },
+      {
+        "name": "nofluxo-mcp-agent",
+        "replicas": 1,
+        "nodeSelector": {
+          "workload-class": "non-business"
+        },
+        "affinity": null,
+        "strategy": {
+          "rollingUpdate": {
+            "maxSurge": 1,
+            "maxUnavailable": 0
+          },
+          "type": "RollingUpdate"
+        },
+        "containers": [
+          {
+            "name": "nofluxo-mcp-agent",
+            "resources": {
+              "limits": {
+                "cpu": "500m",
+                "memory": "512Mi"
+              },
+              "requests": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              }
+            },
+            "command": null,
+            "args": null,
+            "capacity_env": {}
+          }
+        ]
+      }
+    ],
+    "pods": [
+      {
+        "name": "nofluxo-backend-5854cfbc69-r9qlv",
+        "node": "non-business-node-1"
+      },
+      {
+        "name": "nofluxo-frontend-5bbfd6cc58-fbxvx",
+        "node": "non-business-node-1"
+      },
+      {
+        "name": "nofluxo-mcp-agent-5847f7479-bv6zp",
+        "node": "non-business-node-1"
+      }
+    ],
+    "nodes": [
+      {
+        "name": "cloud-control-pane",
+        "labels": {
+          "node-role.kubernetes.io/control-plane": "true",
+          "node-role.kubernetes.io/master": "true"
+        },
+        "conditions": [
+          {
+            "type": "MemoryPressure",
+            "status": "False"
+          },
+          {
+            "type": "DiskPressure",
+            "status": "False"
+          },
+          {
+            "type": "PIDPressure",
+            "status": "False"
+          },
+          {
+            "type": "Ready",
+            "status": "True"
+          }
+        ]
+      },
+      {
+        "name": "non-business-node-1",
+        "labels": {
+          "workload-class": "non-business"
+        },
+        "conditions": [
+          {
+            "type": "MemoryPressure",
+            "status": "False"
+          },
+          {
+            "type": "DiskPressure",
+            "status": "False"
+          },
+          {
+            "type": "PIDPressure",
+            "status": "False"
+          },
+          {
+            "type": "Ready",
+            "status": "True"
+          }
+        ]
+      },
+      {
+        "name": "servidor-3",
+        "labels": {
+          "role": "monitoring",
+          "workload-class": "business"
+        },
+        "conditions": [
+          {
+            "type": "MemoryPressure",
+            "status": "False"
+          },
+          {
+            "type": "DiskPressure",
+            "status": "False"
+          },
+          {
+            "type": "PIDPressure",
+            "status": "False"
+          },
+          {
+            "type": "Ready",
+            "status": "True"
+          }
+        ]
+      },
+      {
+        "name": "servidor-4",
+        "labels": {},
+        "conditions": [
+          {
+            "type": "MemoryPressure",
+            "status": "False"
+          },
+          {
+            "type": "DiskPressure",
+            "status": "False"
+          },
+          {
+            "type": "PIDPressure",
+            "status": "False"
+          },
+          {
+            "type": "Ready",
+            "status": "True"
+          }
+        ]
+      }
+    ],
+    "hpa": []
+  },
+  "app_resource_history": {
+    "nofluxo-backend": {
+      "range": {
+        "from": 1790821861,
+        "to": 1791426661,
+        "step": "5m"
+      },
+      "summary_per_pod": {
+        "pods": 37,
+        "cpuCoresAvg": 0.0007345828122282172,
+        "cpuCoresMax": 0.011024688148301084,
+        "memBytesAvg": 68306713.29644269,
+        "memBytesMax": 74108928,
+        "restartsInWindow": 0,
+        "crashes": []
+      },
+      "aggregate": {
+        "cpu": {
+          "samples": 2017,
+          "mean": 0.0007473296632088732,
+          "p95": 0.0019142844834704861,
+          "max": 0.05077136662267512
+        },
+        "memory": {
+          "samples": 2017,
+          "mean": 68543771.79573624,
+          "p95": 72232960.0,
+          "max": 143323136.0
+        }
+      }
+    },
+    "nofluxo-frontend": {
+      "range": {
+        "from": 1790821862,
+        "to": 1791426662,
+        "step": "5m"
+      },
+      "summary_per_pod": {
+        "pods": 8,
+        "cpuCoresAvg": 9.36634228344164e-05,
+        "cpuCoresMax": 0.0007471215248732272,
+        "memBytesAvg": 3548066.0783341597,
+        "memBytesMax": 3825664,
+        "restartsInWindow": 0,
+        "crashes": []
+      },
+      "aggregate": {
+        "cpu": {
+          "samples": 2017,
+          "mean": 9.39420448160753e-05,
+          "p95": 0.00024175820275760228,
+          "max": 0.0007761182959262172
+        },
+        "memory": {
+          "samples": 2017,
+          "mean": 3548066.0783341597,
+          "p95": 3588096.0,
+          "max": 3825664.0
+        }
+      }
+    },
+    "nofluxo-mcp-agent": {
+      "range": {
+        "from": 1790821863,
+        "to": 1791426663,
+        "step": "5m"
+      },
+      "summary_per_pod": {
+        "pods": 7,
+        "cpuCoresAvg": 0.005327512348228845,
+        "cpuCoresMax": 0.023512841046368513,
+        "memBytesAvg": 228071851.47050074,
+        "memBytesMax": 240570368,
+        "restartsInWindow": 0,
+        "crashes": []
+      },
+      "aggregate": {
+        "cpu": {
+          "samples": 2017,
+          "mean": 0.005343360178714408,
+          "p95": 0.006100562431238318,
+          "max": 0.025989859324318028
+        },
+        "memory": {
+          "samples": 2017,
+          "mean": 228071851.47050074,
+          "p95": 231071744.0,
+          "max": 240570368.0
+        }
+      }
+    }
+  },
+  "node_metric_summaries": {
+    "node_info": [
+      {
+        "labels": {
+          "pod": "prometheus-prometheus-node-exporter-mchkn",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "non-business-node-1"
+        },
+        "value": 1.0,
+        "timestamp": 1791426949.805
+      },
+      {
+        "labels": {
+          "pod": "prometheus-prometheus-node-exporter-cqtd7",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "servidor-4"
+        },
+        "value": 1.0,
+        "timestamp": 1791426949.805
+      },
+      {
+        "labels": {
+          "pod": "prometheus-prometheus-node-exporter-nn5pz",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "cloud-control-pane"
+        },
+        "value": 1.0,
+        "timestamp": 1791426949.805
+      },
+      {
+        "labels": {
+          "pod": "prometheus-prometheus-node-exporter-h7qjn",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "servidor-3"
+        },
+        "value": 1.0,
+        "timestamp": 1791426949.805
+      }
+    ],
+    "disk_free": [
+      {
+        "labels": {
+          "device": "/dev/sda",
+          "mountpoint": "/",
+          "pod": "prometheus-prometheus-node-exporter-mchkn",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "non-business-node-1"
+        },
+        "value": 75818106880.0,
+        "timestamp": 1791426949.976
+      },
+      {
+        "labels": {
+          "device": "/dev/sda",
+          "mountpoint": "/",
+          "pod": "prometheus-prometheus-node-exporter-cqtd7",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "servidor-4"
+        },
+        "value": 170379475968.0,
+        "timestamp": 1791426949.976
+      },
+      {
+        "labels": {
+          "device": "/dev/sda1",
+          "mountpoint": "/",
+          "pod": "prometheus-prometheus-node-exporter-nn5pz",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "cloud-control-pane"
+        },
+        "value": 191869825024.0,
+        "timestamp": 1791426949.976
+      },
+      {
+        "labels": {
+          "device": "/dev/sda",
+          "mountpoint": "/",
+          "pod": "prometheus-prometheus-node-exporter-h7qjn",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "servidor-3"
+        },
+        "value": 67054625792.0,
+        "timestamp": 1791426949.976
+      }
+    ],
+    "disk_size": [
+      {
+        "labels": {
+          "device": "/dev/sda",
+          "mountpoint": "/",
+          "pod": "prometheus-prometheus-node-exporter-mchkn",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "non-business-node-1"
+        },
+        "value": 100810928128.0,
+        "timestamp": 1791426950.161
+      },
+      {
+        "labels": {
+          "device": "/dev/sda",
+          "mountpoint": "/",
+          "pod": "prometheus-prometheus-node-exporter-cqtd7",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "servidor-4"
+        },
+        "value": 201630278656.0,
+        "timestamp": 1791426950.161
+      },
+      {
+        "labels": {
+          "device": "/dev/sda1",
+          "mountpoint": "/",
+          "pod": "prometheus-prometheus-node-exporter-nn5pz",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "cloud-control-pane"
+        },
+        "value": 206900281344.0,
+        "timestamp": 1791426950.161
+      },
+      {
+        "labels": {
+          "device": "/dev/sda",
+          "mountpoint": "/",
+          "pod": "prometheus-prometheus-node-exporter-h7qjn",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "servidor-3"
+        },
+        "value": 201630278656.0,
+        "timestamp": 1791426950.161
+      }
+    ],
+    "node_cpu_history": [
+      {
+        "labels": {
+          "node": "cloud-control-pane"
+        },
+        "distribution": {
+          "samples": 2017,
+          "mean": 14.250952598674916,
+          "p95": 22.44259259284094,
+          "max": 59.81577188532556
+        },
+        "first_timestamp": 1790822150.172,
+        "last_timestamp": 1791426950.172
+      },
+      {
+        "labels": {
+          "node": "non-business-node-1"
+        },
+        "distribution": {
+          "samples": 1564,
+          "mean": 14.433748136096401,
+          "p95": 18.190740740478596,
+          "max": 58.16296296297676
+        },
+        "first_timestamp": 1790958050.172,
+        "last_timestamp": 1791426950.172
+      },
+      {
+        "labels": {
+          "node": "servidor-3"
+        },
+        "distribution": {
+          "samples": 2017,
+          "mean": 18.885054026119782,
+          "p95": 24.96944444461,
+          "max": 62.240077714945926
+        },
+        "first_timestamp": 1790822150.172,
+        "last_timestamp": 1791426950.172
+      },
+      {
+        "labels": {
+          "node": "servidor-4"
+        },
+        "distribution": {
+          "samples": 1564,
+          "mean": 12.170962177799046,
+          "p95": 15.27129629629026,
+          "max": 31.503876791665984
+        },
+        "first_timestamp": 1790958050.172,
+        "last_timestamp": 1791426950.172
+      }
+    ],
+    "node_memory_history": [
+      {
+        "labels": {
+          "pod": "prometheus-prometheus-node-exporter-nn5pz",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "cloud-control-pane"
+        },
+        "distribution": {
+          "samples": 1564,
+          "mean": 24.989514821014122,
+          "p95": 26.755443565327674,
+          "max": 33.70484376190765
+        },
+        "first_timestamp": 1790958050.567,
+        "last_timestamp": 1791426950.567
+      },
+      {
+        "labels": {
+          "pod": "prometheus-prometheus-node-exporter-tnxqs",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "cloud-control-pane"
+        },
+        "distribution": {
+          "samples": 453,
+          "mean": 24.92520561024256,
+          "p95": 28.90184875066194,
+          "max": 31.265889074960285
+        },
+        "first_timestamp": 1790822150.567,
+        "last_timestamp": 1790957750.567
+      },
+      {
+        "labels": {
+          "pod": "prometheus-prometheus-node-exporter-mchkn",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "non-business-node-1"
+        },
+        "distribution": {
+          "samples": 1564,
+          "mean": 25.376266162579366,
+          "p95": 31.80545172884972,
+          "max": 43.817909623777865
+        },
+        "first_timestamp": 1790958050.567,
+        "last_timestamp": 1791426950.567
+      },
+      {
+        "labels": {
+          "pod": "prometheus-prometheus-node-exporter-csngp",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "servidor-3"
+        },
+        "distribution": {
+          "samples": 453,
+          "mean": 37.49309384226156,
+          "p95": 41.05480252808954,
+          "max": 44.95430376858145
+        },
+        "first_timestamp": 1790822150.567,
+        "last_timestamp": 1790957750.567
+      },
+      {
+        "labels": {
+          "pod": "prometheus-prometheus-node-exporter-h7qjn",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "servidor-3"
+        },
+        "distribution": {
+          "samples": 1564,
+          "mean": 35.861177829022395,
+          "p95": 37.20645861223554,
+          "max": 42.55640180466249
+        },
+        "first_timestamp": 1790958050.567,
+        "last_timestamp": 1791426950.567
+      },
+      {
+        "labels": {
+          "pod": "prometheus-prometheus-node-exporter-cqtd7",
+          "service": "prometheus-prometheus-node-exporter",
+          "node": "servidor-4"
+        },
+        "distribution": {
+          "samples": 1564,
+          "mean": 17.033175924815325,
+          "p95": 17.27823151948651,
+          "max": 23.211746067465644
+        },
+        "first_timestamp": 1790958050.567,
+        "last_timestamp": 1791426950.567
+      }
+    ],
+    "node_network_out_history": [
+      {
+        "labels": {
+          "node": "cloud-control-pane"
+        },
+        "distribution": {
+          "samples": 2017,
+          "mean": 144275.2003091335,
+          "p95": 254326.26666666666,
+          "max": 5820230.22962963
+        },
+        "first_timestamp": 1790822150.82,
+        "last_timestamp": 1791426950.82
+      },
+      {
+        "labels": {
+          "node": "non-business-node-1"
+        },
+        "distribution": {
+          "samples": 1564,
+          "mean": 28678.648982166695,
+          "p95": 45837.18518518519,
+          "max": 206631.7037037037
+        },
+        "first_timestamp": 1790958050.82,
+        "last_timestamp": 1791426950.82
+      },
+      {
+        "labels": {
+          "node": "servidor-3"
+        },
+        "distribution": {
+          "samples": 2017,
+          "mean": 32396.06499255195,
+          "p95": 43475.700000000004,
+          "max": 2900414.813827127
+        },
+        "first_timestamp": 1790822150.82,
+        "last_timestamp": 1791426950.82
+      },
+      {
+        "labels": {
+          "node": "servidor-4"
+        },
+        "distribution": {
+          "samples": 1564,
+          "mean": 33158.86038714917,
+          "p95": 57605.03703703704,
+          "max": 284462.1882974272
+        },
+        "first_timestamp": 1790958050.82,
+        "last_timestamp": 1791426950.82
+      }
+    ],
+    "app_cpu_throttled": [
+      {
+        "labels": {
+          "pod": "nofluxo-backend-556b5d4c8d-pbc66",
+          "node": null
+        },
+        "distribution": {
+          "samples": 2,
+          "mean": 0.35000000000000003,
+          "p95": 0.0,
+          "max": 0.7000000000000001
+        },
+        "first_timestamp": 1791305751.07,
+        "last_timestamp": 1791306051.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-5648ff8cbf-2ccvp",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.7,
+          "p95": 0.7,
+          "max": 0.7
+        },
+        "first_timestamp": 1791305451.07,
+        "last_timestamp": 1791305451.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-579b65b77b-lrt6r",
+          "node": null
+        },
+        "distribution": {
+          "samples": 12,
+          "mean": 0.01320747908916376,
+          "p95": 0.010416666666666666,
+          "max": 0.12550607287449392
+        },
+        "first_timestamp": 1791309651.07,
+        "last_timestamp": 1791312951.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-57b4474c68-vhj27",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.28378378378378377,
+          "p95": 0.28378378378378377,
+          "max": 0.28378378378378377
+        },
+        "first_timestamp": 1791306351.07,
+        "last_timestamp": 1791306351.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-5854cfbc69-r9qlv",
+          "node": null
+        },
+        "distribution": {
+          "samples": 121,
+          "mean": 0.003760627153570786,
+          "p95": 0.023622047244094488,
+          "max": 0.14285714285714285
+        },
+        "first_timestamp": 1791390951.07,
+        "last_timestamp": 1791426951.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-594dccf484-bnmtr",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.21428571428571427,
+          "p95": 0.21428571428571427,
+          "max": 0.21428571428571427
+        },
+        "first_timestamp": 1791305751.07,
+        "last_timestamp": 1791305751.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-656c7b498f-z7n8d",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.3137254901960784,
+          "p95": 0.3137254901960784,
+          "max": 0.3137254901960784
+        },
+        "first_timestamp": 1791305751.07,
+        "last_timestamp": 1791305751.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-6758d596c9-mhvcj",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.30120481927710846,
+          "p95": 0.30120481927710846,
+          "max": 0.30120481927710846
+        },
+        "first_timestamp": 1791305151.07,
+        "last_timestamp": 1791305151.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-6858bd9df9-8hn8p",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.75,
+          "p95": 0.75,
+          "max": 0.75
+        },
+        "first_timestamp": 1791305451.07,
+        "last_timestamp": 1791305451.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-68f54f6988-gsnfr",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.29545454545454547,
+          "p95": 0.29545454545454547,
+          "max": 0.29545454545454547
+        },
+        "first_timestamp": 1791306351.07,
+        "last_timestamp": 1791306351.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-6bff67b68c-p65bk",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.23881728582259287,
+          "p95": 0.23881728582259287,
+          "max": 0.23881728582259287
+        },
+        "first_timestamp": 1791305151.07,
+        "last_timestamp": 1791305151.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-6c4bfc9969-xqsnx",
+          "node": null
+        },
+        "distribution": {
+          "samples": 12,
+          "mean": 0.02006443967588835,
+          "p95": 0.0,
+          "max": 0.24077327611066018
+        },
+        "first_timestamp": 1791312951.07,
+        "last_timestamp": 1791316251.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-6d9586bcfd-qdcwr",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.76,
+          "p95": 0.76,
+          "max": 0.76
+        },
+        "first_timestamp": 1791305751.07,
+        "last_timestamp": 1791305751.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-758cf58d4-r8nhj",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.7857142857142857,
+          "p95": 0.7857142857142857,
+          "max": 0.7857142857142857
+        },
+        "first_timestamp": 1791305751.07,
+        "last_timestamp": 1791305751.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-75bd975fb7-5jtxt",
+          "node": null
+        },
+        "distribution": {
+          "samples": 3,
+          "mean": 0.24350358422939067,
+          "p95": 0.020833333333333332,
+          "max": 0.7096774193548386
+        },
+        "first_timestamp": 1791305151.07,
+        "last_timestamp": 1791305751.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-75cdc55886-q64lz",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.484375,
+          "p95": 0.484375,
+          "max": 0.484375
+        },
+        "first_timestamp": 1791305151.07,
+        "last_timestamp": 1791305151.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-75d4fc987-wt6qt",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.31746031746031744,
+          "p95": 0.31746031746031744,
+          "max": 0.31746031746031744
+        },
+        "first_timestamp": 1791305751.07,
+        "last_timestamp": 1791305751.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-75d8c5b4c6-t5djc",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.2191780821917808,
+          "p95": 0.2191780821917808,
+          "max": 0.2191780821917808
+        },
+        "first_timestamp": 1791305151.07,
+        "last_timestamp": 1791305151.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-768bc7b49c-vgrfb",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.625,
+          "p95": 0.625,
+          "max": 0.625
+        },
+        "first_timestamp": 1791306051.07,
+        "last_timestamp": 1791306051.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-77477cd6c6-bclwb",
+          "node": null
+        },
+        "distribution": {
+          "samples": 2,
+          "mean": 0.18571428571428572,
+          "p95": 0.0,
+          "max": 0.37142857142857144
+        },
+        "first_timestamp": 1791305151.07,
+        "last_timestamp": 1791305451.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-776666fb4c-4vnnj",
+          "node": null
+        },
+        "distribution": {
+          "samples": 243,
+          "mean": 0.003616111130528108,
+          "p95": 0.024,
+          "max": 0.17857142857142858
+        },
+        "first_timestamp": 1791316251.07,
+        "last_timestamp": 1791388851.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-78ccbb5f5d-78k4m",
+          "node": null
+        },
+        "distribution": {
+          "samples": 2,
+          "mean": 0.16964285714285712,
+          "p95": 0.0,
+          "max": 0.33928571428571425
+        },
+        "first_timestamp": 1791305751.07,
+        "last_timestamp": 1791306051.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-799c647545-kfpbn",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.2618069815195072,
+          "p95": 0.2618069815195072,
+          "max": 0.2618069815195072
+        },
+        "first_timestamp": 1791306051.07,
+        "last_timestamp": 1791306051.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-7b7749f7f7-2gzk4",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.2264840182648402,
+          "p95": 0.2264840182648402,
+          "max": 0.2264840182648402
+        },
+        "first_timestamp": 1791305751.07,
+        "last_timestamp": 1791305751.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-7bd7d5f48f-cddfl",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.84,
+          "p95": 0.84,
+          "max": 0.84
+        },
+        "first_timestamp": 1791305451.07,
+        "last_timestamp": 1791305451.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-7d45884b8c-sfkj6",
+          "node": null
+        },
+        "distribution": {
+          "samples": 8,
+          "mean": 0.0029516061743846476,
+          "p95": 0.0058823529411764705,
+          "max": 0.01773049645390071
+        },
+        "first_timestamp": 1791388851.07,
+        "last_timestamp": 1791390951.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-7d98f4c47-t6c7g",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1611,
+          "mean": 0.00275865434355957,
+          "p95": 0.025210084033613443,
+          "max": 0.06716417910447761
+        },
+        "first_timestamp": 1790822151.07,
+        "last_timestamp": 1791305151.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-7fdb6f88b8-tzms8",
+          "node": null
+        },
+        "distribution": {
+          "samples": 2,
+          "mean": 0.21,
+          "p95": 0.0,
+          "max": 0.42
+        },
+        "first_timestamp": 1791306051.07,
+        "last_timestamp": 1791306351.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-8467648698-f7xhp",
+          "node": null
+        },
+        "distribution": {
+          "samples": 12,
+          "mean": 0.02585829203476262,
+          "p95": 0.012820512820512822,
+          "max": 0.2857142857142857
+        },
+        "first_timestamp": 1791306351.07,
+        "last_timestamp": 1791309651.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-8478f7bc9c-wxfg6",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.22549019607843135,
+          "p95": 0.22549019607843135,
+          "max": 0.22549019607843135
+        },
+        "first_timestamp": 1791305151.07,
+        "last_timestamp": 1791305151.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-85fdbcbbd5-g44bz",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.6538461538461539,
+          "p95": 0.6538461538461539,
+          "max": 0.6538461538461539
+        },
+        "first_timestamp": 1791305151.07,
+        "last_timestamp": 1791305151.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-867f8fd5cb-f89vg",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.37037037037037035,
+          "p95": 0.37037037037037035,
+          "max": 0.37037037037037035
+        },
+        "first_timestamp": 1791306051.07,
+        "last_timestamp": 1791306051.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-f8877645b-5vbqt",
+          "node": null
+        },
+        "distribution": {
+          "samples": 2,
+          "mean": 0.05223880597014926,
+          "p95": 0.0,
+          "max": 0.10447761194029852
+        },
+        "first_timestamp": 1791306051.07,
+        "last_timestamp": 1791306351.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-backend-fcd668955-wdw55",
+          "node": null
+        },
+        "distribution": {
+          "samples": 2,
+          "mean": 0.112,
+          "p95": 0.0,
+          "max": 0.224
+        },
+        "first_timestamp": 1791306051.07,
+        "last_timestamp": 1791306351.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-frontend-5697ffb97d-kpvvw",
+          "node": null
+        },
+        "distribution": {
+          "samples": 5,
+          "mean": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "first_timestamp": 1791305151.07,
+        "last_timestamp": 1791306351.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-frontend-5857cd6647-5qd9d",
+          "node": null
+        },
+        "distribution": {
+          "samples": 243,
+          "mean": 2.2866642244803754e-05,
+          "p95": 0.0,
+          "max": 0.005556594065487312
+        },
+        "first_timestamp": 1791316251.07,
+        "last_timestamp": 1791388851.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-frontend-5bbfd6cc58-fbxvx",
+          "node": null
+        },
+        "distribution": {
+          "samples": 121,
+          "mean": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "first_timestamp": 1791390951.07,
+        "last_timestamp": 1791426951.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-frontend-5fb4f7fd4f-kvzdm",
+          "node": null
+        },
+        "distribution": {
+          "samples": 12,
+          "mean": 0.0034722222222222225,
+          "p95": 0.0,
+          "max": 0.04166666666666667
+        },
+        "first_timestamp": 1791312951.07,
+        "last_timestamp": 1791316251.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-frontend-655c56c78b-kpm8p",
+          "node": null
+        },
+        "distribution": {
+          "samples": 23,
+          "mean": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "first_timestamp": 1791306351.07,
+        "last_timestamp": 1791312951.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-frontend-67df46886-96hj5",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1,
+          "mean": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "first_timestamp": 1791305151.07,
+        "last_timestamp": 1791305151.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-frontend-868f8648cb-hjxtr",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1611,
+          "mean": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "first_timestamp": 1790822151.07,
+        "last_timestamp": 1791305151.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-frontend-c8cbd5544-g68rg",
+          "node": null
+        },
+        "distribution": {
+          "samples": 8,
+          "mean": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "first_timestamp": 1791388851.07,
+        "last_timestamp": 1791390951.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-mcp-agent-5459cbcf8b-hqqz4",
+          "node": null
+        },
+        "distribution": {
+          "samples": 12,
+          "mean": 0.015374736254769596,
+          "p95": 0.0,
+          "max": 0.18449683505723516
+        },
+        "first_timestamp": 1791312951.07,
+        "last_timestamp": 1791316251.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-mcp-agent-5847f7479-bv6zp",
+          "node": null
+        },
+        "distribution": {
+          "samples": 121,
+          "mean": 0.0008221641759088769,
+          "p95": 0.0,
+          "max": 0.0994818652849741
+        },
+        "first_timestamp": 1791390951.07,
+        "last_timestamp": 1791426951.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-mcp-agent-59ddd98bc9-fmpzg",
+          "node": null
+        },
+        "distribution": {
+          "samples": 5,
+          "mean": 0.02550335570469799,
+          "p95": 0.0,
+          "max": 0.12751677852348994
+        },
+        "first_timestamp": 1791305151.07,
+        "last_timestamp": 1791306351.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-mcp-agent-6fc975f7d-ls8n7",
+          "node": null
+        },
+        "distribution": {
+          "samples": 1611,
+          "mean": 2.9390741681244474e-07,
+          "p95": 0.0,
+          "max": 0.0004734848484848485
+        },
+        "first_timestamp": 1790822151.07,
+        "last_timestamp": 1791305151.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-mcp-agent-85d8c8f478-68tdf",
+          "node": null
+        },
+        "distribution": {
+          "samples": 23,
+          "mean": 0.004078303425774878,
+          "p95": 0.0,
+          "max": 0.09380097879282219
+        },
+        "first_timestamp": 1791306351.07,
+        "last_timestamp": 1791312951.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-mcp-agent-867d896bbc-lml2x",
+          "node": null
+        },
+        "distribution": {
+          "samples": 8,
+          "mean": 0.008101101749837978,
+          "p95": 0.0,
+          "max": 0.06480881399870382
+        },
+        "first_timestamp": 1791388851.07,
+        "last_timestamp": 1791390951.07
+      },
+      {
+        "labels": {
+          "pod": "nofluxo-mcp-agent-c86c75dc7-gktcz",
+          "node": null
+        },
+        "distribution": {
+          "samples": 243,
+          "mean": 0.0005421905582936179,
+          "p95": 0.0,
+          "max": 0.13175230566534915
+        },
+        "first_timestamp": 1791316251.07,
+        "last_timestamp": 1791388851.07
+      }
+    ],
+    "ingress_requests": [],
+    "ingress_errors": [],
+    "ingress_p95": []
+  },
+  "public_health": {
+    "frontend": {
+      "status": 200,
+      "body": {
+        "status": "ok",
+        "commit": "c57fb02cc1b2ea3dd920a2566d01b66c6ef7f7a7"
+      }
+    },
+    "backend": {
+      "status": 200,
+      "body": {
+        "status": "healthy",
+        "timestamp": "2026-10-08T02:40:55.300Z",
+        "commit": "c57fb02cc1b2ea3dd920a2566d01b66c6ef7f7a7"
+      }
+    },
+    "mcp-agent": {
+      "status": 200,
+      "body": {
+        "status": "healthy",
+        "service": "Darcy AI",
+        "version": "2.0",
+        "commit": "c57fb02cc1b2ea3dd920a2566d01b66c6ef7f7a7"
+      }
+    }
+  },
+  "supabase": {
+    "project": {
+      "id": "lijmhbstgdinsukovyfl",
+      "ref": "lijmhbstgdinsukovyfl",
+      "organization_id": "tsehgbtrprixheaseooq",
+      "organization_slug": "tsehgbtrprixheaseooq",
+      "name": "NoFluxo",
+      "region": "sa-east-1",
+      "created_at": "2025-05-21T14:56:13.334598Z",
+      "status": "ACTIVE_HEALTHY",
+      "database": {
+        "host": "db.lijmhbstgdinsukovyfl.supabase.co",
+        "version": "15.8.1.100",
+        "postgres_engine": "15",
+        "release_channel": "ga"
+      }
+    },
+    "database": {
+      "db_stats": [
+        {
+          "datname": "postgres",
+          "numbackends": 17,
+          "xact_commit": 4085691,
+          "xact_rollback": 2549,
+          "blks_read": 63667,
+          "blks_hit": 937267031,
+          "temp_bytes": 57640182170,
+          "deadlocks": 0,
+          "stats_reset": null
+        }
+      ],
+      "ai_daily": [
+        {
+          "day": "2026-09-08",
+          "model_calls": 1,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost": "0.0000",
+          "missing_price_calls": 1
+        },
+        {
+          "day": "2026-09-09",
+          "model_calls": 15,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 2,
+          "output_tokens": 0,
+          "estimated_cost": "0.0000",
+          "missing_price_calls": 14
+        },
+        {
+          "day": "2026-09-10",
+          "model_calls": 19,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost": "0.0000",
+          "missing_price_calls": 19
+        },
+        {
+          "day": "2026-09-11",
+          "model_calls": 8,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost": "0.0000",
+          "missing_price_calls": 8
+        },
+        {
+          "day": "2026-09-12",
+          "model_calls": 22,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 6,
+          "output_tokens": 0,
+          "estimated_cost": "0.0000",
+          "missing_price_calls": 21
+        },
+        {
+          "day": "2026-09-13",
+          "model_calls": 4,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 30,
+          "output_tokens": 0,
+          "estimated_cost": "0.0000",
+          "missing_price_calls": 1
+        },
+        {
+          "day": "2026-09-14",
+          "model_calls": 9,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost": "0.0000",
+          "missing_price_calls": 9
+        },
+        {
+          "day": "2026-09-15",
+          "model_calls": 33,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost": "0.0000",
+          "missing_price_calls": 33
+        },
+        {
+          "day": "2026-09-17",
+          "model_calls": 7,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost": "0.0000",
+          "missing_price_calls": 7
+        },
+        {
+          "day": "2026-09-18",
+          "model_calls": 3,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 2,
+          "output_tokens": 0,
+          "estimated_cost": "0.0000",
+          "missing_price_calls": 2
+        },
+        {
+          "day": "2026-09-19",
+          "model_calls": 8,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 28,
+          "output_tokens": 0,
+          "estimated_cost": "0.0000",
+          "missing_price_calls": 2
+        },
+        {
+          "day": "2026-09-20",
+          "model_calls": 3,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 2,
+          "output_tokens": 0,
+          "estimated_cost": "0.0000",
+          "missing_price_calls": 2
+        },
+        {
+          "day": "2026-09-21",
+          "model_calls": 10,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost": "0.0000",
+          "missing_price_calls": 10
+        },
+        {
+          "day": "2026-09-22",
+          "model_calls": 33,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 83868,
+          "output_tokens": 3183,
+          "estimated_cost": "0.4827",
+          "missing_price_calls": 1
+        },
+        {
+          "day": "2026-09-23",
+          "model_calls": 69,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 335818,
+          "output_tokens": 14002,
+          "estimated_cost": "1.7630",
+          "missing_price_calls": 1
+        },
+        {
+          "day": "2026-09-24",
+          "model_calls": 83,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 369036,
+          "output_tokens": 10339,
+          "estimated_cost": "2.0178",
+          "missing_price_calls": 6
+        },
+        {
+          "day": "2026-09-25",
+          "model_calls": 94,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 396219,
+          "output_tokens": 17930,
+          "estimated_cost": "2.1412",
+          "missing_price_calls": 2
+        },
+        {
+          "day": "2026-09-26",
+          "model_calls": 8,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 28906,
+          "output_tokens": 884,
+          "estimated_cost": "0.1622",
+          "missing_price_calls": 0
+        },
+        {
+          "day": "2026-09-27",
+          "model_calls": 5,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 16297,
+          "output_tokens": 335,
+          "estimated_cost": "0.0882",
+          "missing_price_calls": 1
+        },
+        {
+          "day": "2026-09-28",
+          "model_calls": 138,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 534322,
+          "output_tokens": 20267,
+          "estimated_cost": "2.9533",
+          "missing_price_calls": 12
+        },
+        {
+          "day": "2026-09-29",
+          "model_calls": 89,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 365912,
+          "output_tokens": 15150,
+          "estimated_cost": "2.1320",
+          "missing_price_calls": 1
+        },
+        {
+          "day": "2026-09-30",
+          "model_calls": 94,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 319022,
+          "output_tokens": 9639,
+          "estimated_cost": "1.7871",
+          "missing_price_calls": 12
+        },
+        {
+          "day": "2026-10-01",
+          "model_calls": 118,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 449851,
+          "output_tokens": 13880,
+          "estimated_cost": "2.4155",
+          "missing_price_calls": 6
+        },
+        {
+          "day": "2026-10-02",
+          "model_calls": 349,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 1404363,
+          "output_tokens": 47842,
+          "estimated_cost": "7.7109",
+          "missing_price_calls": 7
+        },
+        {
+          "day": "2026-10-03",
+          "model_calls": 24,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 73670,
+          "output_tokens": 2746,
+          "estimated_cost": "0.4031",
+          "missing_price_calls": 0
+        },
+        {
+          "day": "2026-10-04",
+          "model_calls": 13,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 19862,
+          "output_tokens": 326,
+          "estimated_cost": "0.1058",
+          "missing_price_calls": 8
+        },
+        {
+          "day": "2026-10-05",
+          "model_calls": 49,
+          "failed_calls": 0,
+          "users": 0,
+          "linked_questions": 0,
+          "input_tokens": 185192,
+          "output_tokens": 4609,
+          "estimated_cost": "1.0181",
+          "missing_price_calls": 5
+        },
+        {
+          "day": "2026-10-06",
+          "model_calls": 124,
+          "failed_calls": 0,
+          "users": 4,
+          "linked_questions": 6,
+          "input_tokens": 399112,
+          "output_tokens": 15525,
+          "estimated_cost": "2.2497",
+          "missing_price_calls": 6
+        },
+        {
+          "day": "2026-10-07",
+          "model_calls": 151,
+          "failed_calls": 1,
+          "users": 11,
+          "linked_questions": 74,
+          "input_tokens": 662693,
+          "output_tokens": 23788,
+          "estimated_cost": "3.7294",
+          "missing_price_calls": 0
+        }
+      ],
+      "query_classes": [
+        {
+          "queryid": "-7033369668899090933",
+          "calls": 2246,
+          "mean_exec_time": 1263.70047601247,
+          "max_exec_time": 3531.661934,
+          "temp_blks_written": 0,
+          "category": "database metadata and monitoring"
+        },
+        {
+          "queryid": "-7033369668899090933",
+          "calls": 1625,
+          "mean_exec_time": 1141.93856812123,
+          "max_exec_time": 2948.964627,
+          "temp_blks_written": 0,
+          "category": "database metadata and monitoring"
+        },
+        {
+          "queryid": "142758739982276428",
+          "calls": 9687,
+          "mean_exec_time": 120.65158976071,
+          "max_exec_time": 1196.279232,
+          "temp_blks_written": 0,
+          "category": "database metadata and monitoring"
+        },
+        {
+          "queryid": "7234033251009860468",
+          "calls": 319635,
+          "mean_exec_time": 3.01382185759693,
+          "max_exec_time": 252.730431,
+          "temp_blks_written": 0,
+          "category": "notifications"
+        },
+        {
+          "queryid": "-5334260877125280277",
+          "calls": 1540,
+          "mean_exec_time": 563.01188187987,
+          "max_exec_time": 4671.113856,
+          "temp_blks_written": 0,
+          "category": "vector search"
+        },
+        {
+          "queryid": "-1960544023285023754",
+          "calls": 9685,
+          "mean_exec_time": 56.3021366713475,
+          "max_exec_time": 483.751716,
+          "temp_blks_written": 0,
+          "category": "database metadata and monitoring"
+        },
+        {
+          "queryid": "-7637295745363784673",
+          "calls": 1302,
+          "mean_exec_time": 339.904501855606,
+          "max_exec_time": 1693.915513,
+          "temp_blks_written": 0,
+          "category": "casar_disciplinas"
+        },
+        {
+          "queryid": "-1514572188160021563",
+          "calls": 9744,
+          "mean_exec_time": 37.3043037227013,
+          "max_exec_time": 329.873807,
+          "temp_blks_written": 0,
+          "category": "database metadata and monitoring"
+        },
+        {
+          "queryid": "-3060415072776311130",
+          "calls": 3129,
+          "mean_exec_time": 110.009423305209,
+          "max_exec_time": 2350.816426,
+          "temp_blks_written": 0,
+          "category": "database metadata and monitoring"
+        },
+        {
+          "queryid": "142758739982276428",
+          "calls": 2653,
+          "mean_exec_time": 127.762297203543,
+          "max_exec_time": 915.738246,
+          "temp_blks_written": 0,
+          "category": "database metadata and monitoring"
+        },
+        {
+          "queryid": "6498852321621804053",
+          "calls": 749,
+          "mean_exec_time": 435.586518981308,
+          "max_exec_time": 2191.334891,
+          "temp_blks_written": 338674,
+          "category": "database metadata and monitoring"
+        },
+        {
+          "queryid": "3079702372216665742",
+          "calls": 24,
+          "mean_exec_time": 13278.0200388333,
+          "max_exec_time": 15396.364722,
+          "temp_blks_written": 569812,
+          "category": "other"
+        },
+        {
+          "queryid": "-4456617851907564436",
+          "calls": 18722,
+          "mean_exec_time": 15.9220540807071,
+          "max_exec_time": 301.734064,
+          "temp_blks_written": 0,
+          "category": "database metadata and monitoring"
+        },
+        {
+          "queryid": "4660203605029046001",
+          "calls": 74594,
+          "mean_exec_time": 3.76222010309139,
+          "max_exec_time": 266.11081,
+          "temp_blks_written": 0,
+          "category": "database metadata and monitoring"
+        },
+        {
+          "queryid": "-1050646188002857088",
+          "calls": 55274,
+          "mean_exec_time": 4.52267819479327,
+          "max_exec_time": 1522.820304,
+          "temp_blks_written": 0,
+          "category": "other"
+        },
+        {
+          "queryid": "8087974074613986960",
+          "calls": 6335,
+          "mean_exec_time": 33.8194503952643,
+          "max_exec_time": 469.028737,
+          "temp_blks_written": 0,
+          "category": "database metadata and monitoring"
+        }
+      ],
+      "ai_by_model": [
+        {
+          "model": "sabia-4",
+          "currency": "BRL",
+          "input_per_1k": "0.005",
+          "output_per_1k": "0.02",
+          "calls": 1078,
+          "tokens": 5650193,
+          "failures": 1,
+          "avg_duration_ms": "6997.7727272727272727",
+          "p95_duration_ms": 16171.8,
+          "estimated_cost": "30.8952"
+        },
+        {
+          "model": "desconhecido",
+          "currency": null,
+          "input_per_1k": null,
+          "output_per_1k": null,
+          "calls": 197,
+          "tokens": 0,
+          "failures": 0,
+          "avg_duration_ms": "928.9543147208121827",
+          "p95_duration_ms": 2415.8,
+          "estimated_cost": "0.0000"
+        },
+        {
+          "model": "gemini-embedding-001",
+          "currency": "BRL",
+          "input_per_1k": "0.00001",
+          "output_per_1k": "0.00001",
+          "calls": 171,
+          "tokens": 2225,
+          "failures": 0,
+          "avg_duration_ms": "3297.4385964912280702",
+          "p95_duration_ms": 5458,
+          "estimated_cost": "0.0000"
+        },
+        {
+          "model": "sabiazinho-4",
+          "currency": "BRL",
+          "input_per_1k": "0.001",
+          "output_per_1k": "0.004",
+          "calls": 137,
+          "tokens": 192240,
+          "failures": 0,
+          "avg_duration_ms": "3995.7226277372262774",
+          "p95_duration_ms": 11033.2,
+          "estimated_cost": "0.2647"
+        }
+      ],
+      "user_storage": [
+        {
+          "academic_history_rows": 5504,
+          "user_data_rows": 2737,
+          "profile_rows": 3620,
+          "academic_history_bytes": 14172160,
+          "user_data_bytes": 6438912,
+          "vector_rows": 26145,
+          "course_subject_rows": 150836
+        }
+      ],
+      "daily_quota": [
+        {
+          "dia": "2026-10-07",
+          "questions": 73,
+          "active_users": 10,
+          "max_user_limit": 30
+        },
+        {
+          "dia": "2026-10-06",
+          "questions": 6,
+          "active_users": 4,
+          "max_user_limit": 30
+        }
+      ],
+      "query_stats": [
+        {
+          "calls": 2246,
+          "total_exec_time": 2838271.269124,
+          "mean_exec_time": 1263.70047601247,
+          "max_exec_time": 3531.661934,
+          "rows": 2246,
+          "shared_blks_hit": 7405495,
+          "shared_blks_read": 4819,
+          "temp_blks_written": 0
+        },
+        {
+          "calls": 1625,
+          "total_exec_time": 1855650.173197,
+          "mean_exec_time": 1141.93856812123,
+          "max_exec_time": 2948.964627,
+          "rows": 1625,
+          "shared_blks_hit": 5138710,
+          "shared_blks_read": 0,
+          "temp_blks_written": 0
+        },
+        {
+          "calls": 9687,
+          "total_exec_time": 1168751.950012,
+          "mean_exec_time": 120.65158976071,
+          "max_exec_time": 1196.279232,
+          "rows": 9687,
+          "shared_blks_hit": 11320589,
+          "shared_blks_read": 654,
+          "temp_blks_written": 0
+        },
+        {
+          "calls": 319633,
+          "total_exec_time": 963317.20170499,
+          "mean_exec_time": 3.01382273327534,
+          "max_exec_time": 252.730431,
+          "rows": 319633,
+          "shared_blks_hit": 134300287,
+          "shared_blks_read": 54,
+          "temp_blks_written": 0
+        },
+        {
+          "calls": 1540,
+          "total_exec_time": 867038.298094999,
+          "mean_exec_time": 563.01188187987,
+          "max_exec_time": 4671.113856,
+          "rows": 1540,
+          "shared_blks_hit": 11784402,
+          "shared_blks_read": 12343,
+          "temp_blks_written": 0
+        },
+        {
+          "calls": 9685,
+          "total_exec_time": 545286.193662,
+          "mean_exec_time": 56.3021366713475,
+          "max_exec_time": 483.751716,
+          "rows": 9685,
+          "shared_blks_hit": 3702251,
+          "shared_blks_read": 266,
+          "temp_blks_written": 0
+        },
+        {
+          "calls": 1302,
+          "total_exec_time": 442555.661416,
+          "mean_exec_time": 339.904501855606,
+          "max_exec_time": 1693.915513,
+          "rows": 1302,
+          "shared_blks_hit": 9753823,
+          "shared_blks_read": 569,
+          "temp_blks_written": 0
+        },
+        {
+          "calls": 9744,
+          "total_exec_time": 363493.135474,
+          "mean_exec_time": 37.3043037227013,
+          "max_exec_time": 329.873807,
+          "rows": 9744,
+          "shared_blks_hit": 7352076,
+          "shared_blks_read": 439,
+          "temp_blks_written": 0
+        },
+        {
+          "calls": 3129,
+          "total_exec_time": 344219.485522001,
+          "mean_exec_time": 110.009423305209,
+          "max_exec_time": 2350.816426,
+          "rows": 3129,
+          "shared_blks_hit": 238626798,
+          "shared_blks_read": 0,
+          "temp_blks_written": 0
+        },
+        {
+          "calls": 2653,
+          "total_exec_time": 338953.374481,
+          "mean_exec_time": 127.762297203543,
+          "max_exec_time": 915.738246,
+          "rows": 2653,
+          "shared_blks_hit": 3179118,
+          "shared_blks_read": 0,
+          "temp_blks_written": 0
+        },
+        {
+          "calls": 749,
+          "total_exec_time": 326254.302717,
+          "mean_exec_time": 435.586518981308,
+          "max_exec_time": 2191.334891,
+          "rows": 749,
+          "shared_blks_hit": 2823210,
+          "shared_blks_read": 1112,
+          "temp_blks_written": 338674
+        },
+        {
+          "calls": 24,
+          "total_exec_time": 318672.480932,
+          "mean_exec_time": 13278.0200388333,
+          "max_exec_time": 15396.364722,
+          "rows": 24,
+          "shared_blks_hit": 26868414,
+          "shared_blks_read": 2,
+          "temp_blks_written": 569812
+        }
+      ],
+      "health": [
+        {
+          "db_bytes": 302723887,
+          "max_connections": 60,
+          "shared_buffers": "224MB",
+          "statement_timeout": "2min",
+          "connections": 24,
+          "active_connections": 1,
+          "lock_waiters": 0
+        }
+      ],
+      "tables": [
+        {
+          "schemaname": "public",
+          "relname": "materias_vetorizadas",
+          "n_live_tup": 0,
+          "n_dead_tup": 0,
+          "seq_scan": 1576,
+          "idx_scan": 24,
+          "total_bytes": 60284928,
+          "heap_bytes": 53051392
+        },
+        {
+          "schemaname": "public",
+          "relname": "eventos_historico",
+          "n_live_tup": 154212,
+          "n_dead_tup": 6530,
+          "seq_scan": 44,
+          "idx_scan": 11442,
+          "total_bytes": 46178304,
+          "heap_bytes": 32702464
+        },
+        {
+          "schemaname": "public",
+          "relname": "materias_por_curso",
+          "n_live_tup": 257,
+          "n_dead_tup": 1592,
+          "seq_scan": 4037,
+          "idx_scan": 4858468,
+          "total_bytes": 42508288,
+          "heap_bytes": 14688256
+        },
+        {
+          "schemaname": "auth",
+          "relname": "audit_log_entries",
+          "n_live_tup": 99229,
+          "n_dead_tup": 0,
+          "seq_scan": 0,
+          "idx_scan": 0,
+          "total_bytes": 32776192,
+          "heap_bytes": 27828224
+        },
+        {
+          "schemaname": "public",
+          "relname": "turmas_historico",
+          "n_live_tup": 79595,
+          "n_dead_tup": 10290,
+          "seq_scan": 39643,
+          "idx_scan": 184,
+          "total_bytes": 23920640,
+          "heap_bytes": 15466496
+        },
+        {
+          "schemaname": "auth",
+          "relname": "refresh_tokens",
+          "n_live_tup": 41900,
+          "n_dead_tup": 3751,
+          "seq_scan": 0,
+          "idx_scan": 66604,
+          "total_bytes": 17842176,
+          "heap_bytes": 6840320
+        },
+        {
+          "schemaname": "public",
+          "relname": "historicos_usuarios",
+          "n_live_tup": 5504,
+          "n_dead_tup": 782,
+          "seq_scan": 1126,
+          "idx_scan": 796,
+          "total_bytes": 14172160,
+          "heap_bytes": 5718016
+        },
+        {
+          "schemaname": "public",
+          "relname": "materias",
+          "n_live_tup": 26538,
+          "n_dead_tup": 4542,
+          "seq_scan": 13271,
+          "idx_scan": 19768469,
+          "total_bytes": 11968512,
+          "heap_bytes": 10362880
+        },
+        {
+          "schemaname": "public",
+          "relname": "dados_users",
+          "n_live_tup": 2737,
+          "n_dead_tup": 464,
+          "seq_scan": 20,
+          "idx_scan": 25876,
+          "total_bytes": 6438912,
+          "heap_bytes": 3325952
+        },
+        {
+          "schemaname": "public",
+          "relname": "equivalencias",
+          "n_live_tup": 0,
+          "n_dead_tup": 0,
+          "seq_scan": 20407,
+          "idx_scan": 27,
+          "total_bytes": 6053888,
+          "heap_bytes": 5357568
+        },
+        {
+          "schemaname": "public",
+          "relname": "turmas",
+          "n_live_tup": 12989,
+          "n_dead_tup": 1629,
+          "seq_scan": 1667,
+          "idx_scan": 4296582,
+          "total_bytes": 4612096,
+          "heap_bytes": 3063808
+        },
+        {
+          "schemaname": "auth",
+          "relname": "users",
+          "n_live_tup": 3671,
+          "n_dead_tup": 373,
+          "seq_scan": 781,
+          "idx_scan": 82081,
+          "total_bytes": 4251648,
+          "heap_bytes": 3194880
+        },
+        {
+          "schemaname": "auth",
+          "relname": "identities",
+          "n_live_tup": 3839,
+          "n_dead_tup": 283,
+          "seq_scan": 0,
+          "idx_scan": 63180,
+          "total_bytes": 3301376,
+          "heap_bytes": 2285568
+        },
+        {
+          "schemaname": "auth",
+          "relname": "sessions",
+          "n_live_tup": 6636,
+          "n_dead_tup": 674,
+          "seq_scan": 0,
+          "idx_scan": 123404,
+          "total_bytes": 2744320,
+          "heap_bytes": 1638400
+        },
+        {
+          "schemaname": "public",
+          "relname": "pre_requisitos",
+          "n_live_tup": 0,
+          "n_dead_tup": 0,
+          "seq_scan": 22775,
+          "idx_scan": 10,
+          "total_bytes": 2580480,
+          "heap_bytes": 2170880
+        },
+        {
+          "schemaname": "auth",
+          "relname": "mfa_amr_claims",
+          "n_live_tup": 6636,
+          "n_dead_tup": 432,
+          "seq_scan": 0,
+          "idx_scan": 72395,
+          "total_bytes": 1343488,
+          "heap_bytes": 606208
+        },
+        {
+          "schemaname": "public",
+          "relname": "avaliacoes_disciplinas",
+          "n_live_tup": 0,
+          "n_dead_tup": 0,
+          "seq_scan": 71,
+          "idx_scan": 7952,
+          "total_bytes": 1032192,
+          "heap_bytes": 704512
+        },
+        {
+          "schemaname": "public",
+          "relname": "users",
+          "n_live_tup": 3620,
+          "n_dead_tup": 1,
+          "seq_scan": 425,
+          "idx_scan": 385788,
+          "total_bytes": 892928,
+          "heap_bytes": 409600
+        },
+        {
+          "schemaname": "public",
+          "relname": "ai_usage_log",
+          "n_live_tup": 3034,
+          "n_dead_tup": 0,
+          "seq_scan": 58,
+          "idx_scan": 379,
+          "total_bytes": 819200,
+          "heap_bytes": 458752
+        },
+        {
+          "schemaname": "auth",
+          "relname": "flow_state",
+          "n_live_tup": 1212,
+          "n_dead_tup": 228,
+          "seq_scan": 0,
+          "idx_scan": 5060,
+          "total_bytes": 671744,
+          "heap_bytes": 368640
+        },
+        {
+          "schemaname": "public",
+          "relname": "ml_risco_scores",
+          "n_live_tup": 1144,
+          "n_dead_tup": 0,
+          "seq_scan": 3,
+          "idx_scan": 8016,
+          "total_bytes": 319488,
+          "heap_bytes": 196608
+        },
+        {
+          "schemaname": "public",
+          "relname": "notificacoes",
+          "n_live_tup": 439,
+          "n_dead_tup": 72,
+          "seq_scan": 319638,
+          "idx_scan": 319670,
+          "total_bytes": 311296,
+          "heap_bytes": 212992
+        },
+        {
+          "schemaname": "public",
+          "relname": "matrizes",
+          "n_live_tup": 530,
+          "n_dead_tup": 2,
+          "seq_scan": 36222,
+          "idx_scan": 81962,
+          "total_bytes": 270336,
+          "heap_bytes": 131072
+        },
+        {
+          "schemaname": "public",
+          "relname": "tickets",
+          "n_live_tup": 42,
+          "n_dead_tup": 21,
+          "seq_scan": 774,
+          "idx_scan": 189487,
+          "total_bytes": 221184,
+          "heap_bytes": 32768
+        },
+        {
+          "schemaname": "storage",
+          "relname": "objects",
+          "n_live_tup": 5,
+          "n_dead_tup": 5,
+          "seq_scan": 11,
+          "idx_scan": 75,
+          "total_bytes": 172032,
+          "heap_bytes": 16384
+        },
+        {
+          "schemaname": "auth",
+          "relname": "one_time_tokens",
+          "n_live_tup": 0,
+          "n_dead_tup": 8,
+          "seq_scan": 687,
+          "idx_scan": 0,
+          "total_bytes": 147456,
+          "heap_bytes": 8192
+        },
+        {
+          "schemaname": "public",
+          "relname": "chat_items",
+          "n_live_tup": 158,
+          "n_dead_tup": 0,
+          "seq_scan": 15,
+          "idx_scan": 69,
+          "total_bytes": 139264,
+          "heap_bytes": 73728
+        },
+        {
+          "schemaname": "public",
+          "relname": "vaga_assinaturas",
+          "n_live_tup": 28,
+          "n_dead_tup": 9,
+          "seq_scan": 19,
+          "idx_scan": 12254,
+          "total_bytes": 139264,
+          "heap_bytes": 24576
+        },
+        {
+          "schemaname": "public",
+          "relname": "cursos",
+          "n_live_tup": 0,
+          "n_dead_tup": 2,
+          "seq_scan": 7248,
+          "idx_scan": 408771,
+          "total_bytes": 98304,
+          "heap_bytes": 24576
+        },
+        {
+          "schemaname": "auth",
+          "relname": "scim_users",
+          "n_live_tup": 0,
+          "n_dead_tup": 0,
+          "seq_scan": 10,
+          "idx_scan": 0,
+          "total_bytes": 90112,
+          "heap_bytes": 0
+        },
+        {
+          "schemaname": "realtime",
+          "relname": "subscription",
+          "n_live_tup": 0,
+          "n_dead_tup": 19,
+          "seq_scan": 27663,
+          "idx_scan": 16329,
+          "total_bytes": 81920,
+          "heap_bytes": 8192
+        },
+        {
+          "schemaname": "public",
+          "relname": "security_scans",
+          "n_live_tup": 74,
+          "n_dead_tup": 1,
+          "seq_scan": 56,
+          "idx_scan": 143,
+          "total_bytes": 81920,
+          "heap_bytes": 16384
+        },
+        {
+          "schemaname": "public",
+          "relname": "co_requisitos",
+          "n_live_tup": 0,
+          "n_dead_tup": 0,
+          "seq_scan": 18866,
+          "idx_scan": 17,
+          "total_bytes": 81920,
+          "heap_bytes": 32768
+        },
+        {
+          "schemaname": "public",
+          "relname": "ticket_audit_log",
+          "n_live_tup": 130,
+          "n_dead_tup": 16,
+          "seq_scan": 140,
+          "idx_scan": 722,
+          "total_bytes": 81920,
+          "heap_bytes": 16384
+        },
+        {
+          "schemaname": "public",
+          "relname": "darcy_uso_diario",
+          "n_live_tup": 14,
+          "n_dead_tup": 15,
+          "seq_scan": 39,
+          "idx_scan": 116,
+          "total_bytes": 73728,
+          "heap_bytes": 8192
+        },
+        {
+          "schemaname": "storage",
+          "relname": "migrations",
+          "n_live_tup": 11,
+          "n_dead_tup": 1,
+          "seq_scan": 0,
+          "idx_scan": 6,
+          "total_bytes": 73728,
+          "heap_bytes": 16384
+        },
+        {
+          "schemaname": "cron",
+          "relname": "job_run_details",
+          "n_live_tup": 0,
+          "n_dead_tup": 0,
+          "seq_scan": 1,
+          "idx_scan": 0,
+          "total_bytes": 65536,
+          "heap_bytes": 16384
+        },
+        {
+          "schemaname": "public",
+          "relname": "preferencias_grade",
+          "n_live_tup": 2,
+          "n_dead_tup": 0,
+          "seq_scan": 24,
+          "idx_scan": 782,
+          "total_bytes": 65536,
+          "heap_bytes": 8192
+        },
+        {
+          "schemaname": "auth",
+          "relname": "custom_oauth_providers",
+          "n_live_tup": 0,
+          "n_dead_tup": 0,
+          "seq_scan": 0,
+          "idx_scan": 10,
+          "total_bytes": 57344,
+          "heap_bytes": 0
+        },
+        {
+          "schemaname": "auth",
+          "relname": "mfa_factors",
+          "n_live_tup": 0,
+          "n_dead_tup": 0,
+          "seq_scan": 0,
+          "idx_scan": 54561,
+          "total_bytes": 57344,
+          "heap_bytes": 0
+        }
+      ],
+      "ai_questions": [
+        {
+          "questions": 80,
+          "successful": 79,
+          "avg_cost": "0.0488192457500000000000000",
+          "median_cost": 0.049340065,
+          "p95_cost": 0.0926971305,
+          "avg_max_logged_duration_ms": "6327.3250000000000000",
+          "p95_max_logged_duration_ms": 15411
+        }
+      ],
+      "counts": [
+        {
+          "registered_users": 3671,
+          "signed_in_last_30d": 450,
+          "new_users_7d": 48,
+          "storage_objects": 15,
+          "storage_bytes": "4903154",
+          "storage_buckets": 1
+        }
+      ],
+      "ai_balance": []
+    },
+    "api_counts": {
+      "1day": [
+        {
+          "timestamp": "2026-10-07T02:00:00",
+          "total_auth_requests": 4,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 291,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T03:00:00",
+          "total_auth_requests": 6,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 538,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T04:00:00",
+          "total_auth_requests": 5,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 507,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T05:00:00",
+          "total_auth_requests": 11,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 595,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T06:00:00",
+          "total_auth_requests": 5,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 284,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T07:00:00",
+          "total_auth_requests": 8,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 261,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T08:00:00",
+          "total_auth_requests": 1,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 187,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T09:00:00",
+          "total_auth_requests": 8,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 203,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T10:00:00",
+          "total_auth_requests": 2,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 169,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T11:00:00",
+          "total_auth_requests": 83,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 774,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T12:00:00",
+          "total_auth_requests": 87,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 808,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T13:00:00",
+          "total_auth_requests": 133,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 1318,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T14:00:00",
+          "total_auth_requests": 52,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 623,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T15:00:00",
+          "total_auth_requests": 83,
+          "total_realtime_requests": 7,
+          "total_rest_requests": 812,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T16:00:00",
+          "total_auth_requests": 44,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 604,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T17:00:00",
+          "total_auth_requests": 43,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 1092,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T18:00:00",
+          "total_auth_requests": 108,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 1563,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T19:00:00",
+          "total_auth_requests": 70,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 889,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T20:00:00",
+          "total_auth_requests": 62,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 894,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T21:00:00",
+          "total_auth_requests": 58,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 1082,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T22:00:00",
+          "total_auth_requests": 52,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 1357,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T23:00:00",
+          "total_auth_requests": 51,
+          "total_realtime_requests": 3,
+          "total_rest_requests": 1339,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-08T00:00:00",
+          "total_auth_requests": 42,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 1121,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-08T01:00:00",
+          "total_auth_requests": 43,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 1302,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-08T02:00:00",
+          "total_auth_requests": 37,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 660,
+          "total_storage_requests": 0
+        }
+      ],
+      "7day": [
+        {
+          "timestamp": "2026-10-01T00:00:00",
+          "total_auth_requests": 807,
+          "total_realtime_requests": 13,
+          "total_rest_requests": 15034,
+          "total_storage_requests": 1
+        },
+        {
+          "timestamp": "2026-10-02T00:00:00",
+          "total_auth_requests": 1197,
+          "total_realtime_requests": 4,
+          "total_rest_requests": 19689,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-03T00:00:00",
+          "total_auth_requests": 445,
+          "total_realtime_requests": 1,
+          "total_rest_requests": 10324,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-04T00:00:00",
+          "total_auth_requests": 254,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 10381,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-05T00:00:00",
+          "total_auth_requests": 493,
+          "total_realtime_requests": 4,
+          "total_rest_requests": 11923,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-06T00:00:00",
+          "total_auth_requests": 917,
+          "total_realtime_requests": 4,
+          "total_rest_requests": 17419,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-07T00:00:00",
+          "total_auth_requests": 1119,
+          "total_realtime_requests": 10,
+          "total_rest_requests": 19284,
+          "total_storage_requests": 0
+        },
+        {
+          "timestamp": "2026-10-08T00:00:00",
+          "total_auth_requests": 118,
+          "total_realtime_requests": 0,
+          "total_rest_requests": 3049,
+          "total_storage_requests": 0
+        }
+      ]
+    },
+    "dashboard_usage": {
+      "source": "https://supabase.com/dashboard/org/tsehgbtrprixheaseooq/usage",
+      "plan": "Free",
+      "compute": "Nano t4g.nano",
+      "cycle_start": "2026-09-14",
+      "cycle_end": "2026-10-14",
+      "database_summary_bytes": 318000000,
+      "database_current_bytes": 302723887,
+      "database_quota_bytes": 500000000,
+      "uncached_egress_gb": 1.16,
+      "uncached_egress_quota_gb": 5,
+      "cached_egress_gb": 0,
+      "cached_egress_quota_gb": 5,
+      "monthly_active_users": 352,
+      "monthly_active_users_quota": 50000,
+      "storage_summary_gb": 0.005,
+      "storage_quota_gb": 1,
+      "realtime_peak_connections": 3,
+      "realtime_peak_connections_quota": 200,
+      "realtime_messages": 80,
+      "realtime_messages_quota": 2000000,
+      "edge_invocations": 2,
+      "edge_invocations_quota": 500000,
+      "log_ingestion_gb": 1.167,
+      "log_ingestion_quota_gb": 1,
+      "log_query_gb": 2.143,
+      "log_query_quota_gb": 100,
+      "log_grace_period": "through early 2027"
+    },
+    "metrics_snapshot": {
+      "mem_total_bytes": 443682816,
+      "mem_available_first_bytes": 199172096,
+      "mem_available_second_bytes": 182259712,
+      "swap_total_bytes": 1073737728,
+      "swap_free_second_bytes": 442589184,
+      "scrape_interval_seconds": 349.198,
+      "cpu_non_idle_pct": 5.4491,
+      "cpu_iowait_pct": 3.0513,
+      "swap_in_pages_per_second": 75.6992,
+      "swap_out_pages_per_second": 72.4603,
+      "postgres_database_connections": 16,
+      "all_database_connections_during_audit": 24,
+      "max_connections": 60,
+      "postgrest_pool_size": 10,
+      "postgrest_pool_available": 9,
+      "postgrest_pool_waiting": 1,
+      "postgrest_pool_timeout_counter": 0
+    }
+  },
+  "limitations": [
+    "No load test was run. Concurrent-user capacity is not certified.",
+    "Ingress RPS, latency and error Prometheus queries returned no series.",
+    "Umami Deploy API analytics returned zero; this does not establish zero usage.",
+    "Node exporter history for non-business-node-1 and servidor-4 covers only about 5.4 days of the requested 7 days.",
+    "AI costs use local pricing and logs. Provider balance and account RPM/TPM quotas were not verified.",
+    "Egress estimates cannot attribute background, admin or bot traffic to users.",
+    "Network throughput limits and host monthly transfer allowances were not accessible."
+  ],
+  "domain_verification": {
+    "https://no-fluxo.com/health.json": {
+      "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
+    },
+    "https://deploy.kubernetes.crianex.com/api/ingress/non-business-apps/nofluxo-frontend": {
+      "status": 200,
+      "body": {
+        "name": "nofluxo-frontend",
+        "namespace": "non-business-apps",
+        "domain": "no-fluxo.crianex.com",
+        "serviceName": "nofluxo-frontend",
+        "servicePort": 80,
+        "tls": true,
+        "url": "https://no-fluxo.crianex.com",
+        "annotations": {
+          "cert-manager.io/cluster-issuer": "letsencrypt-prod",
+          "traefik.ingress.kubernetes.io/router.entrypoints": "websecure",
+          "traefik.ingress.kubernetes.io/router.middlewares": "kube-system-geoip@kubernetescrd",
+          "traefik.ingress.kubernetes.io/router.tls": "true"
+        }
+      }
+    }
+  }
+}
