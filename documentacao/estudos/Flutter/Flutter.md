@@ -1,3 +1,5 @@
+> Material de estudo da disciplina. Esta página não descreve a stack atual do NoFluxoUNB; a arquitetura implementada está na documentação de engenharia.
+
 # 🧠 O que é Flutter?
 
 Flutter é um framework de desenvolvimento de aplicações criado pelo Google que permite construir **aplicativos nativos para Android, iOS, web e desktop** a partir de uma única base de código, utilizando a linguagem **Dart**.

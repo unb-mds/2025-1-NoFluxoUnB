@@ -1,87 +1,60 @@
-# Métricas e Cobertura de Código
+# Métricas e cobertura de código
 
-Este documento detalha como o **NoFluxoUNB** mede, monitora e reporta a cobertura de testes de código em suas diferentes frentes tecnológicas.
+Cobertura indica quais partes do código foram exercitadas pelos testes executados. Ela depende dos alvos configurados, dos dados disponíveis e dos testes pulados. Esta página descreve a configuração revisada em 2026-10-07; não estabelece o percentual atual do projeto.
 
----
+## Política e enforcement
 
-## 🎯 Metas e Políticas de Cobertura
+| Configuração | Valor declarado | O que não se pode inferir |
+| --- | --- | --- |
+| [`codecov.yml`](https://github.com/unb-mds/2025-1-NoFluxoUNB/blob/main/codecov.yml) | Target 80% e threshold 5% para status de projeto/patch; regras de exclusão para testes/setup | Que houve upload recente de cobertura, check recebido ou proteção de branch exigindo esse status |
+| `DBA/tests/pytest.ini` | `--cov-fail-under=45` para os módulos configurados | Que a cobertura atual é 45% ou que todas as rotas do parser foram testadas |
+| `backend/package.json` / Jest | Coleta de `src/**/*.ts`, excluindo `.d.ts`; sem `coverageThreshold` declarado | Que Jest impõe piso de 80% |
+| `frontend/vite.config.ts` | Dois projetos Vitest; sem thresholds explícitos de cobertura | Que o Vitest impõe um piso ou que uma execução de cobertura foi aprovada |
 
-As políticas de cobertura de testes do projeto são regidas pela configuração do **Codecov** ([`codecov.yml`](file:///c:/Users/Felipe%20Pedroza/Documents/UnB/nofluxo/2025-1-NoFluxoUNB/codecov.yml)) e pelos objetivos da disciplina:
+O workflow principal roda `npm test` no backend e Vitest sem flag de cobertura no frontend. Não há upload Codecov nesse workflow. O piso Python é aplicado porque está no `pytest.ini`, lido pelo comando padrão Pytest. Proteções da branch são configuração externa, não demonstrada pelo arquivo Codecov.
 
-- **Alvo do Projeto (Target):** `80%` de cobertura de linhas e ramos nas regras de negócio.
-- **Tolerância (Threshold):** `5%` de variação aceitável em commits intermediários.
-- **Branch Detection:** Ativada para desvios condicionais e loops.
-- **Arquivos Ignorados:** Arquivos de setup (`jest.setup.js`), arquivos de configuração e os próprios arquivos de teste (`*.test.ts`, `*.spec.ts`) são excluídos da contagem de cobertura para não inflar as métricas artificialmente.
+## Backend
 
----
-
-## 📊 Como Gerar Relatórios de Cobertura
-
-### 1. Backend (TypeScript / Jest)
-
-O Jest utiliza o instrumentador Istanbul para gerar métricas detalhadas de linhas, funções, instruções e ramos:
+Em `backend/`:
 
 ```bash
-cd backend
 npm run test:coverage
 ```
 
-- **Saída no Terminal:** Tabela resumida indicando percentual por arquivo em `src/`.
-- **Relatório HTML Navegável:** Salvo em `backend/coverage/lcov-report/index.html`.
-- **Relatório LCOV:** Salvo em `backend/coverage/lcov.info` (consumido pelo Codecov).
+O Jest gera texto no terminal, `backend/coverage/lcov.info` e HTML em `backend/coverage/index.html`, de acordo com `coverageReporters: ["text", "lcov", "html"]`. Preserve a revisão e o comando junto do relatório. Os testes PGlite exercitam SQL local, mas isso não significa que a instrumentação TypeScript meça cobertura interna das funções SQL.
 
-### 2. Frontend (SvelteKit / Vitest)
+## Frontend
 
-O Vitest utiliza o provedor `@vitest/coverage-v8` para mensuração de alta performance diretamente sobre a V8:
+Em `frontend/`:
 
 ```bash
-cd frontend
-pnpm run test:coverage
+npm run test:coverage
 ```
 
-- **Saída no Terminal:** Cobertura de stores, componentes e utilitários.
-- **Relatório HTML:** Gerado em `frontend/coverage/index.html`.
+O script chama `vitest run --coverage`, e o manifesto declara `@vitest/coverage-v8` como dependência de desenvolvimento. A configuração Vite não define thresholds nem opções próprias de relatórios; confira os arquivos efetivamente gerados e a saída da execução. A existência do script e da dependência não é uma medição de cobertura nem demonstra que a suíte passou.
 
-### 3. Python (Pytest / pytest-cov)
+## Python
 
-O pytest-cov gera relatórios com suporte a branches e realce de linhas não visitadas:
+A partir da raiz:
 
 ```bash
-cd DBA/tests
-python -m pytest --cov=. --cov-report=html --cov-report=term-missing
+(cd DBA/tests && python -m pytest)
 ```
 
-- **Relatório HTML:** Gerado em `DBA/tests/htmlcov/index.html`.
-- **Destaque de Falhas:** O argumento `--cov-report=term-missing` lista no próprio terminal as linhas exatas do arquivo que deixaram de ser exercitadas.
+O comando usa os alvos `expressao_parser` e `DBA.parse_pdf.pdf_parser_final` do `pytest.ini`. Os relatórios configurados ficam em `DBA/tests/htmlcov/`, `DBA/tests/coverage.xml` e no terminal. Não use `--cov=.` dentro de `DBA/tests/`, pois isso adiciona os testes à medição.
 
----
+Há um caso de upload bem-sucedido pulado em `test_upload_pdf.py`, e os testes do arquivo de scraping definem seus próprios helpers. Esses limites devem acompanhar qualquer conclusão sobre cobertura da implementação Python.
 
-## 📈 Interpretação dos Indicadores
+## Como interpretar
 
-Ao analisar um relatório de cobertura, avaliamos quatro métricas fundamentais:
+Linhas, instruções, funções e branches são métricas diferentes. Uma alta taxa de linhas não garante decisões bem testadas, comportamento no navegador, autenticação real ou conformidade com regras acadêmicas. Um alvo de política não é um resultado medido.
 
-| Métrica | Significado | Meta Mínima Recomendada |
-|---|---|---|
-| **Statement Coverage** | Percentual de instruções de código executadas | $\ge 80\%$ |
-| **Branch Coverage** | Percentual de ramificações (`if`, `else`, `switch`, ternários) testadas em ambos os caminhos | $\ge 75\%$ |
-| **Function Coverage** | Percentual de funções e métodos chamados ao menos uma vez | $\ge 85\%$ |
-| **Line Coverage** | Linhas de código executadas ao longo dos testes | $\ge 80\%$ |
+Ao divulgar uma métrica, registre:
 
----
+1. Revisão, comando e configuração utilizados.
+2. Alvos incluídos e exclusões.
+3. Casos aprovados, falhos e pulados, com motivo dos skips relevantes.
+4. Dependências/fixtures disponíveis e tipo de integração (mock, banco local ou serviço remoto).
+5. Caminho do relatório gerado e limites da conclusão.
 
-## 🔍 Visualização Local dos Relatórios HTML
-
-Para inspecionar detalhadamente quais linhas estão descobertas (marcadas em vermelho):
-
-```bash
-# No Windows:
-start backend/coverage/lcov-report/index.html
-start frontend/coverage/index.html
-start DBA/tests/htmlcov/index.html
-
-# No Linux:
-xdg-open backend/coverage/lcov-report/index.html
-
-# No macOS:
-open backend/coverage/lcov-report/index.html
-```
+Os relatórios acadêmicos e screenshots anteriores continuam evidência histórica. Para decidir sobre uma mudança atual, gere a medição no checkout correspondente.

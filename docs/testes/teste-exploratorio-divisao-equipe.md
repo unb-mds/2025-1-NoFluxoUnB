@@ -9,7 +9,7 @@
 
 O slide do exercício pede que **cada equipe** explore uma funcionalidade. Como o
 projeto é grande e cada integrante já tem domínio de uma camada diferente do código
-(ver [equipe-ptoss2-status](../../.claude/projects/.../memory/equipe-ptoss2-status.md)),
+(registro interno da equipe à época),
 combinamos **1 funcionalidade por integrante** — cada um faz uma sessão exploratória
 independente, com seu próprio relatório, e no final juntamos tudo em um anexo do
 relatório PTOSS-2.

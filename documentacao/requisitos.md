@@ -1,3 +1,5 @@
+> Registro de levantamento/planejamento acadêmico da disciplina. Requisitos e backlog descrevem intenção histórica; não são uma declaração de todas as funcionalidades entregues no checkout atual. O estado implementado está na KB de engenharia e na página de arquitetura atual.
+
 # 📋 Levantamento de Requisitos
 
 ## ✅ Requisitos Funcionais

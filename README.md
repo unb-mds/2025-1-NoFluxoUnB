@@ -116,6 +116,23 @@ O NoFluxo nasceu na própria UnB, como projeto de estudantes da FGA na disciplin
   </tr>
 </table>
 
+## Documentação de engenharia
+
+O mapa atual de implementação, contratos, testes disponíveis e limites conhecidos
+está na [base de conhecimento](./docs/kb/INDEX.md). Os
+[guias de contribuição](./CONTRIBUTING.md) explicam o setup local.
+
+```bash
+npm run kb:query -- "<pergunta>"
+npm run kb:check
+npm run kb:drift
+```
+
+O site acadêmico continua em `documentacao/`. Planos e guias obsoletos retirados
+são recuperáveis pelo [ledger de proveniência](./docs/kb/_provenance/document-retirement.csv).
+Fonte revisada, testes locais, schema exportado e estado servido são evidências distintas.
+
+
 ---
 
 <div align="center">

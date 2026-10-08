@@ -1,93 +1,53 @@
-# Testes do Frontend (Vitest & Playwright)
+# Testes do frontend — Vitest e Playwright
 
-O frontend do NoFluxoUNB (`frontend`), construído com **SvelteKit v2**, **Svelte 5** e **TypeScript**, conta com uma ampla suíte de testes de unidade e integração orientados por **Vitest** (com suporte aos novos runes `$state`) e testes de sistema ponta a ponta com **Playwright**.
+O frontend usa SvelteKit 2, Svelte 5 e TypeScript. A configuração de testes está em `frontend/vite.config.ts`, `frontend/playwright.config.ts` e nos scripts de `frontend/package.json`. Este guia foi revisado a partir dessas fontes em 2026-10-07; não afirma totais fixos nem resultado atual.
 
----
+## Vitest
 
-## 📊 Panorama da Suíte
+Há dois projetos no arquivo Vite:
 
-- **42 arquivos de testes de unidade e regras de negócio** via Vitest.
-- **3 suítes E2E** via Playwright cobrindo jornadas críticas do usuário.
-- Ambiente virtualizado de testes com DOM simulado (`jsdom`).
-- Cobertura profunda do **Montador de Grade Horária** e da **Resolução de Grafo Curricular**.
+- `unit`: coleta `src/**/*.{test,spec}.{js,ts}`, excluindo `*.a11y.test.ts`. Usa o ambiente padrão Node; não se deve descrever toda a suíte como jsdom.
+- `a11y`: coleta `src/**/*.a11y.test.ts`, usa jsdom e resolução `browser` para montar componentes no cliente.
 
----
+Exemplos de grupos existentes:
 
-## 🧩 Catálogo das Suítes Vitest
+| Área | Localização/exemplos |
+| --- | --- |
+| Montador de grade | `src/lib/stores/grade.store.*.test.ts` para montagem, travas, limites, máscaras e limpeza |
+| Matérias candidatas | `src/lib/services/grade-pool.*.test.ts` para matriz, pré-requisitos, saldo, módulo livre e seleção |
+| Chat, autenticação e estado | `chat.service.test.ts`, `auth.service.test.ts`, `authGuard.test.ts`, `assistente-chat-store-*.test.ts`, `fluxograma.store.race.test.ts` |
+| Parse de PDF | `src/lib/services/pdf/pdfDataExtractor.test.ts`, `pdfPositionExtractor.test.ts`, `pdf/__tests__/edge_cases.test.ts`, `all_pdfs.test.ts` |
+| Domínio e horários | `src/lib/utils/expressao-logica*.test.ts`, `curriculum-graph.test.ts`, `horario-slots*.test.ts`, `ira.test.ts` |
+| Interface e acessibilidade | `src/lib/components/fluxograma/SubjectSearch.test.ts`, testes de contraste/tema e `components/a11y/*.a11y.test.ts` |
 
-### 1. Núcleo do Montador de Grade (`grade.store.*`)
-O montador de grade é uma das funcionalidades mais avançadas do produto. Ele utiliza bitmasks para representar horários e heurísticas de otimização combinatória:
+Os testes de PDF podem depender das fixtures presentes ou de históricos locais e podem ser pulados quando não houver dados. A existência do arquivo não informa se todos os seus cenários foram executados.
 
-- `grade.store.montarAutomatico.test.ts`: Algoritmo guloso de alocação de turmas evitando choques de horário.
-- `grade.store.travar.test.ts`: Fixação de matérias selecionadas manualmente pelo aluno para não serem substituídas na auto-montagem.
-- `grade.store.limiteCreditos.test.ts`: Controle rígido do teto de créditos semestrais permitidos.
-- `grade.store.prioridadeNatureza.test.ts` e `pesoDaNatureza.test.ts`: Ordenação de prioridade (Obrigatórias > Optativas > Módulo Livre).
-- `grade.store.freeMask.test.ts`: Operações binárias bitwise sobre máscaras de horários livres vs. ocupados.
-- `grade.store.cursandoReal.test.ts` e `incluirCursando.test.ts`: Integração com o status das matérias que o aluno cursa atualmente.
-- `grade.store.ajustarParaLimite.test.ts`: Podas e ajustes quando a seleção preliminar ultrapassa a carga horária alvo.
-- `grade.store.montagemVazia.test.ts` e `limparTudo.test.ts`: Comportamento de reset e limpeza de estado da grade.
+## Playwright
 
-### 2. Seleção e Pool de Matérias (`grade-pool.*`)
-Gerencia o catálogo de disciplinas elegíveis para o próximo semestre do aluno:
+A configuração coleta `frontend/tests-e2e/`, usa Chromium, um worker, zero retries e base URL `http://localhost:5173`. O `webServer` executa `npm run dev` e reutiliza um servidor existente na porta 5173. Assim, não é obrigatório iniciar outro frontend manualmente; serviços adicionais dependem do spec.
 
-- `grade-pool.montarPoolRecomendado.test.ts`: Construção do conjunto de matérias recomendadas com base no progresso curricular.
-- `grade-pool.candidatosDaMatriz.test.ts`: Filtro de matérias da matriz que ainda não foram cursadas nem trancadas.
-- `grade-pool.pendenciaPreRequisito.test.ts`: Bloqueio de matérias cujos pré-requisitos não foram integralizados.
-- `grade-pool.saldo.test.ts`: Cálculo do saldo remanescente de créditos obrigatórios e optativos para formatura.
-- `grade-pool.moduloLivre.test.ts`: Regras de aproveitamento de carga horária para disciplinas eletivas de outros cursos.
-- `grade-pool.escolherAteOLimite.test.ts`: Seleção combinatória ótima respeitando a janela de créditos definida.
+Os specs incluem acessibilidade, upload, busca/filtro, login, assistente, grade manual/automática, viewport mobile, setas e impersonação de desenvolvimento. Algumas sessões exploratórias registram estados e capturas sem uma asserção obrigatória para cada comportamento. A suíte de login declara credenciais sintéticas e OAuth exercitado apenas até o clique inicial; não representa login Google concluído com conta real.
 
-### 3. Serviços de Domínio e Chat com IA
-- `chat.service.test.ts`: Envio de mensagens, streaming e comunicação com o backend e agente IA.
-- `auth.service.test.ts` e `authGuard.test.ts`: Proteção de rotas, interceptação de sessões e redirecionamento pós-login.
-- `situacao-academica.test.ts`: Cálculo de índice de rendimento, percentual de conclusão e integralização curricular.
-- `assistente-chat-store-montador.test.ts`: Interação entre o chat do assistente e as ações automáticas no montador de grade.
-- `assistente-chat-store-erros.test.ts`: Fallbacks visuais e tratamento amigável de erros da IA para o usuário.
+Antes de executar exploratórios, confira as fixtures necessárias e a escrita de capturas em `docs/testes/evidencias/`. Não sobrescreva evidência histórica sem revisar o diff. Impersonação local não substitui um teste real de autenticação e políticas RLS.
 
-### 4. Utilitários e Formatação SIGAA
-- `sigaa.test.ts`: Parser de códigos de horários padrão UnB (ex.: `24M12`, `35T34`, `6N12`).
-- `horario-slots.test.ts` e `horario-slots.orcamento.test.ts`: Conversão de horários em bitmasks de 64 bits para colisão instantânea.
-- `expressao-logica.test.ts`: Avaliação booleana no cliente de expressões de pré-requisito com operadores `E` e `OU`.
-- `curriculum-graph.test.ts`: Algoritmo de ordenação e detecção de ciclos no grafo de dependências entre disciplinas.
-- `SubjectSearch.test.ts`: Teste de componente Svelte validando busca instantânea, debounce e renderização de resultados.
+## Comandos
 
----
-
-## 🎭 Testes End-to-End (Playwright)
-
-Localizados em `frontend/tests-e2e/`:
-
-1. `upload-historico.exploratorio.spec.ts`:
-   - Realiza o fluxo completo de upload de PDF de histórico da UnB.
-   - Valida a renderização correta do fluxograma preenchido com matérias cursadas, pendentes e aprovadas.
-2. `login-auth.exploratorio.spec.ts`:
-   - Valida os fluxos de login, recuperação de senha, mensagens de validação e redirecionamento para rotas protegidas.
-3. `repro-limpar-grade-mobile.spec.ts`:
-   - Teste de regressão para dispositivos móveis (viewport estreito) garantindo o funcionamento de botões de limpeza e modais.
-
----
-
-## 🛠️ Como Executar os Testes do Frontend
-
-A partir de `frontend/`:
+A partir de `frontend/`, com dependências instaladas:
 
 ```bash
-cd frontend
-
-# 1. Executar todos os testes de unidade (Vitest):
-pnpm run test:unit       # ou: npm run test:unit
-
-# 2. Executar em modo interativo (com interface gráfica Vitest no navegador):
-npx vitest --ui
-
-# 3. Executar arquivo específico com watch:
-npx vitest src/lib/stores/grade.store.montarAutomatico.test.ts
-
-# 4. Gerar relatório de cobertura:
-pnpm run test:coverage
-
-# 5. Executar os testes E2E do Playwright:
-npx playwright test
+npm run test:unit
+npx vitest run src/lib/stores/grade.store.montarAutomatico.test.ts
+npm run test:coverage
+npx playwright install chromium
+npm run test:integration
+npm run test:a11y
+npm run test:e2e:a11y
 ```
 
-> **Nota para o Playwright:** Os testes de sistema necessitam que o frontend esteja rodando previamente (`pnpm dev`) ou configurado no `playwright.config.ts`.
+`npm run check`, lint e build são comandos separados. `npx vitest --ui` depende de suporte UI instalado; ele não é um script configurado nem um requisito para executar os testes.
+
+No workflow principal roda Vitest. O workflow separado `a11y.yml` executa Playwright de acessibilidade com `continue-on-error: true`; isso não significa que a suíte E2E inteira seja um gate de CI. Veja [pipeline](pipeline-ci.md).
+
+## Cobertura
+
+`npm run test:coverage` solicita cobertura ao Vitest. O manifesto declara `@vitest/coverage-v8`; uma instalação completa das dependências deve disponibilizar o provedor. A configuração Vite não define thresholds nem um catálogo próprio de arquivos para cobertura. O resultado e o diretório do relatório devem ser confirmados na execução; não infira percentuais ou um gate a partir da existência do script.

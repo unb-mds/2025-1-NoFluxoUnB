@@ -1,84 +1,44 @@
-# Cobertura e Arquitetura de Testes — NoFluxoUNB
+# Testes — NoFluxoUNB
 
-Este documento fornece um panorama abrangente da engenharia de testes do projeto **NoFluxoUNB**, detalhando as suítes em cada camada da aplicação, critérios de aceitação, portões de qualidade e métodos de execução.
+Este índice reúne os guias de execução e os limites das suítes identificadas no código em 2026-10-07. Quantidade de arquivos, casos aprovados e percentuais de cobertura mudam com o checkout e com os dados disponíveis; esta página não publica uma medição de execução.
 
----
+## Suítes e alcance
 
-## 🏛️ A Pirâmide de Testes no NoFluxoUNB
+| Área | Ferramenta e localização | O que a execução pode demonstrar |
+| --- | --- | --- |
+| Backend | Jest / ts-jest; `backend/tests-ts/` e padrão `src/**/__tests__/*.test.ts` | Controllers, planejamento, chat, resiliência e SQL em PGlite conforme cada cenário |
+| Frontend | Vitest; `frontend/src/**/*.{test,spec}.{js,ts}` | Regras de grade, serviços, parsers, stores e componentes selecionados |
+| Navegador | Playwright; `frontend/tests-e2e/` | Asserções dos fluxos executados no navegador; algumas sessões são exploratórias e apenas registram estados |
+| Dados e parser legado | Pytest; `DBA/tests/` | Parser de expressões e casos do parser Flask preservado; nem todo teste do arquivo de scraping importa o código de produção |
+| Utilitários de IA | Pytest ou execução direta; `mcp_agent/test_*.py` | Parsing de tool calls, respostas e configuração de timeouts; não valida uma conversa real com provedores |
 
-O projeto organiza seus testes de acordo com a clássica pirâmide de testes de software:
+Integrações com mocks, banco local e ambiente de desenvolvimento devem ser identificadas no resultado. Um teste de sessão com Supabase simulado não certifica persistência no banco remoto; uma navegação até o botão de Google não certifica OAuth concluído.
 
-```mermaid
-flowchart TD
-    E2E["Testes E2E / Sistema (Playwright)\nFluxos críticos de usuário: Upload, Login, Grade"]
-    INT["Testes de Integração\nOrquestrador IA, Roteamento de Pré-requisitos, Supabase"]
-    UNIT["Testes Unitários (Jest, Vitest, Pytest)\nControllers, Stores do Montador, Regras SIGAA, Parsers"]
+## Guias
 
-    E2E --> INT
-    INT --> UNIT
-```
+- [Estratégia de testes](estrategia-de-testes.md)
+- [Testes do backend](testes-backend.md)
+- [Testes do frontend](testes-frontend.md)
+- [Testes Python](testes-python.md)
+- [Pipeline de CI](pipeline-ci.md)
+- [Métricas e cobertura](cobertura-metricas.md)
+- [Relatórios exploratórios históricos](testes-exploratorios.md)
 
-| Nível | Camada | Ferramenta | Quantidade de Arquivos | Foco Principal |
-|---|---|---|---|---|
-| **Unidade** | Frontend (`frontend`) | Vitest | 42 arquivos | Lojas de grade (`grade.store.*`), regras de pré-requisito (`grade-pool.*`), conversão de horários e regras UnB |
-| **Unidade** | Backend (`backend`) | Jest / ts-jest | 25 arquivos | Controllers de matérias/fluxograma, Motor 2 de planejamento, persistência de sessão e orquestrador |
-| **Unidade** | Scraping e Dados (`DBA/tests`) | Pytest | 3 arquivos | Parser de expressões lógicas e scraping de turmas |
-| **Unidade** | Parse PDF (`DBA/parse_pdf`) | Pytest | via `DBA/tests` | Extração de texto e estruturação de históricos |
-| **Unidade** | IA Agent (`mcp_agent`) | Pytest | 1 arquivo | Validação de tool calls do assistente |
-| **Sistema / E2E** | Frontend (`frontend`) | Playwright | 3 arquivos | Upload de histórico escolar, autenticação e viewport mobile |
+## Execução por área
 
----
-
-## 🧭 Mapa de Documentação de Testes
-
-Consulte os guias especializados para cada subsistema do projeto:
-
-- [**Estratégia de Testes**](estrategia-de-testes.md): Técnicas de projeto (caixa-preta, caixa-branca, MC/DC, mocks) e plano de evolução.
-- [**Testes do Backend (Jest)**](testes-backend.md): Catálogo detalhado das 25 suítes de testes em TypeScript, isolamento de controllers e regras do Motor 2.
-- [**Testes do Frontend (Vitest & Playwright)**](testes-frontend.md): Catálogo das suítes de componentes, stores reativas de montagem de grade e testes end-to-end.
-- [**Testes em Python (Pytest)**](testes-python.md): Suítes de ingestão de dados, análise de expressões booleanas e ferramentas de IA.
-- [**Pipeline de Integração Contínua (CI)**](pipeline-ci.md): Automação no GitHub Actions, execução paralela e regras de merge.
-- [**Métricas e Cobertura de Código**](cobertura-metricas.md): Como medir a cobertura, thresholds aceitáveis e integração com Codecov.
-
----
-
-## ⚡ Comandos Rápidos de Execução
-
-### Executar Todas as Suítes Localmente
+Execute cada bloco a partir da raiz do repositório, com as dependências da área instaladas:
 
 ```bash
-# Na raiz do repositório (Linux/macOS ou Git Bash):
-./run_all_tests.sh
+(cd backend && npm test)
+(cd frontend && npm run test:unit)
+(cd DBA/tests && python -m pytest)
+(cd mcp_agent && python -m pytest test_tool_call_utils.py test_sabia_utils.py)
 ```
 
-### Executar por Camada
+Para navegador, instale o Chromium do Playwright em `frontend/` e execute `npm run test:integration`. O arquivo `playwright.config.ts` sobe ou reutiliza o dev server na porta 5173. Confira fixtures, mocks e serviços exigidos pelo spec selecionado antes de executar a suíte completa.
 
-```bash
-# 1. Testes do Backend (TypeScript):
-cd backend
-npm test                  # Execução padrão
-npm run test:coverage     # Relatório de cobertura
+O helper `run_all_tests.sh` não corresponde exatamente a todos os workflows: não executa a suíte do `mcp_agent` nem todos os E2E e adiciona `--cov=.` aos testes Python. Para reproduzir o CI e a cobertura configurada, use os comandos específicos dos guias.
 
-# 2. Testes do Frontend (SvelteKit):
-cd frontend
-pnpm run test:unit        # Vitest
-pnpm run test:coverage    # Cobertura Vitest
-npx playwright test       # Testes E2E (requer dev server)
+## Evidência histórica e resultado atual
 
-# 3. Testes em Python:
-cd DBA/tests
-python -m pytest -v
-```
-
----
-
-## 🎯 Matriz de Rastreabilidade e Critérios
-
-| Domínio de Negócio | Módulos de Produção | Suítes de Teste Associadas |
-|---|---|---|
-| **Fluxograma e Matrizes** | `FluxogramaController.ts`, `materias_controller.ts` | `fluxograma_controller.test.ts`, `materias_controller.test.ts`, `curriculum-graph.test.ts` |
-| **Montador de Grade** | `grade.store.svelte.ts`, `grade-pool.service.ts` | 11 testes `grade.store.*.test.ts`, 6 testes `grade-pool.*.test.ts` |
-| **Expressões de Pré-requisito** | `expressao_parser.py`, `expressao-logica.ts` | `test_expressao_parser.py`, `expressao-logica.test.ts`, `planejamento-corequisitos.test.ts` |
-| **Assistente e Motor de IA** | `AssistenteController.ts`, `api_producao.py` | `planejador-agente.test.ts`, `orquestrador-fase2.test.ts`, `revisor-fase3.test.ts`, `test_tool_call_utils.py` |
-| **Autenticação e Sessão** | `authGuard.ts`, `users_controller.ts` | `authGuard.test.ts`, `users_controller.test.ts`, `session-persistence.test.ts`, `login-auth.exploratorio.spec.ts` |
-| **Extração de Histórico** | `pdfParser.ts` (client-side), `DBA/parse_pdf/pdf_parser_final.py` | `test_upload_pdf.py`, `upload-historico.exploratorio.spec.ts` |
+Os relatórios de `docs/testes/` e a página de exploratórios registram sessões anteriores. Capturas, percentuais antigos e textos PASS devem manter esse contexto. Um resultado atual deve informar revisão, comando, ambiente, testes pulados, falhas e artefatos produzidos. Aprovação local, configuração de CI, sucesso de deploy e comportamento observado em produção são evidências distintas.

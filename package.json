@@ -21,7 +21,12 @@
     "test:backend": "pnpm --filter backend test",
     "lint": "pnpm run lint:frontend && pnpm run lint:backend",
     "lint:frontend": "pnpm --filter frontend lint",
-    "lint:backend": "pnpm --filter backend lint"
+    "lint:backend": "pnpm --filter backend lint",
+    "kb:query": "node scripts/docs-kb/kb.mjs query",
+    "kb:graph": "node scripts/docs-kb/kb.mjs graph",
+    "kb:drift": "node scripts/docs-kb/kb.mjs drift",
+    "kb:snapshot": "node scripts/docs-kb/kb.mjs snapshot",
+    "kb:check": "node scripts/docs-kb/kb.mjs check && node --test scripts/docs-kb/*.test.mjs"
   },
   "keywords": [
     "nofluxo",

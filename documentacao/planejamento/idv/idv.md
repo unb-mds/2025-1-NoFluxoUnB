@@ -40,17 +40,17 @@
 
 ## Imagens do Protótipo
 
-![Minha imagem](img/login-no-fluxo.jpeg)
+![Minha imagem](../../img/login-no-fluxo.jpeg)
 > **Figura 1**: Essa imagem mostra a página de login.
 ---
-![HomePage Imagem](img/home-no-fluxo.png)
+![HomePage Imagem](../../img/home-no-fluxo.png)
 > **Figura 2**: Essa imagem mostra a HomePage.
 ---
-![Fluxogramas Imagem](img/fluxograma-no-fluxo.png)
+![Fluxogramas Imagem](../../img/fluxograma-no-fluxo.png)
 > **Figura 3**: Essa imagem mostra a página de fluxograma.
 ---
-![Imagem do Assistente](img/assis-no-fluxo.png)
+![Imagem do Assistente](../../img/assis-no-fluxo.png)
 > **Figura 4**: Essa imagem mostra a página do assistente ia.
 ---
-![Imagem para Leitura do PDF](img/leitura-pdf-no-fluxo.png)
+![Imagem para Leitura do PDF](../../img/leitura-pdf-no-fluxo.png)
 > **Figura 5**: Essa imagem mostra a página para leitura do PDF.

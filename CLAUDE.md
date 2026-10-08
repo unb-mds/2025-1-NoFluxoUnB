@@ -5,12 +5,17 @@ Guia de orientação para agentes de IA (e humanos chegando agora). O produto vi
 
 ## Regras de trabalho
 
+Consulte `npm run kb:query -- "<pergunta>"` e `docs/kb/INDEX.md` antes de exploração
+ampla. Leia e revise o dossier dono e consumidores da área na mesma mudança. Execute
+`npm run kb:check`; depois da revisão atualize o snapshot. O protocolo canônico é
+`docs/kb/_PROTOCOL.md`; decisões transversais estão em `PROJECT_WIDE_DECISIONS.md`.
+Fonte/testes, SQL/export, configuração de deploy e produção são estados distintos.
+
 - **Nunca fazer `git push` nem merge de PR sem autorização explícita** — commits locais
   são ok; quem publica é o mantenedor.
 - Nunca criar branch com upstream de `origin/main` (usar `--no-track`); já houve push
   acidental direto na main por causa disso.
-- Segredos só via `.env` (fora do git). Nunca hardcodar chaves — houve incidente de
-  segurança com service_role vazada (ver `documentacao/incidente_seguranca_2026-09-04.md`).
+- Segredos só via `.env` (fora do git). Nunca hardcodar chaves.
 
 ## Mapa das áreas (o que é vivo e o que é morto)
 
@@ -26,7 +31,7 @@ Guia de orientação para agentes de IA (e humanos chegando agora). O produto vi
 | `documentacao/` | **vivo** | Site público MkDocs (Material) — docs acadêmicas da disciplina: atas, requisitos, testes. `mkdocs.yml` fica na **raiz**; deploy automático no push da main (`ci.yml` → gh-pages). |
 | `kubernetes_docs/` | vivo | Docs de infra: cluster K3s, registry privado, deploy, monitoring. |
 | `scripts/` | vivo | `setup_env.py` (bootstrap) e `scripts/deploy/deploy_local.py` (usado pelo workflow de deploy). |
-| `plans/` | **histórico** | 30 planos de implementação já concluídos (migração Flutter→Svelte etc.). Consultar como contexto; não é doc viva. |
+| `plans/` | **histórico/propostas** | README atual; 29 documentos originais retirados. Disposição/revisão de recuperação em `docs/kb/_provenance/plan-disposition.csv`. |
 | `no_fluxo_app/` | fora da main | App mobile Flutter — existe só na branch `feat/app-mobile-flutter`. Na main, qualquer resto no disco é lixo local não rastreado. |
 | `no_fluxo_frontend/`, `test_historicos/`, `testes/`, `docs_testes/` | não rastreadas | Sobras locais no disco; ignorar. |
 
@@ -44,7 +49,7 @@ mas o CI usa `npm ci` dentro de cada pacote — os dois funcionam.
 cd frontend && npm run dev
 npm run test:unit        # Vitest (testes junto ao código em src/)
 npm run test:integration # Playwright E2E (tests-e2e/)
-npm run check            # svelte-check — tem 4 erros pré-existentes conhecidos, não é gate
+npm run check            # svelte-check — conferir o resultado do checkout; sem contagem fixa de erros
 
 # Backend (porta 3325 com .env.example; default 3000 sem .env)
 cd backend && npm run dev

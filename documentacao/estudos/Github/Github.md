@@ -1,3 +1,5 @@
+> Material de estudo da disciplina. Esta página não descreve a stack atual do NoFluxoUNB; a arquitetura implementada está na documentação de engenharia.
+
 <h1 style="
     font-family: 'Orbitron', sans-serif;
     font-size: 40px;

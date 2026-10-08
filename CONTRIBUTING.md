@@ -1,198 +1,86 @@
-# Guia de Contribuição e Configuração do Ambiente
+# Contribuir e configurar o ambiente local
 
-Obrigado pelo seu interesse em contribuir para o **NoFluxoUnB**! Este guia detalha a arquitetura atual do projeto e como configurar e executar cada um dos serviços em sua máquina local sem conflitos de dependências.
+Antes de explorar uma área, consulte `npm run kb:query -- "<pergunta>"` e o [índice da KB](./docs/kb/INDEX.md). Leia o dossier dono e os contratos acompanhados antes de alterar comportamento. O [protocolo](./docs/kb/_PROTOCOL.md) explica a manutenção da documentação e a distinção entre fonte, testes, SQL, deploy e produção.
 
----
+## Componentes e requisitos
 
-## 🏛️ Estrutura do Projeto
+| Componente | Tecnologia | Entrada local |
+| --- | --- | --- |
+| [Frontend](./frontend/README.md) | SvelteKit 2, Svelte 5, Tailwind 4 | Vite em 5173. |
+| [Backend](./backend/README.md) | Express, TypeScript, Supabase | Porta por `PORT`; default 3000, exemplo 3325. |
+| [MCP agent](./mcp_agent/README.md) | FastAPI, Gemini embeddings, Maritaca | Uvicorn `api_producao:app` em 8000. |
+| [DBA](./DBA/README.md) | Python, scraping/ingestão e parser | Scripts específicos; não é servidor da aplicação. |
 
-O NoFluxoUnB é composto pelos seguintes módulos:
+Use Node 20.19 ou superior dentro da linha 20, compatível com os requisitos do toolchain frontend; o CI configura Node `20.x`. A versão do package manager declarada é pnpm 10.12.1. O workspace lista frontend, backend e DBA; `npm ci` por pacote reproduz a instalação usada no CI. O build da imagem frontend usa seu lockfile pnpm. Mantenha os lockfiles npm/pnpm coerentes ao alterar dependências.
 
-| Módulo | Tecnologia | Diretório | Descrição |
-|---|---|---|---|
-| **Frontend** | SvelteKit v2, Svelte 5, Tailwind 4, TS | `frontend/` | Aplicação web interativa |
-| **Backend** | Express.js, TypeScript, Node.js | `backend/` | API REST principal (porta 3325) |
-| **Agente IA** | FastAPI, Python, OpenAI, Gemini | `mcp_agent/` | Serviço de IA e recomendações |
-| **DBA & Scripts** | Python, Supabase, BeautifulSoup | `DBA/database/`, `DBA/scraping/` | Ingestão, scraping e migrações |
+Python 3.11 é a versão utilizada pelo CI de testes e pela imagem do MCP agent. Instale Tesseract com idioma português e Poppler para os testes que exercitam OCR/PDF; o CI instala esses binários separadamente. Docker é necessário para builds containerizados, não para o setup local abaixo.
 
----
+## Instalação
 
-## 📋 Pré-requisitos
-
-- **Git**: [Download Git](https://git-scm.com/downloads)
-- **Node.js**: Versão 20 LTS ou superior. [Download Node.js](https://nodejs.org/)
-- **pnpm**: Recomendado para o monorepo (`npm install -g pnpm`) ou `npm`
-- **Python**: Versão 3.10 até 3.12 (ou 3.14 com wheels compatíveis). [Download Python](https://www.python.org/)
-
----
-
-## ⚡ 1. Início Rápido (Setup Automatizado)
-
-Criamos um script que configura automaticamente o ambiente virtual Python e instala as dependências dos projetos:
+Na raiz do checkout, o bootstrap rastreado cria/reutiliza um venv, atualiza pip e baixa dependências Python/Node:
 
 ```bash
-# Clone o repositório
-git clone https://github.com/unb-mds/2025-1-NoFluxoUNB.git
-cd 2025-1-NoFluxoUNB
-
-# Executa a configuração completa (Python venv + dependências Node)
 python scripts/setup_env.py --node
 ```
 
-Após a execução, ative o ambiente virtual conforme seu sistema operacional (instruções abaixo).
+`scripts/setup_env.py` prefere `venv` já existente, depois `.venv`, ou cria `venv`. Ative o diretório escolhido: `source venv/bin/activate` em macOS/Linux; `venv\Scripts\Activate.ps1` no PowerShell. O script imprime a instrução correspondente. Para instalar apenas um grupo Python, use `--dba`, `--scraping` ou `--agent`; `--node` adiciona backend/frontend usando pnpm se disponível ou npm.
 
----
-
-## 🐍 2. Configuração do Ambiente Python (DBA, MCP Agent e Scripts)
-
-Para evitar erros como `ModuleNotFoundError` decorrentes de diferentes versões do Python no sistema, **sempre utilize o ambiente virtual (`venv`)** e o prefixo `python -m pip`.
-
-### 2.1. Criar e Ativar o Ambiente Virtual
-
-Na raiz do repositório:
-
-```bash
-# Criar o ambiente virtual (se ainda não existir)
-python -m venv venv
-
-# Ativação no Windows (PowerShell):
-.\venv\Scripts\Activate.ps1
-
-# Ativação no Windows (CMD):
-.\venv\Scripts\activate.bat
-
-# Ativação no Linux/macOS:
-source venv/bin/activate
-```
-
-> **Dica Windows:** Se encontrar erro de permissão no PowerShell (`ExecutionPolicy`), execute:  
-> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
-
-### 2.2. Instalação das Dependências Python
-
-Com o `venv` ativado:
-
-```bash
-# Opção A: Instalar todos os pacotes consolidados do projeto
-python -m pip install -r requirements.txt
-
-# Opção B: Instalar apenas para um módulo específico
-# Para scripts de banco de dados (DBA/database):
-python -m pip install -r DBA/database/requirements.txt
-
-# Para o agente de inteligência artificial (mcp_agent):
-python -m pip install -r mcp_agent/requirements.txt
-
-# Para scraping do SIGAA (DBA/scraping):
-python -m pip install -r DBA/scraping/requirements.txt
-
-
----
-
-## 🚀 3. Configuração do Backend (Node.js / Express)
-
-### 3.1. Instalar Dependências
+Alternativa por pacote para Node, seguindo CI:
 
 ```bash
 cd backend
-npm install
+npm ci
+cd ../frontend
+npm ci
 ```
 
-### 3.2. Variáveis de Ambiente (`.env`)
+## Configuração privada
 
-Crie um arquivo `.env` dentro de `backend/` com as chaves do Supabase:
+Copie `backend/.env.example` para `backend/.env` e `frontend/.env.example` para `frontend/.env`, preenchendo somente valores autorizados para o ambiente de desenvolvimento. Segredos não podem entrar no Git, frontend `PUBLIC_*`, screenshots ou logs. A service role é credencial de servidor; o frontend usa anon key e sessão do usuário.
 
-```ini
-PORT=porta
-SUPABASE_URL=https://sua-url-supabase.supabase.co
-SUPABASE_KEY=sua-chave-anon-ou-service-role
-```
+Backend usa `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SABIA_API_URL` e a chave compartilhada `MCP_AGENT_API_KEY`. Para desenvolvimento, configure `NODE_ENV=development`, `ALLOW_DEV_IMPERSONATE=false` e a porta desejada. Com `PORT=3325`, ajuste `PUBLIC_API_URL` e `PRIVATE_API_URL` do frontend para `http://localhost:3325`. `PUBLIC_REDIRECT_URL` aponta ao frontend em `http://localhost:5173`. O nome de configuração usado pelo frontend é `PUBLIC_API_URL`.
 
-### 3.3. Iniciar o Backend em Modo Desenvolvimento
+No agent, `api_producao.py` carrega dotenv e usa `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GOOGLE_API_KEY`, `MARITACA_API_KEY` e `MCP_AGENT_API_KEY`; a chave compartilhada deve coincidir com a do backend. Configure essas variáveis em `mcp_agent/.env` para execução separada ou no ambiente privado do processo. `ALLOWED_ORIGINS` controla as origens do serviço. Clientes de provedores são inicializados no import; credenciais ausentes podem impedir startup ou recusar endpoints protegidos.
+
+Banco remoto, chamadas de IA, scraping e scripts de ingestão acessam serviços externos. Iniciar processos locais não autoriza gastar créditos, escrever em produção, aplicar SQL ou acessar dados pessoais. Use ambientes e dados de teste autorizados.
+
+## Executar os serviços
+
+Em terminais separados, com o venv ativo quando necessário:
 
 ```bash
+# Na pasta backend
 npm run dev
+
+# Na pasta frontend
+npm run dev
+
+# Na pasta mcp_agent, usando o Python do venv
+python -m uvicorn api_producao:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-O servidor iniciará em `http://localhost:porta`.
+Em macOS/Linux com Bash, `npm run dev:full` na pasta backend inicia backend e agent juntos. O script `backend/scripts/dev-full.sh` carrega `backend/.env` via `source`, exporta seus valores aos dois processos, usa Uvicorn disponível no PATH e porta 8000, e força `NODE_ENV=development` no backend. Ative antes o venv com dependências do agent; mantenha `.env` compatível com sintaxe shell. O frontend continua sendo iniciado separadamente.
 
----
+## Verificar a alteração
 
-## 🎨 4. Configuração do Frontend (SvelteKit)
+| Área | Comandos na pasta indicada |
+| --- | --- |
+| Frontend | `npm run test:unit`, `npm run check`, `npm run build`; Playwright geral: `npm run test:integration`. |
+| Backend | `npm test`, `npm run type-check`, `npm run build`. |
+| Python | `python -m pytest` em `DBA/tests`; `black --check .` e `flake8 .` na raiz, com Black 25.11.0/Flake8 7.3.0. |
+| Deploy helper | `python -m unittest discover -s scripts/deploy -p test_verificar_rollout.py` na raiz, sem rede. |
+| Documentação | `npm run kb:check`; depois da revisão de fonte, `npm run kb:snapshot` e inspeção do diff. |
 
-### 4.1. Instalar Dependências
+Playwright requer Chromium instalado e usa servidor local Vite conforme `frontend/playwright.config.ts`. O CI principal roda Pytest, Jest e Vitest por filtros de área nos PRs; pushes em main/dev executam todos os seus jobs. Não executa automaticamente o E2E geral, build frontend ou `svelte-check`. Registre falhas e limitações reais da sua execução; quantidade histórica de erros não demonstra o estado do checkout atual.
+
+## Branch, commits e publicação
+
+Preserve mudanças existentes no checkout. Crie branch sem upstream de `origin/main`; por exemplo, a partir do ref pretendido e já disponível:
 
 ```bash
-cd frontend
-pnpm install   # ou npm install
+git switch --no-track -c codex/minha-tarefa origin/main
 ```
 
-### 4.2. Variáveis de Ambiente (`.env`)
+Siga [COMMIT_GUIDELINES.md](./COMMIT_GUIDELINES.md), escreva descrição concreta e registre verificações executadas. Revise dossiers donos e consumidores (`watches`) na mesma mudança; registre intenção aceita com `DEC-*` apenas quando houver uma decisão de produto. Commits locais são permitidos. **Push e merge de PR exigem autorização explícita do mantenedor.**
 
-Crie o arquivo `.env` em `frontend/`:
-
-```ini
-PUBLIC_SUPABASE_URL=https://sua-url-supabase.supabase.co
-PUBLIC_SUPABASE_ANON_KEY=sua-chave-anonima
-PUBLIC_BACKEND_URL=http://localhost:porta
-```
-
-### 4.3. Iniciar o Frontend em Modo Desenvolvimento
-
-```bash
-pnpm dev       # ou npm run dev
-```
-
-Acesse a aplicação em `http://localhost:5173`.
-
----
-
-## 🤖 5. Configuração do MCP Agent (IA)
-
-O agente fornece suporte inteligente e recomendações personalizadas de matérias.
-
-```bash
-cd mcp_agent
-
-# Certifique-se de estar com o venv ativado
-python -m pip install -r requirements.txt
-
-# Iniciar a API FastAPI
-python api_producao.py
-```
-
----
-
-## 🔧 6. Solução de Problemas Comuns (Troubleshooting)
-
-### `ModuleNotFoundError: No module named 'supabase'` (ou outro pacote)
-- **Causa:** O pacote foi instalado globalmente ou em outro Python diferente daquele em execução no terminal.
-- **Solução:**
-  1. Verifique qual python está ativo: `where python` (Windows) ou `which python` (Linux).
-  2. Garanta que o venv está ativado (o terminal exibirá `(venv)` no início da linha).
-  3. Instale com o interpretador ativo: `python -m pip install -r requirements.txt`.
-
-### Erro de permissão ao rodar scripts no PowerShell
-Execute no terminal antes de ativar o venv:
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
-
-### Problemas com build de pacotes no Python 3.14 no Windows
-Alguns pacotes podem não ter rodas pré-compiladas para versões experimentais do Python. Recomendamos o uso de Python 3.11 ou 3.12.
-
----
-
-## 🌿 7. Fluxo de Trabalho e Git
-
-1. Crie uma branch para a sua tarefa:
-   ```bash
-   git checkout -b feature/minha-melhoria
-   ```
-2. Siga as diretrizes em `COMMIT_GUIDELINES.md`.
-3. Rode os testes e linter antes de abrir PR:
-   ```bash
-   pnpm test
-   pnpm lint
-   ```
-4. Abra um Pull Request detalhando as alterações e testes realizados.
+Publicação usa os três Dockerfiles rastreados e o workflow descrito em [Docker](./DOCKER_README.md) e [Deploy e operações](./docs/kb/subsystems/deployment-ci-and-operations.md). Não há Compose de desenvolvimento rastreado nem auto-update Git dentro das imagens atuais. A aplicação pública e o commit servido exigem verificação separada; sucesso local ou de CI não é prova de produção.

@@ -1,3 +1,5 @@
+> Material de estudo da disciplina. Esta página não descreve a stack atual do NoFluxoUNB; a arquitetura implementada está na documentação de engenharia.
+
 ## 🧩 TypeScript no Backend
 
 TypeScript não é só para frontend — no backend, ele oferece ainda mais benefícios, especialmente em projetos Node.js com Express, NestJS ou similares.

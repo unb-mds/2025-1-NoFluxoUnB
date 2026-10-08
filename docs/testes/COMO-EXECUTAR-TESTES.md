@@ -1,78 +1,56 @@
-# Como Executar os Testes — NoFluxoUNB (PTOSS-2)
+# Como executar testes locais
 
-## Pre-requisitos
+Os comandos abaixo correspondem aos scripts/configuração rastreados. Instale as
+dependências de cada pacote; não use credenciais de produção para verificação local.
+Não há declaração de resultado atual só por listar uma suíte.
 
-- Node.js >= 18
-- Python >= 3.10 (para testes Python)
-- npm instalado
-
-## 1. Testes TypeScript (Backend)
+## Backend
 
 ```bash
 cd backend
-npm install
-
-# Executar todos os testes
+npm ci
 npm test
-
-# Executar com cobertura
 npm run test:coverage
-
-# Executar arquivo especifico
-npx jest tests-ts/fluxograma_controller.whitebox.test.ts
-npx jest tests-ts/fluxograma_controller.blackbox.test.ts
-npx jest tests-ts/fluxograma_controller.routes.test.ts
-npx jest tests-ts/assistente_controller.test.ts
-npx jest tests-ts/utils/
-
-# Executar testes de um modulo com cobertura detalhada
-npx jest tests-ts/fluxograma_controller --coverage --verbose
+npm run type-check
 ```
 
-### Modulos testados (TypeScript)
+Jest usa `tests-ts/`; confirme mocks e carregamento de ambiente antes de ampliar a execução.
+[Contrato backend](../kb/subsystems/backend-api-and-motor2.md).
 
-| Modulo | Arquivo(s) de teste | Branch |
-|---|---|---|
-| `fluxograma_controller` | `fluxograma_controller.whitebox.test.ts`, `.blackbox.test.ts`, `.routes.test.ts` | `test/fluxograma-controller-coverage` |
-| `assistente_controller` | `assistente_controller.test.ts` | `test/assistent-controller` |
-| `utils/expressao_logica` | `utils/expressao_logica.test.ts` | `test/utils-test` |
-| `utils/ranking.formatter` | `utils/ranking.formatter.test.ts` | `test/utils-test` |
-| `utils/historico_sigaa` | `utils/historico_sigaa.test.ts` | `test/utils-test` |
-| `utils/text.utils` | `utils/text.utils.test.ts` | `test/utils-test` |
-| `services/ragflow.service` | `services/ragflow.service.test.ts` | `test/services-ragflow-sabia` |
-| `services/sabia.service` | `services/sabia.service.test.ts` | `test/services-ragflow-sabia` |
+## Frontend
 
-## 2. Testes Python (Parser de Expressoes)
+```bash
+cd frontend
+npm ci
+npm run test:unit
+npm run test:integration
+npm run check
+```
+
+Playwright depende dos browsers e serviços/configuração descritos no
+[README frontend](../../frontend/README.md). A execução do check não tem contagem
+fixa de erros conhecida por este guia.
+
+## Python
 
 ```bash
 cd DBA/tests
-pip install pytest pytest-cov
-
-# Executar todos os testes
-pytest -v
-
-# Executar com cobertura
-pytest --cov=../DBA/database --cov-report=term-missing -v
-
-# Gerar relatorio HTML de cobertura
-pytest --cov=../DBA/database --cov-report=html -v
+python -m pytest
 ```
 
-### Modulos testados (Python)
+`pytest.ini` configura cobertura de `expressao_parser` e
+`DBA.parse_pdf.pdf_parser_final`, relatórios e piso 45%; não usar `--cov=.` para medir
+os próprios testes. [Guia DBA](../../DBA/README.md).
 
-| Modulo | Arquivo de teste | Branch |
-|---|---|---|
-| `expressao_parser` | `test_expressao_parser.py` | `test/fix--testes-python` |
+## KB e verificador de rollout
 
-## 3. Relatorios de Cobertura
+Na raiz:
 
-Apos rodar com `--coverage` (TS) ou `--cov-report=html` (Python), os relatorios
-ficam em:
+```bash
+npm run kb:check
+python3 -m unittest discover -s scripts/deploy -p test_verificar_rollout.py
+```
 
-- **TypeScript**: `backend/coverage/` (abrir `index.html`)
-- **Python**: `DBA/tests/htmlcov/` (abrir `index.html`)
-
-## 4. CI (GitHub Actions)
-
-Os testes sao executados automaticamente no CI via GitHub Actions.
-Veja `.github/workflows/` para configuracao.
+O verificador unitário usa mocks; não confirma que um deploy real está no ar.
+Veja o [dossier de operações](../kb/subsystems/deployment-ci-and-operations.md) e
+os resultados efetivamente executados no [relatório final](../kb/_provenance/reviews/FINAL_REVIEW.md).

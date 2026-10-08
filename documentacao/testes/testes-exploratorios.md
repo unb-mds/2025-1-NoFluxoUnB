@@ -34,11 +34,15 @@ Cada sessão exploratória foi executada seguindo as 5 etapas estruturais:
 
 ---
 
-## 🐞 Principais Defeitos Mapeados e Mitigados
+## Relação com a verificação atual
 
-As sessões exploratórias geraram testes de regressão automatizados e correções no código-fonte:
+As evidências acima são registros históricos das sessões, não uma declaração de
+correção completa no checkout atual. Testes como `sigaa.test.ts`, `SubjectSearch.test.ts`,
+`repro-limpar-grade-mobile.spec.ts` e `session-persistence.test.ts` exercitam escopos
+diferentes. Persistência SDK com banco mockado, por exemplo, não comprova refresh de
+todos os clientes de chat nem comportamento do serviço publicado.
 
-1. **Truncamento de Horários Complexos:** A extração de turmas com horários espalhados por múltiplos campi foi corrigida com testes unitários em `sigaa.test.ts`.
-2. **Resolução de Caracteres Especiais na Busca:** A pesquisa por disciplinas com acentuação e cedilha gerava resultados vazios; corrigido com normalização Unicode em `text.utils` e coberto em `SubjectSearch.test.ts`.
-3. **Limpeza de Grade em Telas Mobile:** O botão de redefinição da grade ficava inacessível sob a barra de navegação móvel; corrigido e coberto pelo teste E2E `repro-limpar-grade-mobile.spec.ts`.
-4. **Persistência de Sessão de Chat:** Falha na recuperação de mensagens anteriores do assistente após recarregamento de página; corrigido e testado em `session-persistence.test.ts`.
+O inventário e comandos atuais estão nas páginas de [backend](testes-backend.md),
+[frontend](testes-frontend.md) e [Python](testes-python.md). Resultados devem identificar
+revisão, comando, ambiente, execução real e limite de cobertura. As antigas afirmações
+universais de “corrigido” foram retiradas deste guia atual.

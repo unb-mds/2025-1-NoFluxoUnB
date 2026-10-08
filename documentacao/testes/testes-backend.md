@@ -1,110 +1,45 @@
-# Testes do Backend (Jest / TypeScript)
+# Testes do backend — Jest / TypeScript
 
-O backend do NoFluxoUNB (`backend`) conta com uma suíte de **25 arquivos de teste** implementados em TypeScript com **Jest** e `ts-jest`.
+A configuração Jest está em `backend/package.json`: usa `ts-jest`, ambiente Node e os padrões `tests-ts/**/*.test.ts` e `src/**/__tests__/**/*.test.ts`. O catálogo abaixo apresenta grupos de arquivos identificados em 2026-10-07, sem fixar totais ou resultados de execução.
 
----
+## Grupos de cenários
 
-## 📂 Organização dos Testes
+| Área | Exemplos de arquivos em `backend/tests-ts/` |
+| --- | --- |
+| Controllers e contratos HTTP | `cursos_controller.test.ts`, `materias_controller.test.ts`, `users_controller.test.ts`, `fluxograma_controller.test.ts`, `fluxograma_controller.blackbox.test.ts`, `fluxograma_controller.whitebox.test.ts`, `fluxograma_controller.routes.test.ts` |
+| Planejamento de formatura | `motor2-v2.test.ts`, `planejamento.test.ts`, `planejamento-corequisitos.test.ts`, `planejamento-restricoes.test.ts`, `equivalencias-cumpridas.test.ts`, `optativas-ja-cursadas.test.ts` |
+| Grade, oferta e carga horária | `grade-actuator.test.ts`, `modulo-livre-actuator.test.ts`, `oferta-por-equivalencia.test.ts`, `substitutos-equivalencia.test.ts`, `horario-slots-backend.test.ts`, `periodo-ativo.test.ts` |
+| Agente e orquestração | `planejador-agente.test.ts`, `tool-registry.test.ts`, `orquestrador-fase2.test.ts`, `revisor-fase3.test.ts`, `session-persistence.test.ts`, `comando-direto-sem-llm.test.ts` |
+| Resiliência, acesso e operação | `assistente-input-limit.test.ts`, `assistente-sabia-resiliencia.test.ts`, `darcy-login-cota.test.ts`, `rate-limit.test.ts`, `cors-origins.test.ts`, `body-limit.test.ts`, `readiness.test.ts`, `shutdown.test.ts`, `ci-workflows.test.ts` |
+| SQL local | `db/casar-disciplinas.pglite.test.ts`, `db/catalogo.pglite.test.ts`, `db/darcy-cota.pglite.test.ts`, `db/ai-saldo.pglite.test.ts`, `db/dashboard-rastreabilidade.pglite.test.ts` |
+| Utilitários | Arquivos de `utils/`, `controller_logger.test.ts`, `logger-transports.test.ts`, `maritaca-errors.test.ts`, `sabia-service.test.ts` |
 
-Os arquivos residem em `backend/tests-ts/` e cobrem os três pilares principais do backend: **Controllers da API**, **Motor 2 de Planejamento Acadêmico** e o **Orquestrador de Agentes de IA**.
+O catálogo completo vem dos arquivos e da coleta Jest. Descrições por nome não substituem a leitura das asserções. Por exemplo, `double-rounding-fix.test.ts` e `distribuir-slots-fix.test.ts` verificam preservação de horas internas na distribuição; não são testes de média ponderada do IRA.
 
-```
-backend/
-├── src/                    # Código-fonte
-└── tests-ts/               # Suíte de testes Jest
-    ├── controller_logger.test.ts
-    ├── cursos_controller.test.ts
-    ├── distribuir-slots-fix.test.ts
-    ├── double-rounding-fix.test.ts
-    ├── equivalencias-cumpridas.test.ts
-    ├── fluxograma_controller.test.ts
-    ├── grade-actuator.test.ts
-    ├── horario-slots-backend.test.ts
-    ├── maritaca-errors.test.ts
-    ├── materias_controller.test.ts
-    ├── modulo-livre-actuator.test.ts
-    ├── motor2-v2.test.ts
-    ├── oferta-por-equivalencia.test.ts
-    ├── optativas-ja-cursadas.test.ts
-    ├── orquestrador-fase2.test.ts
-    ├── periodo-ativo.test.ts
-    ├── planejador-agente.test.ts
-    ├── planejamento-corequisitos.test.ts
-    ├── planejamento-restricoes.test.ts
-    ├── planejamento.test.ts
-    ├── revisor-fase3.test.ts
-    ├── session-persistence.test.ts
-    ├── substitutos-equivalencia.test.ts
-    ├── tool-registry.test.ts
-    ├── users_controller.test.ts
-    └── utils/
-```
+## Tipos de integração
 
----
+Os testes de chat/sessão usam dependências controladas conforme cada arquivo; não confirmam por si só persistência ou respostas no Supabase/Maritaca reais. As suítes PGlite executam SQL em banco local com baseline e migrações selecionadas. Elas oferecem evidência mais direta do contrato SQL exercitado, mas não confirmam aplicação das migrações no banco remoto.
 
-## 🔍 Catálogo das Suítes de Teste
+Os cenários de regras acadêmicas verificam o comportamento implementado; não certificam conformidade com toda a regulamentação da UnB.
 
-### 1. Controladores da API REST
-Testam endpoints HTTP, validação de payload com schemas Zod, headers de resposta e tratamento de status codes:
+## Execução
 
-- `cursos_controller.test.ts`: Listagem de cursos, busca por ID de currículo e normalização de turnos (diurno/noturno).
-- `fluxograma_controller.test.ts`: Geração e recuperação da árvore de matérias e matriz curricular por curso.
-- `materias_controller.test.ts`: Busca de matérias, paginação, filtros por departamento e consulta de ementas.
-- `users_controller.test.ts`: Consulta e salvamento de dados do usuário, histórico escolar e preferências de curso.
-- `controller_logger.test.ts`: Auditoria e logs estruturados em requisições de controllers (Winston logger).
-
-### 2. Motor 2 de Planejamento e Algoritmo de Grade
-Conjunto mais denso de testes de regras de negócio, assegurando o cumprimento das resoluções acadêmicas da UnB:
-
-- `motor2-v2.test.ts`: Lógica nuclear da cadeia de formatura personalizada, ordenação topológica e restrições de semestres.
-- `planejamento.test.ts`: Cálculo de prazos estimados para colação de grau e projeção de disciplinas por período.
-- `planejamento-corequisitos.test.ts`: Garantia de matrícula simultânea quando duas disciplinas possuem co-requisito estrito.
-- `planejamento-restricoes.test.ts`: Respeito aos limites de créditos mínimos e máximos semestrais.
-- `grade-actuator.test.ts` (44 KB): Validação exaustiva do atuador de alocação de horários, detecção de choques de grade e compatibilidade de turnos.
-- `modulo-livre-actuator.test.ts`: Alocação correta de matérias de módulo livre (optativas fora da matriz de origem).
-- `equivalencias-cumpridas.test.ts`: Dedução de matérias obrigatórias cumpridas através de disciplinas equivalentes cursadas.
-- `optativas-ja-cursadas.test.ts`: Prevenção de recomendação redundante de disciplinas já aprovadas no histórico.
-- `substitutos-equivalencia.test.ts`: Mapeamento de disciplinas equivalentes disponíveis para cursar no período letivo.
-- `oferta-por-equivalencia.test.ts`: Cruzamento de turmas ofertadas em departamentos distintos que equivalem à matriz do curso.
-- `horario-slots-backend.test.ts`: Operações bitmask para representação de blocos e horários no padrão UnB (ex.: 24T23).
-- `distribuir-slots-fix.test.ts` e `double-rounding-fix.test.ts`: Testes de regressão cobrindo arredondamento de médias ponderadas e distribuição de slots.
-- `periodo-ativo.test.ts`: Resolução do período letivo vigente no banco de dados.
-
-### 3. Agente de IA, Orquestrador e Persistência
-Validam a arquitetura multiagente de recomendação:
-
-- `planejador-agente.test.ts`: Comportamento do agente de planejamento e geração de sugestões personalizadas.
-- `orquestrador-fase2.test.ts`: Orquestração entre a intenção do usuário e a consulta de dados acadêmicos.
-- `revisor-fase3.test.ts`: Verificação crítica de consistência do plano gerado pelo agente antes do retorno ao usuário.
-- `session-persistence.test.ts`: Persistência de estado de conversas e planos entre sessões no banco de dados.
-- `tool-registry.test.ts`: Registro, validação de schema e execução segura de tool calls disponíveis para as LLMs.
-- `maritaca-errors.test.ts`: Tratamento de exceções, rate limits e fallbacks para a API da Maritaca AI.
-
----
-
-## 🛠️ Como Executar os Testes do Backend
-
-A partir da raiz do repositório ou de `backend/`:
+A partir de `backend/`, com dependências instaladas:
 
 ```bash
-cd backend
-
-# 1. Executar todos os testes:
 npm test
-
-# 2. Executar em modo interativo/observador (watch mode):
 npm run test:watch
-
-# 3. Executar apenas uma suíte específica:
 npx jest tests-ts/motor2-v2.test.ts
-
-# 4. Executar testes com filtro por nome:
-npx jest -t "deve respeitar os limites de créditos"
-
-# 5. Gerar relatório de cobertura completo:
+npx jest tests-ts/db/casar-disciplinas.pglite.test.ts
 npm run test:coverage
 ```
 
-### Relatório de Cobertura
-O relatório é exportado em formato LCOV e HTML no diretório `backend/coverage/`. Para visualizar no navegador:
-- Abra `backend/coverage/lcov-report/index.html`.
+Para listar o que Jest coletaria, use `npx jest --listTests`. Isso identifica arquivos, sem executar as asserções.
+
+Os scripts `npm run type-check` e `npm run lint` são verificações distintas de `npm test`. O [pipeline principal](pipeline-ci.md) usa Jest; o workflow de segurança/qualidade executa seu próprio comando TypeScript estrito.
+
+## Cobertura e relato de execução
+
+O Jest coleta `src/**/*.ts`, exclui `.d.ts`, e gera texto, LCOV e HTML em `backend/coverage/`. O HTML configurado fica em `backend/coverage/index.html`; `lcov.info` é o arquivo de cobertura LCOV. Consulte [métricas](cobertura-metricas.md) para políticas e limites.
+
+Ao publicar resultado, informe revisão, comando, testes pulados e falhas. Relatórios PTOSS-2 anteriores registram a execução da época e devem permanecer históricos.
