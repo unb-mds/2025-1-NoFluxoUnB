@@ -14,9 +14,8 @@ import {
     type AgenteContexto,
     type LlmMessage,
     type MensagemChat,
-    type RestricoesPlanoInternas,
 } from "../src/services/planejador_agente.service";
-import type { MateriaInput, PreferenciasPlano } from "../src/types/planejamento";
+import type { MateriaInput } from "../src/types/planejamento";
 
 // ========== Fixtures ==========
 

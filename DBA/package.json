@@ -2,12 +2,8 @@
   "name": "coleta-dados",
   "version": "1.0.0",
   "description": "Scripts de coleta e migração de dados acadêmicos",
-  "scripts": {
-    "migrate:tipo-natureza": "node dados/expressao_logica/migrate-tipo-natureza.js",
-    "remove-matrizes-sem-turno": "node scripts/remove-matrizes-sem-diurno-noturno.js"
-  },
   "dependencies": {
-    "@supabase/supabase-js": "^2.50.2",
-    "dotenv": "^16.3.1"
+    "@supabase/supabase-js": "^2.116.0",
+    "dotenv": "^16.6.1"
   }
 }

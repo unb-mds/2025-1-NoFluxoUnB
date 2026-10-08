@@ -26,6 +26,9 @@ updates:
       producao-minor-patch:
         dependency-type: production
         update-types: [minor, patch]
+        # SDK 0.x: cada "minor" quebra a API (0.13 -> 0.18 quebrou model_provider.ts
+        # e travou o grupo inteiro no #208). Vem em PR próprio para migrar à parte.
+        exclude-patterns: ["@openai/agents", "@openai/agents-*"]
       dev-minor-patch:
         dependency-type: development
         update-types: [minor, patch]

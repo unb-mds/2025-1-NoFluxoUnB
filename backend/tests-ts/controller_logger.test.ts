@@ -251,8 +251,6 @@ describe('Integration tests', () => {
     testCases.forEach(({ controller, endpoint }) => {
       const logger = new ControllerLogger(controller, endpoint);
       const message = 'Test message';
-      const expectedFormattedMessage = `\b[${controller}][${endpoint}] ${message}`;
-
       logger.info(message);
 
       expect(logger).toBeInstanceOf(ControllerLogger);

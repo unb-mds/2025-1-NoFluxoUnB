@@ -118,6 +118,10 @@ jobs:
       - name: Instalar dependências
         working-directory: backend
         run: npm ci
+      # Só erros reprovam; avisos (any, console) ficam visíveis no log.
+      - name: Lint (ESLint)
+        working-directory: backend
+        run: npm run lint
       - name: Jest
         working-directory: backend
         run: npm test

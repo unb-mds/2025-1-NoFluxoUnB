@@ -36,10 +36,6 @@
   ],
   "author": "NoFluxo Team",
   "license": "GPL-3.0-only",
-  "dependencies": {
-    "express": "^5.2.1",
-    "googlethis": "^1.8.0"
-  },
   "directories": {
     "doc": "docs"
   },

@@ -17,8 +17,8 @@
     "test:revisor-fase3": "jest tests-ts/revisor-fase3.test.ts",
     "test:orquestrador": "jest tests-ts/session-persistence.test.ts tests-ts/orquestrador-fase2.test.ts tests-ts/revisor-fase3.test.ts",
     "test:coverage": "jest --coverage",
-    "lint": "eslint src/**/*.ts tests-ts/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts tests-ts/**/*.ts --fix",
+    "lint": "eslint 'src/**/*.ts' 'tests-ts/**/*.ts'",
+    "lint:fix": "eslint 'src/**/*.ts' 'tests-ts/**/*.ts' --fix",
     "type-check": "tsc --noEmit",
     "export-schema": "tsx scripts/export_schema.ts"
   },
