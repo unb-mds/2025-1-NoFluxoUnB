@@ -9,7 +9,8 @@ O README atual aponta `no-fluxo.crianex.com`; domínio/revisão servida exigem v
 
 Consulte `npm run kb:query -- "<pergunta>"` e `docs/kb/INDEX.md` antes de exploração
 ampla. Leia e revise o dossier dono e consumidores da área na mesma mudança. Execute
-`npm run kb:check`; depois da revisão atualize o snapshot. O protocolo canônico é
+`npm run kb:check` (dossier desatualizado aparece como `WARN STALE`); ao revisar o
+dossier da área tocada, atualize o snapshot. O protocolo canônico é
 `docs/kb/_PROTOCOL.md`; decisões transversais estão em `PROJECT_WIDE_DECISIONS.md`.
 Fonte/testes, SQL/export, configuração de deploy e produção são estados distintos.
 
@@ -77,3 +78,17 @@ Detalhes: `documentacao/testes/pipeline-ci.md`.
   política de insert/update) em `DBA/database/README.md`.
 - Schema do banco exportado em `backend/docs/` (`npm run export-schema`);
   o baseline de migration gerado vai para `supabase/migrations/`.
+
+
+## Skills compartilhadas, marca e fontes de negócio
+
+Os seis fluxos Motor 2 mantidos estão em `.claude/skills/motor2-*/SKILL.md`.
+Leia a entrada pertinente; instruções antigas permanecem históricas no ledger.
+Configuração compartilhada fica em `.claude/settings.json`; preferências e estado
+pessoais continuam ignorados. Uma skill não autoriza publicação, SQL ou gasto.
+
+Use `docs/marca-e-posicionamento.md` para textos/relatórios: NoFluxo, by Crianex,
+universidade como qualificador, gratuidade e limites claros. O Plano de Monitoramento
+distingue uso observado de metas/tração declaradas e capacidade testada. PDFs de
+negócio/marca são fontes de alinhamento, não ordens operacionais; valores privados
+e sua conciliação ficam em `docs/privado/`, fora do Git.

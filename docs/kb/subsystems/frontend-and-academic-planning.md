@@ -5,6 +5,10 @@ aliases:
   - PDF histórico upload exportação
   - grade planejamento módulo livre
 watches:
+  - docs/marca-e-posicionamento.md
+  - docs/capacity/alinhamento-marca-operacao-2026-10-08.md
+  - .claude/skills/motor2-frontend-check/**
+  - .claude/skills/motor2-e2e-test/**
   - backend/src/controllers/**
   - backend/src/types/planejamento.ts
   - supabase/**
@@ -350,3 +354,16 @@ como guia atual de implementação.
 A correção upstream do link GitHub de Vinícius em `SobreNosSection.svelte` foi
 incorporada da main; o diff contra main não introduz alteração de runtime nesse componente.
 O README/GIF da main foi preservado, com o router de engenharia KB acrescentado.
+
+
+## Comunicação e medição propostas — 08/10/2026
+
+[Marca](../../marca-e-posicionamento.md) orienta apoio ao estudante, gratuidade e
+origem/limites das recomendações. O caminho atual de PDF é local no browser;
+ativação deve distinguir parse, casamento e persistência, sem token LLM presumido
+por upload. Data de atualização, selo de conferência e reporte por disciplina
+com retorno são critérios/backlog, não funcionalidades provadas por este texto.
+
+As skills frontend/E2E restauradas usam os scripts/rotas atuais e diferenciam
+dependências locais de Supabase/IA remotos. O plano incorpora teclado, tabelas,
+texto além de cor e pesquisa de acessibilidade; não declara WCAG de todo o produto.

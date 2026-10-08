@@ -10,6 +10,20 @@ todo componente já as cumpre ou de conformidade visual em produção.
 Consulte o [dossier frontend](./kb/subsystems/frontend-and-academic-planning.md)
 para fluxos, autenticação e limites de verificação.
 
+## Marca e nível de promessa
+
+O [guia de marca](marca-e-posicionamento.md) incorpora a plataforma de 28/09/2026:
+NoFluxo com endosso by Crianex; universidade como qualificador, proximidade sem
+julgamento e honestidade sobre origem/atualização dos dados. A diretriz visual
+preserva os tokens reais abaixo, sem tratar a marca de uma universidade como
+endosso oficial. Relatórios institucionais exibem o endosso da Crianex legível.
+
+WCAG 2.2 AA é alvo de avaliação, não status comprovado do produto. Combine cor
+com texto/ícone, teclado/foco, alternativa ao arraste e movimento reduzido;
+contraste e zoom precisam de teste sobre a composição real. Validação inclui
+pessoas e tecnologias assistivas, além de scanners. Veja a
+[referência W3C](https://www.w3.org/TR/WCAG22/).
+
 ## 1. Onde cada coisa vive
 
 | Peça | Arquivo |

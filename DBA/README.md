@@ -27,8 +27,8 @@ As entradas correntes são `dados/estruturas-curriculares/*.json` (01),
 `dados/dados_finais_teste_p_depto_20/turmas_depto_*.json` (03) e
 `dados/calendario-academico-graduacao.json` (05). `.gitignore` exclui
 `DBA/dados/**`, exceto o JSON de cursos: um clone não contém toda a coleta.
-Os scripts npm de `DBA/package.json` apontam para utilitários JS ausentes do
-conjunto rastreado; não fazem parte do caminho reproduzível de ingestão.
+`DBA/package.json` não tem scripts npm: os antigos apontavam para utilitários
+JS já removidos e saíram no #249; não fazem parte do caminho de ingestão.
 
 ## Execução e automação
 

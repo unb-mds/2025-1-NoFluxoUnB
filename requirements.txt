@@ -13,20 +13,20 @@
 # --- DBA / Banco de Dados (DBA/database) ---
 supabase>=2.24.0
 tenacity>=8.2.0
-python-dotenv>=1.0.0
+python-dotenv>=1.2.2
 
 # --- Scraping e Coleta de Dados (DBA/scraping) ---
 beautifulsoup4>=4.12.0
 lxml>=5.0.0
-requests>=2.31.0
+requests>=2.33.0
 tqdm>=4.66.0
 pandas>=2.0.0
 
 # --- Processamento de PDF e OCR (Parse PDF) ---
-Flask>=2.3.0
-Flask-Cors>=4.0.0
+Flask>=3.1.3
+Flask-Cors>=6.0.0
 pypdf>=4.0.0
-Pillow>=10.0.0
+Pillow>=12.3.0
 pdf2image>=1.16.0
 pytesseract>=0.3.10
 

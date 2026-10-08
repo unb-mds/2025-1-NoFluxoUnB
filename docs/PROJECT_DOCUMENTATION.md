@@ -4,6 +4,14 @@ A documentação canônica está na [KB](kb/INDEX.md), revisada contra a fonte d
 O antigo panorama misturava camadas removidas e dependências de épocas diferentes;
 seu conteúdo foi substituído durante a limpeza de 2026-10-07.
 
+Comunicação e prioridades documentais seguem o [guia de marca](marca-e-posicionamento.md).
+A [conciliação operacional](capacity/alinhamento-marca-operacao-2026-10-08.md)
+separa os PDFs de marca/modelo/investimento da fonte atual e da observação datada;
+o [Plano de Monitoramento](capacity/plano-monitoramento-capacidade-2026-10-08.md)
+mede demanda, confiança no dado, qualidade, sustentabilidade e capacidade.
+Preços e projeções financeiras ficam em material local ignorado, sem mudar a
+implementação, o domínio publicado ou o modo de cobrança.
+
 | Área | Fonte canônica |
 |---|---|
 | Arquitetura e navegação | [Projeto e documentação](kb/subsystems/project-and-documentation.md) |

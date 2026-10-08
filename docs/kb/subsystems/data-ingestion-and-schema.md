@@ -4,6 +4,8 @@ aliases:
   - DBA SIGAA scraping ingestão
   - banco schema migrations currículo equivalências histórico PDF
 watches:
+  - docs/marca-e-posicionamento.md
+  - docs/capacity/plano-monitoramento-capacidade-2026-10-08.md
   - backend/docs/**
   - backend/scripts/export_schema.ts
 related:
@@ -318,3 +320,15 @@ source alone.
 
 Source review is complete for this page. Tests, scraping acceptance, database
 state and production acceptance remain separate evidence stages.
+
+
+## Confiança curricular e finalidade de dados — 08/10/2026
+
+O plano alinhado à marca mede origem/idade da base, tentativa e sucesso de scrape,
+escopo/data/responsável de conferência e ciclo de erro/correção/retorno. Scrape verde
+não confere matriz nem demonstra que tickets estejam ligados a cada disciplina.
+Esses contratos permanecem propostos, sem migration ou processamento novo.
+
+Analytics institucional não usa trajetória pessoal ou ranking punitivo. Cadastro,
+DAU/MAU, alunos matriculados e retorno ao app têm denominadores distintos; nenhuma
+inferência causal de evasão foi criada. [Marca](../../marca-e-posicionamento.md).

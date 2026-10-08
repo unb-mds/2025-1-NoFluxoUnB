@@ -7,6 +7,8 @@ status: source-reviewed
 last_verified: 2026-10-08
 owns:
   - AGENTS.md
+  - .claude/settings.json
+  - .claude/skills/**
   - CLAUDE.md
   - README.md
   - CONTRIBUTING.md
@@ -150,3 +152,19 @@ modelo de custo local, inventário agregado e registro de três revisões sequen
 pelo mesmo agente; não há alegação de revisão independente ou teste da futura
 implementação. A auditoria anterior permanece como evidência datada. Os artefatos
 em `docs/capacity/` não são documentação pública MkDocs nem mudam comportamento.
+
+
+## Skills compartilhadas e alinhamento de marca — 08/10/2026
+
+O mantenedor pediu restabelecer os seis fluxos Motor 2. Entradas atuais estão em
+`.claude/skills/motor2-*/SKILL.md`, com nomes preservados e instruções revistas:
+sem payloads antigos, referências a fases congeladas, modelo imposto ou promessa
+acadêmica. Os arquivos históricos `.claude/skills/motor2-*.md` continuam tombstones;
+a retomada explícita usa novos caminhos e não reativa a orientação aposentada.
+
+`.claude/settings.json` continua compartilhado, com comandos delimitados e sem
+allow genérico `Bash`. `.gitignore` permite as seis pastas mantidas, conserva
+configuração/estado pessoal local e protege `docs/privado/` e `output/private/`.
+[Guia de marca](../../marca-e-posicionamento.md) e
+[conciliação](../../capacity/alinhamento-marca-operacao-2026-10-08.md) orientam
+NoFluxo/by Crianex e expectativas de medição, sem transformar PDFs em implementação.

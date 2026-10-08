@@ -1,19 +1,24 @@
 {
   "reviewed_on": "2026-10-08",
   "status": "PLAN_REVIEWED_WITH_EXECUTION_GATES",
-  "review_method": "Three sequential adversarial passes by the same agent; not independent peer review. Code/metadata read, model examples and cost boundary checks only.",
+  "review_method": "Three original sequential adversarial passes plus source/document alignment and sequential re-review by the same agent. Structural/local design checks only; no independent peer or runtime review.",
   "runtime_implementation_tested": false,
   "production_load_test_run": false,
   "production_changes": false,
   "passed_design_examples": [
     "R2 free threshold at 10 GB exactly and +1 byte",
     "Class A/B whole-unit rounding with exhausted allowances",
-    "20 GiB at 80%: 10k model fits, 50k does not",
-    "R2 reserved storage at 50k: USD 0.075 with full free allowance",
+    "20 GiB at 80%: 10k and 50k do not fit after added cohort/state budget",
+    "R2 reserved storage at 50k: USD 0.165 with full free allowance",
     "Event replay ten times gives one event/day presence in minimal SQLite model",
     "One actor in two days yields daily sum two but window union one",
     "Day boundary uses America/Sao_Paulo, not UTC or string truncation",
-    "Global p95 differs materially from average per-replica p95"
+    "Global p95 differs materially from average per-replica p95",
+    "Cohort state scales separately with daily new accounts; zero signup sensitivity removes exact cohort bytes",
+    "10k model fits proposed 32 GiB at 80%; 50k fits proposed 80 GiB at 80%",
+    "D30 closes only after full return day and late-event tolerance",
+    "Small-group complements and filters require suppression beyond total count",
+    "Transactional billing ledger and best-effort telemetry counts are separate"
   ],
   "critical_design_findings_addressed": [
     "Activity versus token refresh/neutral heartbeat and midnight interactions",
@@ -30,7 +35,16 @@
     "Technical probes/preflight/telemetry excluded from product-demand capacity rate",
     "Semantic journey outcome distinct from HTTP 200",
     "Cohort and canonical alias resolution included in distinct-count data model",
-    "Exact three-decimal tariff outputs avoid float rounding ambiguity"
+    "Exact three-decimal tariff outputs avoid float rounding ambiguity",
+    "Older student Premium conflicts with later permanent student-free brand direction",
+    "Declared traction/activation/growth lacks comparable denominators and windows",
+    "Browser PDF import does not imply paid LLM tokens per upload",
+    "Historical infrastructure budget does not prove current frontend/provider costs, queue, autoscaling or N-1",
+    "Current model pricing and cache/tools/retry units differ from older forecasts",
+    "Activation/return cohorts require separate 35-day state and delayed maturity",
+    "Institutional scopes cannot be declared by clients or explode metric cardinality",
+    "Academic data freshness/report resolution/conferred matrix need distinct evidence",
+    "Financial material separated from public documentation under existing confidentiality rules"
   ],
   "execution_gates_still_required": [
     "Published runtime fingerprint and isolated test environment",
@@ -41,7 +55,10 @@
     "Actual private scraping and two-worker integration",
     "Crash, replay, deletion, outage, overload and restore tests",
     "Representative capacity/SLO tests and provider-credit budgets",
-    "Explicit approval before deployment, production writes/load or alert delivery"
+    "Explicit approval before deployment, production writes/load or alert delivery",
+    "Activation/cohort semantics, curriculum quality sources and D7/D30 maturity",
+    "Institution membership/suppression/export privacy acceptance before institutional analytics",
+    "Host/funding/contract/price ledger evidence; no economic guarantees from forecast"
   ],
   "artifacts": [
     "plano-monitoramento-capacidade-2026-10-08.md",
@@ -50,19 +67,59 @@
     "monitoring-cost-estimate-2026-10-08.json",
     "monitoring-plan-evidence-2026-10-08.json",
     "build-monitoring-plan-2026-10-08.py",
-    "verify-monitoring-design-2026-10-08.py"
+    "verify-monitoring-design-2026-10-08.py",
+    "alinhamento-marca-operacao-2026-10-08.md",
+    "../marca-e-posicionamento.md"
   ],
   "artifact_verification": {
-    "latex_desktop_compiler": "success on final source",
-    "pdf_pages": 25,
-    "pdf_sha256": "d5f2466b4411acfa110dedac04759eabb2e4059b1a0c3f557015ba5fee7ff83e",
-    "pdf_overfull_boxes": 0,
-    "pdf_text_outside_safe_horizontal_margin": 0,
-    "render_review": "All 25 pages reviewed in contact sheets; full-size dense/changed pages reviewed. Manual sequential review by same agent.",
-    "credential_value_scan_matches": 0,
-    "cost_json_matches_recomputed_model": true,
-    "design_examples_script": "verify-monitoring-design-2026-10-08.py",
-    "kb_check": "PASS: integrated inventories, links, ownership, drift and 26/26 KB tests",
-    "kb_review_receipt": "docs/kb/_provenance/reviews/MONITORING_PLAN_2026-10-08.md"
-  }
+    "status": "FINAL_ARTIFACTS_VERIFIED_LOCALLY",
+    "latex_pdf_compiler": "Tectonic cached-resource compilation succeeded; exported final PDF",
+    "desktop_compiler": "Earlier source compile succeeded; final preview initialization timed out for plan and private annex. No source diagnostics from timeout.",
+    "pdf_path": "output/pdf/plano-monitoramento-capacidade-2026-10-08.pdf",
+    "pdf_pages": 30,
+    "pdf_sha256": "1e0747e836a98ecfea34260c9fd9fde0f11b61e359f96b0ed371a90666c2eb3d",
+    "tex_sha256": "5c23b156f26f039377b503aa7f38c00ed2a948400ed1dece515c444b3a8f8961",
+    "visual_review": "All pages rendered and reviewed; TOC and matrix pagination corrected; no orphan continuation or horizontal text overflow found.",
+    "horizontal_text_overflow_count": 0,
+    "source_document_pages_reviewed": 29,
+    "private_annex_pages": 4,
+    "private_annex_git_ignored": true,
+    "skills_structural_validation": {
+      "valid": 6,
+      "total": 6,
+      "validator": "skill-creator quick_validate.py; temporary PyYAML environment"
+    },
+    "cost_json_matches_local_model": true,
+    "design_examples_passed": true,
+    "kb_inventory_and_regression_tests": {
+      "passed": 26,
+      "failed": 0,
+      "initial_snapshot_drift": "Expected after edits; all seven dossiers reviewed. Explicit renewal required and checked separately."
+    },
+    "public_changed_source_secret_scan": "Passed without exposing values",
+    "historical_retirement_provenance": {
+      "records_unchanged": 42
+    },
+    "existing_concurrent_application_ci_dependency_paths_unchanged": 36,
+    "product_runtime_tests_run": false,
+    "production_capacity_certified": false
+  },
+  "plan_version": "1.1",
+  "alignment_sources": [
+    {
+      "title": "Plataforma de Marca — NoFluxo",
+      "date": "2026-09-28",
+      "pages_reviewed": 15
+    },
+    {
+      "title": "Modelo de Negócio e Precificação",
+      "date": "2026-09",
+      "pages_reviewed": 8
+    },
+    {
+      "title": "Levantamento de Custos para Investidor",
+      "date": "2026-08",
+      "pages_reviewed": 6
+    }
+  ]
 }

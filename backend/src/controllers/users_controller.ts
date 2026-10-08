@@ -49,7 +49,7 @@ async function criarUsuario(routeName: string, req: Request, res: Response) {
         return res.status(409).json({ error: "Usuário já cadastrado" });
     }
 
-    var { data: userCreatedResult, error: userCreatedError } = await SupabaseWrapper.get().from("users").insert({
+    const { data: userCreatedResult, error: userCreatedError } = await SupabaseWrapper.get().from("users").insert({
         auth_id: authUser.id,
         email,
         nome_completo
@@ -98,7 +98,7 @@ export const UsersController: EndpointController = {
                 return res.status(403).json({ error: "Acesso negado" });
             }
 
-            var { data: userResult, error: userError } = await SupabaseWrapper.get().from("users").select("*,dados_users(*)").eq("email", email);
+            const { data: userResult, error: userError } = await SupabaseWrapper.get().from("users").select("*,dados_users(*)").eq("email", email);
 
             if (userError) {
                 logger.error(`Erro ao buscar usuário: ${JSON.stringify(userError)}`);

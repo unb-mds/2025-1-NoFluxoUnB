@@ -7,6 +7,11 @@ aliases:
   - formatura
   - modulo livre
 watches:
+  - docs/marca-e-posicionamento.md
+  - docs/capacity/alinhamento-marca-operacao-2026-10-08.md
+  - .claude/skills/motor2-backend-test/**
+  - .claude/skills/motor2-integration-test/**
+  - .claude/skills/motor2-code-review/**
   - mcp_agent/**
   - supabase/**
 related:
@@ -160,3 +165,16 @@ Comandos definidos: `npm test`, `npm run test:coverage`, `npm run type-check`, `
 - Ausência de `materiasNaoAlocadas` não é prova completa de cobertura do pool regular; mudanças de semestre no pós-processamento e posicionamento TCC exigem validação própria.
 
 Essas divergências foram documentadas, não corrigidas no runtime. Qualquer conclusão de implantação, volume real, custo efetivo, qualidade de resposta ou cobertura integral de planejamento permanece dependente de verificação adicional.
+
+
+## Fluxos restaurados e contratos de observação — 08/10/2026
+
+Skills de teste/revisão do Motor 2 usam o handler autenticado `gerar-plano` e o
+consumidor Svelte, incluindo payload snake_case e `User-ID`. Comentários do
+controller e guias históricos não substituem `parseBody`/implementação. Tipos,
+Jest e integração HTTP são provas diferentes; não foram executados pela restauração.
+
+No monitoramento proposto, cadastro/coorte/ativação e instituição vêm de fonte
+validada; telemetry de cliente não prova persistência ou vínculo. Receita/cobrança
+por uso exige contrato/ledger próprio. Nada disso muda o handler, cotas ou banco
+atual. [Conciliação operacional](../../capacity/alinhamento-marca-operacao-2026-10-08.md).

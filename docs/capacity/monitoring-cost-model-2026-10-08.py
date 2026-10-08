@@ -13,14 +13,17 @@ import json
 DEFAULTS = {
     'scenarios_authenticated_dau': [60, 1000, 10000, 50000],
     'anonymous_session_ratio': 1,
-    'signals_per_actor_day': 30,
+    'signals_per_actor_day': 40,
     'raw_retention_days': 7,
     'raw_archive_bytes_per_signal': 200,
     'raw_local_bytes_per_signal_with_indexes': 800,
     'authenticated_identity_days': 35,
     'anonymous_identity_days': 2,
-    'identity_bytes_per_actor_day': 200,
+    'identity_bytes_per_actor_day': 320,
     'identity_offsite_snapshot_copies': 3,
+    'new_accounts_per_authenticated_dau_assumed': 1,
+    'cohort_state_retention_days': 35,
+    'cohort_state_bytes_per_account_with_indexes': 192,
     'archive_metric_series': 500,
     'minute_retention_days': 30,
     'five_minute_retention_days': 90,
@@ -89,10 +92,15 @@ def calculate(p):
         cloud_identity = identity_rows * p['identity_bytes_per_actor_day'] * p['identity_offsite_snapshot_copies'] * margin
         local_raw = signal_rows * p['raw_local_bytes_per_signal_with_indexes'] * margin
         local_identity = identity_rows * p['identity_bytes_per_actor_day'] * margin
-        cloud = int(cloud_fixed + cloud_raw + cloud_identity)
-        local = int(local_fixed + local_raw + local_identity)
+        cohort_rows = dau * p['new_accounts_per_authenticated_dau_assumed'] * p['cohort_state_retention_days']
+        local_cohort = cohort_rows * p['cohort_state_bytes_per_account_with_indexes'] * margin
+        cloud_cohort = local_cohort * p['identity_offsite_snapshot_copies']
+        cloud = int(cloud_fixed + cloud_raw + cloud_identity + cloud_cohort)
+        local = int(local_fixed + local_raw + local_identity + local_cohort)
         result.append({'authenticated_dau': dau, 'anonymous_sessions_per_day_assumed': anon,
                        'signals_day': actors * p['signals_per_actor_day'],
+                       'new_accounts_day_assumed': dau * p['new_accounts_per_authenticated_dau_assumed'],
+                       'cohort_state_local_reserved_bytes': int(local_cohort),
                        'r2_reserved_bytes': cloud, 'r2_reserved_gb': round(cloud / 1e9, 6),
                        'local_reserved_bytes': local, 'local_reserved_gib': round(local / 2**30, 3),
                        'fits_collector_20gib_at_80pct': local <= p['collector_volume_gib'] * 2**30 * p['collector_operational_volume_fraction'],
@@ -109,7 +117,9 @@ def calculate(p):
                             'Cloud billable units round upward. Free allowance is shared; availability has not been verified for this account.',
                             'Local infrastructure, operations labor, provider compute/network, taxes, optional traces and AI load tests are excluded from R2 prices.',
                             'No full SQLite snapshots in R2: immutable raw/metric partitions plus three compact identity snapshots; restoration replays archives.',
-                            'Storage scenarios do not certify workload throughput or indicate users currently supported.'],
+                            'Storage scenarios do not certify workload throughput or indicate users currently supported.',
+                            'v1.1: 40 signals/day and 320 bytes for bounded actor-day state; separate 35-day signup-cohort state at 192 bytes/account, assuming daily signups equal authenticated DAU. Not measured.',
+                            '500 global metric series include new product/data-quality metrics, not 500 per institution.'],
             'cloud_fixed_reserved_bytes': int(cloud_fixed), 'local_fixed_reserved_bytes': int(local_fixed),
             'additional_prometheus_bytes_estimate_with_3x_factor': int(prom), 'scenarios': result}
 
@@ -125,7 +135,7 @@ def main():
         if unknown:
             raise ValueError('Unknown assumptions: ' + ', '.join(sorted(unknown)))
         p.update(overrides)
-    if p['hourly_retention_total_days'] < p['five_minute_retention_days'] or p['sizing_multiplier'] < 1 or p['anonymous_session_ratio'] < 0:
+    if p['hourly_retention_total_days'] < p['five_minute_retention_days'] or p['sizing_multiplier'] < 1 or p['anonymous_session_ratio'] < 0 or p['new_accounts_per_authenticated_dau_assumed'] < 0:
         raise ValueError('Invalid retention, reserve or actor ratio')
     print(json.dumps(calculate(p), ensure_ascii=False, indent=2))
 

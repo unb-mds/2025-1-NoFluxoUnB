@@ -9,7 +9,12 @@ last_verified: 2026-10-08
 owns:
   - SECURITY.md
   - .gitleaks.toml
+  - .gitignore
 watches:
+  - .claude/settings.json
+  - .claude/skills/**
+  - docs/marca-e-posicionamento.md
+  - docs/capacity/**
   - frontend/**
   - backend/**
   - mcp_agent/**
@@ -277,3 +282,18 @@ provider settings, and deployed proxy/IP behavior remain unverified.
 The upstream `SobreNosSection.svelte` change only updates a team GitHub username.
 It does not change the reviewed authentication or privacy contracts. No application
 runtime change is introduced relative to the PR's current main base.
+
+
+## Configuração compartilhada e analytics proposto — 08/10/2026
+
+A configuração Claude compartilhada delimita Bash por comandos; deny precede allow.
+Isso não é sandbox completo nem comprovação de bloqueio de todas as invocações
+equivalentes. Skills não conferem autorização de deploy/SQL ou gasto remoto.
+O novo material financeiro é local ignorado, sem credenciais ou nomes individuais
+exportados à documentação compartilhada.
+
+O Plano de Monitoramento v1.1 preserva HMAC como pseudonimização, estado de coorte
+por 35 dias, finalidade operacional e autorização por escopo institucional futuro.
+Limiar 20 + supressão complementar é proposta a testar, não prova de anonimização.
+Telemetry best-effort não substitui ledger transacional para faturamento. Nenhum
+controle novo de produção ou produto institucional foi implementado nesta revisão.

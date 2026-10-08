@@ -16,6 +16,12 @@ deploy, disponibilidade de provedores, migrations aplicadas ou aceitação do pr
 | CI, testes, Docker, K3s, bootstrap, probes, verificação de rollout | [Deploy e operações](./subsystems/deployment-ci-and-operations.md) | Segurança, todas as camadas |
 | JWT, anonimato, administração, RLS, service role, uploads, privacidade | [Autenticação e segurança](./subsystems/auth-security-and-privacy.md) | Todos |
 
+## Marca, skills e monitoramento
+
+- [Marca e posicionamento](../marca-e-posicionamento.md): NoFluxo/by Crianex, apoio ao estudante, evidência e linguagem.
+- [Conciliação com os três PDFs](../capacity/alinhamento-marca-operacao-2026-10-08.md): premissas comerciais versus fonte/observação; anexo financeiro local.
+- Skills Motor 2 compartilhadas: `.claude/skills/motor2-*/SKILL.md`; catálogo e política em `CONTRIBUTING.md`.
+
 ## Auditoria e plano de capacidade
 
 - [Auditoria de recursos de 07/10](../capacity/nofluxo-capacity-2026-10-07.md): fotografia de produção e estimativas condicionais, sem ensaio de capacidade.

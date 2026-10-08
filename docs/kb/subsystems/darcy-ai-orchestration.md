@@ -5,6 +5,8 @@ aliases:
   - Darcy Sabiá Maritaca Gemini
   - orquestrador embeddings pgvector RAG
 watches:
+  - docs/marca-e-posicionamento.md
+  - docs/capacity/plano-monitoramento-capacidade-2026-10-08.md
   - backend/src/services/chat/**
   - backend/src/services/sabia.service.ts
   - supabase/**
@@ -150,3 +152,15 @@ execução de migrations, publicação ou aceitação das propostas.
 - Resultado vazio pode representar ausência de disciplinas ou erro upstream/banco engolido; investigar logs/duração e a forma de falha antes de interpretar zero resultados como verdade do catálogo.
 - Ambiguidade de nome/matriz usa o primeiro registro encontrado; código não resolve homônimos ou múltiplas matrizes por ranking determinístico.
 - Confirmar separadamente no ambiente alvo: imagem/commit, variáveis e rede entre serviços, schema/RPC/dimensão, atualização dos embeddings, custos/restrições do provedor e comportamento por uma requisição do usuário. Esses fatos operacionais estão desconhecidos nesta revisão.
+
+
+## Marca e custo por jornada — 08/10/2026
+
+O [plano v1.1](../../capacity/plano-monitoramento-capacidade-2026-10-08.md) separa
+importação local do PDF, geração de plano, conversa, embeddings e ferramentas.
+Tarifas/modelos atuais precisam de versão e reconciliação; valores de Sabiá 3 de
+agosto não fixam o preço do Sabiá 4. Cache/modos e retries têm tratamento próprio.
+
+Explicação da recomendação e conclusão semântica não equivalem a correção acadêmica.
+A marca pede acolhimento, orientação complementar e limites explícitos. Não guardar
+prompt/resposta bruta na telemetria nova; nenhum modelo/cota/prompt foi alterado.

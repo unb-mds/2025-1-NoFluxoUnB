@@ -73,6 +73,21 @@ Em macOS/Linux com Bash, `npm run dev:full` na pasta backend inicia backend e ag
 
 Playwright requer Chromium instalado e usa servidor local Vite conforme `frontend/playwright.config.ts`. O CI principal roda Pytest, Jest e Vitest por filtros de área nos PRs; pushes em main/dev executam todos os seus jobs. Não executa automaticamente o E2E geral, build frontend ou `svelte-check`. Registre falhas e limitações reais da sua execução; quantidade histórica de erros não demonstra o estado do checkout atual.
 
+## Documentação de engenharia
+
+O mapa atual de implementação, contratos, testes disponíveis e limites conhecidos
+está na [base de conhecimento](./docs/kb/INDEX.md).
+
+```bash
+npm run kb:query -- "<pergunta>"
+npm run kb:check
+npm run kb:drift
+```
+
+O site acadêmico continua em `documentacao/`. Planos e guias obsoletos retirados
+são recuperáveis pelo [ledger de proveniência](./docs/kb/_provenance/document-retirement.csv).
+Fonte revisada, testes locais, schema exportado e estado servido são evidências distintas.
+
 ## Branch, commits e publicação
 
 Preserve mudanças existentes no checkout. Crie branch sem upstream de `origin/main`; por exemplo, a partir do ref pretendido e já disponível:
@@ -84,3 +99,24 @@ git switch --no-track -c codex/minha-tarefa origin/main
 Siga [COMMIT_GUIDELINES.md](./COMMIT_GUIDELINES.md), escreva descrição concreta e registre verificações executadas. Revise dossiers donos e consumidores (`watches`) na mesma mudança; registre intenção aceita com `DEC-*` apenas quando houver uma decisão de produto. Commits locais são permitidos. **Push e merge de PR exigem autorização explícita do mantenedor.**
 
 Publicação usa os três Dockerfiles rastreados e o workflow descrito em [Docker](./DOCKER_README.md) e [Deploy e operações](./docs/kb/subsystems/deployment-ci-and-operations.md). Não há Compose de desenvolvimento rastreado nem auto-update Git dentro das imagens atuais. A aplicação pública e o commit servido exigem verificação separada; sucesso local ou de CI não é prova de produção.
+
+
+## Skills Motor 2 mantidas pela equipe
+
+As seis skills estão em `.claude/skills/<nome>/SKILL.md`: `motor2-backend-test`,
+`motor2-code-review`, `motor2-e2e-test`, `motor2-frontend-check`,
+`motor2-git-workflow` e `motor2-integration-test`. São revisões dos fluxos antigos,
+com fonte, comandos e fronteiras atuais; os originais aposentados permanecem
+recuperáveis pelo ledger Git. Não carregue todos os fluxos para toda tarefa.
+
+`.claude/settings.json` compartilha comandos delimitados; não permite Bash genérico.
+Os denies protegem prefixos de push/rebase/reset destrutivo/merge de PR; padrões
+não são sandbox completo nem substituem autorização da tarefa. Testes e startup
+locais podem chamar banco ou IA remotos: leia setup/fixtures e valide o alvo.
+Configurações e aprovações pessoais ficam em `settings.local.json`, ignorado.
+
+As seis pastas de skill são exceções curadas em `.gitignore`. Para adicionar uma
+à equipe, revise seu propósito/segredos, a regra de inclusão, owner/consumidores,
+inventário e checagem KB. Skills pessoais, sessão, plans e worktrees ficam locais.
+[Marca](docs/marca-e-posicionamento.md) orienta a comunicação. Não versione PDFs
+ou valores financeiros de `docs/privado/` e `output/private/`.

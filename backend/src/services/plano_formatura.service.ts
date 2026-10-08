@@ -788,7 +788,7 @@ function distribuirSlots(
 
         // Usar _horasInternas se disponível para evitar reconversão que causa perda de precisão
         let horasUsadasNoSemestre = (semestre as any)._horasInternas ?? creditosParaHoras(semestre.creditos);
-        let espacoDisponivelHoras = limiteHorasMax - horasUsadasNoSemestre;
+        const espacoDisponivelHoras = limiteHorasMax - horasUsadasNoSemestre;
 
         console.log(`  [Semestre ${semIdx}] Horas usadas: ${horasUsadasNoSemestre}h, espaço disponível: ${espacoDisponivelHoras}h`);
 
@@ -821,7 +821,7 @@ function distribuirSlots(
         }
 
         // 2) Aloca slots de Atividades Complementares
-        let espacoRestanteHoras = limiteHorasMax - horasUsadasNoSemestre;
+        const espacoRestanteHoras = limiteHorasMax - horasUsadasNoSemestre;
         if (complementarAlocado < chComplementarFaltante) {
             const chParaAlocarComp = Math.min(chComplementarFaltante - complementarAlocado, espacoRestanteHoras);
             console.log(`    → Complementar: faltam ${chComplementarFaltante - complementarAlocado}h, espaço ${espacoRestanteHoras}h, vou alocar ${chParaAlocarComp}h`);
@@ -892,7 +892,7 @@ function distribuirObrigatorias(
     const regular = obrigatorias.filter((m) => !isEstagioOuTCC(m));
     const estagioTCC = obrigatorias.filter((m) => isEstagioOuTCC(m));
 
-    let semestres = distribuirPorSemestres(
+    const semestres = distribuirPorSemestres(
         regular,
         completedCodes,
         preferencias,

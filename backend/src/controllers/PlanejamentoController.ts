@@ -333,11 +333,11 @@ export async function montarDadosPlano(
             .map((r: any) => r.materias?.id_materia)
             .filter((id): id is number => typeof id === "number");
 
-        let preByMateria = new Map<number, unknown>();
-        let coByMateria = new Map<number, unknown>();
+        const preByMateria = new Map<number, unknown>();
+        const coByMateria = new Map<number, unknown>();
         // Equivalencia é 1:N (uma matéria pode ter várias linhas, de currículos/vigências
         // diferentes) — diferente de pré/co-requisito, que são 1:1 aqui.
-        let equivByMateria = new Map<number, unknown[]>();
+        const equivByMateria = new Map<number, unknown[]>();
 
         if (idsMaterias.length > 0) {
             const [

@@ -15,9 +15,10 @@ assert m.r2_cost(10_000_000_000,1_000_001,10_000_000,p)['total_usd_month']=='4.5
 assert m.r2_cost(10_000_000_000,1_000_000,10_000_001,p)['total_usd_month']=='0.360'
 assert m.r2_cost(0,1,0,p,False)['total_usd_month']=='4.500'
 c=m.calculate(p)
-assert c['scenarios'][2]['fits_collector_20gib_at_80pct']
+assert not c['scenarios'][2]['fits_collector_20gib_at_80pct']
+assert c['scenarios'][2]['local_reserved_bytes'] <= 32 * 2**30 * .8
 assert not c['scenarios'][3]['fits_collector_20gib_at_80pct']
-assert c['scenarios'][3]['r2_cost_with_free_tier_available']['total_usd_month']=='0.075'
+assert c['scenarios'][3]['r2_cost_with_free_tier_available']['total_usd_month']=='0.165'
 # Modelo mínimo de contagem, sem afirmar implementação de runtime.
 db=sqlite3.connect(':memory:');db.executescript('CREATE TABLE e(id TEXT PRIMARY KEY,actor TEXT,day TEXT); CREATE TABLE a(actor TEXT,day TEXT,PRIMARY KEY(actor,day));')
 for _ in range(10):
@@ -40,3 +41,23 @@ assert quant(a+b)==.001 and (quant(a)+quant(b))/2>5
 
 print('PASS: fronteiras de tarifa/volume, replay, união de atores, timezone e agregação de percentis.')
 print('Não é teste da futura implementação ou ensaio de capacidade.')
+
+# As novas coortes são orçamento próprio: não inferir cadastro a partir de DAU.
+no_signup=dict(p, new_accounts_per_authenticated_dau_assumed=0)
+no_signup_result=m.calculate(no_signup)
+assert c['scenarios'][0]['local_reserved_bytes'] - no_signup_result['scenarios'][0]['local_reserved_bytes'] == 60*35*192*2
+assert c['scenarios'][3]['local_reserved_bytes'] <= 80*2**30*.8
+# Uma coorte imatura não é taxa zero ou benchmark. D30 necessita dia encerrado+tolerância.
+anchor=datetime.date(2026,10,8)
+def closed_return_window(anchor,day,current):
+ return current >= anchor+datetime.timedelta(days=day+2)
+assert not closed_return_window(anchor,30,datetime.date(2026,11,8))
+assert closed_return_window(anchor,30,datetime.date(2026,11,9))
+# Supressão simples isolada não basta: complemento também pode revelar grupo pequeno.
+group_counts=[100,12]
+assert sum(group_counts)>=20 and any(n<20 for n in group_counts)
+# Telemetria que perde eventos não é fonte suficiente de cobrança contratual.
+ledger_operations=10
+observed_success_events=8
+assert ledger_operations!=observed_success_events
+print('PASS: orçamento independente de coorte, janela D30, supressão complementar e separação de ledger.')

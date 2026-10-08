@@ -60,7 +60,7 @@ function createMockQueryBuilder(resolvedValue: { data: any; error: any }) {
     };
     // The final call in the chain resolves to the data
     // We make all methods return the builder, and add a then() so it resolves as a Promise
-    builder.then = (resolve: Function) => resolve(resolvedValue);
+    builder.then = (resolve: (value: unknown) => unknown) => resolve(resolvedValue);
     return builder;
 }
 
@@ -112,7 +112,7 @@ describe('ROTA fluxograma (GET)', () => {
     });
 
     it('CAIXA-PRETA P2: nome_curso vazio -> 400', async () => {
-        const { req, res, status, json } = mockReqRes({ query: { nome_curso: '' } });
+        const { req, res, status } = mockReqRes({ query: { nome_curso: '' } });
         await handler(req, res);
         expect(status).toHaveBeenCalledWith(400);
     });
@@ -184,13 +184,13 @@ describe('ROTA integralizacao (POST)', () => {
     });
 
     it('CAIXA-PRETA P2: curriculoCompleto vazio -> 400', async () => {
-        const { req, res, status, json } = mockReqRes({ body: { curriculoCompleto: '' } });
+        const { req, res, status } = mockReqRes({ body: { curriculoCompleto: '' } });
         await handler(req, res);
         expect(status).toHaveBeenCalledWith(400);
     });
 
     it('CAIXA-PRETA P3: curriculoCompleto apenas espacos -> 400', async () => {
-        const { req, res, status, json } = mockReqRes({ body: { curriculoCompleto: '   ' } });
+        const { req, res, status } = mockReqRes({ body: { curriculoCompleto: '   ' } });
         await handler(req, res);
         expect(status).toHaveBeenCalledWith(400);
     });
@@ -211,7 +211,7 @@ describe('ROTA integralizacao (POST)', () => {
 
     it('CAIXA-PRETA P5: curriculoCompleto valido mas matriz nao encontrada -> 404', async () => {
         mockCalcularIntegralizacao.mockResolvedValue(null);
-        const { req, res, status, json } = mockReqRes({
+        const { req, res, status } = mockReqRes({
             body: { curriculoCompleto: 'CURSO_INEXISTENTE' },
         });
         await handler(req, res);
@@ -244,7 +244,7 @@ describe('ROTA upload-dados-fluxograma (POST)', () => {
 
     it('CAIXA-PRETA P1: usuario nao autorizado -> 401', async () => {
         mockCheckAuthorization.mockResolvedValue(false);
-        const { req, res, status, json } = mockReqRes({
+        const { req, res, status } = mockReqRes({
             body: { fluxograma: {}, periodo_letivo: '2025.1' },
         });
         await handler(req, res);
@@ -257,7 +257,7 @@ describe('ROTA upload-dados-fluxograma (POST)', () => {
             data: [{ id: 1 }],
             error: null,
         }));
-        const { req, res, status, json } = mockReqRes({
+        const { req, res, status } = mockReqRes({
             body: { fluxograma: { materias: [] }, periodo_letivo: '2025.1' },
             headers: { 'user-id': 'user-123' },
         });
@@ -271,7 +271,7 @@ describe('ROTA upload-dados-fluxograma (POST)', () => {
             data: null,
             error: { message: 'Insert failed' },
         }));
-        const { req, res, status, json } = mockReqRes({
+        const { req, res, status } = mockReqRes({
             body: { fluxograma: {}, periodo_letivo: '2025.1' },
             headers: { 'user-id': 'user-123' },
         });
@@ -321,7 +321,7 @@ describe('ROTA delete-fluxograma (DELETE)', () => {
             data: null,
             error: { message: 'Delete failed' },
         }));
-        const { req, res, status, json } = mockReqRes({ headers: { 'user-id': 'user-123' } });
+        const { req, res, status } = mockReqRes({ headers: { 'user-id': 'user-123' } });
         await handler(req, res);
         expect(status).toHaveBeenCalledWith(500);
     });
@@ -367,7 +367,7 @@ describe('ROTA casar_disciplinas (POST)', () => {
             data: null,
             error: { message: 'Query error' },
         }));
-        const { req, res, status, json } = mockReqRes({
+        const { req, res, status } = mockReqRes({
             body: {
                 dados_extraidos: {
                     curso_extraido: 'ENGENHARIA',
@@ -400,7 +400,7 @@ describe('ROTA casar_disciplinas (POST)', () => {
                 error: null,
             });
         });
-        const { req, res, status, json } = mockReqRes({
+        const { req, res, status } = mockReqRes({
             body: {
                 dados_extraidos: {
                     curso_extraido: 'CURSO_QUE_NAO_EXISTE',

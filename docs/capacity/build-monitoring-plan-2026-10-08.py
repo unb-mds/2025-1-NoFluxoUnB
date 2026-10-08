@@ -19,7 +19,7 @@ body_path = Path(work.name) / 'body.tex'
 subprocess.run([pandoc,str(folder/'plano-monitoramento-capacidade-2026-10-08.md'),'--from','markdown','--to','latex','--syntax-highlighting=none','--output',str(body_path)],check=True)
 old=(folder/'relatorio-capacidade-nofluxo-2026-10-07.tex').read_text()
 preamble=old.split('\\begin{document}',1)[0]
-preamble=preamble.replace('NoFluxoUNB — Uso de recursos e avaliação de capacidade','NoFluxoUNB — Plano de monitoramento e capacidade')
+preamble=preamble.replace('NoFluxoUNB — Uso de recursos e avaliação de capacidade','NoFluxo — Plano de monitoramento e capacidade')
 preamble=preamble.replace('Cluster K3s, Supabase, Darcy e limites de crescimento','Plano de implementação, métricas de uso, retenção, validação e custo')
 preamble=preamble.replace('RECURSOS E CAPACIDADE','MONITORAMENTO E CAPACIDADE')
 preamble=preamble.replace('Recursos: 07/10/2026 · Atualização: 08/10/2026','Plano revisado · 8 de outubro de 2026')
@@ -38,14 +38,14 @@ cover=r'''\begin{document}
 \vspace{4mm}
 {\fontsize{29}{33}\selectfont\bfseries\color{white}Plano de monitoramento\\e capacidade\par}
 \vspace{5mm}
-{\normalsize\color{white!80}NoFluxoUNB · Plano v1.0 · 8 de outubro de 2026\par}
+{\normalsize\color{white!80}NoFluxo · by Crianex · UnB · Plano v1.1 · 8 de outubro de 2026\par}
 \vspace{16mm}
 \tagline{MEDIR O ATENDIMENTO, PRESERVAR O HISTÓRICO E VALIDAR OS LIMITES}
 Plano de implementação fundamentado no código, em leitura do monitoramento existente e na auditoria de recursos. Inclui definições de usuários, instrumentação, retenção, recuperação, testes de capacidade, custos e revisão adversarial do desenho.
 \vspace{3mm}
 \par\noindent\begin{minipage}[t]{.315\linewidth}\metriccard{REFERÊNCIA ATUAL}{60/dia}{contas autenticadas\newline indicador aproximado}\end{minipage}\hfill
 \begin{minipage}[t]{.315\linewidth}\metriccard{HISTÓRICO PROPOSTO}{7 / 400 dias}{eventos brutos / agregados\newline com expurgo e recuperação}\end{minipage}\hfill
-\begin{minipage}[t]{.315\linewidth}\metriccard{CUSTO DE OBJETOS}{US\$0–5,10}{por mês, nos cenários R2\newline disco/CPU a confirmar}\end{minipage}
+\begin{minipage}[t]{.315\linewidth}\metriccard{CUSTO DE OBJETOS}{US\$0–5,18}{por mês, nos cenários R2\newline disco/CPU a confirmar}\end{minipage}
 \vspace{5mm}
 \begin{NFBox}{Estado do plano}
 Desenho revisado em três passagens, com gates explícitos para infraestrutura, privacidade, persistência e ensaio. Implementação não iniciada. Os cenários de armazenamento não certificam quantos usuários o produto suporta.
@@ -69,7 +69,14 @@ Custo reproduzível, dados agregados de infraestrutura e recibo de revisão anex
 \end{titlepage}
 \setcounter{page}{2}
 \section*{Roteiro do plano}
+\begingroup
+\setlength{\parskip}{0pt}
+\fontsize{9}{11.5}\selectfont
+\makeatletter
+\renewcommand{\l@section}{\@dottedtocline{1}{0pt}{1.7em}}
+\makeatother
 \tableofcontents
+\endgroup
 \clearpage
 \fontsize{9.5}{12.1}\selectfont
 '''
@@ -95,6 +102,13 @@ body=body.replace('\\begin{quote}','\\begin{NFBox}{Diretriz do plano}').replace(
 body=body.replace('\\begin{longtable}', '\\small\n\\begin{longtable}')
 body=body.replace('\\toprule\\noalign{}', '\\toprule\\noalign{}\n\\rowcolor{NFAccent}')
 body=body.replace('\\begin{longtable}', '\\rowcolors{2}{NFSoft}{white}\n\\begin{longtable}')
+# Keep the complete adversarial matrix and its note together at a legible size.
+matrix_start=body.index('\\section{Matriz de testes')
+matrix_end=body.index('\\clearpage\n\\section{Dimensionamento de armazenamento',matrix_start)
+matrix=body[matrix_start:matrix_end]
+matrix=matrix.replace('\\small\n\\rowcolors', '\\fontsize{8.5}{10}\\selectfont\n\\renewcommand{\\arraystretch}{1.0}\n\\rowcolors')
+matrix=matrix.replace('\\end{longtable}', '\\end{longtable}\n\\renewcommand{\\arraystretch}{1.2}\n\\fontsize{9.5}{12.1}\\selectfont')
+body=body[:matrix_start]+matrix+body[matrix_end:]
 tex=folder/'plano-monitoramento-capacidade-2026-10-08.tex'
 tex.write_text('% Gerado do Markdown pelo Pandoc; preâmbulo e marca seguem o relatório NoFluxo.\n'+preamble+cover+body+'\n\\end{document}\n')
 print('Generated standalone LaTeX:',tex)

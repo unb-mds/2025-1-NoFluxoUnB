@@ -121,3 +121,41 @@ aprovação de deploy, contratação, tratamento de dados ou carga em produção
 Implementation evidence:
 - `docs/capacity/plano-monitoramento-capacidade-2026-10-08.md` — plano e critérios de execução.
 - `docs/capacity/monitoring-plan-review-2026-10-08.json` — revisão de desenho e exemplos locais, sem runtime futuro implementado.
+
+
+### DEC-SKILLS-001 — Restabelecer os seis fluxos Motor 2 compartilhados
+
+Decision status: effective
+Implementation status: verified-local
+Evidence class: owner-confirmed
+Accepted by: pedido do mantenedor nesta conversa para adicionar as skills novamente e seguir as recomendações de configuração
+Accepted at: 2026-10-08
+Supersedes: none
+
+Restabelecer os nomes em pastas com `SKILL.md`, revendo fonte/rotas/comandos e
+retirando pressupostos antigos. Compartilhar somente as seis pastas mantidas;
+restringir Bash na configuração de projeto e preservar estado/preferências locais.
+A recuperação usa caminhos novos, mantendo os originais no manifesto histórico.
+
+Implementation evidence:
+- `.claude/skills/`, `.claude/settings.json`, `.gitignore`, `CONTRIBUTING.md`.
+- Validação estrutural/source-reviewed; não equivale à execução das suítes de produto.
+
+### DEC-DOC-001 — Alinhar documentação e monitoramento às fontes fornecidas
+
+Decision status: effective
+Implementation status: partial
+Evidence class: owner-confirmed
+Accepted by: pedido do mantenedor nesta conversa para revisar os três PDFs e alinhar documentação e Plano de Monitoramento
+Accepted at: 2026-10-08
+Supersedes: none
+
+Alinhar marca, indicadores, confiança curricular, sazonalidade e custo por jornada.
+A marca de 28/09 orienta gratuidade/apoio; propostas anteriores conflitantes ficam
+explicitadas, sem aprovar cobrança, equity, contratos, captação ou novo tratamento.
+Material financeiro fica local, conforme a regra de confidencialidade existente.
+
+Implementation evidence:
+- `docs/marca-e-posicionamento.md`, `docs/capacity/alinhamento-marca-operacao-2026-10-08.md`.
+- Plano v1.1, modelo de armazenamento e anexo financeiro local.
+- Alinhamento documental realizado; indicadores/runtime permanecem não implementados.

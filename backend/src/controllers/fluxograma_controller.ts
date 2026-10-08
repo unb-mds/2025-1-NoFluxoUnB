@@ -368,7 +368,7 @@ export const FluxogramaController: EndpointController = {
             }
 
             for (const curso of data) {
-                // get equivalencias
+                // get equivalencias
                 const { data: equivalenciasRaw, error: errorEquivalencias } = await SupabaseWrapper.get()
                     .from("equivalencias")
                     .select("id_equivalencia,id_curso,expressao_original,expressao_logica,curriculo,data_vigencia,materias!equivalencias_id_materia_fkey(codigo_materia,nome_materia)")
@@ -381,7 +381,7 @@ export const FluxogramaController: EndpointController = {
 
                 const equivalencias = mapEquivalenciasFromDb(equivalenciasRaw ?? []);
 
-                var materias_id = [];
+                const materias_id = [];
 
                 for (const materia of curso.materias_por_curso) {
                     materias_id.push(materia.materias.id_materia);
@@ -416,7 +416,7 @@ export const FluxogramaController: EndpointController = {
                     return res.status(500).json({ error: "Erro ao buscar fluxograma" });
                 }
 
-                var coRequisitosCodigosComId = [];
+                const coRequisitosCodigosComId = [];
                 for (const coRequisito_ of coRequisitos) {
                     const coRequisito: any = coRequisito_;
                     if (coRequisito.id_materia_corequisito) {
@@ -1003,14 +1003,14 @@ export const FluxogramaController: EndpointController = {
         }),
 
         "upload-dados-fluxograma": new Pair(RequestType.POST, async (req: Request, res: Response) => {
-            var log = createControllerLogger("FluxogramaController", "upload-dados-fluxograma");
+            const log = createControllerLogger("FluxogramaController", "upload-dados-fluxograma");
             log.info("Upload fluxograma chamado");
             try {
                 if (!await Utils.checkAuthorization(req as Request)) {
                     return res.status(401).json({ error: "Usuário não autorizado" });
                 }
 
-                var userId = req.headers["user-id"] || req.headers["User-ID"];
+                const userId = req.headers["user-id"] || req.headers["User-ID"];
 
                 const { fluxograma, periodo_letivo } = req.body;
 
@@ -1039,7 +1039,7 @@ export const FluxogramaController: EndpointController = {
                 if (!await Utils.checkAuthorization(req as Request)) {
                     return res.status(401).json({ error: "Usuário não autorizado" });
                 }
-                var userId = req.headers["user-id"] || req.headers["User-ID"];
+                const userId = req.headers["user-id"] || req.headers["User-ID"];
                 if (!userId) {
                     return res.status(400).json({ error: "User ID não informado" });
                 }

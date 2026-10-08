@@ -7,14 +7,17 @@
       50000
     ],
     "anonymous_session_ratio": 1,
-    "signals_per_actor_day": 30,
+    "signals_per_actor_day": 40,
     "raw_retention_days": 7,
     "raw_archive_bytes_per_signal": 200,
     "raw_local_bytes_per_signal_with_indexes": 800,
     "authenticated_identity_days": 35,
     "anonymous_identity_days": 2,
-    "identity_bytes_per_actor_day": 200,
+    "identity_bytes_per_actor_day": 320,
     "identity_offsite_snapshot_copies": 3,
+    "new_accounts_per_authenticated_dau_assumed": 1,
+    "cohort_state_retention_days": 35,
+    "cohort_state_bytes_per_account_with_indexes": 192,
     "archive_metric_series": 500,
     "minute_retention_days": 30,
     "five_minute_retention_days": 90,
@@ -60,7 +63,9 @@
     "Cloud billable units round upward. Free allowance is shared; availability has not been verified for this account.",
     "Local infrastructure, operations labor, provider compute/network, taxes, optional traces and AI load tests are excluded from R2 prices.",
     "No full SQLite snapshots in R2: immutable raw/metric partitions plus three compact identity snapshots; restoration replays archives.",
-    "Storage scenarios do not certify workload throughput or indicate users currently supported."
+    "Storage scenarios do not certify workload throughput or indicate users currently supported.",
+    "v1.1: 40 signals/day and 320 bytes for bounded actor-day state; separate 35-day signup-cohort state at 192 bytes/account, assuming daily signups equal authenticated DAU. Not measured.",
+    "500 global metric series include new product/data-quality metrics, not 500 per institution."
   ],
   "cloud_fixed_reserved_bytes": 4031840000,
   "local_fixed_reserved_bytes": 9141403648,
@@ -69,11 +74,13 @@
     {
       "authenticated_dau": 60,
       "anonymous_sessions_per_day_assumed": 60,
-      "signals_day": 3600,
-      "r2_reserved_bytes": 4044584000,
-      "r2_reserved_gb": 4.044584,
-      "local_reserved_bytes": 9182611648,
-      "local_reserved_gib": 8.552,
+      "signals_day": 4800,
+      "new_accounts_day_assumed": 60,
+      "cohort_state_local_reserved_bytes": 806400,
+      "r2_reserved_bytes": 4051961600,
+      "r2_reserved_gb": 4.051962,
+      "local_reserved_bytes": 9197390848,
+      "local_reserved_gib": 8.566,
       "fits_collector_20gib_at_80pct": true,
       "r2_cost_with_free_tier_available": {
         "billable_gb_units": 0,
@@ -91,16 +98,18 @@
         "operations_usd_month": "4.86",
         "total_usd_month": "4.935"
       },
-      "raw_events_in_supabase_bytes_7d_with_margin": 40320000
+      "raw_events_in_supabase_bytes_7d_with_margin": 53760000
     },
     {
       "authenticated_dau": 1000,
       "anonymous_sessions_per_day_assumed": 1000,
-      "signals_day": 60000,
-      "r2_reserved_bytes": 4244240000,
-      "r2_reserved_gb": 4.24424,
-      "local_reserved_bytes": 9828203648,
-      "local_reserved_gib": 9.153,
+      "signals_day": 80000,
+      "new_accounts_day_assumed": 1000,
+      "cohort_state_local_reserved_bytes": 13440000,
+      "r2_reserved_bytes": 4367200000,
+      "r2_reserved_gb": 4.3672,
+      "local_reserved_bytes": 10074523648,
+      "local_reserved_gib": 9.383,
       "fits_collector_20gib_at_80pct": true,
       "r2_cost_with_free_tier_available": {
         "billable_gb_units": 0,
@@ -118,17 +127,19 @@
         "operations_usd_month": "4.86",
         "total_usd_month": "4.935"
       },
-      "raw_events_in_supabase_bytes_7d_with_margin": 672000000
+      "raw_events_in_supabase_bytes_7d_with_margin": 896000000
     },
     {
       "authenticated_dau": 10000,
       "anonymous_sessions_per_day_assumed": 10000,
-      "signals_day": 600000,
-      "r2_reserved_bytes": 6155840000,
-      "r2_reserved_gb": 6.15584,
-      "local_reserved_bytes": 16009403648,
-      "local_reserved_gib": 14.91,
-      "fits_collector_20gib_at_80pct": true,
+      "signals_day": 800000,
+      "new_accounts_day_assumed": 10000,
+      "cohort_state_local_reserved_bytes": 134400000,
+      "r2_reserved_bytes": 7385440000,
+      "r2_reserved_gb": 7.38544,
+      "local_reserved_bytes": 18472603648,
+      "local_reserved_gib": 17.204,
+      "fits_collector_20gib_at_80pct": false,
       "r2_cost_with_free_tier_available": {
         "billable_gb_units": 0,
         "billable_class_a_million_units": 0,
@@ -138,41 +149,43 @@
         "total_usd_month": "0.000"
       },
       "r2_conservative_cost_without_free_tier": {
-        "billable_gb_units": 7,
+        "billable_gb_units": 8,
         "billable_class_a_million_units": 1,
         "billable_class_b_million_units": 1,
-        "storage_usd_month": "0.105",
+        "storage_usd_month": "0.120",
         "operations_usd_month": "4.86",
-        "total_usd_month": "4.965"
+        "total_usd_month": "4.980"
       },
-      "raw_events_in_supabase_bytes_7d_with_margin": 6720000000
+      "raw_events_in_supabase_bytes_7d_with_margin": 8960000000
     },
     {
       "authenticated_dau": 50000,
       "anonymous_sessions_per_day_assumed": 50000,
-      "signals_day": 3000000,
-      "r2_reserved_bytes": 14651840000,
-      "r2_reserved_gb": 14.65184,
-      "local_reserved_bytes": 43481403648,
-      "local_reserved_gib": 40.495,
+      "signals_day": 4000000,
+      "new_accounts_day_assumed": 50000,
+      "cohort_state_local_reserved_bytes": 672000000,
+      "r2_reserved_bytes": 20799840000,
+      "r2_reserved_gb": 20.79984,
+      "local_reserved_bytes": 55797403648,
+      "local_reserved_gib": 51.965,
       "fits_collector_20gib_at_80pct": false,
       "r2_cost_with_free_tier_available": {
-        "billable_gb_units": 5,
+        "billable_gb_units": 11,
         "billable_class_a_million_units": 0,
         "billable_class_b_million_units": 0,
-        "storage_usd_month": "0.075",
+        "storage_usd_month": "0.165",
         "operations_usd_month": "0.00",
-        "total_usd_month": "0.075"
+        "total_usd_month": "0.165"
       },
       "r2_conservative_cost_without_free_tier": {
-        "billable_gb_units": 15,
+        "billable_gb_units": 21,
         "billable_class_a_million_units": 1,
         "billable_class_b_million_units": 1,
-        "storage_usd_month": "0.225",
+        "storage_usd_month": "0.315",
         "operations_usd_month": "4.86",
-        "total_usd_month": "5.085"
+        "total_usd_month": "5.175"
       },
-      "raw_events_in_supabase_bytes_7d_with_margin": 33600000000
+      "raw_events_in_supabase_bytes_7d_with_margin": 44800000000
     }
   ]
 }
