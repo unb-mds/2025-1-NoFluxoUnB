@@ -19,7 +19,8 @@ Coleta, transformação e ingestão dos dados acadêmicos da UnB no Supabase.
   testes (o parse vivo do produto é client-side, no frontend Svelte).
 - `dados/` — datasets de apoio (`cursos-de-graduacao.json`, expressões lógicas).
 - `turmas_2026_1/` — saída do scraping de turmas (JSON por departamento).
-- `package.json` (`coleta-dados`) — só 2 scripts JS de migração pontual.
+- `package.json` (`coleta-dados`) — membro do workspace pnpm; os antigos scripts JS
+  de migração pontual apontavam para arquivos já removidos e foram limpos.
 
 ## Testes
 
