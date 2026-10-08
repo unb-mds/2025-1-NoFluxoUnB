@@ -83,7 +83,7 @@ Squad 03 – MDS 2025/1 – FGA/UnB
        <a href="#">Felipe Lopes Pedroza</a>
      </td>
      <td align="center">
-       <img src="https://github.com/Vinicius-Ribeiro04.png" width="100px;" style="border-radius: 10px;" alt="Vinícius Pereira Ribeiro"/><br />
+       <img src="https://github.com/viniiribeiro.png" width="100px;" style="border-radius: 10px;" alt="Vinícius Pereira Ribeiro"/><br />
        <a href="#">Vinícius Pereira Ribeiro</a>
      </td>
      <td align="center">
