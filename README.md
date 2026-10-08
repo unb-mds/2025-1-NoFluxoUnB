@@ -39,9 +39,9 @@ Pré-requisito que trava tudo, equivalência que ninguém explica, optativa que 
 | Todos os cursos da UnB, por matriz e turno. Dá para explorar sem criar conta. | Mande o PDF do SIGAA e o fluxograma se pinta sozinho: o que você já fez, o que pode cursar e o que ainda está travado. | Monte a previsão de formatura e a grade do próximo semestre, com sugestões feitas para você. |
 
 <div align="center">
-  <img src="assets/readme/fluxograma-temas.gif" alt="Fluxograma de Engenharia de Software alternando entre o tema escuro e o claro" width="92%">
+  <img src="assets/readme/fluxograma-temas.gif" alt="Fluxograma de Engenharia de Software destacando a cadeia de pré-requisitos de uma matéria, nos temas escuro e claro" width="92%">
   <br/>
-  <sub>Fluxograma de Engenharia de Software — no tema escuro ou claro, como você preferir.</sub>
+  <sub>Passe o mouse numa matéria e veja o caminho até ela e tudo o que ela libera — no tema escuro ou claro.</sub>
 </div>
 
 ## O que você ganha
