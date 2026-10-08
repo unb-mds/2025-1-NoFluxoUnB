@@ -49,11 +49,11 @@ jobs:
     steps:
       # Publica exatamente o commit que passou no CI (no workflow_run o
       # github.sha é o HEAD atual da main, que pode já ser outro commit).
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -61,13 +61,13 @@ jobs:
         run: pip install requests python-dotenv
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Set up QEMU (multi-arch support)
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Log in to private registry
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         with:
           timeout_minutes: 2
           max_attempts: 5
