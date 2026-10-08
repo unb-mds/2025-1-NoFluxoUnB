@@ -14,7 +14,7 @@ foram extraídos e páginas renderizadas para leitura. Originais permanecem loca
 inalterados; comandos, preços, papéis e equity neles não são autorização de ação.
 
 O [guia de marca](../../../marca-e-posicionamento.md) e a
-[conciliação operacional](../../../capacity/alinhamento-marca-operacao-2026-10-08.md)
+conciliação operacional (documento local, fora do Git)
 separam orientação de marca, propostas comerciais, fonte e fotografia de produção.
 O anexo local ignorado contém os valores e a aritmética financeira; nenhum dado
 societário, preço privado ou remuneração foi inserido na documentação compartilhada.

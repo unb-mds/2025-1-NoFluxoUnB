@@ -3,8 +3,8 @@
 Data: 2026-10-08. Fonte-base: `b1ce5048ba008ab65b08bf891afc214fba09ee93`.
 Estado: planejamento revisado com gates de execução; implementação não realizada.
 
-[Plano](../../../capacity/plano-monitoramento-capacidade-2026-10-08.md) e
-[recibo detalhado](../../../capacity/monitoring-plan-review-2026-10-08.json)
+Plano (documento local, fora do Git) e
+recibo detalhado (documento local, fora do Git)
 registram arquitetura, histórico, custos e três passagens adversariais sequenciais
 pelo mesmo agente. Não constituem revisão independente ou teste do runtime futuro.
 As observações de infraestrutura são agregadas e somente leitura; o consumo de

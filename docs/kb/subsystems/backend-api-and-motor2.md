@@ -8,7 +8,6 @@ aliases:
   - modulo livre
 watches:
   - docs/marca-e-posicionamento.md
-  - docs/capacity/alinhamento-marca-operacao-2026-10-08.md
   - .claude/skills/motor2-backend-test/**
   - .claude/skills/motor2-integration-test/**
   - .claude/skills/motor2-code-review/**
@@ -177,4 +176,4 @@ Jest e integração HTTP são provas diferentes; não foram executados pela rest
 No monitoramento proposto, cadastro/coorte/ativação e instituição vêm de fonte
 validada; telemetry de cliente não prova persistência ou vínculo. Receita/cobrança
 por uso exige contrato/ledger próprio. Nada disso muda o handler, cotas ou banco
-atual. [Conciliação operacional](../../capacity/alinhamento-marca-operacao-2026-10-08.md).
+atual. Conciliação operacional (documento local, fora do Git).

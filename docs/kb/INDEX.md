@@ -19,13 +19,13 @@ deploy, disponibilidade de provedores, migrations aplicadas ou aceitação do pr
 ## Marca, skills e monitoramento
 
 - [Marca e posicionamento](../marca-e-posicionamento.md): NoFluxo/by Crianex, apoio ao estudante, evidência e linguagem.
-- [Conciliação com os três PDFs](../capacity/alinhamento-marca-operacao-2026-10-08.md): premissas comerciais versus fonte/observação; anexo financeiro local.
+- Conciliação com os três PDFs (documento local, fora do Git): premissas comerciais versus fonte/observação; anexo financeiro local.
 - Skills Motor 2 compartilhadas: `.claude/skills/motor2-*/SKILL.md`; catálogo e política em `CONTRIBUTING.md`.
 
 ## Auditoria e plano de capacidade
 
-- [Auditoria de recursos de 07/10](../capacity/nofluxo-capacity-2026-10-07.md): fotografia de produção e estimativas condicionais, sem ensaio de capacidade.
-- [Plano de monitoramento de 08/10](../capacity/plano-monitoramento-capacidade-2026-10-08.md): demanda, histórico, custo e critérios de implementação; propostas ainda não implementadas.
+- Auditoria de recursos de 07/10 (documento local, fora do Git): fotografia de produção e estimativas condicionais, sem ensaio de capacidade.
+- Plano de monitoramento de 08/10 (documento local, fora do Git): demanda, histórico, custo e critérios de implementação; propostas ainda não implementadas.
 
 ## Consulta e manutenção
 

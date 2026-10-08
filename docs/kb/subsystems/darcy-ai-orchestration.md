@@ -6,7 +6,6 @@ aliases:
   - orquestrador embeddings pgvector RAG
 watches:
   - docs/marca-e-posicionamento.md
-  - docs/capacity/plano-monitoramento-capacidade-2026-10-08.md
   - backend/src/services/chat/**
   - backend/src/services/sabia.service.ts
   - supabase/**
@@ -156,7 +155,7 @@ execução de migrations, publicação ou aceitação das propostas.
 
 ## Marca e custo por jornada — 08/10/2026
 
-O [plano v1.1](../../capacity/plano-monitoramento-capacidade-2026-10-08.md) separa
+O plano v1.1 (documento local, fora do Git) separa
 importação local do PDF, geração de plano, conversa, embeddings e ferramentas.
 Tarifas/modelos atuais precisam de versão e reconciliação; valores de Sabiá 3 de
 agosto não fixam o preço do Sabiá 4. Cache/modos e retries têm tratamento próprio.

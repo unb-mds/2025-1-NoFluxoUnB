@@ -5,9 +5,9 @@ O antigo panorama misturava camadas removidas e dependências de épocas diferen
 seu conteúdo foi substituído durante a limpeza de 2026-10-07.
 
 Comunicação e prioridades documentais seguem o [guia de marca](marca-e-posicionamento.md).
-A [conciliação operacional](capacity/alinhamento-marca-operacao-2026-10-08.md)
+A conciliação operacional (documento local, fora do Git)
 separa os PDFs de marca/modelo/investimento da fonte atual e da observação datada;
-o [Plano de Monitoramento](capacity/plano-monitoramento-capacidade-2026-10-08.md)
+o Plano de Monitoramento (documento local, fora do Git)
 mede demanda, confiança no dado, qualidade, sustentabilidade e capacidade.
 Preços e projeções financeiras ficam em material local ignorado, sem mudar a
 implementação, o domínio publicado ou o modo de cobrança.

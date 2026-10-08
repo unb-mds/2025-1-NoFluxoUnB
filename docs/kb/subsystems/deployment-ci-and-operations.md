@@ -11,7 +11,6 @@ watches:
   - package.json
   - CONTRIBUTING.md
   - DOCKER_README.md
-  - docs/capacity/**
 related:
   - SUB-backend
   - SUB-frontend
@@ -301,10 +300,10 @@ execução de publicação, confirmação de versão pública e aceitação func
 ## Auditoria operacional e planejamento posterior
 
 As leituras externas de 07–08/10 são registradas separadamente em
-[auditoria de capacidade](../../capacity/nofluxo-capacity-2026-10-07.md) e
-[inventário de monitoramento](../../capacity/monitoring-plan-evidence-2026-10-08.json).
+auditoria de capacidade (documento local, fora do Git) e
+inventário de monitoramento (documento local, fora do Git).
 Não alteram o status de revisão de fonte das seções acima. O
-[plano de monitoramento](../../capacity/plano-monitoramento-capacidade-2026-10-08.md)
+plano de monitoramento (documento local, fora do Git)
 propõe reutilizar a stack observada, acrescentar métricas/atividade e persistir
 histórico isolado. DEC-CAP-001 e DEC-CAP-002 têm implementação `not-implemented`;
 SQLite/PVC, R2, dashboards, alertas e testes de carga são contratos propostos,
@@ -314,7 +313,7 @@ SQL, alteração de cluster ou carga de produção foi realizado para esse plano
 
 ## Monitoramento v1.1 e custos de expansão — 08/10/2026
 
-[Alinhamento operacional](../../capacity/alinhamento-marca-operacao-2026-10-08.md)
+Alinhamento operacional (documento local, fora do Git)
 incorpora os PDFs de agosto/setembro como fontes datadas. Picos de matrícula 5×/10×,
 fila, autoscaling, novas IES e SLA cloud são perfis/propostas, não recursos observados.
 Vercel/RAGFlow na planilha não substituem o inventário K3s da auditoria.

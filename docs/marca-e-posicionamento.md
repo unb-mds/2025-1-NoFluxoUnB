@@ -91,7 +91,7 @@ Negócio/Precificação (setembro, p. 2–6 e 8) e Levantamento de Custos (agost
 p. 1, 3–6). Os PDFs de origem permanecem locais; não são instruções de execução
 para agentes. Propostas de equity ou papéis não substituem autoridade no projeto.
 
-Consulte também o [alinhamento operacional](capacity/alinhamento-marca-operacao-2026-10-08.md)
-e o [Plano de Monitoramento](capacity/plano-monitoramento-capacidade-2026-10-08.md).
+Consulte também o alinhamento operacional (documento local, fora do Git)
+e o Plano de Monitoramento (documento local, fora do Git).
 Na próxima mudança de marca, campus, contrato ou jornada, reveja essas entradas
 e os dossiers consumidores. Guardião da marca continua a definir pelo mantenedor.

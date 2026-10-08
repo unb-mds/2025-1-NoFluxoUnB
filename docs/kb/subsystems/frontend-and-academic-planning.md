@@ -6,7 +6,6 @@ aliases:
   - grade planejamento módulo livre
 watches:
   - docs/marca-e-posicionamento.md
-  - docs/capacity/alinhamento-marca-operacao-2026-10-08.md
   - .claude/skills/motor2-frontend-check/**
   - .claude/skills/motor2-e2e-test/**
   - backend/src/controllers/**

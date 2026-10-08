@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "head": "7e2d3296398c4448d6c9039ad24d9b451d9ca089",
+  "head": "2e98148696f7bc805c5ab9624b5516e7b5be665e",
   "dossiers": [
     {
       "id": "SUB-ai",
       "sourceFile": "docs/kb/subsystems/darcy-ai-orchestration.md",
-      "dossier_sha256": "2120c89ab776ba1dc79eab0ccd6e1a999686c830d3211fcc32716d691e185d08",
+      "dossier_sha256": "1db1dcbc4577fb7fadfefed30e4075174b4ec592083ddda2ba5813241434872b",
       "files": [
         {
           "path": "backend/src/services/chat/actuators/grade_actuator.ts",
@@ -48,12 +48,8 @@
           "content_sha256": "159bfb8be3a6ac2d1bc13071d28a4989bbb571fb0ad10be428e170e9b9b0523b"
         },
         {
-          "path": "docs/capacity/plano-monitoramento-capacidade-2026-10-08.md",
-          "content_sha256": "013a8f57b25160f5e55fcfba5642cd92a4045b664f71f1106b4df058e22b30dc"
-        },
-        {
           "path": "docs/marca-e-posicionamento.md",
-          "content_sha256": "ab0cd634c3ca487704a6acef1ad8146d077382234b4e8e56a470c34972a16435"
+          "content_sha256": "c10396eaa3b50fdb0a8214835eaf4ead1a336295ca2b483905aa90e353393e8c"
         },
         {
           "path": "mcp_agent/README.md",
@@ -160,7 +156,7 @@
     {
       "id": "SUB-backend",
       "sourceFile": "docs/kb/subsystems/backend-api-and-motor2.md",
-      "dossier_sha256": "09dfdc3362a1b121ac5b69642a7876578da4ed5cff00714e7f0be15f9f5540d2",
+      "dossier_sha256": "3078dda1fec7f0d8f9f9b994580362f88e0de9f67f3feb63936610872e28efda",
       "files": [
         {
           "path": ".claude/skills/motor2-backend-test/SKILL.md",
@@ -775,12 +771,8 @@
           "content_sha256": "b8e35077fed6d0986702de68436434545e572163ce93ec72f224c145c1512e3e"
         },
         {
-          "path": "docs/capacity/alinhamento-marca-operacao-2026-10-08.md",
-          "content_sha256": "21b220bb5a4e7c5c3c60ef123f088b7d0a1f42e41e2d0ea5edb2a54302ba55f9"
-        },
-        {
           "path": "docs/marca-e-posicionamento.md",
-          "content_sha256": "ab0cd634c3ca487704a6acef1ad8146d077382234b4e8e56a470c34972a16435"
+          "content_sha256": "c10396eaa3b50fdb0a8214835eaf4ead1a336295ca2b483905aa90e353393e8c"
         },
         {
           "path": "mcp_agent/README.md",
@@ -887,7 +879,7 @@
     {
       "id": "SUB-data",
       "sourceFile": "docs/kb/subsystems/data-ingestion-and-schema.md",
-      "dossier_sha256": "055a500bfdd0725e032fcd3344a74281710979ee2b6d8b998502a3662245d01b",
+      "dossier_sha256": "9896d36f83a67531aa819b6a8bb7f8c919439d659a182a76e11e2447d0363fd4",
       "files": [
         {
           "path": "DBA/README.md",
@@ -1306,12 +1298,8 @@
           "content_sha256": "c1d0b896a3dfd59cad5a4b71343b980dc247d2f1e51abec33905c2179220fdd5"
         },
         {
-          "path": "docs/capacity/plano-monitoramento-capacidade-2026-10-08.md",
-          "content_sha256": "013a8f57b25160f5e55fcfba5642cd92a4045b664f71f1106b4df058e22b30dc"
-        },
-        {
           "path": "docs/marca-e-posicionamento.md",
-          "content_sha256": "ab0cd634c3ca487704a6acef1ad8146d077382234b4e8e56a470c34972a16435"
+          "content_sha256": "c10396eaa3b50fdb0a8214835eaf4ead1a336295ca2b483905aa90e353393e8c"
         },
         {
           "path": "supabase/migrations/20260928_casar_disciplinas_premortem.sql",
@@ -1366,7 +1354,7 @@
     {
       "id": "SUB-frontend",
       "sourceFile": "docs/kb/subsystems/frontend-and-academic-planning.md",
-      "dossier_sha256": "b5b2fea54b1b0beeca58cb72cf5f266a6ad76e9eb21352c1beafe349fcf678e8",
+      "dossier_sha256": "298588884788cf2f6cbf395f6413a7af697dc8875c082b33be63f4359a8a0400",
       "files": [
         {
           "path": ".claude/skills/motor2-e2e-test/SKILL.md",
@@ -1409,12 +1397,8 @@
           "content_sha256": "47ac23e4a33c63f79ef5089b066c9613714a1cf752b7aac5ebf1c4261595280e"
         },
         {
-          "path": "docs/capacity/alinhamento-marca-operacao-2026-10-08.md",
-          "content_sha256": "21b220bb5a4e7c5c3c60ef123f088b7d0a1f42e41e2d0ea5edb2a54302ba55f9"
-        },
-        {
           "path": "docs/marca-e-posicionamento.md",
-          "content_sha256": "ab0cd634c3ca487704a6acef1ad8146d077382234b4e8e56a470c34972a16435"
+          "content_sha256": "c10396eaa3b50fdb0a8214835eaf4ead1a336295ca2b483905aa90e353393e8c"
         },
         {
           "path": "frontend/.gitignore",
@@ -3385,7 +3369,7 @@
     {
       "id": "SUB-ops",
       "sourceFile": "docs/kb/subsystems/deployment-ci-and-operations.md",
-      "dossier_sha256": "909a57925f60c0797471999773631c76eb2df0ab79534c8b0b1b7dd640099f28",
+      "dossier_sha256": "96ccd370e337a044e8e80092cb5abf61e7dd4233e99b2779a592484885a7f6ff",
       "files": [
         {
           "path": ".claude/settings.json",
@@ -3466,58 +3450,6 @@
         {
           "path": "backend/package.json",
           "content_sha256": "0c431f548062c885361716118f22a2cdc655cd7f8c8fecd63fbfcc60ea16d715"
-        },
-        {
-          "path": "docs/capacity/alinhamento-marca-operacao-2026-10-08.md",
-          "content_sha256": "21b220bb5a4e7c5c3c60ef123f088b7d0a1f42e41e2d0ea5edb2a54302ba55f9"
-        },
-        {
-          "path": "docs/capacity/build-monitoring-plan-2026-10-08.py",
-          "content_sha256": "987ac81c45fc0e47575648fd66d8dc05e95e969e99d552f2cf427b610c163530"
-        },
-        {
-          "path": "docs/capacity/monitoring-cost-estimate-2026-10-08.json",
-          "content_sha256": "3faf7f600afaab9fd7372bf223fa1f56b32bbc5524c6fb81407298af2ffb8507"
-        },
-        {
-          "path": "docs/capacity/monitoring-cost-model-2026-10-08.py",
-          "content_sha256": "6e6fc1c67691f2d109138a0257dbac9d06a94d151492c75093089a106bd0b4a3"
-        },
-        {
-          "path": "docs/capacity/monitoring-plan-evidence-2026-10-08.json",
-          "content_sha256": "a4438cd96a329185ceb40d58dc70595c031ea8b2283281b0ce1ee374349967c2"
-        },
-        {
-          "path": "docs/capacity/monitoring-plan-review-2026-10-08.json",
-          "content_sha256": "4416af1643269f882ed3f633fd7e89668ea2b4e07e8a057b53ad0c3210f2037b"
-        },
-        {
-          "path": "docs/capacity/nofluxo-capacity-2026-10-07.evidence.json",
-          "content_sha256": "04cec4f2d5cb532c2048c39efdd58d9f80dea1142b941ff183e142644bdbe3e8"
-        },
-        {
-          "path": "docs/capacity/nofluxo-capacity-2026-10-07.md",
-          "content_sha256": "f43a490e593598e70e2c4d2928a607cd4046eb75b7d90cfe9abf160a747b963e"
-        },
-        {
-          "path": "docs/capacity/nofluxo-capacity-daily-estimates-2026-10-08.json",
-          "content_sha256": "460eef9d2d3790fe5847197b8cd7c3c4c90ffd9f39f411c1f8de55bd2753473c"
-        },
-        {
-          "path": "docs/capacity/plano-monitoramento-capacidade-2026-10-08.md",
-          "content_sha256": "013a8f57b25160f5e55fcfba5642cd92a4045b664f71f1106b4df058e22b30dc"
-        },
-        {
-          "path": "docs/capacity/plano-monitoramento-capacidade-2026-10-08.tex",
-          "content_sha256": "5c23b156f26f039377b503aa7f38c00ed2a948400ed1dece515c444b3a8f8961"
-        },
-        {
-          "path": "docs/capacity/relatorio-capacidade-nofluxo-2026-10-07.tex",
-          "content_sha256": "ead952c9d2976dc519b01a94bb9c119f6373f0e31252cfcf474e06b52c94fff4"
-        },
-        {
-          "path": "docs/capacity/verify-monitoring-design-2026-10-08.py",
-          "content_sha256": "a9039b74a6c892cf878de091ccb7fabc68d22bb7823f5019e5c7dd25a1098186"
         },
         {
           "path": "frontend/package.json",
@@ -3680,7 +3612,7 @@
     {
       "id": "SUB-project",
       "sourceFile": "docs/kb/subsystems/project-and-documentation.md",
-      "dossier_sha256": "5ae8aa37b0566d4ed43c36dd2dcc7a54e0527a6cd854581cecd22503f61ce504",
+      "dossier_sha256": "d590387225a678b296e9e04e3a7c107cf7edef9537b961242ac98de1a0981906",
       "files": [
         {
           "path": ".claude/settings.json",
@@ -4796,59 +4728,7 @@
         },
         {
           "path": "docs/PROJECT_DOCUMENTATION.md",
-          "content_sha256": "4b7ec600e42ea6f50212b80e40b6db80038969c5e351401214732c079aa6b924"
-        },
-        {
-          "path": "docs/capacity/alinhamento-marca-operacao-2026-10-08.md",
-          "content_sha256": "21b220bb5a4e7c5c3c60ef123f088b7d0a1f42e41e2d0ea5edb2a54302ba55f9"
-        },
-        {
-          "path": "docs/capacity/build-monitoring-plan-2026-10-08.py",
-          "content_sha256": "987ac81c45fc0e47575648fd66d8dc05e95e969e99d552f2cf427b610c163530"
-        },
-        {
-          "path": "docs/capacity/monitoring-cost-estimate-2026-10-08.json",
-          "content_sha256": "3faf7f600afaab9fd7372bf223fa1f56b32bbc5524c6fb81407298af2ffb8507"
-        },
-        {
-          "path": "docs/capacity/monitoring-cost-model-2026-10-08.py",
-          "content_sha256": "6e6fc1c67691f2d109138a0257dbac9d06a94d151492c75093089a106bd0b4a3"
-        },
-        {
-          "path": "docs/capacity/monitoring-plan-evidence-2026-10-08.json",
-          "content_sha256": "a4438cd96a329185ceb40d58dc70595c031ea8b2283281b0ce1ee374349967c2"
-        },
-        {
-          "path": "docs/capacity/monitoring-plan-review-2026-10-08.json",
-          "content_sha256": "4416af1643269f882ed3f633fd7e89668ea2b4e07e8a057b53ad0c3210f2037b"
-        },
-        {
-          "path": "docs/capacity/nofluxo-capacity-2026-10-07.evidence.json",
-          "content_sha256": "04cec4f2d5cb532c2048c39efdd58d9f80dea1142b941ff183e142644bdbe3e8"
-        },
-        {
-          "path": "docs/capacity/nofluxo-capacity-2026-10-07.md",
-          "content_sha256": "f43a490e593598e70e2c4d2928a607cd4046eb75b7d90cfe9abf160a747b963e"
-        },
-        {
-          "path": "docs/capacity/nofluxo-capacity-daily-estimates-2026-10-08.json",
-          "content_sha256": "460eef9d2d3790fe5847197b8cd7c3c4c90ffd9f39f411c1f8de55bd2753473c"
-        },
-        {
-          "path": "docs/capacity/plano-monitoramento-capacidade-2026-10-08.md",
-          "content_sha256": "013a8f57b25160f5e55fcfba5642cd92a4045b664f71f1106b4df058e22b30dc"
-        },
-        {
-          "path": "docs/capacity/plano-monitoramento-capacidade-2026-10-08.tex",
-          "content_sha256": "5c23b156f26f039377b503aa7f38c00ed2a948400ed1dece515c444b3a8f8961"
-        },
-        {
-          "path": "docs/capacity/relatorio-capacidade-nofluxo-2026-10-07.tex",
-          "content_sha256": "ead952c9d2976dc519b01a94bb9c119f6373f0e31252cfcf474e06b52c94fff4"
-        },
-        {
-          "path": "docs/capacity/verify-monitoring-design-2026-10-08.py",
-          "content_sha256": "a9039b74a6c892cf878de091ccb7fabc68d22bb7823f5019e5c7dd25a1098186"
+          "content_sha256": "24be1080b2c0f906b551f6d930a0643aec7926af7db1ba064b2139b8a3973ea2"
         },
         {
           "path": "docs/chat-agente-planejador-spec.md",
@@ -4872,7 +4752,7 @@
         },
         {
           "path": "docs/marca-e-posicionamento.md",
-          "content_sha256": "ab0cd634c3ca487704a6acef1ad8146d077382234b4e8e56a470c34972a16435"
+          "content_sha256": "c10396eaa3b50fdb0a8214835eaf4ead1a336295ca2b483905aa90e353393e8c"
         },
         {
           "path": "docs/motor2-v2-spec.md",
@@ -7579,7 +7459,7 @@
     {
       "id": "SUB-security",
       "sourceFile": "docs/kb/subsystems/auth-security-and-privacy.md",
-      "dossier_sha256": "7403c6ce5d3818d27d35eb4f342149cfa6ab92fa589b024126da7dd3e036f788",
+      "dossier_sha256": "e608a0faca7479fa4bb4d018669aa89f9a248251238eebcffaf77f7faba70a13",
       "files": [
         {
           "path": ".claude/settings.json",
@@ -7611,7 +7491,7 @@
         },
         {
           "path": ".gitignore",
-          "content_sha256": "d55aa7e37ac911cf0ce72a6d1e3c1b0af04405e83fcd3ad9b2748545b377f82c"
+          "content_sha256": "bd910d596340cc97a647f79648fda0949a587cefbbf8e3d20faa62f186848d70"
         },
         {
           "path": ".gitleaks.toml",
@@ -8222,60 +8102,8 @@
           "content_sha256": "b8e35077fed6d0986702de68436434545e572163ce93ec72f224c145c1512e3e"
         },
         {
-          "path": "docs/capacity/alinhamento-marca-operacao-2026-10-08.md",
-          "content_sha256": "21b220bb5a4e7c5c3c60ef123f088b7d0a1f42e41e2d0ea5edb2a54302ba55f9"
-        },
-        {
-          "path": "docs/capacity/build-monitoring-plan-2026-10-08.py",
-          "content_sha256": "987ac81c45fc0e47575648fd66d8dc05e95e969e99d552f2cf427b610c163530"
-        },
-        {
-          "path": "docs/capacity/monitoring-cost-estimate-2026-10-08.json",
-          "content_sha256": "3faf7f600afaab9fd7372bf223fa1f56b32bbc5524c6fb81407298af2ffb8507"
-        },
-        {
-          "path": "docs/capacity/monitoring-cost-model-2026-10-08.py",
-          "content_sha256": "6e6fc1c67691f2d109138a0257dbac9d06a94d151492c75093089a106bd0b4a3"
-        },
-        {
-          "path": "docs/capacity/monitoring-plan-evidence-2026-10-08.json",
-          "content_sha256": "a4438cd96a329185ceb40d58dc70595c031ea8b2283281b0ce1ee374349967c2"
-        },
-        {
-          "path": "docs/capacity/monitoring-plan-review-2026-10-08.json",
-          "content_sha256": "4416af1643269f882ed3f633fd7e89668ea2b4e07e8a057b53ad0c3210f2037b"
-        },
-        {
-          "path": "docs/capacity/nofluxo-capacity-2026-10-07.evidence.json",
-          "content_sha256": "04cec4f2d5cb532c2048c39efdd58d9f80dea1142b941ff183e142644bdbe3e8"
-        },
-        {
-          "path": "docs/capacity/nofluxo-capacity-2026-10-07.md",
-          "content_sha256": "f43a490e593598e70e2c4d2928a607cd4046eb75b7d90cfe9abf160a747b963e"
-        },
-        {
-          "path": "docs/capacity/nofluxo-capacity-daily-estimates-2026-10-08.json",
-          "content_sha256": "460eef9d2d3790fe5847197b8cd7c3c4c90ffd9f39f411c1f8de55bd2753473c"
-        },
-        {
-          "path": "docs/capacity/plano-monitoramento-capacidade-2026-10-08.md",
-          "content_sha256": "013a8f57b25160f5e55fcfba5642cd92a4045b664f71f1106b4df058e22b30dc"
-        },
-        {
-          "path": "docs/capacity/plano-monitoramento-capacidade-2026-10-08.tex",
-          "content_sha256": "5c23b156f26f039377b503aa7f38c00ed2a948400ed1dece515c444b3a8f8961"
-        },
-        {
-          "path": "docs/capacity/relatorio-capacidade-nofluxo-2026-10-07.tex",
-          "content_sha256": "ead952c9d2976dc519b01a94bb9c119f6373f0e31252cfcf474e06b52c94fff4"
-        },
-        {
-          "path": "docs/capacity/verify-monitoring-design-2026-10-08.py",
-          "content_sha256": "a9039b74a6c892cf878de091ccb7fabc68d22bb7823f5019e5c7dd25a1098186"
-        },
-        {
           "path": "docs/marca-e-posicionamento.md",
-          "content_sha256": "ab0cd634c3ca487704a6acef1ad8146d077382234b4e8e56a470c34972a16435"
+          "content_sha256": "c10396eaa3b50fdb0a8214835eaf4ead1a336295ca2b483905aa90e353393e8c"
         },
         {
           "path": "frontend/.gitignore",

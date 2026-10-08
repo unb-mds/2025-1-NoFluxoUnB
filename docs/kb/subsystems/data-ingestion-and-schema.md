@@ -5,7 +5,6 @@ aliases:
   - banco schema migrations currículo equivalências histórico PDF
 watches:
   - docs/marca-e-posicionamento.md
-  - docs/capacity/plano-monitoramento-capacidade-2026-10-08.md
   - backend/docs/**
   - backend/scripts/export_schema.ts
 related:

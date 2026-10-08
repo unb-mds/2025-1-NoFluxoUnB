@@ -20,7 +20,6 @@ owns:
   - pnpm-workspace.yaml
   - scripts/docs-kb/**
   - docs/*.md
-  - docs/capacity/**
   - docs/investigacoes/**
   - docs/testes/**
   - documentacao/**
@@ -146,7 +145,7 @@ Essas referências são documentação/configuração, sem verificação de disp
 
 ## Plano de monitoramento e capacidade
 
-[Plano de 08/10](../../capacity/plano-monitoramento-capacidade-2026-10-08.md)
+Plano de 08/10 (documento local, fora do Git)
 é a entrada de implementação para a intenção DEC-CAP-002. Inclui LaTeX standalone,
 modelo de custo local, inventário agregado e registro de três revisões sequenciais
 pelo mesmo agente; não há alegação de revisão independente ou teste da futura
@@ -166,5 +165,5 @@ a retomada explícita usa novos caminhos e não reativa a orientação aposentad
 allow genérico `Bash`. `.gitignore` permite as seis pastas mantidas, conserva
 configuração/estado pessoal local e protege `docs/privado/` e `output/private/`.
 [Guia de marca](../../marca-e-posicionamento.md) e
-[conciliação](../../capacity/alinhamento-marca-operacao-2026-10-08.md) orientam
+conciliação (documento local, fora do Git) orientam
 NoFluxo/by Crianex e expectativas de medição, sem transformar PDFs em implementação.

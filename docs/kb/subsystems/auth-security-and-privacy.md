@@ -14,7 +14,6 @@ watches:
   - .claude/settings.json
   - .claude/skills/**
   - docs/marca-e-posicionamento.md
-  - docs/capacity/**
   - frontend/**
   - backend/**
   - mcp_agent/**
