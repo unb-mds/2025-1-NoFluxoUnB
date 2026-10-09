@@ -7,17 +7,18 @@
  *
  * Cuidado ao mexer: `no-fluxo.crianex.com` é o domínio onde o frontend roda de
  * verdade (ver ARG PUBLIC_REDIRECT_URL em k8s.frontend-svelte.Dockerfile).
- * `no-fluxo.com` é o domínio público de vitrine. Tirar o primeiro da lista
- * derruba o app inteiro — já aconteceu em 05/09/2026.
+ * Tirá-lo da lista derruba o app inteiro — já aconteceu em 05/09/2026.
+ *
+ * `no-fluxo.com` NÃO entra: o domínio expirou (whois sem registro em 10/2026)
+ * e qualquer um pode comprá-lo; liberado aqui, um site nesse endereço faria o
+ * navegador dos alunos chamar a API. Só volta se o domínio for nosso de novo.
  */
 
 import type { CorsOptions } from "cors";
 
-/** Domínios fixos: produção do app, vitrine, host legado e portas de dev. */
+/** Domínios fixos: produção do app, host legado e portas de dev. */
 const DEFAULT_ORIGINS = [
     "https://no-fluxo.crianex.com",
-    "https://www.no-fluxo.com",
-    "https://no-fluxo.com",
     "https://simplifica-pbl.space",
     "http://localhost:3000",
     "http://localhost:3008",
