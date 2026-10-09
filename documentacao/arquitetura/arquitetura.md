@@ -1,61 +1,33 @@
-# Arquitetura de Software 
+# Arquitetura do NoFluxoUNB
 
-## O que é Arquitetura de Software?
-A arquitetura de um sistema define seus componentes computacionais, os relacionamentos entre eles, os padrões que orientam sua composição e as restrições a serem seguidas. Envolve ainda decisões sobre a estrutura do sistema, controle, protocolos de comunicação, sincronização e acesso a dados, distribuição física dos elementos, atribuição de funcionalidades, além de aspectos como desempenho, escalabilidade e outros atributos de qualidade.
+Esta página descreve a organização identificada no código do repositório em 2026-10-07. A arquitetura atual reúne um frontend Svelte, uma API Express, um serviço de IA FastAPI e o Supabase. A presença de código ou configuração não confirma a revisão servida em produção.
 
-## Principais etapas do processo de arquitetura de software
-**1. Definição do problema que o software deve resolver:** O arquiteto precisa compreender o contexto no qual o sistema será aplicado, a partir de uma perspectiva externa. Isso facilita a proposta da solução e a identificação das interfaces necessárias.
+## Componentes e comunicação
 
-**2. Identificação dos componentes do sistema:** Com base no problema definido, são identificados os componentes que irão compor a arquitetura, estabelecendo a estrutura funcional do software.
+| Componente | Responsabilidade | Fonte principal |
+| --- | --- | --- |
+| `frontend/` | Interface SvelteKit 2 / Svelte 5, autenticação, fluxograma, upload e planejamento de grade | `frontend/package.json`, `frontend/src/routes/`, `frontend/src/lib/services/` |
+| Supabase | Autenticação, catálogo acadêmico, dados do aluno, RPCs e políticas de acesso | `frontend/src/lib/supabase/`, `backend/src/supabase_wrapper.ts`, `supabase/migrations/` |
+| `backend/` | API Express/TypeScript, planejamento de formatura, chat, autorização e administração | `backend/src/index.ts`, `backend/src/controllers/`, `backend/src/services/` |
+| `mcp_agent/` | Serviço FastAPI de busca semântica e respostas do Darcy, com Gemini, Maritaca e Supabase | `mcp_agent/api_producao.py`, `backend/src/services/sabia.service.ts` |
+| `DBA/` | Coleta do SIGAA, transformação e ingestão de dados acadêmicos | `DBA/scraping/`, `DBA/database/` |
 
-**3. Descrição dos componentes e conectores em tempo de execução:** Os componentes e conectores devem ser descritos em uma configuração de execução, evidenciando como se comunicam e interagem durante a operação do sistema.
+O acesso a dados é híbrido: o navegador usa Supabase diretamente para parte dos fluxos e chama a API Express para outros. A API Express também usa Supabase e chama o FastAPI por HTTP. Não é correto descrever todo acesso ao banco como intermediado pelo Express.
 
-## Tipos de arquiteturas de software
-O tipo ou padrão de arquitetura define as classes de elementos que podem aparecer em uma arquitetura e as regras que regem a interconexão entre estes elementos.
+O histórico PDF é processado no navegador por `pdfjs-dist`, em `frontend/src/lib/services/pdf/`. O casamento das disciplinas usa a RPC `casar_disciplinas` do Supabase. O parser Flask preservado em `DBA/parse_pdf/` atende a testes legados; ele não é o serviço de upload do produto atual.
 
-## Principais tipos de arquiteturas de software
-### Layers (camadas)
-- Cada uma das camadas tem funcionalidades específicas no software, o que traz mais flexibilidade para a aplicação. 
-- Oferece maior facilidade de desenvolvimento e execução de testes, mas pode ter a escalabilidade comprometida principalmente a partir do momento em que o projeto começa a acumular uma quantidade elevada de camadas.
-- Organiza o sistema em camadas hierárquicas, onde cada camada possui uma responsabilidade distinta.
-- (ex: apresentação, lógica de negócio, acesso a dados). É comum em sistemas corporativos.
+O planejamento acadêmico e o chat têm caminhos distintos no backend: Motor 2, agente planejador e orquestração em `services/chat/`. Há código RAGFlow preservado, mas sua existência não o torna o caminho principal do Darcy atual. A documentação interna registra a divisão por fluxo e seus consumidores.
 
-### Client-server (cliente-servidor)
-- O processamento da informação se divide em módulos e processos distintos, combinando dados do cliente (solicita serviços) e do servidor (processa e fornece respostas).
-- Um dos módulos é responsável pela manutenção da informação e o outro pela obtenção de dados.
-- Amplamente usada em aplicações web e sistemas distribuídos.
+## Hospedagem e publicação
 
-### Microservices (micros serviços)
-- Estrutura o sistema como um conjunto de serviços pequenos, independentes e focados em funcionalidades específicas.
-- Se baseia em múltiplos serviços e componentes para desenvolver uma estrutura modular.
-- Modelo preferido dos desenvolvedores e arquitetos de software, por permitir escalabilidade e independência dos módulos, que podem usar diferentes linguagens.
-- Facilita a escalabilidade e o desenvolvimento independente de partes do sistema.
+O frontend usa `@sveltejs/adapter-static`, com fallback `index.html`, e é servido pela imagem `k8s.frontend-svelte.Dockerfile`. A flag do layout e a renderização durante o build devem ser avaliadas separadamente da hospedagem estática; adapter-static não implica automaticamente `ssr = false`.
 
-## Qual a relação com o desenvolvimento low-code
-Os tipos de arquiteturas de software tem como principal objetivo maximizar a produtividade no desenvolvimento de softwares que entregam soluções e resolvem os mais diversos problemas.
-O que está bastante alinhado ao que o low-code consegue oferecer no que diz respeito a desenvolvimento de sistemas, estabelecendo uma relação bastante favorável para iniciar um projeto partindo dos tipos de arquiteturas de software aliado ao desenvolvimento low-code.
-Os avanços tecnológicos e digitais exigem cada vez mais velocidade, flexibilidade, performance e desempenho, por isso o low-code é essencial em uma arquitetura de software.
+As três imagens de aplicação são definidas nos Dockerfiles `k8s.backend.Dockerfile`, `k8s.frontend-svelte.Dockerfile` e `k8s.mcp-agent.Dockerfile`. O workflow `deploy.yml` aguarda um CI elegível e aprovado na main, publica o SHA desse run e verifica o rollout. O disparo manual possui uma condição distinta. Essas configurações não substituem a observação da revisão efetivamente servida.
 
-## Qual o tipo de arquitetura ideal para o projeto?
-### A arquitetura Client-server é adequada para este projeto pelos seguintes motivos. 
+O site acadêmico é outra publicação: `mkdocs.yml` lê `documentacao/`, e `ci.yml` publica o site em gh-pages após push na main. A base interna de engenharia em `docs/kb/` não integra esse diretório público.
 
-**1. Separação de responsabilidades**: Permite uma distinção clara entre a interface do usuário (cliente) e o processamento de dados e lógica de negócio (servidor), facilitando a organização e manutenção do sistema.
-  
-**2. Reutilização e integração**: Possibilita que diferentes interfaces, como aplicações web ou mobile, se conectem ao mesmo servidor, promovendo a reutilização do backend e mantendo a consistência nas funcionalidades.
+## Limites desta descrição
 
-**3. Centralização de dados**: Todos os dados ficam armazenados no servidor, o que facilita o controle de acesso, a segurança das informações e a integridade dos dados.
+Exports em `backend/docs/` e SQLs em `supabase/migrations/` descrevem fontes e snapshots. Não demonstram quais migrações estão aplicadas no banco vivo. Planos e estudos antigos preservam decisões e propostas da época; sua implementação deve ser confirmada por arquivo e por fluxo.
 
-**4. Uso de APIs padronizadas**: A comunicação entre cliente e servidor pode ser feita por meio de APIs RESTful, que seguem padrões amplamente utilizados, o que simplifica o desenvolvimento e favorece a interoperabilidade.
-
-**5. Escalabilidade e flexibilidade**: Essa arquitetura permite escalar o servidor conforme a demanda do sistema aumenta, além de possibilitar adaptações futuras com maior facilidade.
-
-![image](https://github.com/user-attachments/assets/62ccc88c-479c-47e0-a6d1-04535601036c)
-- Link de referência da imagem: `https://www.simplilearn.com/what-is-client-server-architecture-article`
-- Link sobre arquitetura de software: `https://www.inf.ufpr.br/andrey/ci163/IntroduzArquiteturaAl.pdf`
-
-
-
-
-
-
-
+Fontes: [entrada da API](https://github.com/unb-mds/2025-1-NoFluxoUNB/blob/main/backend/src/index.ts), [configuração Svelte](https://github.com/unb-mds/2025-1-NoFluxoUNB/blob/main/frontend/svelte.config.js), [serviço FastAPI](https://github.com/unb-mds/2025-1-NoFluxoUNB/blob/main/mcp_agent/api_producao.py), [deploy](https://github.com/unb-mds/2025-1-NoFluxoUNB/blob/main/.github/workflows/deploy.yml), [índice interno da KB](https://github.com/unb-mds/2025-1-NoFluxoUNB/blob/main/docs/kb/INDEX.md).

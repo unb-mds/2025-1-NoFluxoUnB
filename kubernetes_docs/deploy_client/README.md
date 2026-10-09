@@ -1,96 +1,30 @@
-# Deploy API Python CLI (`deploy_client`)
+# Cliente genérico da Deploy API
 
-Minimal Python CLI to:
+Este pacote Python é uma ferramenta independente por flags. O workflow do NoFluxoUNB usa [scripts/deploy/deploy_local.py](../../scripts/deploy/deploy_local.py) e sua configuração `APPS`; veja [Deploy e operações](../../docs/kb/subsystems/deployment-ci-and-operations.md).
 
-- trigger an in-cluster Kaniko build via Deploy API
-- resolve and store the resulting image digest (`buildId`)
-- reuse `buildId` to skip future builds and deploy instantly (deploy-by-digest)
+## Interface implementada
 
-## Install
+Em `__main__.py`, o parser aceita três subcomandos:
 
-```bash
-python3 -m pip install -r kubernetes/deploy_client/requirements.txt
-```
+| Comando | Símbolo | Comportamento no cliente |
+| --- | --- | --- |
+| `build` | `cmd_build` | Envia `POST /build` com repo/ref e `deploy=False`, pode esperar o job, resolve digest e grava estado. |
+| `reuse-deploy` | `cmd_reuse_deploy` | Obtém app/digest de flags ou estado e envia pedido com `buildId`, `deploy=True` e configuração. |
+| `local-deploy` | `cmd_local_deploy` | Executa Docker build/push, resolve digest, grava estado e envia pedido de deploy. |
 
-## Environment
-
-- `DEPLOY_API_URL` (e.g. `https://deploy.kubernetes.crianex.com`)
-- `DEPLOY_API_KEY` (sent as `X-API-Key`)
-
-Optional:
-- `DEPLOY_API_TIMEOUT` (seconds)
-
-## Run
-
-Because this lives under `kubernetes/` (to be copied into other repos), run it from a repo root using `PYTHONPATH=kubernetes`:
+Instalação de dependências, quando necessária, usa `python -m pip install -r kubernetes_docs/deploy_client/requirements.txt`. Ela baixa pacotes e não configura o serviço remoto. Para consultar ajuda a partir da raiz, com as dependências instaladas:
 
 ```bash
-PYTHONPATH=kubernetes python3 -m deploy_client --help
+PYTHONPATH=kubernetes_docs python -m deploy_client --help
+PYTHONPATH=kubernetes_docs python -m deploy_client build --help
+PYTHONPATH=kubernetes_docs python -m deploy_client reuse-deploy --help
+PYTHONPATH=kubernetes_docs python -m deploy_client local-deploy --help
 ```
 
-This writes `.deploy/build-id.json` relative to your current working directory.
+`config.py:load_config` lê `DEPLOY_API_URL`, `DEPLOY_API_KEY` e `DEPLOY_API_TIMEOUT` do ambiente ou flags correspondentes. Este pacote não carrega `.env` automaticamente. Segredos devem permanecer fora do Git e não ser passados em linhas de comando compartilhadas. `api.py:DeployApiClient` envia a chave no header `X-API-Key`.
 
-## Commands
+`buildid_store.py:DEFAULT_PATH` é `.deploy/build-id.json` relativo ao diretório de execução; `--state-file` permite outro caminho. É cache de metadados/digest, não prova de rollout. O CLI genérico não implementa a verificação pública de commit do produto.
 
-### Deploy local changes (build on your machine)
+`local-deploy --no-push` ainda resolve digest e pede deploy. O comando `build` com `deploy=False` continua sendo build remoto e pode consumir recursos externos. Opções deste pacote não são necessariamente válidas no cliente específico do NoFluxo; consulte cada parser.
 
-This is the recommended path when your code is not pushed to Git yet.
-
-Prereqs:
-- Docker installed
-- Logged into the registry (e.g. `docker login registry.kubernetes.crianex.com`)
-
-```bash
-export DEPLOY_REGISTRY=registry.kubernetes.crianex.com
-
-PYTHONPATH=kubernetes python3 -m deploy_client local-deploy \
-  --app my-app \
-  --namespace apps \
-  --port 3000 \
-  --domains my-app.example.com
-```
-
-To deploy to the non-business node pool:
-
-```bash
-PYTHONPATH=kubernetes python3 -m deploy_client local-deploy \
-  --app my-tool \
-  --namespace apps \
-  --port 3000 \
-  --domains my-tool.example.com \
-  --app-class non-business
-```
-
-Notes:
-- This runs `docker build` + `docker push`, then resolves the digest via the Deploy API and deploys via `buildId`.
-- The resulting digest is stored in `.deploy/build-id.json`.
-- Use `--app-class non-business` to schedule pods on non-business nodes (defaults to `business`).
-
-### Build once (stores buildId)
-
-```bash
-PYTHONPATH=kubernetes python3 -m deploy_client build \
-  --app my-app \
-  --namespace apps \
-  --repo-url https://github.com/org/repo \
-  --git-ref main \
-  --app-class business          # optional, default
-```
-
-### Reuse deploy (skip Kaniko)
-
-```bash
-PYTHONPATH=kubernetes python3 -m deploy_client reuse-deploy \
-  --port 3000 \
-  --domains my-app.example.com \
-  --app-class business          # optional, default
-```
-
-If you don't pass `--build-id`, it will use `.deploy/build-id.json`.
-
-### App Class
-
-All deploy commands accept `--app-class` (`business` | `non-business`, default `business`).
-
-- **`business`** — pods land in the `apps` namespace on the default node pool.
-- **`non-business`** — pods land in the `non-business-apps` namespace and are scheduled only on nodes labelled `workload-class=non-business` (with matching tolerations).
+A fonte local descreve pedidos esperados, não comprova contrato vigente da API, build remoto Kaniko, rejeição de digest ausente, disponibilidade ou resultado da publicação. Execuções de build/push/deploy exigem autorização e confirmação de alvo/ambiente com o administrador. Referência conceitual: [reuso de digest](../BUILD_ID_REUSE_PYTHON.md).

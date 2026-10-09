@@ -34,7 +34,7 @@ Pré-requisito que trava tudo, equivalência que ninguém explica, optativa que 
 
 ## Como funciona
 
-| 1️⃣ Escolha seu curso | 2️⃣ Envie seu histórico | 3️⃣ Planeje sem medo |
+| 1️⃣ Escolha seu curso | 2️⃣ Envie seu histórico | 3️⃣ Planeje com clareza |
 |:---:|:---:|:---:|
 | Todos os cursos da UnB, por matriz e turno. Dá para explorar sem criar conta. | Mande o PDF do SIGAA e o fluxograma se pinta sozinho: o que você já fez, o que pode cursar e o que ainda está travado. | Monte a previsão de formatura e a grade do próximo semestre, com sugestões feitas para você. |
 
@@ -63,7 +63,7 @@ Pré-requisito que trava tudo, equivalência que ninguém explica, optativa que 
     </td>
     <td valign="top">
 
-- ♿ **Acessibilidade de verdade** — alto contraste, texto ampliado, fonte de leitura facilitada, menos movimento e foco reforçado, no computador e no celular.
+- ♿ **Recursos de acessibilidade** — alto contraste, texto ampliado, fonte de leitura facilitada, menos movimento e foco reforçado, no computador e no celular.
 - 🌗 **Modo claro e escuro** — escolha o seu ou siga o do seu aparelho.
 - 📱 **No bolso** — o mesmo NoFluxo no celular, sem instalar app.
 - 🔒 **Seus dados, seu controle** — consulte como visitante ou crie uma conta para salvar seu progresso.
@@ -74,7 +74,9 @@ Pré-requisito que trava tudo, equivalência que ninguém explica, optativa que 
 
 ## Feito por estudantes, para estudantes
 
-O NoFluxo nasceu na própria UnB, como projeto de estudantes da FGA na disciplina de Métodos de Desenvolvimento de Software (2025/1). Hoje é um produto da **[Crianex](https://crianex.com)** e orienta milhares de estudantes da UnB — e segue sendo mantido por quem vive o problema todo semestre.
+O NoFluxo nasceu na própria UnB, como projeto de estudantes da FGA na disciplina de Métodos de Desenvolvimento de Software (2025/1). Hoje é um produto da **[Crianex](https://crianex.com)** e apoia o planejamento de estudantes da UnB — e segue sendo mantido por quem vive o problema todo semestre.
+
+**NoFluxo · by Crianex.** Gratuito para o estudante. O NoFluxo complementa a orientação humana e não é ferramenta oficial da UnB; confira regras, oferta e recomendações com a coordenação do seu curso.
 
 <div align="center">
   <picture>

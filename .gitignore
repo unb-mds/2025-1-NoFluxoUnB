@@ -89,7 +89,14 @@ debug_html/
 # Claude Code — arquivos locais (não versionar)
 # (o CLAUDE.md da raiz é versionado de propósito: é o mapa do repo)
 .claude/settings.local.json
-.claude/skills/
+# Skills compartilhadas e mantidas; demais skills continuam locais.
+.claude/skills/*
+!.claude/skills/motor2-backend-test/
+!.claude/skills/motor2-code-review/
+!.claude/skills/motor2-e2e-test/
+!.claude/skills/motor2-frontend-check/
+!.claude/skills/motor2-git-workflow/
+!.claude/skills/motor2-integration-test/
 .claude/plans/
 .claude/projects/
 SECURITY_ISSUES.md
@@ -175,6 +182,13 @@ docker-compose.yml
 # Material confidencial de negócio (precificação, pitches) — não versionar.
 documentacao/modelo_de_negocio_precificacao.*
 documentacao/pitch_vendas_investidor.*
+# Fontes e reconciliação financeira fornecidas pelo mantenedor.
+/docs/privado/
+/output/private/
+# Relatórios de capacidade e monitoramento (fontes, evidências e PDFs gerados)
+# ficam locais: trazem números de uso e custo de produção.
+/output/pdf/
+/docs/capacity/
 
 # Configuração local de agents (uso individual, não versionado).
 .agents/

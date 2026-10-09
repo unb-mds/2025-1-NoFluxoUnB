@@ -1,24 +1,33 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "deny": [
-      "Bash(git push*)",
-      "Bash(git rebase*)",
-      "Bash(git reset --hard)"
+      "Bash(git push *)",
+      "Bash(git rebase *)",
+      "Bash(git reset --hard *)",
+      "Bash(gh pr merge *)"
     ],
     "allow": [
-      "Bash(git status)",
-      "Bash(git log*)",
-      "Bash(git diff*)",
-      "Bash(git add*)",
-      "Bash(git commit)",
-      "Bash(git commit -m*)",
-      "Bash(cd*)",
+      "Bash(git status *)",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(git show *)",
+      "Bash(git add *)",
+      "Bash(git commit -m *)",
+      "Bash(npm run kb:query *)",
+      "Bash(npm run kb:check *)",
+      "Bash(npm run kb:drift)",
+      "Bash(npm --prefix backend run type-check)",
+      "Bash(npm --prefix backend run lint)",
+      "Bash(npm --prefix backend test -- *)",
+      "Bash(npm --prefix frontend run check)",
+      "Bash(npm --prefix frontend run lint)",
+      "Bash(npm --prefix frontend run test:unit -- *)",
       "Read",
       "Edit",
       "Write",
       "Glob",
-      "Grep",
-      "Bash"
+      "Grep"
     ]
   }
 }

@@ -1,43 +1,21 @@
-# Dev Impersonation — modo local
+# Impersonação de desenvolvimento
 
-Permite logar como qualquer usuário em **localhost** sem precisar de conta no Supabase ou popup do Google OAuth. Útil para Playwright e debug manual.
+É uma ferramenta de UI/debug local, não autenticação real nem prova de RLS.
 
-## Como ligar
+## Gates reais
 
-1. Backend rodando com `NODE_ENV !== "production"` (qualquer valor que não seja `production`, ou variável ausente — o default do `npm run dev` já serve).
-2. Frontend rodando com `PUBLIC_ENVIRONMENT !== "production"` (default em `.env.example`).
-3. Acessar `http://localhost:5173/dev/impersonar`.
+- `frontend/src/routes/dev/impersonar/+page.ts::load` exige `!config.isProd` e `import.meta.env.DEV`; caso contrário responde 404.
+- `AuthService.getAuthHeaders` envia `X-Dev-Impersonate` somente em build de desenvolvimento e com `localStorage.nofluxo_dev_impersonate=true`.
+- `backend/src/utils.ts::Utils.checkAuthorization` exige `NODE_ENV !== production` **e** opt-in explícito `ALLOW_DEV_IMPERSONATE=true`, além de `User-ID` e email compatível com o perfil existente.
 
-A rota retorna 404 em produção (gate no `+page.ts`).
+Não basta deixar `NODE_ENV` ausente ou alterar apenas `PUBLIC_ENVIRONMENT`.
+Use apenas instâncias e perfis de desenvolvimento autorizados. A UI sintética não
+cria sessão Supabase: operações do browser dependentes de RLS continuam tendo sua
+própria autenticação. A rota oferece presets/formulário e limpeza da flag/sessão local.
 
-## Uso
+## Verificação
 
-- **Presets**: clique em "Estudante padrão", "Admin (escopo tickets)" ou "Superadmin" para preencher o form rapidamente.
-- **Custom**: edite `idUser`, `email`, `nomeCompleto`, `isAdmin`, `adminRole`, `adminScopes` (separados por vírgula). Defina pra onde redirecionar (`/upload-historico`, `/admin`, `/meu-fluxograma/Engenharia`, etc).
-- Click **Impersonar** → o `authStore` recebe o `UserModel` sintético, a flag `localStorage.nofluxo_dev_impersonate=true` é setada, e você é redirecionado.
-- **Limpar impersonação** desfaz tudo (`authStore.clear()` + remove flag).
-
-## Como funciona
-
-| Camada | Patch |
-|---|---|
-| `lib/stores/auth.ts` | `clear()` também remove `nofluxo_dev_impersonate`. |
-| `lib/guards/authGuard.ts:checkAuth` | Quando a flag está setada, pula `isSessionValid()` (que faria signOut imediato sem sessão Supabase real). |
-| `lib/services/auth.service.ts:getAuthHeaders` | Quando a flag está setada, envia `X-Dev-Impersonate: <email>` em vez de `Authorization: Bearer <token>`. |
-| `backend/src/utils.ts:checkAuthorization` | Quando `NODE_ENV !== "production"` E header `X-Dev-Impersonate` presente, faz lookup em `public.users` por `id_user`, compara o email, e autoriza. |
-
-## Limitações & segurança
-
-- **Gate de produção**: tanto frontend (`+page.ts` 404 + `getAuthHeaders` só atua com flag) quanto backend (`NODE_ENV !== "production"`) bloqueiam o bypass em prod. Se quiser auditar, busque por `nofluxo_dev_impersonate` e `x-dev-impersonate` no código.
-- **UI-only vs full-stack**: se o `idUser`/`email` não existirem em `public.users`, as chamadas autenticadas falham no lookup (UI funciona, backend recusa). Para fluxo completo, use um user real do seed (a tabela `users` da sua instância Supabase de desenvolvimento).
-- **Não substitui testes E2E reais**: este modo serve pra exploratórios e debug. Cenários de produção (OAuth real, RLS strict) precisam de teste com usuário real.
-
-## Validação
-
-Spec Playwright em `frontend/tests-e2e/dev-impersonation.spec.ts` — 5 cenários, todos PASS:
-
-1. Rota carrega e mostra título + presets
-2. Submeter form impersona, seta flag e redireciona
-3. Após impersonar, `authGuard` libera `/upload-historico` sem `signOut`
-4. Preset Admin preenche os campos corretamente
-5. Clear remove `user`, flag e exibe status
+`frontend/tests-e2e/dev-impersonation.spec.ts` contém cenários disponíveis. Sua presença
+não significa execução atual nem aceite de produção; não há declaração de PASS nesta página.
+Veja [autorização e segurança](kb/subsystems/auth-security-and-privacy.md) e
+[frontend](kb/subsystems/frontend-and-academic-planning.md) para limites e consumidores.

@@ -1,90 +1,54 @@
-# Testes em Python (Pytest e Análise Estática)
+# Testes Python — dados, parser legado e utilitários de IA
 
-Os módulos em Python do NoFluxoUNB englobam o **pipeline de ingestão e scraping de dados (DBA)**, o **serviço de parsing de históricos escolares em PDF** e o **serviço de Agente de IA (MCP Agent)**.
+As suítes têm escopos distintos. A configuração principal de dados está em `DBA/tests/pytest.ini`; os testes dos utilitários do serviço de IA ficam em `mcp_agent/`. Este guia descreve o código revisado em 2026-10-07 e não publica uma medição de cobertura.
 
----
+## Suíte `DBA/tests/`
 
-## 📂 Organização das Suítes Python
+| Arquivo | O que exercita | Limite |
+| --- | --- | --- |
+| `test_expressao_parser.py` | Parser de expressões lógicas importado da área DBA | Entradas e propriedades das asserções existentes |
+| `test_scraping_equivalencias.py` | Helpers definidos dentro do próprio arquivo: limpeza de texto/acentos e extração de HTML sintético | Não importa o scraper de produção; não certifica a coleta real do SIGAA |
+| `test_upload_pdf.py` | Cliente de teste Flask do `DBA.parse_pdf.pdf_parser_final`, incluindo ausência de arquivo | O caso de upload bem-sucedido está marcado `unittest.skip` e depende de fixture referenciada |
 
-```
-2025-1-NoFluxoUNB/
-├── DBA/tests/                           # Suíte central de dados e scraping
-│   ├── conftest.py                         # Inclusão da raiz no sys.path
-│   ├── pytest.ini                          # Configurações do Pytest e cobertura
-│   ├── test_expressao_parser.py            # Parser de pré-requisitos lógicos
-│   ├── test_scraping_equivalencias.py      # Scraping do SIGAA
-│   └── test_upload_pdf.py                  # Integração de upload
-├── DBA/parse_pdf/                          # Parser de históricos em PDF (coberto pela suíte)
-└── mcp_agent/                              # Agente de IA
-    └── test_tool_call_utils.py             # Validação de tool calling
-```
+O Flask permanece nesse parser legado e em seus testes. O upload atual do produto é processado no navegador pelo frontend com `pdfjs-dist`, seguido da RPC de casamento de disciplinas; não é um request para esse Flask.
 
----
+`conftest.py` ajusta importação dos módulos. O `pytest.ini` define relatórios HTML/XML/terminal e mede `expressao_parser` e `DBA.parse_pdf.pdf_parser_final`, com piso `--cov-fail-under=45`. A configuração é a fonte do piso; os percentuais descritos em comentários antigos não são uma medição atual.
 
-## 🔍 Detalhamento das Suítes
+## Utilitários do serviço de IA
 
-### 1. `DBA/tests/` (Banco e Scraping)
-- **`test_expressao_parser.py`**:
-  - Testa a conversão de expressões em texto plano vindas do SIGAA para a árvore lógica em formato JSONB armazenada no Supabase.
-  - Cobre:
-    - Disciplinas isoladas: `"MAT0025"` $\rightarrow$ `{"operador": null, "condicoes": ["MAT0025"]}`
-    - Conjunções (`E`): `"( MAT0025 E MAT0026 )"`
-    - Disjunções (`OU`): `"( CCA0105 OU FUP0289 )"`
-    - Expressões mistas com parênteses aninhados e tratamento de espaços irregulares.
-- **`test_scraping_equivalencias.py`**:
-  - Valida a extração de tabelas de equivalência a partir do HTML retornado pelo SIGAA.
-  - Testa parsing de equivalências gerais vs. específicas por curso/currículo.
-- **`test_upload_pdf.py`**:
-  - Teste de integração que envia arquivos multipart/form-data para o endpoint de extração e valida o JSON estruturado resultante.
+- `mcp_agent/test_tool_call_utils.py`: funções puras que extraem tool calls de texto/JSON e normalizam termos de matéria.
+- `mcp_agent/test_sabia_utils.py`: parsing de recomendações, códigos válidos, notas, termos de busca, uso de embeddings e opções/timeouts do cliente Maritaca.
 
-### 2. `DBA/parse_pdf/` (Parser de Históricos)
-- O parser Python `pdf_parser_final.py` é coberto pela própria suíte `DBA/tests/`
-  (`test_upload_pdf.py` e a métrica `--cov=DBA.parse_pdf.pdf_parser_final` no
-  `pytest.ini`). O antigo serviço `parse-pdf/` do backend foi aposentado na fase 3
-  da reorganização — o parse vivo do produto é client-side, no frontend
-  (`pdfjs-dist`), validado pelo E2E `upload-historico.exploratorio.spec.ts`.
+Esses testes não demonstram chamadas bem-sucedidas aos modelos, disponibilidade do FastAPI ou busca no Supabase vivo. O serviço atual é FastAPI (`mcp_agent/api_producao.py`), apesar do nome histórico da pasta. O job Pytest principal do CI roda em `DBA/tests/`; não coleta automaticamente os arquivos `mcp_agent/test_*.py`.
 
-### 3. `mcp_agent/` (Agente de IA)
-- **`test_tool_call_utils.py`**:
-  - Testa as funções auxiliares que preparam o catálogo de ferramentas enviado para os modelos da OpenAI, Gemini e Maritaca.
-  - Valida serialização de respostas, validação de tipos com Pydantic e captura de falhas em chamadas a APIs externas.
+## Execução
 
----
-
-## 🧹 Análise Estática de Código
-
-Além dos testes funcionais, o pipeline de qualidade do projeto exige aprovação em duas ferramentas de análise estática:
-
-| Ferramenta | Papel | Comando | Versão Padronizada |
-|---|---|---|---|
-| **Black** | Formatação determinística de código | `black --check .` | `25.11.0` |
-| **Flake8** | Linting, conformidade PEP 8 e detecção de imports não utilizados | `flake8 .` | `7.3.0` |
-
----
-
-## 🛠️ Como Executar os Testes em Python
-
-Certifique-se de ativar o ambiente virtual (`venv`) antes da execução:
+Use um ambiente Python com as dependências da área instaladas. A partir da raiz:
 
 ```bash
-# Ativar venv no Windows:
-.\venv\Scripts\Activate.ps1
-# Ou no Linux/macOS:
-source venv/bin/activate
+python -m pip install -r DBA/tests/requirements.txt pytest pytest-cov pytest-mock
+(cd DBA/tests && python -m pytest)
+(cd mcp_agent && python -m pytest test_tool_call_utils.py test_sabia_utils.py)
+```
 
-# 1. Executar suíte central DBA/tests:
-cd DBA/tests
-python -m pytest -v
+As funções puras também possuem runner direto:
 
-# 2. Executar com cobertura:
-python -m pytest --cov=. --cov-report=html --cov-report=term-missing
+```bash
+(cd mcp_agent && python test_tool_call_utils.py)
+(cd mcp_agent && python test_sabia_utils.py)
+```
 
-# 3. Executar testes do MCP Agent:
-cd ../../mcp_agent
-python -m pytest test_tool_call_utils.py
+Para cobertura DBA, o comando padrão já lê o `pytest.ini`. Não acrescente `--cov=.` dentro de `DBA/tests/`: isso adiciona o diretório dos próprios testes como alvo e altera o significado da métrica.
 
-# 5. Executar linters de qualidade:
-cd ..
+O CI instala Tesseract e Poppler para o ambiente PDF/OCR. A disponibilidade de fixtures e de dependências é distinta da aprovação de cada caso.
+
+## Qualidade estática
+
+O workflow principal executa, na raiz, Black 25.11.0 e Flake8 7.3.0:
+
+```bash
 black --check .
 flake8 .
 ```
+
+Formatação/lint aprovados não demonstram correção do parser, scrape real ou integridade dos dados ingeridos. Consulte [pipeline](pipeline-ci.md) e [métricas](cobertura-metricas.md) para a divisão dos checks.

@@ -1,3 +1,5 @@
+> Material de estudo da disciplina. Esta página não descreve a stack atual do NoFluxoUNB; a arquitetura implementada está na documentação de engenharia.
+
 # Supabase
 
 É uma plataforma que já configura o back-end de um projeto. Ela oferece recursos como API, autenticação, banco de dados, armazenamento de arquivos, entre outros.

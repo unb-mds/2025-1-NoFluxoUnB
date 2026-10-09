@@ -1,3 +1,5 @@
+> Material de estudo da disciplina. Esta página não descreve a stack atual do NoFluxoUNB; a arquitetura implementada está na documentação de engenharia.
+
 # 🧭 Criação do User Story Map do NoFluxoUNB
 
 ## 📌 Introdução

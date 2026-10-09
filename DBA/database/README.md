@@ -1,130 +1,178 @@
-# DBA/database – Integração com o banco (Supabase)
+# DBA/database — sincronização com Supabase
 
-Centralização dos scripts que inserem/atualizam dados no banco a partir dos dados em `DBA/dados`.
+Scripts de leitura/escrita do catálogo e calendário a partir de `DBA/dados`.
+Guia revisado contra o código em 2026-10-07. A presença de script ou SQL não
+confirma o estado do banco vivo. Dossiê e lacunas de schema:
+[data-ingestion-and-schema.md](../../docs/kb/subsystems/data-ingestion-and-schema.md).
 
-## Convenções
+## Ambiente e comandos
 
-### `curriculo_completo` (tabela `matrizes`)
-
-- **Formato:** apenas `"codigo/versao - periodo"` (ex.: `"8150/-4 - 2014.1"`).
-- **Não incluir** o turno no texto (nem `" - DIURNO"` nem `" - NOTURNO"`).
-- Se já existir matriz com o mesmo `id_curso`, `versao` e `ano_vigor` mas com `curriculo_completo` no formato antigo (com turno), o script **01** faz **UPDATE** somente dessa coluna para o padrão sem turno.
-
-### `tipo_natureza` (tabela `materias_por_curso`)
-
-- **0** = Obrigatória  
-- **1** = Optativa  
-
-Valor definido a partir do campo `natureza` nos JSONs de estrutura curricular (ex.: `"Optativa"` → 1).
-
-### `id_curso` (tabela `cursos`)
-
-- **Valor:** código do currículo da matriz (primeira parte antes da `/`).
-- Ex.: currículo `"6360/1"` → `id_curso = 6360`; `"8150/-4"` → `id_curso = 8150`.
-- Não se soma nada para turno; cada curso (diurno ou noturno) já tem código próprio no currículo.
-- **Normalização:** o script 01 corrige cursos que estavam no padrão antigo (id_curso = codigo_base + 100000): atualiza `matrizes` e `equivalencias` para `id_curso = codigo_base` e ajusta ou remove a linha em `cursos`, na mesma lógica do `curriculo_completo`.
-
-### Inserção e atualização
-
-- **Inserir** apenas quando o registro ainda não existir (evitar duplicatas em cursos, matrizes, matérias, `materias_por_curso`).
-- **Única coluna** em que se faz update quando o registro já existe: **`matrizes.curriculo_completo`** (para padronizar sem turno).
-
----
-
-## Ambiente e Instalação de Dependências
-
-Antes de rodar qualquer script desta pasta, certifique-se de instalar as dependências necessárias listadas em `requirements.txt`.
-
-Recomendamos utilizar o ambiente virtual da raiz do projeto (`venv`):
+Partindo da raiz, com ambiente virtual ativo:
 
 ```bash
-# 1. Ativar o ambiente virtual (se ainda não estiver ativo):
-# No Windows (PowerShell):
-..\..\venv\Scripts\Activate.ps1
-# No Windows (CMD):
-..\..\venv\Scripts\activate.bat
-# No Linux/macOS:
-source ../../venv/bin/activate
-
-# 2. Instalar as dependências específicas desta pasta:
-python -m pip install -r requirements.txt
-```
-
-> **Dica:** Sempre use `python -m pip install ...` em vez de apenas `pip install` para garantir que as bibliotecas sejam instaladas no mesmo interpretador Python que você está executando.
-
----
-
-## Scripts
-
-### 1. `01_insert_cursos_matrizes_materias.py` (Fase 1)
-
-- **Fonte:** `DBA/dados/estruturas-curriculares/*.json`
-- **Ações:**  
-  - get_or_create **cursos** (por `id_curso` legado ou por `nome_curso` + `turno` + `tipo_curso`).  
-  - get_or_create **matrizes** (`curriculo_completo` sem turno; atualiza `curriculo_completo` se existir no formato antigo).  
-  - get_or_create **matérias** (por `codigo_materia`; usa detalhes de `DBA/dados/materias` quando existirem).  
-  - Inserção em lote de **materias_por_curso** (`id_materia`, `id_matriz`, `nivel`, `tipo_natureza` 0/1).
-
-**Uso:**
-
-```bash
+python -m pip install -r DBA/database/requirements.txt
 cd DBA/database
-python 01_insert_cursos_matrizes_materias.py           # execução normal
-python 01_insert_cursos_matrizes_materias.py --dry-run # só simula (nenhuma escrita)
 ```
 
-Requer `.env` (ou fallback em `config.py`) com `SUPABASE_URL` e `SUPABASE_KEY` (ou `SUPABASE_SERVICE_ROLE_KEY`).
+`config.py` procura o primeiro `.env` existente em `backend/`, raiz do repo,
+diretório corrente e `DBA/`, nessa ordem. O carregamento padrão do dotenv
+preserva variáveis já definidas no ambiente. Defina `SUPABASE_URL` para o alvo
+correto: o código tem um URL padrão. A chave é selecionada nesta ordem:
+`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SERVICE_KEY`, `SUPABASE_KEY`.
+Não há chave hardcoded nem fallback para `SUPABASE_ANON_KEY` neste módulo.
 
-### 2. `02_insert_pre_requisitos_equivalencias.py` (Fase 2)
+O guard recusa chave ausente, prefixo `sb_publishable_` e formatos desconhecidos;
+aceita `sb_secret_` ou prefixo JWT legado `eyJ`. Valida formato, não role/validade
+de JWT. Nunca versionar credenciais.
 
-- **Fonte:** `DBA/dados/materias/turmas_depto_*.json`
-- **Ações:**  
-  Inserir **pré-requisitos**, **co-requisitos** e **equivalências** (genéricas e específicas por curso/curriculo) **somente se ainda não existirem**. Preenche `expressao_original` e `expressao_logica` (JSONB) usando o parser em `expressao_parser.py` (port de `DBA/dados/expressao_logica/parse-expressao.ts`).
-- **Equivalências:** genéricas com `id_curso` e `curriculo` nulos; específicas com `id_curso` = código do currículo, `curriculo` = texto (ex.: `"8150/-4 - 2014.1"`), `data_vigencia` quando houver.
+Os cinco scripts aceitam `--dry-run`: não persistem a carga, mas inicializam
+cliente e leem o banco. Não são simulações offline. Importar módulos de ingestão
+também inicializa configuração/cliente; para testes puros, use os helpers
+`expressao_parser` e `diff_utils`.
 
-**Uso:**
+Exemplos de inspeção, executados de `DBA/database/`:
 
 ```bash
-python 02_insert_pre_requisitos_equivalencias.py           # execução normal
-python 02_insert_pre_requisitos_equivalencias.py --dry-run # só simula
+python 01_insert_cursos_matrizes_materias.py --dry-run
+python 02_insert_pre_requisitos_equivalencias.py --dry-run
+python 03_insert_turmas.py --dry-run
+python 05_insert_calendario_academico.py --dry-run
 ```
 
-### 3. `expressao_parser.py`
+Remover `--dry-run` habilita escrita. O 01 inclui normalização estrutural de IDs
+legados; o 04 exclui linhas. Nenhum comando foi executado nesta revisão.
 
-- Parser de `expressao_original` → estrutura para `expressao_logica` (JSONB).
-- Formato: `string` (código único) ou `{"operador": "OU"|"E", "condicoes": [...]}`.
-- Ex.: `"( ( CCA0105 ) OU ( FUP0289 ) OU ( CCA0102 ) )"` → `{"operador": "OU", "condicoes": ["CCA0105", "FUP0289", "CCA0102"]}`.
+## Contratos do domínio
 
----
+| Campo | Contrato aplicado pelo código |
+|---|---|
+| `cursos.id_curso` | Inteiro antes de `/`: `8150/-4` → `8150`. Sem offset de turno. O schema deve permitir IDs explícitos; o baseline usa `bigint NOT NULL` sem IDENTITY. |
+| `cursos.turno` | Texto em maiúsculas vindo do JSON/nome do arquivo; separado de `curriculo_completo`. |
+| `matrizes.curriculo_completo` | Texto `codigo/versao - periodo`, ex. `8150/-4 - 2014.1`, sem DIURNO/NOTURNO. |
+| `matrizes.versao` / `ano_vigor` | Texto do currículo/período; com `id_curso`, forma a correspondência alternativa. Não são campos do diff. |
+| `materias.codigo_materia` | Código para resolver ID nas relações e ofertas. |
+| `materias_por_curso.tipo_natureza` | Inteiro: `1` se `natureza` contém “optativa”; `0` nos demais casos, inclusive ausência. |
+| `materias_por_curso.nivel` | Inteiro inicial do nome do nível; optativas, ausência ou nome não reconhecido → `0`. Zero é válido. |
+| Cargas horárias (`ch_*`, `carga_horaria`) | Horas inteiras, não créditos. `ch_to_int` aceita inteiro ou texto inteiro com sufixo `h/H`; falha de conversão → `None`. No diff, só valor novo positivo altera CH. |
+| `matrizes.formatura` | JSON não vazio vindo de `conclusao` do dataset; sincronizado pelo diff. |
+| `expressao_logica` | JSONB: código único ou árvore com `operador` igual a `E`/`OU` e lista recursiva `condicoes`. |
 
-## Configuração
+O 01 normaliza currículo numérico sem `/` para versão `/1`. Nome do curso passa
+para maiúsculas sem acentos. Matérias e associações usam IDs gerados no baseline:
+`id_matriz`, `id_materia`, `id_materia_curso`, `id_pre_requisito`,
+`id_co_requisito`, `id_equivalencia` e `id_turmas` são `bigint`. Matéria/matriz
+ligam tabelas por FK. O 02 escreve expressão inteira e `id_materia`; não
+preenche `id_materia_requisito`/`id_materia_corequisito` individuais.
 
-- **`config.py`:** define `PASTA_ESTRUTURAS`, `PASTA_MATERIAS`, `SUPABASE_URL`, `SUPABASE_KEY` (carrega `.env` do backend ou da raiz do repositório).
+`get_or_create_matriz` converte as entradas de `prazos_cargas`:
 
-### Migration: `id_curso` em `cursos`
+| Entrada JSON | Campo do banco |
+|---|---|
+| `ch_obrigatoria_total` | `ch_obrigatoria_exigida` |
+| `ch_optativa_minima` | `ch_optativa_exigida` |
+| `total_minima` | `ch_total_exigida` |
+| `ch_complementar_minima` | `ch_complementar_exigida` |
+| `carga_horaria_maxima_componentes_eletivos` | `ch_maxima_componentes_eletivos` |
 
-Para o script 01 poder usar `id_curso` = código do currículo e normalizar registros legados, a coluna **não** deve ser IDENTITY. Se a tabela foi criada com `GENERATED ALWAYS AS IDENTITY`, execute uma vez:
+## Operações de ingestão
 
-```sql
-ALTER TABLE public.cursos ALTER COLUMN id_curso DROP IDENTITY;
+### 01 — cursos, matrizes, matérias e vínculos
+
+Entrada: `DBA/dados/estruturas-curriculares/*.json`, com apoio dos detalhes em
+`DBA/dados/materias`. Insere ausentes e corrige existentes via caches e
+`flush_updates`. Curso corresponde primeiro por ID e depois nome/turno/tipo;
+matriz por currículo completo ou curso/versão/ano; matéria por código;
+vínculo por matriz/matéria.
+
+`diff_utils.diff_campos` preenche/corrige sem apagar com fonte vazia:
+
+- Curso: nome, tipo e turno não vazios corrigem diferenças.
+- Matriz: CH positiva e `formatura` não vazia corrigem diferenças.
+  `get_or_create_matriz::_update_row` também atualiza `status` recebido
+  não-`None` e diferente; normaliza currículo antigo com sufixo de turno na
+  correspondência alternativa.
+- Matéria em cache: nome só preenche vazio; CH positiva, ementa e departamento
+  não vazios corrigem diferenças. Na busca fora do cache, ementa/departamento
+  não vazios também corrigem diferenças, mas CH só preenche atual ausente/zero.
+- Vínculo: nível e natureza corrigem diferenças; zero é válido.
+
+Antes da carga, `normalizar_cursos_id_legado` trata IDs `>=100000` como legado
+`codigo_base+100000`: tenta criar curso base, reatribuir FKs de matrizes e
+equivalências e excluir curso legado. Algumas falhas de FK são capturadas; a
+mensagem de conclusão não garante normalização completa. Não há transação única.
+
+### 02 — pré/co-requisitos e equivalências
+
+Entrada: `DBA/dados/materias/turmas_depto_*.json`. Insere relações ausentes nos
+caches. Chave de pré/co-requisito: matéria + expressão original. Equivalência
+acrescenta curso/currículo. Mudança de expressão pode criar outra linha; este
+caminho não atualiza nem exclui a relação antiga.
+
+`expressao_parser.parse_expression` normaliza códigos/espaços/parênteses,
+aplica precedência `E` antes de `OU` e achata operadores iguais. Erros de parse
+são contados; matérias não resolvidas são ignoradas. O tokenizer pula caracteres
+não reconhecidos: o parse não é validação textual sem perdas.
+
+Equivalência genérica omite curso/currículo. A específica conserva currículo,
+resolve curso por matriz ou código existente e converte `AAAA.1`/`AAAA.2` para
+1º de janeiro/1º de julho em `data_vigencia`. Pode conservar currículo mesmo
+quando curso não foi resolvido; não presumir FK preenchida em todo caso.
+
+### 03 — upsert de turmas
+
+Entrada: `DBA/dados/dados_finais_teste_p_depto_20/turmas_depto_*.json`.
+`normalizar_linha_turma` resolve matéria pelo código, exige turma/período,
+limpa espaços e converte vagas para inteiro ou `None`. Recalcula
+`vagas_sobrando = vagas_ofertadas - vagas_ocupadas` quando ambos existem.
+Grava timestamp UTC `last_updated_at`. O upsert usa a chave única
+`(id_materia, turma, ano_periodo)` (`uq_turmas_oferta`), incluindo dados atuais
+de docente/horário/local/vagas. Não exclui ofertas ausentes.
+
+Arquivos inválidos, matéria sem FK e linhas sem chave são ignorados. Erros de
+lote recebem fallback por linha; falhas parciais são relatadas sem garantir exit
+code de falha. Sem arquivos, o comando retorna normalmente.
+
+### 04 — exclusão de turmas não tocadas na rodada
+
+`listar_turmas_obsoletas` seleciona só o `--ano-periodo` informado com
+`last_updated_at < run_started_at`; `apagar_turmas` exclui IDs selecionados.
+O início precisa vir de `--run-started-at` ou `RUN_STARTED_AT` e corresponder ao
+timestamp registrado **antes** da coleta/03. Outros períodos ficam fora.
+
+Exemplo de inspeção; valores devem corresponder à rodada real:
+
+```bash
+python 04_reconciliar_turmas.py --ano-periodo 2026.1 --run-started-at 2026-07-16T03:00:00Z --dry-run
 ```
 
-Arquivo: `DBA/database/migrations/alter_cursos_drop_identity.sql`
+Não há verificação de completude da coleta/upsert antes de excluir. Uma rodada
+parcial pode deixar ofertas válidas com timestamp antigo; sucesso de comando
+não basta para concluir que foram canceladas. É uma operação destrutiva.
 
----
+### 05 — calendário acadêmico
 
-## Referência do schema (validação)
+Entrada padrão: `DBA/dados/calendario-academico-graduacao.json`; `--json CAMINHO`
+permite outra fonte. Valida `AAAA.[12]`, ano inteiro consistente e fim posterior
+ao início; converte datas `DD/MM/YYYY` para ISO. Upsert por `periodo` quando há
+período novo ou datas alteradas. `texto_bruto` sozinho não dispara atualização.
+Não envia `limite_matricula_25pct`, que o contrato espera como coluna gerada.
+Linhas inválidas são puladas; nenhuma válida aborta.
 
-Estrutura esperada para os scripts desta pasta. **cursos.id_curso** deve ser `bigint NOT NULL` **sem** IDENTITY.
+## Schema e verificação
 
-| Tabela | PK | Observação |
-|--------|-----|------------|
-| **cursos** | id_curso (bigint NOT NULL, **sem IDENTITY**) | id_curso = código do currículo; nome_curso, tipo_curso, turno, campus |
-| **matrizes** | id_matriz (IDENTITY) | id_curso FK → cursos; curriculo_completo UNIQUE NOT NULL; versao NOT NULL; ano_vigor; ch_* |
-| **materias** | id_materia (IDENTITY) | codigo_materia UNIQUE; nome_materia, carga_horaria, ementa, departamento |
-| **materias_por_curso** | id_materia_curso (IDENTITY) | id_materia FK → materias; id_matriz FK → matrizes; nivel; tipo_natureza (0 obrigatória, 1 optativa) |
-| **pre_requisitos** | id_pre_requisito (IDENTITY) | id_materia, id_materia_requisito (FK → materias); expressao_original; expressao_logica (jsonb) |
-| **co_requisitos** | id_co_requisito (IDENTITY) | id_materia, id_materia_corequisito (FK → materias); expressao_original; expressao_logica (jsonb) |
-| **equivalencias** | id_equivalencia (IDENTITY) | id_materia FK; id_curso FK (opcional); curriculo; data_vigencia; expressao_original; expressao_logica (jsonb) |
+O export em `backend/docs/` e
+`supabase/migrations/latest_init_from_export.sql` são de 2026-07-16. O código
+atual também exige `matrizes.status`, `ch_maxima_componentes_eletivos`,
+`formatura` e `calendario_academico`, ausentes desse baseline. Workflows esperam
+RPC/calendário mais recentes; o export antigo ainda calcula período por mês.
+Não aplicar o baseline como retrato atual do banco. Migrations em
+`supabase/migrations/` são aplicadas manualmente; aplicação não foi verificada.
 
-Ordem de dependência para criação: **cursos**, **materias** → **matrizes** → **materias_por_curso**; **materias** → **pre_requisitos**, **co_requisitos**, **equivalencias**.
+`cd backend && npm run export-schema`, partindo da raiz, lê banco configurado e
+reescreve documentação **e** baseline local (`export_schema.ts::exportSchema`,
+bloco `if (true)`). A rotina não foi executada nesta revisão.
+
+Para validar helpers sem Supabase: de `DBA/database/`, execute
+`python test_diff_campos.py`. Suíte de parser/PDF e limites:
+[DBA/README.md](../README.md). Testes locais ficam separados de completude dos
+datasets, migrations aplicadas e aceitação em produção.

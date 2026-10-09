@@ -1,84 +1,52 @@
-# Domínio UnB — Regras de Negócio
+# Domínio acadêmico representado na implementação
 
-## Estrutura acadêmica
-- Curso tem uma ou mais Matrizes (versões curriculares), identificadas por `curriculo_completo`
-- Aluno pertence a uma Matriz específica — não ao curso genérico
-- Matriz define: CH obrigatória exigida, CH optativa exigida, CH complementar exigida
-- `nivel` em materias_por_curso: 0 = optativa, 1–10 = semestre esperado no fluxo padrão
-- Registro em novo curso ocorre sempre na matriz **mais recente** à época do edital
+Esta página descreve o modelo e cálculos encontrados no checkout, não regras oficiais
+validadas de editais da UnB. Decisões de matrícula, mudança de curso, dupla diplomação
+ou formatura exigem conferência institucional; a aplicação oferece simulações.
 
-## Tipos de matéria (tipo_natureza)
-- Obrigatória: precisa cursar todas
-- Optativa: precisa completar CH mínima, escolhe quais
-- Complementar (Módulo Livre): CH mínima, fora do catálogo principal — **não conta para dupla diplomação**
-- Estágio obrigatório: conta como obrigatória mas é **excluído do cálculo de 70%** na dupla diplomação
+## Curso, matriz e disciplinas
 
-## Pré-requisitos
-- `expressao_logica` jsonb suporta AND / OR
-- Ex: "precisa de A OU B" → aluno com A satisfaz, aluno com B também satisfaz
-- Co-requisito: deve cursar NO MESMO semestre, não antes
-- Reprovação NÃO desbloqueia pré-requisito — só APR e CUMP desbloqueiam
-- Trancamento NÃO desbloqueia pré-requisito
+`cursos` e `matrizes` são entidades distintas. `curriculo_completo` identifica a versão
+curricular consumida por vários serviços; natureza/nível estão na associação
+`materias_por_curso`, não são propriedades universais de um código de disciplina.
+A ingestão atual mapeia natureza optativa para `tipo_natureza=1` e demais casos para 0;
+`nivel=0` é válido. Não reduzir todos os requisitos de CH a três categorias universais:
+os consumidores também leem campos de eletivas/formatura cuja disponibilidade depende
+do schema instalado.
 
-## Status de matéria no histórico
-- APR = aprovado (conta para integralização, desbloqueia pré-requisitos)
-- CUMP = cumprido por equivalência (conta, desbloqueia pré-requisitos)
-- MATR = matriculado (não conta ainda, não desbloqueia)
-- REP = reprovado (não conta, NÃO desbloqueia pré-requisito)
-- TRANCADO = não conta, não desbloqueia
+Os contratos de carga horária, IDs e expressões são detalhados no
+[guia de dados](../DBA/database/README.md) e no [dossier de schema](kb/subsystems/data-ingestion-and-schema.md).
 
-## Integralização — formatura
-- Aluno forma quando: CH_obrigatória >= exigida E CH_optativa >= exigida E CH_complementar >= exigida
-- Crédito UnB = 15 horas
-- IRA: média ponderada por créditos, só matérias com nota
+## Histórico real versus projeção
 
-## Cálculo do percentual de integralização (usado em dupla diplomação)
-Fórmula oficial da UnB:
+APR/CUMP são tratados como cumprimento em consumidores revisados. REP/trancamento
+não provam aprovação. MATR descreve matrícula em curso, mas o Motor 2 v2 projeta sua
+aprovação para organizar semestres futuros. Portanto a afirmação universal
+“MATR nunca desbloqueia” não descreve o planejador. A projeção não é integralização
+confirmada e pode precisar de revisão quando o resultado acadêmico mudar.
 
-```
-X = (T - P) / (T - C - E)
-```
+[Motor2](motor2.md) e [backend](kb/subsystems/backend-api-and-motor2.md) explicam
+cumpridas/equivalências, passe único, semestre em curso, slots e fallbacks.
+Co-requisitos são tentados juntos, mas o fallback SOLO impede uma garantia universal.
 
-Onde:
-- T = Carga Horária Total Exigida pelo curso pretendido
-- P = Carga Horária Total Pendente (do histórico simulado)
-- C = CH de Atividades Complementares Exigidas
-- E = Somatório das CH das disciplinas obrigatórias de estágio
+## Integralização e simulação
 
-**Importante:** Estágios e complementares são excluídos do denominador — o percentual mede só o núcleo acadêmico.
+`frontend/src/lib/services/integralizacao.service.ts` e controllers/serviços backend
+calculam exigências e progresso com dados da matriz/histórico. A fórmula antiga
+rotulada “oficial”, a omissão de campos eletivos e o checklist binário de graduação
+foram removidos: não havia verificação normativa atual nessa documentação.
+Conversões de 15h por crédito usadas na implementação não substituem a CH real quando
+o algoritmo a conserva. Não usar percentual da UI como certificado de elegibilidade.
 
-Exemplo: T=3840, P=3450, C=300, E=300 → X = 390/3240 = 12,03%
+## Oferta e horários
 
-## Dupla Diplomação — requisitos
-- Ser provável formando no semestre corrente
-- Integralizar ≥ 70% da CH do curso pretendido (usando fórmula acima, excluindo estágios e complementares)
-- IRA ≥ 3,0
-- Não ter ingressado no curso atual por dupla diplomação
-- CH optativa considerada é limitada ao valor exigido pelo curso pretendido
-- Componentes eletivos (módulo livre) **não contam** para o 70%
+`frontend/src/lib/utils/sigaa.ts` e parsers de slots implementam leitura de códigos
+SIGAA; consulte a fonte e testes para a correspondência exata de slots, inclusive
+combinações e horários textuais. As faixas genéricas antigas de manhã/tarde/noite
+não correspondiam a todos os slots implementados e foram removidas.
+Oferta atual vem de dados por período; não assumir repetição futura nem disponibilidade
+no SIGAA a partir de uma sugestão do planejador.
 
-## Mudança de Curso — requisitos
-- Integralizar todos os componentes obrigatórios dos dois primeiros períodos do curso atual
-- Integralizar ≥ 360h em obrigatórias ou optativas do curso pretendido
-- Classificação por Média Ponderada das menções em obrigatórias/optativas do curso pretendido
-- Desempate: maior CH obrigatória, maior CH total, maior IRA
-- Mudança de curso é concedida uma única vez
-- Ao mudar, o aluno renuncia a vaga atual automaticamente
-
-## Oferta de turmas
-- Turmas mudam todo semestre — nunca assumir que oferta futura repete a atual
-- Formato de horário: "46T23" = dias 4 e 6 (qua/sex), turno T (tarde), horários 2 e 3
-- Dias: 2=seg, 3=ter, 4=qua, 5=qui, 6=sex, 7=sab
-- Turnos: M=manhã (08-12), T=tarde (14-18), N=noite (19-23)
-
-## Equivalências
-- Uma matéria pode equivaler a outra de matriz diferente
-- `expressao_logica` jsonb — mesma estrutura dos pré-requisitos
-- Matéria cumprida por equivalência conta como APR para fins de pré-requisito
-
-## Particularidades importantes
-- Aluno pode estar em matriz antiga mesmo que curso tenha versão nova
-- Mesmo código de matéria pode ter CH diferente em matrizes diferentes
-- Matéria pode ser obrigatória numa matriz e optativa em outra
-- Tempo máximo de permanência no novo curso é contado a partir do ingresso no curso original
-- Matrícula em componentes após mudança depende de vagas disponíveis — não é garantida
+Veja [frontend](kb/subsystems/frontend-and-academic-planning.md),
+[backend](kb/subsystems/backend-api-and-motor2.md) e [IA](kb/subsystems/darcy-ai-orchestration.md)
+para os contratos efetivos e limites de evidência.

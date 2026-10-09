@@ -1,61 +1,36 @@
-# Estratégia de Testes — NoFluxoUNB
+# Estratégia de testes — NoFluxoUNB
 
-Este documento estabelece a base teórica, as técnicas de projeto de testes e a metodologia adotada pelo projeto **NoFluxoUNB**, em alinhamento com a disciplina **FGA0314 — Testes de Software**.
+A estratégia combina testes rápidos de lógica, integração entre módulos e observação pelo navegador. Ela é descrita a partir das configurações e dos casos existentes em 2026-10-07; não afirma cobertura exaustiva nem aprovação atual das suítes.
 
----
+## Níveis de teste
 
-## 1. Princípios e Níveis de Teste
+| Nível | Exemplos existentes | Limite da evidência |
+| --- | --- | --- |
+| Unidade | Parser de expressões, horários, stores de grade, utilitários do Darcy | Demonstra o contrato das entradas exercitadas |
+| Integração local | Controllers com dependências simuladas, orquestrador com client de modelo simulado, SQL/RPC em PGlite | Exercita composição local; não confirma banco ou modelo remoto |
+| Navegador | Specs Playwright para busca, upload, autenticação, grade, acessibilidade e fluxograma | Cada spec tem suas próprias asserções, mocks, fixtures e possíveis registros exploratórios |
+| Observação externa | Verificação da revisão publicada e teste do caminho real do usuário | Requer execução e ambiente apropriados; não resulta automaticamente do teste local |
 
-A estratégia adota a pirâmide de testes para garantir retorno rápido de feedback, facilidade de manutenção e máxima cobertura nos pontos críticos de negócio.
+## Técnicas usadas
 
-| Nível | Objetivo | Onde está implementado | Ferramental |
-|---|---|---|---|
-| **Unidade** | Validar funções puras, controladores isolados, cálculos de carga horária e stores | `frontend` (`src/**/*.test.ts`), `backend` (`tests-ts/`), `DBA/tests/` | Vitest, Jest, Pytest |
-| **Integração** | Validar a comunicação entre múltiplos módulos (ex.: orquestrador com revisor de IA, resolução de dependências no grafo) | `backend/tests-ts/orquestrador-*.test.ts`, `mcp_agent/test_tool_call_utils.py` | Jest, Pytest, Mocks de API |
-| **Sistema / E2E** | Validar fluxos completos da perspectiva do estudante universitário | `frontend/tests-e2e/*.spec.ts` | Playwright |
+Particionamento de equivalência e valores limite ajudam a cobrir arquivos vazios, arquivos acima do limite, entrada inválida, estados acadêmicos diferentes e limites configurados de carga horária. Esses limites são contratos do código testado; não devem ser apresentados como resolução oficial da UnB sem fonte normativa.
 
----
+Há casos de caixa-preta, caixa-branca e rotas do fluxograma em `backend/tests-ts/fluxograma_controller.*.test.ts`. Os relatórios PTOSS-2 preservam a análise de decisão/MC/DC da sessão original. A existência desses relatórios não estabelece MC/DC completo de todos os algoritmos do produto.
 
-## 2. Técnicas de Projeto de Casos de Teste
+Testes de regressão devem reproduzir o comportamento incorreto e verificar uma propriedade observável após a correção. Casos de pré-requisito, equivalência, horas/créditos, cancelamento e falha de IA são exemplos úteis. Inspecionar apenas um campo interno pode demonstrar uma pré-condição sem demonstrar todo o comportamento final.
 
-### 2.1. Testes Baseados em Especificação (Caixa-Preta)
-Focados no contrato da função ou componente, sem depender de detalhes internos de implementação:
+## Isolamento e dados
 
-- **Particionamento em Classes de Equivalência:**
-  - *Exemplo (Carga Horária e Créditos):* Divisão entre créditos válidos ($[0, 32]$ créditos por semestre na UnB), créditos nulos e valores excedentes que violam a resolução acadêmica.
-  - *Exemplo (Expressões de Pré-requisito):* Entradas simples (`"MAT0025"`), conjunções (`"A E B"`), disjunções (`"A OU B"`) e aninhamentos (`"(A OU B) E C"`).
-- **Análise de Valor Limite (Boundary Value Analysis):**
-  - Aplicação dos pontos *on point*, *off point* e limites de fronteira (ex.: mínimo de créditos para trancamento geral, limite máximo de slots de horário conflitantes por dia).
+Mocks de Supabase e de modelos permitem testar respostas, falhas, autorização e sessões sem depender de um serviço pago ou banco vivo. Algumas suítes executam SQL em PGlite com baseline e migrações selecionadas; esse banco local é um tipo diferente de integração.
 
-### 2.2. Testes Estruturais (Caixa-Branca)
-Aplicados aos algoritmos complexos do projeto, em especial o **Motor 2 de Planejamento**, o **Montador Automático de Grade** e o **Parser de Expressões Lógicas**:
+O parser de PDF também possui testes condicionais dependentes de arquivos disponíveis no checkout ou de históricos locais. Specs exploratórios podem salvar capturas em `docs/testes/evidencias/`. Antes de executar, identifique os efeitos do spec, os serviços de destino e a presença das fixtures.
 
-- **Cobertura de Decisão e Desvio:** Garantia de que todos os ramos condicionais de regras acadêmicas (ex.: matéria obrigatória vs. optativa, co-requisito atendido ou pendente) sejam percorridos.
-- **Modified Condition / Decision Coverage (MC/DC):**
-  - Utilizado na avaliação de expressões lógicas booleanas da UnB: cada condição deve demonstrar independência ao alterar individualmente o resultado final da expressão lógica (ex.: aprovação com base em equivalência disjuntiva).
+## Diretrizes para novos casos
 
-### 2.3. Dublês de Teste (Test Doubles & Mocks)
-Para manter a suíte determinística, rápida e independente de infraestrutura de rede:
+1. Defina a propriedade do produto e uma entrada que possa violá-la.
+2. Escolha o menor nível que reproduza o problema; use integração quando o contrato atravessar módulos, SQL ou protocolos.
+3. Controle relógio, dependências externas e estado entre casos quando necessário.
+4. Diferencie asserção obrigatória, observação exploratória e teste pulado.
+5. Registre revisão, comando e resultado; cobertura percentual complementa essa evidência, sem substituí-la.
 
-- **Supabase Mocks:** No backend e frontend, operações de banco de dados são simuladas via interfaces mockadas, evitando chamadas de rede externas durante a execução do CI.
-- **Mocks de LLM / IA:** As chamadas para APIs externas (OpenAI, Maritaca, Google Gemini) são interceptadas por fakes que retornam respostas controladas com schemas de JSON esperados.
-
----
-
-## 3. Estado Atual das Suítes
-
-- **Frontend SvelteKit (Vitest):** Suíte madura com **mais de 40 arquivos de teste**, cobrindo exaustivamente o algoritmo de montagem de grade (`grade.store.*`), seleção e pool de matérias recomendadas (`grade-pool.*`), verificação de pré-requisitos e conversão de bitmasks de horários.
-- **Backend TypeScript (Jest):** Suíte sólida com **25 arquivos de teste**, cobrindo todos os controllers de API, motor de planejamento de formatura, atuadores de módulo livre e persistência de sessões de chat.
-- **Módulos de Dados (Python / Pytest):** Testes unitários para parsers de expressões lógicas, validação de regex e sanitização de dados raspados do SIGAA.
-- **E2E (Playwright):** Testes exploratórios automatizados para os fluxos mais sensíveis: upload e análise de histórico em PDF, autenticação e comportamento em dispositivos móveis.
-
----
-
-## 4. Diretrizes para Novos Testes
-
-Ao adicionar novas funcionalidades ao NoFluxoUNB:
-
-1. **Determinismo:** Testes não devem depender de relógio local não-mockado, ordem de execução de arquivos ou chamadas reais a bancos na nuvem.
-2. **Isolamento:** Cada caso de teste deve limpar seu estado em `beforeEach` / `afterEach`.
-3. **Nomenclatura Clara:** Utilize o padrão `describe('Módulo / Função', () => { it('deve fazer X quando Y', ...)})`.
-4. **Regressão:** Qualquer correção de bug deve ser acompanhada por um teste de unidade ou integração que reproduza o problema antes da correção.
+As páginas de [backend](testes-backend.md), [frontend](testes-frontend.md), [Python](testes-python.md) e [CI](pipeline-ci.md) detalham execução e seleção das suítes.

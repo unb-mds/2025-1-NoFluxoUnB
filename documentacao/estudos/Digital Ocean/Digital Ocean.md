@@ -1,3 +1,5 @@
+> Material de estudo da disciplina. Esta página não descreve a stack atual do NoFluxoUNB; a arquitetura implementada está na documentação de engenharia.
+
 # DigitalOcean: Hospedagem de Backend e App Platform
 
 ## Índice

@@ -1,174 +1,18 @@
-# Build ID Reuse (Python Helper Script)
+# Reuso de digest de imagem
 
-This document describes a simple Python CLI workflow to:
+`buildId` é o campo usado pelos clientes deste repositório para enviar o digest de imagem à Deploy API. Ele identifica o conteúdo da imagem; uma tag pode mudar de digest quando reconstruída. A implementação do servidor é externa, portanto tratamento de digest ausente, manifests Kubernetes e política de cache precisam de confirmação do administrador.
 
-1. Trigger an in-cluster Kaniko build via Deploy API (`POST /build`)
-2. Capture the resulting `buildId` (image manifest digest: `sha256:...`)
-3. Reuse that `buildId` to skip future builds and deploy instantly (deploy-by-digest)
+## Implementações disponíveis
 
-This is intended to be run from a developer/operator machine.
+| Cliente | Fonte | Cache padrão | Uso |
+| --- | --- | --- | --- |
+| Específico NoFluxo | `scripts/deploy/deploy_local.py`: `run_local_deploy`, `run_redeploy`, `BuildIdState` | `.deploy/build-id.<alvo>.json` | Alvos definidos em `scripts/deploy/deploy_config.py:APPS`. |
+| Genérico | `kubernetes_docs/deploy_client/__main__.py`: `cmd_build`, `cmd_reuse_deploy`, `cmd_local_deploy` | `.deploy/build-id.json` | Flags para configuração de outro produto/ambiente. |
 
-The repo includes a minimal reference implementation at:
+Caches são relativos ao diretório de execução. `--state-file` permite caminho explícito. No fluxo local, o estado é salvo depois de resolver digest e antes de comprovar deploy. Não representa necessariamente o último deploy saudável nem uma imagem aprovada para rollback.
 
-- `kubernetes/deploy_client/` (run from repo root with `PYTHONPATH=kubernetes python -m deploy_client ...`)
+Os clientes resolvem digest com `GET /registry/{image_name}/digest?tag=...` e enviam `POST /build` com `buildId` e `deploy=True` para reutilizá-lo. Esses são contratos esperados pelo código local; uma resposta de aceitação não prova que a nova versão foi servida.
 
-If you want to deploy local changes that are not pushed to Git yet, use the CLI's `local-deploy` command (build locally, push, then deploy via `buildId`).
+O workflow NoFluxo executa [verificar_rollout.py](../scripts/deploy/verificar_rollout.py) depois do pedido para comparar o commit público. O deploy local e o cliente genérico não fazem essa confirmação automaticamente. Reusar uma imagem não altera seus valores incorporados no build, como `PUBLIC_*` do frontend; mudar esses valores exige rebuild.
 
----
-
-## Background: what is `buildId`?
-
-`buildId` is the Docker Registry v2 manifest digest (content address), e.g.:
-
-- `sha256:9b1d...` (64 hex chars)
-
-When you call `POST /build` with a `buildId`, the server should:
-
-- Verify the manifest exists in the registry for that app image
-- **Fail hard** with `404` if it does not exist (no fallback build)
-- If it exists, **skip** the Kaniko Job and deploy using:
-
-`<registry>/<imageName>@<buildId>`
-
-Example:
-
-- `registry.kubernetes.crianex.com/myapp@sha256:...`
-
----
-
-## Prerequisites
-
-- Python 3.10+
-- A Deploy API key
-- Network access to the Deploy API
-- Docker installed (for `local-deploy`)
-- Registry credentials on your machine (for `local-deploy`), e.g. `docker login registry.kubernetes.crianex.com`
-
-Suggested libraries:
-- `requests` (HTTP client)
-
----
-
-## Environment variables
-
-- `DEPLOY_API_URL` (example: `https://deploy.kubernetes.crianex.com`)
-- `DEPLOY_API_KEY` (value for `X-API-Key`)
-
-Optional:
-- `DEPLOY_API_TIMEOUT` (seconds; default 30)
-
-For local image builds:
-- `DEPLOY_REGISTRY` (registry host; default `registry.kubernetes.crianex.com`)
-
----
-
-## Local state file
-
-Store the resolved build id in a repo-local file so you can reuse it later.
-
-Suggested path:
-- `.deploy/build-id.json`
-
-Suggested format:
-
-```json
-{
-  "repoUrl": "https://github.com/org/repo",
-  "gitRef": "<sha-or-branch>",
-  "app": "myapp",
-  "namespace": "apps",
-  "imageName": "myapp",
-  "imageTag": "<tag-used-for-initial-build>",
-  "buildId": "sha256:..."
-}
-```
-
----
-
-## CLI structure (recommended)
-
-Directory layout:
-
-- `kubernetes/deploy_client/`
-  - `config.py` (reads env/flags)
-  - `api.py` (HTTP calls)
-  - `buildid_store.py` (read/write `.deploy/build-id.json`)
-  - `__main__.py` (argparse entrypoint)
-
-Commands (minimal):
-
-- `build`: trigger build, wait, resolve digest, store to `.deploy/build-id.json`
-- `reuse-deploy`: deploy by `buildId` (strict), skipping build
-
-All deploy commands accept `--app-class business|non-business` (default `business`) to choose which node pool gets the pods.
-
----
-
-## API calls the script should make
-
-### 1) Start build (first time)
-
-`POST /build`
-
-Payload (example):
-
-```json
-{
-  "app": "myapp",
-  "namespace": "apps",
-  "repoUrl": "https://github.com/org/repo",
-  "gitRef": "<sha>",
-  "gitToken": "<optional>",
-  "imageTag": "<sha>",
-  "cache": true,
-  "deploy": false
-}
-```
-
-Capture `jobName` from the response.
-
-### 2) Wait for completion
-
-`POST /build/:jobName/wait?timeout=1800`
-
-### 3) Resolve `buildId` (digest)
-
-Recommended approach: use the Deploy API endpoint that returns the digest for an image tag (so the script doesn’t need registry credentials).
-
-Endpoint:
-
-- `GET /registry/<imageName>/digest?tag=<imageTag>` → `{ "buildId": "sha256:..." }`
-
-Store that `buildId` in `.deploy/build-id.json`.
-
-### 4) Reuse deploy (skip build)
-
-`POST /build` with `buildId` and `deploy: true`.
-
-```json
-{
-  "app": "myapp",
-  "namespace": "apps",
-  "buildId": "sha256:...",
-  "deploy": true,
-  "deployConfig": {
-    "port": 3000,
-    "replicas": 2,
-    "domain": "myapp.kubernetes.crianex.com",
-    "healthPath": "/health",
-    "appClass": "business"
-  }
-}
-```
-
-Expected behavior:
-- If `buildId` exists: return success, `skipped: true`, and deploy using `image@sha256:...`
-- If `buildId` does not exist: return `404` and do not start a build
-
----
-
-## Notes and caveats
-
-- `buildId` reuse should be scoped to the app’s `imageName` (avoid cross-app digest reuse).
-- Deploy-by-digest is deterministic and avoids retagging, but you won’t see a “pretty” tag in the Deployment image field.
-- If you rebuild the same `imageTag`, the digest may change; always treat the digest as the source of truth.
+Consulte o [cliente genérico](./deploy_client/README.md), o [fluxo específico](./local_build_and_deploy/README.md) e [Deploy e operações](../docs/kb/subsystems/deployment-ci-and-operations.md). A documentação não autoriza publicação, rollback ou acesso a credenciais.

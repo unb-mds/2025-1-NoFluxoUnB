@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "enforcement_stage": "bootstrap",
+  "subsystem_statuses": ["draft", "source-reviewed"],
+  "decision_statuses": ["proposed", "effective", "superseded", "rejected"],
+  "implementation_statuses": ["not-implemented", "partial", "implemented-unverified", "verified-local", "verified-production", "rolled-back"],
+  "evidence_classes": ["owner-confirmed", "curated", "derived-code", "derived-schema", "derived-git", "observed-production", "historical", "inferred"],
+  "invariant_statuses": ["proposed", "effective", "superseded"],
+  "verification_statuses": ["unverified", "source-reviewed", "verified-local", "verified-production"],
+  "open_statuses": ["open", "resolved", "superseded"],
+  "node_types": ["subsystem", "decision", "invariant", "open_decision", "code_path", "historical_plan"],
+  "edge_types": ["OWNS", "WATCHES", "RELATED_TO", "BELONGS_TO", "SUPERSEDES"]
+}

@@ -14,11 +14,7 @@ Bem-vindo ao **NoFluxoUnB**, um projeto desenvolvido pela equipe do Squad 03 na 
 
 ![Svelte](https://img.shields.io/badge/svelte-5-orange)
 ![TailwindCSS](https://img.shields.io/badge/tailwind-4-38bdf8)
-![Supabase](https://img.shields.io/badge/supabase-1.0.0-brightgreen)
-![TypeScript](https://img.shields.io/badge/typescript-5.3.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11-blue)
-![DigitalOcean](https://img.shields.io/badge/digitalocean-cloud-blue)
-![Vercel](https://img.shields.io/badge/vercel-deploy-black)
 ![GitHub](https://img.shields.io/badge/github-repository-blue)
 ![GitHub Actions](https://img.shields.io/badge/github_actions-v2.0.0-2088FF)
 
@@ -38,7 +34,7 @@ Com uma experiência de usuário (UX) aprimorada, o produto permite:
 
 Dessa forma, o estudante consegue um planejamento acadêmico **assertivo e personalizado**, simplificando seu percurso até a conclusão do curso.
 
-🌐 **Aplicação no ar:** [no-fluxo.com](https://no-fluxo.com)
+🌐 **Endereço divulgado no projeto:** [no-fluxo.com](https://no-fluxo.com)
 
 ---
 
@@ -48,7 +44,7 @@ Dessa forma, o estudante consegue um planejamento acadêmico **assertivo e perso
 - 🗺️ [Story Map Público](https://miro.com/app/board/uXjVIC_JkAY=/?moveToWidget=3458764599792494680&cot=14)  
 - ✅ [Board do Projeto no GitHub](https://github.com/orgs/unb-mds/projects/29)
 - 🔗 [Requisitos](https://github.com/unb-mds/2025-1-NoFluxoUNB/blob/main/documentacao/requisitos.md)
-- 🔗 [Arquitetura](https://miro.com/app/board/uXjVIC_JkAY=/?moveToWidget=3458764626773503994&cot=14)
+- 🔗 [Arquitetura atual](arquitetura/arquitetura.md)
 - 🔗 [Backlog](https://miro.com/app/board/uXjVIC_JkAY=/?moveToWidget=3458764626757911762&cot=14)
  
 ---

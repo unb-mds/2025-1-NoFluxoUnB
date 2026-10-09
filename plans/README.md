@@ -1,15 +1,14 @@
-# plans/ — planos de implementação (histórico concluído)
+# Histórico de planos e documentação atual
 
-Planos escritos antes de cada frente de trabalho grande — principalmente a migração
-**Flutter → SvelteKit** — e mantidos como registro do raciocínio da época. **Não são
-documentação viva**: o estado atual do sistema está no código, nos READMEs de cada
-área e em `docs/` (specs técnicas).
+Os 29 documentos de execução antigos foram removidos da árvore ativa por solicitação
+explícita do mantenedor em 2026-10-07: continham caminhos, arquitetura, checklists ou
+premissas superados. O README atual é o único documento ativo deste diretório.
 
-Pontos de entrada: `00-MIGRATION-OVERVIEW.md` e `MASTER-MIGRATION-PLAN.md`.
+- [KB atual](../docs/kb/INDEX.md): implementação revisada e contratos por subsistema.
+- [Auditoria dos planos](../docs/kb/_provenance/PLAN_AUDIT.md): disposição de cada plano original.
+- [Ledger histórico](../docs/kb/_provenance/plan-disposition.csv): hashes e revisões de recuperação.
+- [Retirada autorizada](../docs/kb/_provenance/document-retirement.csv): motivos e destinos.
 
-Avisos ao navegar:
-
-- A numeração tem colisões (há dois `14-*` e dois `16-*`); a ordem numérica é
-  aproximada, não cronológica estrita.
-- Um plano descreve a intenção no momento em que foi escrito; a implementação final
-  pode ter divergido. Em conflito, o código vence.
+Os originais podem ser consultados no Git pelo par revisão/caminho do ledger, sem
+reintroduzi-los como instruções atuais. Uma proposta nova deve declarar decisão,
+escopo, evidência e pendências próprios; não reutilizar checklists antigos como aceite.

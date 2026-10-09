@@ -1,3 +1,5 @@
+> Material de estudo da disciplina. Esta página não descreve a stack atual do NoFluxoUNB; a arquitetura implementada está na documentação de engenharia.
+
 # Scrum e Programação Extrema (XP)
 
 **Livro de referência:** *Programação eXtrema eXplicada*, por Kent Beck  
