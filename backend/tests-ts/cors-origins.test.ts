@@ -38,16 +38,21 @@ describe("resolveAllowedOrigins", () => {
 
         // O que quebrou em produção: só no-fluxo.com estava na lista.
         expect(origens.has("https://no-fluxo.crianex.com")).toBe(true);
-        expect(origens.has("https://no-fluxo.com")).toBe(true);
-        expect(origens.has("https://www.no-fluxo.com")).toBe(true);
+    });
+
+    it("não libera o domínio expirado no-fluxo.com (qualquer um pode registrá-lo)", () => {
+        const origens = resolveAllowedOrigins({});
+
+        expect(origens.has("https://no-fluxo.com")).toBe(false);
+        expect(origens.has("https://www.no-fluxo.com")).toBe(false);
     });
 
     it("aceita origens extras via ALLOWED_ORIGINS, sem perder as padrão", () => {
         const origens = resolveAllowedOrigins({
-            ALLOWED_ORIGINS: "https://preview.no-fluxo.com, https://staging.crianex.com",
+            ALLOWED_ORIGINS: "https://preview.crianex.com, https://staging.crianex.com",
         });
 
-        expect(origens.has("https://preview.no-fluxo.com")).toBe(true);
+        expect(origens.has("https://preview.crianex.com")).toBe(true);
         expect(origens.has("https://staging.crianex.com")).toBe(true);
         expect(origens.has("https://no-fluxo.crianex.com")).toBe(true);
     });
@@ -86,6 +91,8 @@ describe("buildCorsOptions().origin", () => {
      */
     it.each([
         "https://evil.example.com",
+        "https://no-fluxo.com",
+        "https://www.no-fluxo.com",
         "https://no-fluxo.com.evil.example.com",
         "http://localhost.evil.example.com",
     ])("nega %s sem lançar erro", (origin) => {

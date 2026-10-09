@@ -34,7 +34,7 @@ Com uma experiência de usuário (UX) aprimorada, o produto permite:
 
 Dessa forma, o estudante consegue um planejamento acadêmico **assertivo e personalizado**, simplificando seu percurso até a conclusão do curso.
 
-🌐 **Endereço divulgado no projeto:** [no-fluxo.com](https://no-fluxo.com)
+🌐 **Acesse:** [no-fluxo.crianex.com](https://no-fluxo.crianex.com)
 
 ---
 
