@@ -34,8 +34,8 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -63,8 +63,8 @@ jobs:
     needs: changes
     if: github.event_name == 'push' || needs.changes.outputs.python == 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       # Versões fixadas para garantir resultado determinístico entre máquinas.
@@ -82,8 +82,8 @@ jobs:
     needs: changes
     if: github.event_name == 'push' || needs.changes.outputs.python == 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: "pip"
@@ -109,8 +109,8 @@ jobs:
     needs: changes
     if: github.event_name == 'push' || needs.changes.outputs.backend == 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: "20.x"
           cache: "npm"
@@ -141,8 +141,8 @@ jobs:
       PUBLIC_API_URL: http://localhost:3000
       PUBLIC_REDIRECT_URL: http://localhost:5173
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: "20.x"
           cache: "npm"

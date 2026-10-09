@@ -118,10 +118,10 @@ jobs:
       ANO_PERIODO: ${{ needs.jobDecisao.outputs.ano_periodo }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7
         with:
           python-version: '3.9'
 
@@ -181,7 +181,7 @@ jobs:
 
       - name: Upload Logs (Para auditoria)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: logs-sync-turmas
           # Só o log do scraping (sem segredos); os logs dos scripts de banco
