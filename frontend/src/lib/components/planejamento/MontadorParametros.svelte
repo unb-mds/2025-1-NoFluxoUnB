@@ -167,6 +167,30 @@
 		</div>
 	</fieldset>
 
+	{#if gradeStore.temCursando}
+		<!--
+			Mora aqui, e não só nas preferências: é o que mais muda o resultado. Desligado
+			sem o aluno perceber, a montagem tirava tudo o que ele cursa e "não montava".
+		-->
+		<button
+			type="button"
+			role="switch"
+			aria-checked={gradeStore.incluirCursando}
+			onclick={() => gradeStore.setIncluirCursando(!gradeStore.incluirCursando)}
+			class="mg-sunken flex w-full touch-manipulation items-center justify-between gap-3 rounded-[10px] px-3 py-2.5 text-left"
+		>
+			<span>
+				<span class="block text-xs font-semibold text-foreground">Incluir matérias que já curso</span>
+				<span class="block text-[10px] text-muted-foreground">
+					{gradeStore.incluirCursando
+						? 'Sua matrícula atual entra na grade e não sai.'
+						: 'Desligado: monta só com o que você ainda vai pegar.'}
+				</span>
+			</span>
+			<span class="mg-switch" aria-checked={gradeStore.incluirCursando}></span>
+		</button>
+	{/if}
+
 	<div>
 		<label for="mg-essencial" class="mg-eyebrow mb-2">
 			Disciplina essencial <span class="font-medium tracking-normal normal-case">· opcional</span>

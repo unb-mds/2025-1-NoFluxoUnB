@@ -260,3 +260,97 @@ describe('gradeStore.montarOpcoes / popularOpcoes — múltiplas opções', () =
 		expect(gradeStore.cenarioAtivo?.selecao).toEqual(selecaoAntes);
 	});
 });
+
+describe('caso do relato: "FUNDAMENTOS DE SISTEMAS EMBARCADOS não coube em nenhuma opção"', () => {
+	/** Matéria cujas turmas trazem `vagas_sobrando` (`null` = SIGAA não informou). */
+	function comVagas(codigo: string, turmas: Array<[string, number | null]>): MateriaGrade {
+		const m = materia(
+			codigo,
+			turmas.map(([h]) => h)
+		);
+		m.turmas = m.turmas.map((t, i) => ({
+			...t,
+			turma: { ...(t.turma as object), vagas_sobrando: turmas[i][1] } as never
+		}));
+		return m;
+	}
+
+	it('turma lotada não entra na montagem automática', () => {
+		const fse = comVagas('FGA0109', [
+			['35T23', 0],
+			['46M34', 10]
+		]);
+		gradeStore.init([fse], { idUser: null, periodo: '2026.2' });
+
+		const r = gradeStore.montarAutomatico({});
+
+		expect(r.naoAlocadas).toEqual([]);
+		expect(gradeStore.turmaSelecionada('FGA0109')?.turma.turma).toBe('2');
+	});
+
+	it('só turmas lotadas: a essencial é diagnosticada como sem vaga, não fora do turno', () => {
+		const fse = comVagas('FGA0109', [['35T23', 0]]);
+		gradeStore.init([fse], { idUser: null, periodo: '2026.2' });
+
+		const r = gradeStore.montarAutomatico({ essencial: 'FGA0109' });
+
+		expect(r.erros?.map((e) => e.tipo)).toEqual(['ESSENCIAL_SEM_VAGA']);
+	});
+
+	it('essencial que o aluno já cursa entra mesmo com "incluir matérias que já curso" desligado, na turma real', () => {
+		const fse = comVagas('FGA0109', [
+			['35T23', 5],
+			['46M34', 10]
+		]);
+		const outra = materia('FGA0238', ['35M34']);
+		gradeStore.init([fse, outra], { idUser: null, periodo: '2026.2' });
+		gradeStore.definirCursandoAtual(['FGA0109']);
+		gradeStore.definirTurmasReais({ FGA0109: fse.turmas[1].turma.id_turmas });
+		gradeStore.limpar();
+		gradeStore.setIncluirCursando(false);
+
+		const opcoes = gradeStore.montarOpcoes({ essencial: 'FGA0109' });
+
+		expect(opcoes.length).toBeGreaterThan(0);
+		for (const o of opcoes) {
+			expect(o.resultado.selecao.get('FGA0109')?.turma.id_turmas).toBe(fse.turmas[1].turma.id_turmas);
+		}
+		gradeStore.setIncluirCursando(true);
+	});
+});
+
+describe('caso do relato: "priorizei uma matéria e ela saiu sozinha na grade"', () => {
+	/** Aluno cursando duas matérias (8 cr) já na turma real, mais uma livre. */
+	function cenario() {
+		const fse = materia('FGA0109', ['35T23']);
+		const ihc = materia('FGA0208', ['24M12']);
+		const livre = materia('FGA0300', ['6M12']);
+		gradeStore.init([fse, ihc, livre], { idUser: null, periodo: '2026.2' });
+		gradeStore.definirCursandoAtual(['FGA0109', 'FGA0208']);
+		gradeStore.selecionarTurma('FGA0109', fse.turmas[0].turma.id_turmas);
+		gradeStore.selecionarTurma('FGA0208', ihc.turmas[0].turma.id_turmas);
+		gradeStore.selecionarTurma('FGA0300', livre.turmas[0].turma.id_turmas);
+		return { fse, ihc, livre };
+	}
+
+	it('com as em curso ligadas, o crédito delas não é cobrado de novo (a semeadura já cobra)', () => {
+		const { fse, ihc, livre } = cenario();
+		gradeStore.setIncluirCursando(true);
+
+		const base = gradeStore.orcamentoParaSemear();
+
+		expect(base.creditos).toBe(4);
+		expect(base.mask).toBe(fse.turmas[0].mask | ihc.turmas[0].mask | livre.turmas[0].mask);
+	});
+
+	it('com as em curso desligadas, só a essencial em curso ocupa horário e crédito', () => {
+		const { fse, livre } = cenario();
+		gradeStore.setIncluirCursando(false);
+
+		const base = gradeStore.orcamentoParaSemear('FGA0109');
+
+		expect(base.creditos).toBe(8);
+		expect(base.mask).toBe(fse.turmas[0].mask | livre.turmas[0].mask);
+		gradeStore.setIncluirCursando(true);
+	});
+});

@@ -3,7 +3,8 @@
  *
  * POST /chat/send          — uma mensagem para a Darcy, de qualquer tela.
  * GET  /chat/historico     — a conversa visível (a mesma em todas as telas).
- * POST /chat/nova-conversa — zera a conversa do aluno.
+ * POST /chat/nova-conversa — zera a conversa do aluno (o que importava vira memória).
+ * POST /chat/esquecer      — apaga a conversa E a memória (`memoria_aluno.ts`).
  *
  * session_id = uuid do usuário autenticado (auth.users.id), extraído do token, não do
  * corpo da requisição — evita que um cliente forje o histórico de outro usuário. O
@@ -39,6 +40,7 @@ import {
 import { isMaritacaConfigured } from "../services/chat/model_provider";
 import { montarPerfilAluno, type PerfilAluno } from "../services/chat/perfil_aluno";
 import { invalidarPerfilAluno } from "../services/chat/perfil_cache";
+import { apagarMemoria, consolidarMemoria, lerMemoria } from "../services/chat/memoria_aluno";
 import { parseCorpoChat } from "../services/chat/superficie";
 import { codigoDoAtalhoTurmas, responderAtalhoTurmas, itensDaTroca } from "../services/chat/atalhos";
 import { canonicalizarResposta } from "../services/chat/marcadores";
@@ -119,19 +121,22 @@ export const ChatController: EndpointController = {
                 const session = new SupabaseSession(usuario.id);
 
                 // Perfil falhando não derruba o chat: a Darcy responde sem ele e as
-                // tools continuam buscando o que precisam.
+                // tools continuam buscando o que precisam. A memória (em cache) vem junto.
                 let perfil: PerfilAluno | null = null;
+                const memoriaPromise = lerMemoria(usuario.id);
                 try {
                     perfil = await montarPerfilAluno(usuario.email ?? "");
                 } catch (err) {
                     logger.error(`Falha ao montar perfil do aluno: ${err instanceof Error ? err.message : String(err)}`);
                 }
+                const memoria = await memoriaPromise;
 
                 const orquestrador = createOrquestradorAgent({
                     email: usuario.email ?? "",
                     perfil,
                     superficie: corpo.superficie,
                     estado: corpo.estado,
+                    memoria,
                 });
                 const resultado = await executarComContextoIA(ctxIA, () =>
                     run(orquestrador, corpo.message, { session, context: contextoRun })
@@ -167,6 +172,9 @@ export const ChatController: EndpointController = {
                         logger.error(`Falha ao gravar resposta final na sessão: ${err instanceof Error ? err.message : String(err)}`);
                     }
                 }
+
+                // Depois da resposta, sem segurar o aluno: o que saiu da janela vira memória.
+                void consolidarMemoria(usuario.id);
 
                 // O modelo já respondeu (e cobrou): quem saiu gasta a pergunta, só não recebe a resposta.
                 if (pergunta.clienteSaiu()) return;
@@ -221,11 +229,33 @@ export const ChatController: EndpointController = {
             try {
                 const usuario = await autenticar(req, res);
                 if (!usuario) return;
+                // Antes de apagar, o que importava da conversa vai para a memória — a
+                // Darcy começa do zero na tela, não no que sabe do aluno. Com teto de
+                // tempo: memória é extra, não pode prender o botão.
+                await Promise.race([
+                    consolidarMemoria(usuario.authId, { tudo: true }),
+                    new Promise((r) => setTimeout(r, 15_000)),
+                ]);
                 await new SupabaseSession(usuario.authId).clearSession();
                 return res.status(200).json({ ok: true });
             } catch (error) {
                 const msg = error instanceof Error ? error.message : String(error);
                 logger.error(`Erro ao zerar conversa: ${msg}`);
+                return res.status(500).json({ error: `Erro interno no servidor: ${msg}` });
+            }
+        }),
+
+        esquecer: new Pair(RequestType.POST, async (req: Request, res: Response) => {
+            const logger = createControllerLogger("ChatController", "esquecer");
+            try {
+                const usuario = await autenticar(req, res);
+                if (!usuario) return;
+                await apagarMemoria(usuario.authId);
+                await new SupabaseSession(usuario.authId).clearSession();
+                return res.status(200).json({ ok: true });
+            } catch (error) {
+                const msg = error instanceof Error ? error.message : String(error);
+                logger.error(`Erro ao apagar memória: ${msg}`);
                 return res.status(500).json({ error: `Erro interno no servidor: ${msg}` });
             }
         }),

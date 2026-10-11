@@ -91,6 +91,8 @@ APPS: dict[str, AppConfig] = {
             "RAGFLOW_AGENT_ID",
             "MARITACA_API_KEY",
             "GOOGLE_API_KEY",
+            # Cifra as conversas da Darcy no banco; sem ela o backend grava em claro
+            "CHAT_ENCRYPTION_KEY",
             # muda a cada deploy: força a troca dos pods e identifica a versão
             "GIT_SHA",
         ),

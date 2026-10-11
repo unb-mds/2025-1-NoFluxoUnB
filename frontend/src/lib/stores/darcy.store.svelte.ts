@@ -47,6 +47,35 @@ export interface GradePendente {
 	opcaoGrade?: OpcaoGradeChat;
 }
 
+/** Quantas mensagens o navegador guarda — o bastante para a tela abrir cheia. */
+const MAX_CACHE = 50;
+const chaveCache = (idUser: number) => `darcy:conversa:${idUser}`;
+
+/**
+ * Cache local da conversa: a tela abre com ela na hora, sem esperar o
+ * `/chat/historico`, que depois confirma (o servidor é a fonte de verdade).
+ * `localStorage` pode não existir ou lançar (aba privada, SSR) — aí só não há cache.
+ */
+function lerCache(idUser: number): PlannerChatMessage[] {
+	try {
+		const bruto = localStorage.getItem(chaveCache(idUser));
+		const lista = bruto ? JSON.parse(bruto) : [];
+		return Array.isArray(lista) ? lista : [];
+	} catch {
+		return [];
+	}
+}
+
+function gravarCache(idUser: number | null, mensagens: PlannerChatMessage[]): void {
+	if (idUser === null) return;
+	try {
+		if (mensagens.length === 0) localStorage.removeItem(chaveCache(idUser));
+		else localStorage.setItem(chaveCache(idUser), JSON.stringify(mensagens.slice(-MAX_CACHE)));
+	} catch {
+		// Sem espaço/sem storage: o cache é conveniência, a conversa continua no servidor.
+	}
+}
+
 function createDarcyStore() {
 	let mensagens = $state<PlannerChatMessage[]>([]);
 	let gradePendente: GradePendente | null = null;
@@ -67,13 +96,19 @@ function createDarcyStore() {
 	let historicoDoUsuario: number | null = null;
 	let historicoEmVoo: Promise<void> | null = null;
 
+	/** Mensagem enviada desde que a tela abriu — o histórico do servidor não a sobrescreve. */
+	let enviouAposAbrir = false;
+
 	let idUserAtual: number | null = null;
 	authStore.subscribe((estado) => {
 		const id = estado.user?.idUser ?? null;
 		if (id === idUserAtual) return;
+		// Logout: a conversa não fica no navegador para o próximo que usar a máquina.
+		if (id === null && idUserAtual !== null) gravarCache(idUserAtual, []);
 		idUserAtual = id;
 		// Troca de usuário (login/logout): a conversa do anterior não pode vazar.
-		mensagens = [];
+		mensagens = id === null ? [] : lerCache(id);
+		enviouAposAbrir = false;
 		error = null;
 		gradePendente = null;
 		historicoDoUsuario = null;
@@ -130,8 +165,11 @@ function createDarcyStore() {
 				.then((doServidor) => {
 					if (dono !== idUserAtual) return; // trocou de usuário no meio
 					historicoDoUsuario = dono;
-					if (mensagens.length === 0) {
+					// O servidor manda no que o cache mostrou — exceto se o aluno já
+					// mandou algo nesta tela antes de o histórico chegar.
+					if (!enviouAposAbrir) {
 						mensagens = doServidor.map((m) => ({ role: m.role, content: m.content }));
+						gravarCache(dono, mensagens);
 					}
 				})
 				.catch(() => {
@@ -169,6 +207,7 @@ function createDarcyStore() {
 			if (!mensagem.trim() || carregando) return;
 			const registro = registroAtivo();
 			mensagens = [...mensagens, { role: 'user', content: mensagem }];
+			enviouAposAbrir = true;
 			carregando = true;
 			error = null;
 
@@ -184,6 +223,7 @@ function createDarcyStore() {
 					...mensagens,
 					{ role: 'assistant', content: resposta.reply, opcaoGrade: resposta.opcaoGrade }
 				];
+				gravarCache(idUserAtual, mensagens);
 				if (resposta.cota) {
 					darcyCotaStore.atualizar(resposta.cota);
 				}
@@ -209,12 +249,17 @@ function createDarcyStore() {
 			}
 		},
 
-		/** Apaga a conversa no servidor e na tela — vale para todas as telas. */
-		async novaConversa(): Promise<void> {
+		/**
+		 * Apaga a conversa no servidor e na tela — vale para todas as telas. O que
+		 * importava dela fica na memória da Darcy, a não ser com `esquecer`.
+		 */
+		async novaConversa(opcoes?: { esquecer?: boolean }): Promise<void> {
 			if (carregando) return;
 			try {
-				await chatService.novaConversa();
+				if (opcoes?.esquecer) await chatService.novaConversa(true);
+				else await chatService.novaConversa();
 				mensagens = [];
+				gravarCache(idUserAtual, []);
 				error = null;
 			} catch (err) {
 				error = mensagemErroChat(err);
@@ -224,6 +269,7 @@ function createDarcyStore() {
 		/** Zera o estado local (testes / troca de conta). Não toca no servidor. */
 		reset(): void {
 			mensagens = [];
+			enviouAposAbrir = false;
 			carregando = false;
 			error = null;
 			pedidoAbertura = null;

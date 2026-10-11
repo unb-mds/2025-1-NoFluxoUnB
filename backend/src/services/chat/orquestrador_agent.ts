@@ -24,6 +24,7 @@ import { defaultRegistry } from "../agente/tools";
 import { criarContextoLeve, type AgenteContexto } from "../agente/context";
 import type { PlanoFormaturav2 } from "../../types/planejamento";
 import { clonarContexto, renderizarPerfil, type PerfilAluno } from "./perfil_aluno";
+import { renderizarMemoria } from "./memoria_aluno";
 import { MASCARA_SEMANA_LIVRE, type EstadoSuperficie, type Superficie } from "./superficie";
 
 // =========================================================
@@ -142,9 +143,12 @@ function protocoloDa(superficie: Superficie): string {
 export function montarInstrucoes(
     perfil: PerfilAluno | null,
     superficie: Superficie,
-    estado?: EstadoSuperficie
+    estado?: EstadoSuperficie,
+    memoria: string | null = null
 ): string {
-    return `${INSTRUCOES}${protocoloDa(superficie)}\n\n${renderizarPerfil(perfil, superficie, estado)}`;
+    const base = `${INSTRUCOES}${protocoloDa(superficie)}\n\n${renderizarPerfil(perfil, superficie, estado)}`;
+    const lembrado = renderizarMemoria(memoria);
+    return lembrado ? `${base}\n\n${lembrado}` : base;
 }
 
 // =========================================================
@@ -220,6 +224,8 @@ export interface OpcoesOrquestrador {
     estado?: EstadoSuperficie;
     /** Período letivo ativo (as tools de grade consultam a oferta dele). */
     periodoAtivo?: string;
+    /** Resumo de conversas anteriores (`memoria_aluno.ts`). */
+    memoria?: string | null;
 }
 
 export function createOrquestradorAgent(opts: OpcoesOrquestrador | string): Agent {
@@ -315,7 +321,7 @@ export function createOrquestradorAgent(opts: OpcoesOrquestrador | string): Agen
 
     const agent = new Agent({
         name: "DarcyOrquestrador",
-        instructions: montarInstrucoes(perfil, superficie, estado),
+        instructions: montarInstrucoes(perfil, superficie, estado, opcoes.memoria ?? null),
         model: createMaritacaModel(),
         tools,
     });

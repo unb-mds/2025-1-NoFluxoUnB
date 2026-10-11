@@ -674,7 +674,11 @@ function createGradeStore() {
 			// pré-ocupado). Num cenário novo ela não tem turma aqui, e excluí-la fazia a
 			// matéria sumir da montagem em vez de entrar na turma real.
 			.filter((m) => !(travadasAtivas.has(m.codigo) && selecaoAtiva.has(m.codigo)))
-			.filter((m) => incluirCursando || !cursandoAtual.has(m.codigo))
+			// A `essencial` fica de fora desta regra: o aluno a pediu explicitamente, e
+			// tirá-la aqui virava "não coube em nenhuma opção" sem motivo de verdade.
+			.filter(
+				(m) => incluirCursando || !cursandoAtual.has(m.codigo) || m.codigo === essencialCodigo
+			)
 			// Pré-requisito que não fecha nem contando o que ele cursa agora: a
 			// matrícula seria recusada, então a montagem automática não a propõe. Ela
 			// continua na lista (o aluno pode escolher turma na mão). Exceções: a
@@ -696,13 +700,20 @@ function createGradeStore() {
 
 		const materiasSolver: Array<MateriaTurmas<TurmaOferta>> = candidatas.map((m) => {
 			const docenteAlvo = docentesEfetivos[m.codigo];
-			turmasAntesDoFiltroDeTurno.set(m.codigo, m.turmas);
-			turnosComOferta.set(m.codigo, turnosDaOferta(m.turmas));
+			// Turma lotada não entra na montagem automática: a grade sairia com uma
+			// turma em que o aluno não consegue se matricular. `null` = SIGAA não
+			// informou (ou fixture sem o campo), vale como "tem vaga". A turma real de quem já cursa é tratada
+			// abaixo, à parte — a vaga dela já é do aluno.
+			const comVaga = m.turmas.filter(
+				(t) => t.turma.vagas_sobrando == null || t.turma.vagas_sobrando > 0
+			);
+			turmasAntesDoFiltroDeTurno.set(m.codigo, comVaga);
+			turnosComOferta.set(m.codigo, turnosDaOferta(comVaga));
 
 			// Turno continua sendo filtro rígido (o aluno não quer ver grade fora do
 			// turno escolhido). Professor não: agora é bônus por cima da turma que já
 			// passou no turno, não mais um segundo filtro que podia esvaziar a matéria.
-			let turmasNoTurno = m.turmas.filter((t) => turmaRespeitaTurnos(t.mask, turnosPermitidos));
+			let turmasNoTurno = comVaga.filter((t) => turmaRespeitaTurnos(t.mask, turnosPermitidos));
 			// `turnosEssencial` é preferência POR DISCIPLINA (só a essencial), a mais
 			// da tela — interseção com o filtro global, nunca substitui.
 			const essencialAqui = essencialCodigo !== undefined && m.codigo === essencialCodigo;
@@ -728,7 +739,12 @@ function createGradeStore() {
 			// enquanto estivesse travada no cenário ativo: "Limpar a grade", um
 			// cenário novo ou uma seleção antiga errada deixavam o solver trocar a
 			// turma de uma matéria que o aluno já cursa.
-			const idReal = matriculaReal ? turmasReais[m.codigo] : undefined;
+			// Vale também para a essencial que o aluno já cursa com o modo desligado:
+			// ela entra na grade, e a turma dela é a da matrícula, não outra qualquer.
+			const idReal =
+				matriculaReal || (essencialAqui && cursandoAtual.has(m.codigo))
+					? turmasReais[m.codigo]
+					: undefined;
 			const turmaReal =
 				idReal !== undefined ? m.turmas.find((t) => t.turma.id_turmas === idReal) : undefined;
 			if (turmaReal) turmas = [turmaReal];
@@ -793,6 +809,31 @@ function createGradeStore() {
 		},
 		get creditosSelecionados() {
 			return creditosSelecionados;
+		},
+
+		/**
+		 * O que a grade já ocupa, do ponto de vista de quem vai semear o resto
+		 * (`montarPoolRecomendado`, campo `base`).
+		 *
+		 * Matéria em curso fora daqui: o crédito dela a semeadura já cobra sozinha
+		 * (`cursandoOcupaOrcamento`). Somar de novo pela seleção cobrava duas vezes —
+		 * e com o modo "sem as cursando" cobrava matéria que nem vai para a grade.
+		 * Nos dois casos sobrava zero de orçamento e a lista não ganhava
+		 * complemento: a essencial saía sozinha na grade. O horário dela só bloqueia
+		 * quando ela de fato entra (modo ligado, ou é a essencial).
+		 */
+		orcamentoParaSemear(essencial?: string | null): { mask: bigint; creditos: number } {
+			let mask = 0n;
+			let creditos = 0;
+			for (const [codigo, t] of selecaoAtiva) {
+				const emCurso = cursandoAtual.has(codigo);
+				if (emCurso && !incluirCursando && codigo !== essencial) continue;
+				mask |= t.mask;
+				if (!emCurso || !incluirCursando) {
+					creditos += pool.find((m) => m.codigo === codigo)?.creditos ?? 0;
+				}
+			}
+			return { mask, creditos };
 		},
 		get ultimaMontagem() {
 			return ultimaMontagem;

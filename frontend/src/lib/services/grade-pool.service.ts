@@ -274,6 +274,8 @@ export interface SemeaduraResultado {
 export interface OpcoesSemeadura {
 	limiteCreditos?: number;
 	escopo?: 'periodo-atual' | 'todas-pendentes';
+	/** Essencial da montagem: entra mesmo em curso com o modo "sem as cursando". */
+	essencial?: string | null;
 }
 
 /**
@@ -465,6 +467,16 @@ function escolherComOrcamento(
 	 */
 	tetoPorNatureza?: Partial<Record<NaturezaCH, number>>
 ): MateriaGrade[] {
+	return escolherComSaldo(candidatos, limiteCreditos, base, tetoPorNatureza).escolhidas;
+}
+
+/** `escolherComOrcamento` devolvendo também o que ficou ocupado — para uma 2ª passada. */
+function escolherComSaldo(
+	candidatos: MateriaGrade[],
+	limiteCreditos: number,
+	base: OrcamentoInicial,
+	tetoPorNatureza?: Partial<Record<NaturezaCH, number>>
+): { escolhidas: MateriaGrade[]; ocupado: OrcamentoInicial } {
 	const escolhidas: MateriaGrade[] = [];
 	let mask = base.mask;
 	let creditos = base.creditos;
@@ -495,7 +507,7 @@ function escolherComOrcamento(
 		escolhidas.push(m);
 	}
 
-	return escolhidas;
+	return { escolhidas, ocupado: { mask, creditos, turnos: base.turnos } };
 }
 
 /**
@@ -643,12 +655,12 @@ export async function montarPoolRecomendado(
 	const naturezasSaturadas: NaturezaCH[] = (['optativa', 'modulo_livre'] as const).filter((n) =>
 		saturada(opts.situacao ?? null, n)
 	);
-	const candidatas = [...obrigatorias, ...optativas]
+	const elegiveis = [...obrigatorias, ...optativas]
 		.map((c) => c.materia)
 		// Pré-requisito que não fecha nem com o que ele cursa agora: a matrícula seria
 		// recusada, então não é recomendação. O aluno ainda pode adicioná-la na mão.
-		.filter((m) => m.nivelPreRequisito !== 'pendente')
-		.filter(
+		.filter((m) => m.nivelPreRequisito !== 'pendente');
+	const candidatas = elegiveis.filter(
 			(m) =>
 				m.optatoria === true ||
 				!m.natureza ||
@@ -672,12 +684,25 @@ export async function montarPoolRecomendado(
 		);
 		recomendadas = [...nucleo, ...resto];
 	} else {
-		recomendadas = escolherComOrcamento(
+		const principal = escolherComSaldo(
 			candidatas,
 			opts.limiteCreditos,
 			orcamentoBase,
 			tetoPorNatureza(opts.situacao)
 		);
+		// Sobrou crédito depois do que conta para a formatura? Completa a lacuna com
+		// o que mais couber da matriz — optativa além da carga exigida inclusive. Elas
+		// só entram DEPOIS das que contam, então não tomam o lugar de nenhuma
+		// obrigatória; e no solver têm o menor peso (`PESO_SATURADO`), então também
+		// não a deslocam lá. Sem esta passada, quem já fechou as optativas e tem
+		// poucas pendentes com turma recebia uma grade com metade do limite vazia.
+		const ja = new Set(principal.escolhidas.map((m) => m.codigo));
+		const complemento = escolherComOrcamento(
+			elegiveis.filter((m) => !ja.has(m.codigo)),
+			opts.limiteCreditos,
+			principal.ocupado
+		);
+		recomendadas = [...principal.escolhidas, ...complemento];
 	}
 
 	return {

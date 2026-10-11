@@ -81,11 +81,14 @@ export class ChatService {
 		return Array.isArray(data.mensagens) ? data.mensagens : [];
 	}
 
-	async novaConversa(): Promise<void> {
-		const { error, status } = await apiRequest<{ ok: boolean }>('/chat/nova-conversa', {
-			method: 'POST'
-		});
-		if (error) throw new Error(`Erro ${status} ao chamar /chat/nova-conversa: ${error}`);
+	/**
+	 * Apaga a conversa. O backend resume antes o que importa dela na memória da
+	 * Darcy; com `esquecer`, apaga a memória também.
+	 */
+	async novaConversa(esquecer = false): Promise<void> {
+		const rota = esquecer ? '/chat/esquecer' : '/chat/nova-conversa';
+		const { error, status } = await apiRequest<{ ok: boolean }>(rota, { method: 'POST' });
+		if (error) throw new Error(`Erro ${status} ao chamar ${rota}: ${error}`);
 	}
 }
 

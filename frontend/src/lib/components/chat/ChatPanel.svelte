@@ -101,7 +101,7 @@
 		 * Quando definido, o cabeçalho ganha "Nova conversa" (com confirmação inline):
 		 * a conversa é uma só entre as telas, então apagar vale pra todas.
 		 */
-		onNovaConversa?: () => void;
+		onNovaConversa?: (opcoes?: { esquecer?: boolean }) => void;
 		/**
 		 * Chat do Darcy (padrão): exige login, mostra a rodinha de uso diário ao
 		 * lado do enviar e troca o campo pelo aviso de limite quando a cota acaba.
@@ -270,7 +270,11 @@
 		{#if onNovaConversa && messages.length > 0}
 			<div class="ml-auto flex shrink-0 items-center gap-1 pl-2">
 				{#if confirmandoNovaConversa}
-					<span class="hidden text-[11px] text-white/60 sm:inline">Apagar a conversa?</span>
+					<span
+						class="hidden text-[11px] text-white/60 sm:inline"
+						title="A conversa some da tela; a Darcy guarda só o que importa sobre você (objetivos, preferências)."
+						>Começar do zero?</span
+					>
 					<button
 						type="button"
 						onclick={() => {
@@ -278,9 +282,22 @@
 							onNovaConversa?.();
 						}}
 						disabled={loading}
-						class="rounded-full border border-red-400/40 bg-red-500/15 px-2.5 py-1 text-[11px] font-medium text-red-100 transition-colors hover:bg-red-500/30 disabled:opacity-40"
+						class="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-white/20 disabled:opacity-40"
+						title="Apaga a conversa; a Darcy continua lembrando do que importa sobre você"
 					>
-						Apagar conversa
+						Nova conversa
+					</button>
+					<button
+						type="button"
+						onclick={() => {
+							confirmandoNovaConversa = false;
+							onNovaConversa?.({ esquecer: true });
+						}}
+						disabled={loading}
+						class="rounded-full border border-red-400/40 bg-red-500/15 px-2.5 py-1 text-[11px] font-medium text-red-100 transition-colors hover:bg-red-500/30 disabled:opacity-40"
+						title="Apaga a conversa e tudo o que a Darcy lembra de você"
+					>
+						Esquecer tudo
 					</button>
 					<button
 						type="button"
@@ -295,7 +312,7 @@
 						onclick={() => (confirmandoNovaConversa = true)}
 						disabled={loading}
 						class="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-white/50 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
-						title="Começar uma conversa nova (apaga esta em todas as telas)"
+						title="Começar uma conversa nova (apaga esta em todas as telas; a Darcy lembra do que importa)"
 						aria-label="Nova conversa"
 					>
 						<MessageSquarePlus class="h-3.5 w-3.5" />

@@ -107,7 +107,7 @@ describe('semeadura — natureza já cumprida', () => {
 	 * montador continuava enchendo a grade dele de optativa, deixando de fora a
 	 * obrigatória que ele ainda deve.
 	 */
-	it('optativa some da lista quando a carga optativa já está cumprida', async () => {
+	it('optativa já cumprida não toma o lugar da obrigatória', async () => {
 		curso.materias = [
 			materiaDaMatriz('OBR0001', 1, 0, 1),
 			materiaDaMatriz('OPT0001', 0, 1, 2),
@@ -116,12 +116,33 @@ describe('semeadura — natureza já cumprida', () => {
 		todasComOferta();
 
 		const r = await montarPoolRecomendado('2026.2', {
-			limiteCreditos: 24,
+			limiteCreditos: 4,
 			situacao: situacao({ optativa: 0 })
 		});
 
 		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0001']);
 		expect(r.naturezasSaturadas).toContain('optativa');
+	});
+
+	/**
+	 * O relato: "priorizei uma matéria e ela saiu sozinha". Quem já fechou as
+	 * optativas e tem poucas pendentes com turma recebia uma grade com metade do
+	 * limite vazio. A lacuna é completada — depois das que contam, nunca antes.
+	 */
+	it('com crédito sobrando, optativa já cumprida completa a lacuna — depois da obrigatória', async () => {
+		curso.materias = [
+			materiaDaMatriz('OPT0001', 0, 1, 2),
+			materiaDaMatriz('OBR0001', 1, 0, 1),
+			materiaDaMatriz('OPT0002', 0, 1, 3)
+		];
+		todasComOferta();
+
+		const r = await montarPoolRecomendado('2026.2', {
+			limiteCreditos: 12,
+			situacao: situacao({ optativa: 0 })
+		});
+
+		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0001', 'OPT0001', 'OPT0002']);
 	});
 
 	it('optativa continua entrando quando a carga optativa ainda falta', async () => {
@@ -169,7 +190,7 @@ describe('semeadura — optatórias sobrevivem à saturação', () => {
 		optatorias = new Map([['OPT0002', ['OBR0009']]]);
 
 		const r = await montarPoolRecomendado('2026.2', {
-			limiteCreditos: 24,
+			limiteCreditos: 4,
 			situacao: situacao({ optativa: 0 })
 		});
 
@@ -180,18 +201,18 @@ describe('semeadura — optatórias sobrevivem à saturação', () => {
 	 * Optativa que só destrava obrigatória JÁ CURSADA é peso morto: destravar o que
 	 * já está feito não serve para nada, e mantê-la ocuparia o lugar de matéria útil.
 	 */
-	it('optativa que só destrava obrigatória já cursada NÃO sobrevive', async () => {
-		curso.materias = [materiaDaMatriz('OPT0001', 0, 1, 1)];
+	it('optativa que só destrava obrigatória já cursada NÃO ganha a vaga da obrigatória', async () => {
+		curso.materias = [materiaDaMatriz('OPT0001', 0, 1, 1), materiaDaMatriz('OBR0002', 3, 0, 2)];
 		todasComOferta();
 		optatorias = new Map([['OPT0001', ['OBR0009']]]);
 		completed.add('OBR0009');
 
 		const r = await montarPoolRecomendado('2026.2', {
-			limiteCreditos: 24,
+			limiteCreditos: 4,
 			situacao: situacao({ optativa: 0 })
 		});
 
-		expect(r.materias).toEqual([]);
+		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0002']);
 	});
 });
 
@@ -209,13 +230,16 @@ describe('semeadura — teto pelo que falta de cada natureza', () => {
 		];
 		todasComOferta();
 
-		// 60h faltando = 4 créditos = exatamente uma matéria de 4 créditos.
+		// 60h faltando = 4 créditos = exatamente uma matéria de 4 créditos. A obrigatória
+		// pendente vem antes das optativas além do que falta (que só completam a lacuna).
+		curso.materias.push(materiaDaMatriz('OBR0001', 5, 0, 5));
+		comOferta.add('OBR0001');
 		const r = await montarPoolRecomendado('2026.2', {
-			limiteCreditos: 24,
+			limiteCreditos: 8,
 			situacao: situacao({ optativa: 60 })
 		});
 
-		expect(r.materias).toHaveLength(1);
+		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0001', 'OPT0001']);
 	});
 
 	it('sem situação, o teto por natureza não existe — comportamento de antes', async () => {

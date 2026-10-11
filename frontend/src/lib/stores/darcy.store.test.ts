@@ -38,6 +38,14 @@ import { chatService } from '$lib/services/chat.service';
 import { darcyStore } from './darcy.store.svelte';
 import type { EstadoMontador } from '$lib/services/chat.service';
 
+// localStorage em memória — o cache local da conversa (o ambiente de teste não tem DOM).
+const armazenado = new Map<string, string>();
+vi.stubGlobal('localStorage', {
+	getItem: (k: string) => armazenado.get(k) ?? null,
+	setItem: (k: string, v: string) => void armazenado.set(k, v),
+	removeItem: (k: string) => void armazenado.delete(k)
+});
+
 const enviar = vi.mocked(chatService.enviarMensagem);
 const historico = vi.mocked(chatService.historico);
 const novaConversa = vi.mocked(chatService.novaConversa);
@@ -48,6 +56,7 @@ describe('darcyStore', () => {
 		historico.mockReset().mockResolvedValue([]);
 		novaConversa.mockReset().mockResolvedValue(undefined);
 		darcyStore.reset();
+		armazenado.clear();
 	});
 
 	it('a conversa é a mesma em todas as telas', async () => {
@@ -190,5 +199,52 @@ describe('darcyStore', () => {
 		darcyStore.definirGradePendente({ codigos: ['MAT0026'] });
 		darcyStore.reset();
 		expect(darcyStore.consumirGradePendente()).toBeNull();
+	});
+	describe('cache local da conversa', () => {
+		it('a conversa volta na hora ao reabrir, sem esperar o servidor', async () => {
+			enviar.mockResolvedValue({ reply: 'resposta guardada' });
+			await darcyStore.enviar('pergunta guardada');
+
+			definirUsuario(8);
+			definirUsuario(7);
+
+			expect(darcyStore.mensagens.map((m) => m.content)).toEqual([
+				'pergunta guardada',
+				'resposta guardada'
+			]);
+		});
+
+		it('logout apaga o cache: o próximo a usar a máquina não vê a conversa', async () => {
+			enviar.mockResolvedValue({ reply: 'ok' });
+			await darcyStore.enviar('segredo');
+
+			definirUsuario(null);
+			definirUsuario(7);
+
+			expect(darcyStore.mensagens).toHaveLength(0);
+		});
+
+		it('o histórico do servidor substitui o cache (o servidor é a fonte de verdade)', async () => {
+			armazenado.set('darcy:conversa:7', JSON.stringify([{ role: 'user', content: 'velho' }]));
+			definirUsuario(8);
+			definirUsuario(7);
+			expect(darcyStore.mensagens.map((m) => m.content)).toEqual(['velho']);
+
+			historico.mockResolvedValue([{ role: 'user', content: 'do servidor' }]);
+			await darcyStore.carregarHistorico();
+
+			expect(darcyStore.mensagens.map((m) => m.content)).toEqual(['do servidor']);
+		});
+
+		it('"Esquecer tudo" pede ao servidor para apagar a memória também', async () => {
+			enviar.mockResolvedValue({ reply: 'ok' });
+			await darcyStore.enviar('oi');
+
+			await darcyStore.novaConversa({ esquecer: true });
+
+			expect(novaConversa).toHaveBeenCalledWith(true);
+			expect(darcyStore.mensagens).toHaveLength(0);
+			expect(armazenado.has('darcy:conversa:7')).toBe(false);
+		});
 	});
 });

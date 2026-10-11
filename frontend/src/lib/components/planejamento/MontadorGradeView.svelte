@@ -182,7 +182,11 @@
 		gerandoOpcoes = true;
 		parametrosAtuais = params;
 		try {
-			await onSemear?.({ limiteCreditos: params.limiteCreditos, escopo: params.escopo });
+			await onSemear?.({
+				limiteCreditos: params.limiteCreditos,
+				escopo: params.escopo,
+				essencial: params.essencial
+			});
 
 			if (params.essencial && params.professorPreferidoEssencial) {
 				void preferenciasGradeService.salvar(params.essencial, {
@@ -191,18 +195,22 @@
 				});
 			}
 
-			const opcoes = gradeStore.montarOpcoes({
+			const opts = {
 				limiteCreditos: params.limiteCreditos,
 				essencial: params.essencial ?? undefined,
 				professorPreferidoEssencial: params.professorPreferidoEssencial ?? undefined,
-				turnosEssencial: params.turnosEssencial,
-				estrategias: params.estrategias
-			});
+				turnosEssencial: params.turnosEssencial
+			};
+			const opcoes = gradeStore.montarOpcoes({ ...opts, estrategias: params.estrategias });
 
-			avisoEssencial =
-				params.essencial && !opcoes.some((o) => o.resultado.selecao.has(params.essencial as string))
-					? `${nomeMateria(params.essencial)} não coube em nenhuma opção — pode ser falta de vaga, conflito de horário ou os turnos escolhidos.`
-					: null;
+			// Travada com turma (a matrícula real) não passa pelo solver — vira horário
+			// já ocupado e entra em todas as opções por `popularOpcoes`. Já está na grade.
+			const essencial = params.essencial;
+			const essencialCoube =
+				!essencial ||
+				(gradeStore.isTravada(essencial) && !!gradeStore.turmaSelecionada(essencial)) ||
+				opcoes.some((o) => o.resultado.selecao.has(essencial));
+			avisoEssencial = essencialCoube ? null : motivoEssencial(essencial!, opts, opcoes);
 
 			if (opcoes.length === 0) {
 				toast.warning(avisoEssencial ?? 'Não consegui montar nenhuma opção com esses parâmetros.');
@@ -223,6 +231,14 @@
 			onLimiteCreditos?.(params.limiteCreditos);
 			painel = null;
 			const n = gradeStore.selecao.size;
+			if (n === 0) {
+				toast.warning(
+					gradeStore.temCursando && !gradeStore.incluirCursando
+						? 'A grade saiu vazia: sua lista só tem matérias que você já cursa, e elas estão fora da montagem. Ligue “Incluir matérias que já curso” ou adicione outras matérias.'
+						: 'A grade saiu vazia: nenhuma matéria da lista tem turma que caiba na carga e nos turnos escolhidos.'
+				);
+				return;
+			}
 			toast.success(
 				`${opcoes.length} ${opcoes.length === 1 ? 'opção gerada' : 'opções geradas'} — aplicada: ${preferida?.nome ?? opcoes[0].estrategia} (${n} ${n === 1 ? 'matéria' : 'matérias'}).`
 			);
@@ -392,7 +408,7 @@
 		const nome = nomeMateria(erro.chave);
 		switch (erro.tipo) {
 			case 'ESSENCIAL_SEM_VAGA':
-				return `${nome} não tem nenhuma turma ofertada neste período.`;
+				return `${nome} não tem turma com vaga neste período.`;
 			case 'ESSENCIAL_FORA_DO_TURNO': {
 				const turnos = erro.turnosComOferta.map((t) => TURNO_LABEL[t]).join(' ou ');
 				return turnos
@@ -408,6 +424,21 @@
 			default:
 				return `Não consegui encaixar ${nome}.`;
 		}
+	}
+
+	/**
+	 * Por que a essencial ficou de fora de todas as opções, com a causa medida
+	 * (turno, pré-requisito, conflito, sem turma) — não um "pode ser X, Y ou Z".
+	 */
+	function motivoEssencial(
+		codigo: string,
+		opts: Parameters<typeof gradeStore.diagnosticarEssencialDasOpcoes>[0],
+		opcoes: Array<{ resultado: { naoAlocadas: string[] } }>
+	): string {
+		const naoAlocadas = opcoes[0]?.resultado.naoAlocadas ?? [codigo];
+		const erros = gradeStore.diagnosticarEssencialDasOpcoes(opts, naoAlocadas);
+		if (erros.length > 0) return erros.map(mensagemErro).join(' ');
+		return `${nomeMateria(codigo)} não coube em nenhuma opção. Confira as turmas dela nos detalhes da matéria.`;
 	}
 
 	/** Avisos da última montagem para o painel de análise. */

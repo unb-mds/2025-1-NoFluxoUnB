@@ -14,6 +14,7 @@
 import type { AgentInputItem } from "@openai/agents";
 import type { Session } from "@openai/agents";
 import { SupabaseWrapper } from "../../supabase_wrapper";
+import { cifrarItem, decifrarItem } from "../../utils/cripto_chat";
 
 /** Quantos itens da sessão entram em cada `run` (o perfil do aluno já cobre o que é estável). */
 export const JANELA_PADRAO_ITENS = 30;
@@ -48,6 +49,23 @@ function ehMensagemDaDarcy(item: any): boolean {
  * no meio de um turno deixaria um resultado de tool sem a chamada que o originou,
  * e o modelo recusa histórico assim.
  */
+/**
+ * Decifra as linhas lidas do banco (`cripto_chat.ts`). Linha que não decifra —
+ * adulterada, ou cifrada com outra chave — fica de fora: perder um item do
+ * histórico é melhor que derrubar o chat ou pôr conteúdo forjado no prompt.
+ */
+export function decifrarLinhas<L extends { item: unknown }>(linhas: L[]): Array<L & { item: any }> {
+    const out: Array<L & { item: any }> = [];
+    for (const linha of linhas) {
+        try {
+            out.push({ ...linha, item: decifrarItem(linha.item) });
+        } catch {
+            console.warn("[SupabaseSession] item da conversa não pôde ser decifrado — ignorado.");
+        }
+    }
+    return out;
+}
+
 export function aparaInicioDaJanela(itens: AgentInputItem[]): AgentInputItem[] {
     const inicio = itens.findIndex(ehMensagemDoUsuario);
     return inicio <= 0 ? (inicio === 0 ? itens : []) : itens.slice(inicio);
@@ -145,8 +163,8 @@ export class SupabaseSession implements Session {
             throw new Error(`Falha ao carregar histórico da sessão ${this.sessionId}: ${error.message}`);
         }
 
-        const linhas = (data ?? []) as Array<{ item: AgentInputItem }>;
-        const itens = linhas.map((linha) => linha.item);
+        const linhas = decifrarLinhas((data ?? []) as Array<{ item: unknown }>);
+        const itens = linhas.map((linha) => linha.item as AgentInputItem);
         // Quando limitado, a ordenação acima é decrescente (pega os N mais recentes) —
         // a interface exige devolver em ordem cronológica, então reverte de volta.
         return limit ? itens.reverse() : itens;
@@ -157,7 +175,7 @@ export class SupabaseSession implements Session {
 
         await this.getSessionId();
 
-        const linhas = items.map((item) => ({ session_id: this.sessionId, item }));
+        const linhas = items.map((item) => ({ session_id: this.sessionId, item: cifrarItem(item) }));
         const { error: erroInsercao } = await SupabaseWrapper.get().from("chat_items").insert(linhas);
         if (erroInsercao) {
             throw new Error(`Falha ao salvar mensagens da sessão ${this.sessionId}: ${erroInsercao.message}`);
@@ -180,12 +198,12 @@ export class SupabaseSession implements Session {
         if (error) {
             throw new Error(`Falha ao ler último item da sessão ${this.sessionId}: ${error.message}`);
         }
-        const linhas = (data ?? []) as Array<{ id: number; item: AgentInputItem }>;
+        const linhas = (data ?? []) as Array<{ id: number; item: unknown }>;
         if (linhas.length === 0) return undefined;
 
         const [ultimo] = linhas;
         await SupabaseWrapper.get().from("chat_items").delete().eq("id", ultimo.id);
-        return ultimo.item;
+        return decifrarLinhas([ultimo])[0]?.item as AgentInputItem | undefined;
     }
 
     /**
@@ -205,7 +223,7 @@ export class SupabaseSession implements Session {
         if (error) {
             throw new Error(`Falha ao ler a última resposta da sessão ${this.sessionId}: ${error.message}`);
         }
-        const linhas = (data ?? []) as Array<{ id: number; item: any }>;
+        const linhas = decifrarLinhas((data ?? []) as Array<{ id: number; item: unknown }>);
         const alvo = linhas.find((l) => ehMensagemDaDarcy(l.item));
         if (!alvo) return false;
 
@@ -215,7 +233,7 @@ export class SupabaseSession implements Session {
             : texto;
         const { error: erroUpdate } = await SupabaseWrapper.get()
             .from("chat_items")
-            .update({ item })
+            .update({ item: cifrarItem(item) })
             .eq("id", alvo.id);
         if (erroUpdate) {
             throw new Error(`Falha ao atualizar a resposta da sessão ${this.sessionId}: ${erroUpdate.message}`);

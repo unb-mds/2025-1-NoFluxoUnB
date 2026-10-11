@@ -39,7 +39,29 @@
 			</section>
 
 			<section class="mb-8">
-				<h2 class="text-2xl font-semibold text-foreground mt-6 mb-4">3. Direitos do Usuário (LGPD)</h2>
+				<h2 class="text-2xl font-semibold text-foreground mt-6 mb-4">3. Assistente Darcy: conversas e memória</h2>
+				<p class="text-foreground/80 leading-relaxed">
+					As conversas com a Darcy ficam salvas na sua conta, para continuarem em qualquer tela. As
+					mensagens são processadas pela Maritaca AI, que gera as respostas. Para a tela abrir mais
+					rápido, as últimas mensagens também ficam guardadas no seu navegador, e são apagadas quando
+					você sai da conta.
+				</p>
+				<p class="text-foreground/80 leading-relaxed mt-4">
+					Para não esquecer você entre conversas, a Darcy mantém um <strong>resumo curto</strong> do que
+					importa para o seu planejamento: objetivos, preferências de horário, carga e professores,
+					restrições como trabalho ou estágio e decisões já combinadas. Esse resumo não guarda nome,
+					e-mail, matrícula, telefone ou documentos, nem dados sensíveis (saúde, religião, orientação
+					sexual, opinião política ou origem étnica). Seus dados acadêmicos continuam vindo direto do
+					histórico que você enviou.
+				</p>
+				<p class="text-foreground/80 leading-relaxed mt-4">
+					Em <strong>“Nova conversa”</strong>, a conversa é apagada e só o resumo permanece. Em
+					<strong>“Esquecer tudo”</strong>, a conversa e o resumo são apagados.
+				</p>
+			</section>
+
+			<section class="mb-8">
+				<h2 class="text-2xl font-semibold text-foreground mt-6 mb-4">4. Direitos do Usuário (LGPD)</h2>
 				<p class="text-foreground/80 leading-relaxed">
                 Em conformidade com a Lei Geral de Proteção de Dados (LGPD), você tem o direito de acessar, corrigir ou 
                 solicitar a exclusão de seus dados. Como o projeto é Open Source, nosso código-fonte está disponível 
@@ -49,7 +71,7 @@
 			</section>
 
 			<section class="mb-8">
-				<h2 class="text-2xl font-semibold text-foreground mt-6 mb-4">4. Cookies e Publicidade</h2>
+				<h2 class="text-2xl font-semibold text-foreground mt-6 mb-4">5. Cookies e Publicidade</h2>
 				<p class="text-foreground/80 leading-relaxed">
 					O serviço Google AdSense usa um cookie DoubleClick para veicular anúncios mais relevantes e limitar
 					a frequência de exibição.

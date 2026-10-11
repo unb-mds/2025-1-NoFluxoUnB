@@ -8,7 +8,12 @@
 	import { authStore } from '$lib/stores/auth';
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
 	import { planoFormaturaStore } from '$lib/stores/plano-formatura.store.svelte';
-	import { gradeStore, lerPoolSalvo, lerRemovidasSalvo } from '$lib/stores/grade.store.svelte';
+	import {
+		gradeStore,
+		lerPoolSalvo,
+		lerRemovidasSalvo,
+		type MateriaGrade
+	} from '$lib/stores/grade.store.svelte';
 	import {
 		construirMateriasGrade,
 		montarPoolRecomendado,
@@ -156,38 +161,53 @@
 	 * de preferência — antes ele ERA a fonte, e era por ali que entrava matéria que
 	 * não pertence à matriz do aluno.
 	 *
-	 * Roda a cada montagem e é idempotente: só entra o que falta na lista, o que o
-	 * aluno tirou na lixeira não volta, e matéria já cursada nunca entra.
+	 * Roda a cada montagem e é idempotente: só entra o que falta na lista e
+	 * matéria já cursada nunca entra. A lixeira é respeitada enquanto houver outra
+	 * coisa a trazer; quando ela é tudo o que sobrou, vale o pedido explícito.
 	 */
 	async function semear(opcoes?: OpcoesSemeadura): Promise<SemeaduraResultado> {
 		if (!periodo) return { adicionadas: [], obrigatoriasSemOferta: [] };
 
-		const { materias, obrigatoriasSemOferta, naturezasSaturadas, pendentesSemOferta } =
-			await montarPoolRecomendado(periodo, {
-			// O limite que o aluno escolheu no Passo 1 vale mais que o do plano:
-			// semear 24 créditos para quem pediu 30 deixa o solver sem o que encaixar.
-			limiteCreditos: opcoes?.limiteCreditos ?? limiteCreditos,
-			escopo: opcoes?.escopo,
-			ordemDoPlano: codigosRecomendados(),
-			// A lixeira não vale para matrícula em curso: quem quer a MATR fora da grade
-			// usa o botão "matérias em curso", que a esconde sem perder a informação.
-			excluir: semExcluirCursando([
-				...gradeStore.removidas,
-				...gradeStore.pool.map((m) => m.codigo)
-			]),
-			// Complementa a lista que já existe em vez de ignorá-la: o que o aluno já
-			// selecionou ocupa horário e crédito antes de recomendarmos o resto.
-			base: {
-				mask: gradeStore.combinedMask,
-				creditos: gradeStore.creditosSelecionados,
-				turnos: gradeStore.turnosPermitidos
-			},
-			situacao: situacao ?? undefined,
-			// Com as em curso fora da montagem elas não ocupam vaga, então também não
-			// podem consumir o orçamento — senão quem já cursa perto do teto desliga
-			// o modo para ver o que mais pegar e não recebe sugestão nenhuma.
-			cursandoOcupaOrcamento: gradeStore.incluirCursando
-		});
+		const naLista = gradeStore.pool.map((m) => m.codigo);
+		const recomendar = (respeitarLixeira: boolean) =>
+			montarPoolRecomendado(periodo!, {
+				// O limite que o aluno escolheu no Passo 1 vale mais que o do plano:
+				// semear 24 créditos para quem pediu 30 deixa o solver sem o que encaixar.
+				limiteCreditos: opcoes?.limiteCreditos ?? limiteCreditos,
+				escopo: opcoes?.escopo,
+				ordemDoPlano: codigosRecomendados(),
+				// A lixeira não vale para matrícula em curso: quem quer a MATR fora da grade
+				// usa o botão "matérias em curso", que a esconde sem perder a informação.
+				excluir: semExcluirCursando(
+					respeitarLixeira ? [...gradeStore.removidas, ...naLista] : naLista
+				),
+				// Complementa a lista que já existe em vez de ignorá-la: o que o aluno já
+				// selecionou ocupa horário e crédito antes de recomendarmos o resto.
+				base: {
+					...gradeStore.orcamentoParaSemear(opcoes?.essencial),
+					turnos: gradeStore.turnosPermitidos
+				},
+				situacao: situacao ?? undefined,
+				// Com as em curso fora da montagem elas não ocupam vaga, então também não
+				// podem consumir o orçamento — senão quem já cursa perto do teto desliga
+				// o modo para ver o que mais pegar e não recebe sugestão nenhuma.
+				cursandoOcupaOrcamento: gradeStore.incluirCursando
+			});
+
+		const emCurso = fluxogramaStore.currentCodes ?? new Set<string>();
+		const trazNovidade = (r: { materias: MateriaGrade[] }) =>
+			r.materias.some((m) => !emCurso.has(m.codigo));
+
+		let r = await recomendar(true);
+		// "Limpar tudo" joga a lista inteira na lixeira — para o recarregar da página
+		// não trazê-la de volta sozinho. Mas aqui o aluno PEDIU uma grade: se fora da
+		// lixeira não há nada a trazer, ela vale menos que o pedido. Sem isto, depois
+		// de um "Limpar tudo" a montagem só via as em curso e saía vazia para sempre.
+		if (!trazNovidade(r) && gradeStore.removidas.size > 0) {
+			const semLixeira = await recomendar(false);
+			if (trazNovidade(semLixeira)) r = semLixeira;
+		}
+		const { materias, obrigatoriasSemOferta, naturezasSaturadas, pendentesSemOferta } = r;
 
 		for (const m of materias) gradeStore.addMateriaAoPool(m);
 		semOferta = obrigatoriasSemOferta;
