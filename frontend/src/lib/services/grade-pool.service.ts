@@ -29,6 +29,27 @@ import {
 	type NaturezaCH,
 	type SituacaoAcademica
 } from '$lib/services/situacao-academica.service';
+import { construirSubstitutosPorCodigo } from '$lib/utils/oferta-equivalencia';
+
+/**
+ * Código → matéria já concluída ou em curso que ele substitui sozinho.
+ *
+ * É a direção que `completedCodes` não cobre: lá, "cursou C e X ≡ C" marca X
+ * como feita; aqui, "X já está feita e R ≡ X" faz R inútil — cursar R não conta
+ * de novo, a secretaria não aproveita duas matérias equivalentes. Os substitutos
+ * são os mesmos que a oferta por equivalência usa (só ramos `OU`, direção
+ * registrada), então as duas leituras da tabela não divergem.
+ */
+function jaAproveitadas(): Map<string, string> {
+	const equivalencias = fluxogramaStore.state.courseData?.equivalencias ?? [];
+	if (equivalencias.length === 0) return new Map();
+	const feitas = [...fluxogramaStore.completedCodes, ...(fluxogramaStore.currentCodes ?? [])];
+	const porCodigo = new Map<string, string>();
+	for (const [origem, substitutos] of construirSubstitutosPorCodigo(equivalencias, feitas)) {
+		for (const s of substitutos) if (!porCodigo.has(s)) porCodigo.set(s, origem);
+	}
+	return porCodigo;
+}
 
 /**
  * Partes de pré-requisito ainda não cumpridas (código ou, quando o registro não
@@ -355,14 +376,21 @@ async function candidatosClassificados(
 	if (matriz.length === 0) return vazio();
 
 	const fora = new Set([...excluir].map((c) => c.trim().toUpperCase()));
+	const daMatriz = new Map(matriz.map((m) => [m.codigoMateria.trim().toUpperCase(), m]));
+	// Equivalente de matéria já feita (optativa ou obrigatória) não conta de novo.
+	const aproveitadas = jaAproveitadas();
 	const codigos = filtrarNaoCursados(
-		matriz.map((m) => m.codigoMateria).filter((c) => !fora.has(c.trim().toUpperCase())),
+		matriz
+			.map((m) => m.codigoMateria)
+			.filter((c) => {
+				const u = c.trim().toUpperCase();
+				return !fora.has(u) && !aproveitadas.has(u);
+			}),
 		fluxogramaStore.completedCodes,
 		fluxogramaStore.currentCodes ?? new Set<string>()
 	);
 	if (codigos.length === 0) return vazio();
 
-	const daMatriz = new Map(matriz.map((m) => [m.codigoMateria.trim().toUpperCase(), m]));
 	const posicaoNoPlano = new Map(
 		ordemDoPlano.map((c, i) => [c.trim().toUpperCase(), i] as const)
 	);
@@ -760,13 +788,15 @@ export async function candidatosModuloLivre(
 		)
 	);
 	const fora = new Set([...excluir].map((c) => c.trim().toUpperCase()));
+	const aproveitadas = jaAproveitadas();
 
 	// Fora da matriz é o que define módulo livre; o resto é higiene: não sugerir o
-	// que ele já cursou, já cursa, ou já pôs na lista.
+	// que ele já cursou, já cursa, já pôs na lista, ou que só repetiria uma
+	// matéria já feita (equivalente dela).
 	const codigos = filtrarNaoCursados(
 		achados
 			.map((a) => a.codigo.trim().toUpperCase())
-			.filter((c) => !daMatriz.has(c) && !fora.has(c)),
+			.filter((c) => !daMatriz.has(c) && !fora.has(c) && !aproveitadas.has(c)),
 		fluxogramaStore.completedCodes,
 		fluxogramaStore.currentCodes ?? new Set<string>()
 	);
@@ -790,6 +820,13 @@ export function motivoParaNaoAdicionar(codigo: string): string | null {
 	}
 	if (setHasCodeIgnoreCase(fluxogramaStore.currentCodes ?? new Set<string>(), c)) {
 		return `Você já está cursando ${c} neste semestre.`;
+	}
+	const equivaleA = jaAproveitadas().get(c);
+	if (equivaleA) {
+		const feita = setHasCodeIgnoreCase(fluxogramaStore.completedCodes, equivaleA)
+			? 'já concluiu'
+			: 'está cursando';
+		return `${c} equivale a ${equivaleA}, que você ${feita} — cursar não contaria de novo.`;
 	}
 	return null;
 }
