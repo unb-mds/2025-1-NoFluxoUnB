@@ -24,20 +24,16 @@ async function abrirMenu(page: import('@playwright/test').Page): Promise<void> {
 }
 
 /**
- * "Montar grade" agora abre o wizard de 2 passos (bottom sheet no compacto) em vez
- * de montar direto — encher a grade pra estes reprós precisa completar o fluxo:
- * abrir, gerar opções e aplicar a primeira.
+ * "Montar grade" abre o painel "Gerar grade" (bottom sheet no celular) — encher a
+ * grade pra estes reprós precisa completar o fluxo: abrir e gerar as opções, que
+ * já aplica a estratégia escolhida.
  */
 async function montarGradeCompleta(page: import('@playwright/test').Page): Promise<void> {
 	await page.getByRole('button', { name: /Montar grade/ }).tap();
 	const gerar = page.getByRole('button', { name: /Gerar opções/i });
 	await gerar.waitFor({ state: 'visible', timeout: 10_000 });
 	await gerar.tap();
-	const opcao = page
-		.getByRole('button', { name: /Menos dias|Menos lacunas|Semana equilibrada/i })
-		.first();
-	await opcao.waitFor({ state: 'visible', timeout: 20_000 });
-	await opcao.tap();
+	await gerar.waitFor({ state: 'hidden', timeout: 20_000 });
 }
 
 test.use(MOBILE);

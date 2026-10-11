@@ -14,7 +14,7 @@
  */
 
 import { z } from "zod";
-import { Agent, tool, type FunctionTool } from "@openai/agents";
+import { Agent, tool, type FunctionTool, type RunContext } from "@openai/agents";
 import { createMaritacaModel } from "./model_provider";
 import { createIntegralizacaoAgent, runIntegralizacaoComRevisao } from "./actuators/integralizacao_actuator";
 import { createOptativasAgent } from "./actuators/optativas_actuator";
@@ -222,13 +222,14 @@ export interface OpcoesOrquestrador {
     periodoAtivo?: string;
 }
 
-export function createOrquestradorAgent(opts: OpcoesOrquestrador): Agent {
-    const perfil = opts.perfil ?? null;
-    const superficie: Superficie = opts.superficie ?? "assistente";
-    const estado = opts.estado;
-    const email = opts.email;
+export function createOrquestradorAgent(opts: OpcoesOrquestrador | string): Agent {
+    const opcoes: OpcoesOrquestrador = typeof opts === "string" ? { email: opts } : opts;
+    const perfil = opcoes.perfil ?? null;
+    const superficie: Superficie = opcoes.superficie ?? "assistente";
+    const estado = opcoes.estado;
+    const email = opcoes.email;
     const curriculoCompleto = perfil?.curriculoCompleto ?? undefined;
-    const periodoAtivo = opts.periodoAtivo ?? perfil?.periodoAtivo ?? "";
+    const periodoAtivo = opcoes.periodoAtivo ?? perfil?.periodoAtivo ?? "";
     const noMontador = superficie === "montador";
 
     const efeitos: EfeitosDaConversa = { opcaoGrade: null, plano: null, restricoes: null };

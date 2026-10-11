@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import './lib/styles/nofluxo-ds.css';
+@import './lib/styles/montador.css';
 @config '../tailwind.config.ts';
 
 /**

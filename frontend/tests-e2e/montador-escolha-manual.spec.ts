@@ -35,18 +35,21 @@ const sessoes: Sessao[] = fs.existsSync(ARQ_SESSOES)
 
 test.skip(sessoes.length === 0, 'sessoes-auditoria.json ausente');
 
-/** Código → turma, lido do painel Resumo ("FGA0109 T. 01 · 60h"). */
-function lerResumo(texto: string): Map<string, string> {
+/** Código → turma de quem está na grade, lido dos chips de "Suas matérias". */
+async function lerGrade(page: import('@playwright/test').Page): Promise<Map<string, string>> {
 	const mapa = new Map<string, string>();
-	for (const m of texto.matchAll(/([A-Z]{2,4}\d{4})\s*T\.\s*(\d+)/g)) mapa.set(m[1], m[2]);
+	for (const li of await page.locator('[data-tour="materias"] li[data-codigo]').all()) {
+		const codigo = (await li.getAttribute('data-codigo')) ?? '';
+		const turma = (await li.getAttribute('data-turma')) ?? '';
+		if (codigo && turma) mapa.set(codigo, turma);
+	}
 	return mapa;
 }
 
 /**
- * "Montar grade" agora abre o wizard de 2 passos (Configurar → Resultados) em vez
- * de montar direto — o clique sozinho não basta mais. Aqui: abre o passo 1 com os
- * parâmetros padrão, gera as opções e aplica a primeira (equivalente ao clique
- * único de antes, do ponto de vista do que o teste verifica).
+ * "Montar grade" abre o painel "Gerar grade"; "Gerar opções" monta as opções e já
+ * aplica a estratégia escolhida (padrão: Equilibrada) — equivalente ao clique
+ * único de antes, do ponto de vista do que o teste verifica.
  */
 async function montarGradeCompleta(page: import('@playwright/test').Page): Promise<void> {
 	await page
@@ -56,11 +59,7 @@ async function montarGradeCompleta(page: import('@playwright/test').Page): Promi
 	const gerar = page.getByRole('button', { name: /Gerar opções/i });
 	await gerar.waitFor({ state: 'visible', timeout: 10_000 });
 	await gerar.click();
-	const opcao = page
-		.getByRole('button', { name: /Menos dias|Menos lacunas|Semana equilibrada/i })
-		.first();
-	await opcao.waitFor({ state: 'visible', timeout: 20_000 });
-	await opcao.click();
+	await gerar.waitFor({ state: 'hidden', timeout: 20_000 });
 	await page.waitForTimeout(800);
 }
 
@@ -86,12 +85,12 @@ test('a turma escolhida na mão sobrevive a "Montar grade"', async ({ page }) =>
 
 	await page.goto('/planejamento/grade', { waitUntil: 'domcontentloaded' });
 
-	const resumo = page.locator('[data-tour="resumo"]');
-	await resumo.waitFor({ state: 'visible', timeout: 45_000 });
+	const materias = page.locator('[data-tour="materias"]');
+	await materias.waitFor({ state: 'visible', timeout: 45_000 });
 
 	await montarGradeCompleta(page);
 
-	const antes = lerResumo((await resumo.textContent()) ?? '');
+	const antes = await lerGrade(page);
 	expect(antes.size, 'a primeira montagem não produziu grade nenhuma').toBeGreaterThan(0);
 
 	// Uma matéria da grade que NÃO seja matrícula em curso e tenha turma alternativa.
@@ -101,28 +100,32 @@ test('a turma escolhida na mão sobrevive a "Montar grade"', async ({ page }) =>
 	// ser provado é a escolha manual numa matéria nova.
 	const alvo = { codigo: '', turma: '' };
 	for (const codigo of antes.keys()) {
-		// Cada matéria da lista é uma <section> própria (SubjectTurmaSelector).
-		const card = page.locator('section').filter({ hasText: codigo }).first();
-		const texto = (await card.textContent().catch(() => '')) ?? '';
+		// A turma se escolhe nos detalhes da matéria, abertos pelo chip.
+		await materias.locator(`li[data-codigo="${codigo}"] button`).first().click();
+		const dialogo = page.getByRole('dialog');
+		await dialogo.waitFor({ state: 'visible', timeout: 5_000 });
+		const texto = (await dialogo.textContent().catch(() => '')) ?? '';
 		const emCurso = /Já cursando/i.test(texto);
-		const opcoes = card.getByRole('button', { name: /Turma\s+\S+/ });
+		const opcoes = dialogo.getByRole('button', { name: /Turma\s+\S+/ });
 		const n = await opcoes.count().catch(() => 0);
-		console.log(`[card] ${codigo}: ${n} turma(s), atual T.${antes.get(codigo)}, emCurso=${emCurso}`);
-		if (emCurso || n < 2) continue;
-		for (let i = 0; i < n; i++) {
-			const b = opcoes.nth(i);
-			if (await b.isDisabled().catch(() => true)) continue;
-			const t = ((await b.textContent()) ?? '').match(/Turma\s+(\S+)/)?.[1] ?? '';
-			if (!t || t === antes.get(codigo)) continue;
-			await b.click();
-			await page.waitForTimeout(800);
-			const agora = lerResumo((await resumo.textContent()) ?? '');
-			if (agora.get(codigo) === t) {
-				alvo.codigo = codigo;
-				alvo.turma = t;
+		console.log(`[detalhes] ${codigo}: ${n} turma(s), atual T.${antes.get(codigo)}, emCurso=${emCurso}`);
+		if (!emCurso && n >= 2) {
+			for (let i = 0; i < n; i++) {
+				const b = opcoes.nth(i);
+				if (await b.isDisabled().catch(() => true)) continue;
+				const t = ((await b.textContent()) ?? '').match(/Turma\s+(\S+)/)?.[1] ?? '';
+				if (!t || t === antes.get(codigo)) continue;
+				await b.click();
+				await page.waitForTimeout(800);
+				if ((await lerGrade(page)).get(codigo) === t) {
+					alvo.codigo = codigo;
+					alvo.turma = t;
+				}
+				break;
 			}
-			break;
 		}
+		await page.keyboard.press('Escape');
+		await dialogo.waitFor({ state: 'hidden', timeout: 5_000 });
 		if (alvo.codigo) break;
 	}
 
@@ -135,7 +138,7 @@ test('a turma escolhida na mão sobrevive a "Montar grade"', async ({ page }) =>
 	// O clique que apagava tudo.
 	await montarGradeCompleta(page);
 
-	const depois = lerResumo((await resumo.textContent()) ?? '');
+	const depois = await lerGrade(page);
 	expect(
 		depois.get(alvo.codigo),
 		`${alvo.codigo}: escolhi a turma ${alvo.turma} na mão e "Montar grade" devolveu ${depois.get(alvo.codigo) ?? 'nada'}`

@@ -12,7 +12,7 @@
  */
 
 import { EndpointController, RequestType } from '../interfaces';
-import { Pair } from '../utils';
+import { Pair, Utils } from '../utils';
 import { Request, Response } from 'express';
 import { RagflowService } from '../services/ragflow.service';
 import type { RagflowResponse } from '../services/ragflow.types';

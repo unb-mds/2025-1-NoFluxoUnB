@@ -8,7 +8,7 @@
  */
 import {
 	hasConflict,
-	autoMontarGrade,
+	autoMontarGradeCompacta,
 	autoMontarGradeOpcoes,
 	diagnosticarEssenciais,
 	epsilonSeguro,
@@ -297,27 +297,29 @@ function pendenciasPreRequisitoDe(idMateria: number): string[] {
 /**
  * As 3 `RankingStrategy` padrão de `montarOpcoes`. Cada uma avalia a grade
  * INTEIRA (métricas de `autoMontarGradeOpcoes`) e escolhe entre as grades que já
- * empatam em matérias e preferências — nunca troca matéria por semana mais
- * bonita. A versão anterior pontuava turma por turma e não enxergava o furo
+ * empatam no tanto de matéria por degrau e nas preferências — pode rotacionar
+ * uma obrigatória por outra se a semana fecha melhor, nunca deixa matéria de
+ * fora. A versão anterior pontuava turma por turma e não enxergava o furo
  * entre duas matérias: "Menos lacunas" chegava a devolver a grade com mais furo.
  *
  * O custo é lexicográfico (menor é melhor): o primeiro número é o critério da
- * estratégia, os seguintes só desempatam.
+ * estratégia, os seguintes só desempatam. O último é sempre `-pesoAlocado`: entre
+ * semanas iguais, fica a rotação que mantém as matérias mais atrasadas.
  */
 function construirEstrategiasPadrao(): RankingStrategy<TurmaOferta>[] {
 	return [
 		{
 			nome: 'Menos dias',
-			avaliar: (m) => [m.diasComAula, m.minutosDeLacuna]
+			avaliar: (m) => [m.diasComAula, m.minutosDeLacuna, -m.pesoAlocado]
 		},
 		{
 			nome: 'Menos lacunas',
-			avaliar: (m) => [m.minutosDeLacuna, m.diasComAula]
+			avaliar: (m) => [m.minutosDeLacuna, m.diasComAula, -m.pesoAlocado]
 		},
 		{
 			// Carga parecida em todo dia útil; furo desempata.
 			nome: 'Semana equilibrada',
-			avaliar: (m) => [m.variancaCargaDiaria, m.minutosDeLacuna]
+			avaliar: (m) => [m.variancaCargaDiaria, m.minutosDeLacuna, -m.pesoAlocado]
 		}
 	];
 }
@@ -731,6 +733,12 @@ function createGradeStore() {
 				idReal !== undefined ? m.turmas.find((t) => t.turma.id_turmas === idReal) : undefined;
 			if (turmaReal) turmas = [turmaReal];
 
+			const degrau = matriculaReal
+				? PESO_CURSANDO
+				: prioritarias.has(m.codigo)
+					? PESO_PRIORITARIA
+					: pesoDaNatureza(m.natureza, situacao, m.optatoria === true);
+
 			return {
 				chave: m.codigo,
 				turmas,
@@ -739,12 +747,9 @@ function createGradeStore() {
 				essencial: essencialAqui,
 				// Dentro do degrau, a mais atrasada na matriz vale um pouco mais
 				// (`fatorAtraso`, nunca cruza degrau). Matrícula real não precisa.
-				peso: matriculaReal
-					? PESO_CURSANDO
-					: (prioritarias.has(m.codigo)
-							? PESO_PRIORITARIA
-							: pesoDaNatureza(m.natureza, situacao, m.optatoria === true)) *
-						fatorAtraso(m.nivel)
+				peso: matriculaReal ? degrau : degrau * fatorAtraso(m.nivel),
+				// Sem o atraso: é o que deixa as opções rotacionarem matérias do degrau.
+				pesoDegrau: degrau
 			};
 		});
 
@@ -1260,7 +1265,11 @@ function createGradeStore() {
 		 */
 		montarAutomatico(opts?: MontarOpts): MontagemResultado {
 			const entrada = construirEntradaSolver(opts);
-			const r = autoMontarGrade(entrada.materiasSolver, entrada.mascaraTravada, entrada.orcamento);
+			const r = autoMontarGradeCompacta(
+				entrada.materiasSolver,
+				entrada.mascaraTravada,
+				entrada.orcamento
+			);
 
 			let erros: ErroMontagem[] | undefined;
 			if (entrada.essencialCodigo && r.naoAlocadas.includes(entrada.essencialCodigo)) {

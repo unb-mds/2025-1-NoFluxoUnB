@@ -9,6 +9,7 @@
 import { describe, it, expect } from 'vitest';
 import {
 	autoMontarGrade,
+	autoMontarGradeCompacta,
 	autoMontarGradeOpcoes,
 	slotMaskFromHorario,
 	type MateriaTurmas,
@@ -126,5 +127,49 @@ describe('autoMontarGradeOpcoes — estratégias pela grade inteira', () => {
 			[ESTRATEGIAS[1]]
 		);
 		expect(opcoes[0].metricas.minutosDeLacuna).toBe(0);
+	});
+
+	it('opções rotacionam matéria do mesmo degrau quando fecha o furo', () => {
+		// X é mais atrasada (peso maior), mas deixa furo M34→T45; Y, do mesmo
+		// degrau, cola em B. Com 8 créditos só cabem duas.
+		const b = mat('B', ['2M34']);
+		const x = mat('X', ['2T45'], { peso: 1_200_000, pesoDegrau: 1_000_000 });
+		const y = mat('Y', ['2M12'], { pesoDegrau: 1_000_000 });
+		const estrategias = ESTRATEGIAS.map((e) => ({
+			...e,
+			avaliar: (m: MetricasOpcao) => [...e.avaliar!(m), -m.pesoAlocado]
+		}));
+		const opcoes = autoMontarGradeOpcoes([b, x, y], 0n, 8, estrategias, 6, (t) => t.id);
+		const lacunas = opcoes.find((o) => o.estrategia === 'Menos lacunas') ?? opcoes[0];
+		expect([...lacunas.resultado.selecao.keys()].sort()).toEqual(['B', 'Y']);
+		expect(lacunas.metricas.minutosDeLacuna).toBe(0);
+	});
+
+	it('rotação nunca troca degrau: obrigatória não sai por uma optativa colada', () => {
+		const b = mat('B', ['2M34']);
+		const x = mat('X', ['2T45'], { pesoDegrau: 1_000_000 });
+		const y = mat('Y', ['2M12'], { peso: 1_000, pesoDegrau: 1_000 });
+		const opcoes = autoMontarGradeOpcoes([b, x, y], 0n, 8, ESTRATEGIAS, 6, (t) => t.id);
+		for (const o of opcoes) expect([...o.resultado.selecao.keys()].sort()).toEqual(['B', 'X']);
+	});
+});
+
+describe('autoMontarGradeCompacta — montar uma grade só', () => {
+	it('entre turmas empatadas, escolhe a que cola na aula seguinte', () => {
+		// A primeira turma de A (T23) é a que o solver puro pega: furo de 130 min.
+		const pool = [mat('A', ['24T23', '24M12']), mat('B', ['24M34'])];
+		expect(autoMontarGrade(pool).selecao.get('A')?.turma.horario).toBe('24T23');
+
+		const r = autoMontarGradeCompacta(pool);
+		expect(r.selecao.get('A')?.turma.horario).toBe('24M12');
+		expect(r.naoAlocadas).toEqual([]);
+	});
+
+	it('não rotaciona matéria: fica com a mais atrasada mesmo com furo', () => {
+		const b = mat('B', ['2M34']);
+		const x = mat('X', ['2T45'], { peso: 1_200_000, pesoDegrau: 1_000_000 });
+		const y = mat('Y', ['2M12'], { pesoDegrau: 1_000_000 });
+		const r = autoMontarGradeCompacta([b, x, y], 0n, 8);
+		expect([...r.selecao.keys()].sort()).toEqual(['B', 'X']);
 	});
 });

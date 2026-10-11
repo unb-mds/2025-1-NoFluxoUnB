@@ -5,7 +5,7 @@
 	/**
 	 * Badge de status de turma/matéria, consolidando o que antes eram 2-3
 	 * implementações soltas (vagas em `TurmaOption.svelte`, travada/cursando em
-	 * `SubjectTurmaSelector.svelte`, vagas de novo em `TurmasVagasPanel.svelte`).
+	 * `TrocarTurmaDialog.svelte`, vagas de novo em `TurmasVagasPanel.svelte`).
 	 *
 	 * Dois formatos, escolhidos pelo `status`:
 	 * - pílula compacta (vagas/sem-vagas/fora-do-turno/professor-preferido): usada
@@ -59,12 +59,12 @@
 		<Check class="h-2.5 w-2.5" />Professor preferido
 	</span>
 {:else if status === 'cursando-travada'}
-	<p class="mt-1 flex items-start gap-1 text-[10px] font-medium text-emerald-300/90">
+	<p class="mt-1 flex items-start gap-1 text-[11px] font-medium text-emerald-800 dark:text-emerald-300/90">
 		<GraduationCap class="mt-px h-3 w-3 shrink-0" />
 		{#if children}{@render children()}{:else}<span>Já cursando — turma travada.</span>{/if}
 	</p>
 {:else if status === 'travada-manual'}
-	<p class="mt-1 flex items-start gap-1 text-[10px] font-medium text-white/60">
+	<p class="mt-1 flex items-start gap-1 text-[11px] font-medium text-muted-foreground">
 		<Lock class="mt-px h-2.5 w-2.5 shrink-0" />
 		{#if children}{@render children()}{:else}<span>Turma escolhida por você.</span>{/if}
 	</p>

@@ -4,16 +4,23 @@
 	export type EscopoMontagem = 'periodo-atual' | 'todas-pendentes';
 
 	/**
-	 * O que o Passo 1 ("Configurar") do wizard do Montador coleta antes de chamar o
-	 * solver. `essencial`/`professorPreferidoEssencial`/`turnosEssencial` só valem
-	 * quando uma disciplina essencial foi escolhida — nulos/vazios quando não.
-	 *
+	 * As 3 estratégias padrão do solver (`construirEstrategiasPadrao` em
+	 * `grade.store.svelte.ts`) — `nome` tem de bater com a de lá, é por ele que
+	 * `montarOpcoes` filtra e que o cenário gerado é nomeado.
+	 */
+	export const ESTRATEGIAS: ReadonlyArray<{ nome: string; titulo: string; descricao: string }> = [
+		{ nome: 'Menos dias', titulo: 'Menos dias', descricao: 'Concentra as aulas' },
+		{ nome: 'Menos lacunas', titulo: 'Menos janelas', descricao: 'Reduz intervalos' },
+		{ nome: 'Semana equilibrada', titulo: 'Equilibrada', descricao: 'Distribui a carga' }
+	];
+
+	/**
+	 * O que o painel "Gerar grade" coleta antes de chamar o solver.
 	 * `limiteCreditos`/`essencial`/`professorPreferidoEssencial`/`turnosEssencial`
-	 * mapeiam direto pro `MontarOpts` de `gradeStore.montarOpcoes`
-	 * (`turnosEssencial` filtra só as turmas da essencial e também é persistido via
-	 * `preferenciasGradeService.salvar`). `limiteCreditos` e `escopo` também vão
-	 * para a semeadura (`onSemear`): `todas-pendentes` põe na lista toda
-	 * obrigatória pendente com oferta e deixa o solver escolher dentro do limite.
+	 * mapeiam direto pro `MontarOpts` de `gradeStore.montarOpcoes`; `limiteCreditos`
+	 * e `escopo` também vão para a semeadura (`onSemear`). As três estratégias são
+	 * sempre geradas (viram as abas de opção); `estrategiaPreferida` é a que entra
+	 * aplicada.
 	 */
 	export interface ParametrosMontagem {
 		escopo: EscopoMontagem;
@@ -24,71 +31,41 @@
 		turnosEssencial: Turno[];
 		/** Nomes das estratégias de ranking que o solver deve testar (nunca vazio). */
 		estrategias: string[];
+		estrategiaPreferida: string;
 	}
 </script>
 
 <script lang="ts">
 	import { gradeStore, type MateriaGrade } from '$lib/stores/grade.store.svelte';
-	import { Wand2, Search, X, Sparkles, GraduationCap } from 'lucide-svelte';
+	import { HORAS_POR_CREDITO } from '$lib/stores/unidade-carga.store.svelte';
+	import { LIMITE_CREDITOS_MAX, LIMITE_CREDITOS_MIN } from '$lib/types/plano-formatura';
+	import { Plus, Sparkles, X, Loader2 } from 'lucide-svelte';
 
 	/**
-	 * Passo 1 do wizard "Montar grade": coleta os parâmetros e devolve pro pai via
-	 * `onGerar` — quem faz a chamada ao solver (e o "puxão" de matérias do plano) é
-	 * `MontadorGradeView`, que já tem acesso a `onSemear`/toast; este componente só
-	 * cuida da coleta.
+	 * Só coleta: quem semeia a lista e chama o solver é `MontadorGradeView`, que tem
+	 * `onSemear` e os toasts.
 	 */
 	let {
-		periodo,
 		limiteCreditosInicial,
 		gerando = false,
 		valorInicial = null,
-		onGerar,
-		onCancelar
+		onGerar
 	}: {
-		periodo: string | null;
 		limiteCreditosInicial: number;
 		/** A geração está rodando (desabilita o botão, evita clique duplo). */
 		gerando?: boolean;
-		/** Reabrir o passo 1 (botão "Voltar" do passo 2) preserva o que já foi escolhido. */
+		/** Reabrir o painel preserva o que já foi escolhido. */
 		valorInicial?: ParametrosMontagem | null;
 		onGerar: (params: ParametrosMontagem) => void;
-		onCancelar: () => void;
 	} = $props();
 
-	// Régua fixa do limite de créditos — os mesmos limites do slider já existente na
-	// tela (Motor 2), pra não introduzir uma segunda régua com outra escala.
-	const LIMITE_MIN = 0;
-	const LIMITE_MAX = 40;
-
-	let escopo = $state<EscopoMontagem>(valorInicial?.escopo ?? 'periodo-atual');
-	let limiteCreditos = $state(valorInicial?.limiteCreditos ?? limiteCreditosInicial);
-
-	/**
-	 * As 3 estratégias padrão do solver (`construirEstrategiasPadrao` em
-	 * `grade.store.svelte.ts`). O aluno escolhe quais testar; `montarOpcoes`
-	 * filtra pelo nome (`estrategias`).
-	 */
-	const ESTRATEGIAS_PADRAO: ReadonlyArray<{ nome: string; descricao: string }> = [
-		{ nome: 'Menos dias', descricao: 'Concentra as aulas no menor número de dias' },
-		{ nome: 'Menos lacunas', descricao: 'Reduz os furos entre uma aula e outra' },
-		{ nome: 'Semana equilibrada', descricao: 'Distribui a carga igual pelos dias' }
-	];
-
-	let estrategiasSel = $state<Set<string>>(
-		new Set(
-			valorInicial?.estrategias?.length
-				? valorInicial.estrategias
-				: ESTRATEGIAS_PADRAO.map((e) => e.nome)
+	let estrategia = $state(valorInicial?.estrategiaPreferida ?? 'Semana equilibrada');
+	let limiteCreditos = $state(
+		Math.min(
+			LIMITE_CREDITOS_MAX,
+			Math.max(LIMITE_CREDITOS_MIN, valorInicial?.limiteCreditos ?? limiteCreditosInicial)
 		)
 	);
-	function toggleEstrategia(nome: string): void {
-		const next = new Set(estrategiasSel);
-		if (next.has(nome)) {
-			if (next.size === 1) return; // nunca zera: pelo menos uma estratégia
-			next.delete(nome);
-		} else next.add(nome);
-		estrategiasSel = next;
-	}
 
 	const TURNO_OPCOES: ReadonlyArray<[Turno, string]> = [
 		['M', 'Manhã'],
@@ -96,300 +73,185 @@
 		['N', 'Noite']
 	];
 
-	// Disciplina essencial: busca por código/nome nas matérias que já estão na
-	// lista do aluno. Toggle distinto da estrela de prioridade — prioritária ainda
-	// pode ficar de fora se nada couber; essencial nunca fica.
-	let buscaEssencial = $state('');
+	// Disciplina essencial: busca nas matérias da lista. Diferente da estrela —
+	// prioritária ainda pode ficar de fora se nada couber; essencial nunca fica.
+	let busca = $state('');
 	let essencialCodigo = $state<string | null>(valorInicial?.essencial ?? null);
-	let mostrarResultadosBusca = $state(false);
+	let professor = $state<string | null>(valorInicial?.professorPreferidoEssencial ?? null);
 
-	const resultadosBusca = $derived.by(() => {
-		const q = buscaEssencial.trim().toUpperCase();
+	const resultados = $derived.by(() => {
+		const q = busca.trim().toUpperCase();
 		if (!q) return [];
 		return gradeStore.pool
 			.filter((m) => m.codigo.toUpperCase().includes(q) || m.nome.toUpperCase().includes(q))
-			.slice(0, 8);
+			.slice(0, 6);
 	});
-	const materiaEssencial = $derived(
+	const essencial = $derived(
 		essencialCodigo ? (gradeStore.pool.find((m) => m.codigo === essencialCodigo) ?? null) : null
 	);
+	const docentes = $derived(essencial ? gradeStore.docentesDe(essencial.codigo) : []);
 
-	function escolherEssencial(materia: MateriaGrade): void {
-		essencialCodigo = materia.codigo;
-		buscaEssencial = '';
-		mostrarResultadosBusca = false;
-	}
-	function limparEssencial(): void {
-		essencialCodigo = null;
-		professorPreferidoEssencial = null;
-		turnosEssencial = new Set();
-	}
-
-	/**
-	 * Docentes distintos que oferecem a matéria, com o campo `docente` splitado por
-	 * vírgula (o SIGAA às vezes traz mais de um nome no mesmo campo) — sem isso o
-	 * autocomplete oferecia "Fulano, Beltrano" como se fosse um professor só.
-	 */
-	function docentesDaMateria(materia: MateriaGrade): string[] {
-		const vistos = new Map<string, string>();
-		for (const tg of materia.turmas) {
-			for (const parte of (tg.turma.docente ?? '').split(',')) {
-				const nome = parte.trim();
-				if (nome) vistos.set(nome.toUpperCase(), nome);
-			}
-		}
-		return [...vistos.values()].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-	}
-	const docentesEssencial = $derived(materiaEssencial ? docentesDaMateria(materiaEssencial) : []);
-
-	let professorPreferidoEssencial = $state<string | null>(
-		valorInicial?.professorPreferidoEssencial ?? null
-	);
-	let turnosEssencial = $state<Set<Turno>>(new Set(valorInicial?.turnosEssencial ?? []));
-	function toggleTurnoEssencial(t: Turno): void {
-		const next = new Set(turnosEssencial);
-		if (next.has(t)) next.delete(t);
-		else next.add(t);
-		turnosEssencial = next;
+	function escolherEssencial(m: MateriaGrade): void {
+		essencialCodigo = m.codigo;
+		professor = null;
+		busca = '';
 	}
 
 	function gerar(): void {
 		if (gerando) return;
 		onGerar({
-			escopo,
+			escopo: valorInicial?.escopo ?? 'periodo-atual',
 			limiteCreditos,
 			essencial: essencialCodigo,
-			professorPreferidoEssencial: essencialCodigo ? professorPreferidoEssencial : null,
-			turnosEssencial: essencialCodigo ? [...turnosEssencial] : [],
-			estrategias: ESTRATEGIAS_PADRAO.map((e) => e.nome).filter((n) => estrategiasSel.has(n))
+			professorPreferidoEssencial: essencialCodigo ? professor : null,
+			turnosEssencial: [],
+			estrategias: ESTRATEGIAS.map((e) => e.nome),
+			estrategiaPreferida: estrategia
 		});
 	}
 </script>
 
-<div class="space-y-4">
-	<div class="flex items-center justify-between gap-2 px-1">
-		<p
-			class="flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.12em] text-white/55 uppercase"
-		>
-			<Sparkles class="h-3.5 w-3.5 text-purple-300" /> 1 · Configurar
-		</p>
-		<button
-			type="button"
-			onclick={onCancelar}
-			class="touch-manipulation rounded-lg p-1 text-white/40 transition-colors hover:bg-white/10 hover:text-white/80"
-			aria-label="Cancelar e voltar à lista de matérias"
-		>
-			<X class="h-4 w-4" />
-		</button>
-	</div>
-
-	<!-- Escopo -->
-	<section>
-		<p class="mb-1.5 text-[10px] font-medium tracking-wide text-white/40 uppercase">
-			O que montar
-		</p>
-		<div class="grid grid-cols-2 gap-2">
-			<button
-				type="button"
-				aria-pressed={escopo === 'periodo-atual'}
-				onclick={() => (escopo = 'periodo-atual')}
-				class="touch-manipulation rounded-xl border px-3 py-2 text-left transition-colors {escopo ===
-				'periodo-atual'
-					? 'border-purple-300/45 bg-purple-500/18 text-purple-100'
-					: 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10'}"
-			>
-				<span class="block text-xs font-semibold">Período atual</span>
-				<span class="block text-[10px] opacity-70">{periodo ?? 'Oferta atual'}</span>
-			</button>
-			<button
-				type="button"
-				aria-pressed={escopo === 'todas-pendentes'}
-				onclick={() => (escopo = 'todas-pendentes')}
-				class="touch-manipulation rounded-xl border px-3 py-2 text-left transition-colors {escopo ===
-				'todas-pendentes'
-					? 'border-purple-300/45 bg-purple-500/18 text-purple-100'
-					: 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10'}"
-			>
-				<span class="block text-xs font-semibold">Todas as pendentes</span>
-				<span class="block text-[10px] opacity-70">Inclui o que falta na matriz</span>
-			</button>
-		</div>
-	</section>
-
-	<!-- Estratégias — o aluno escolhe quais o "Gerar opções" testa (pelo menos uma). -->
-	<section>
-		<p class="mb-1.5 text-[10px] font-medium tracking-wide text-white/40 uppercase">
-			Estratégias a testar
-		</p>
-		<div class="grid gap-2 sm:grid-cols-3">
-			{#each ESTRATEGIAS_PADRAO as estrategia (estrategia.nome)}
-				{@const ativa = estrategiasSel.has(estrategia.nome)}
+<div class="space-y-5 px-5 pb-5">
+	<fieldset>
+		<legend class="mg-eyebrow mb-2">Como prefere sua semana?</legend>
+		<div class="grid grid-cols-3 gap-2">
+			{#each ESTRATEGIAS as e (e.nome)}
 				<button
 					type="button"
-					aria-pressed={ativa}
-					onclick={() => toggleEstrategia(estrategia.nome)}
-					class="touch-manipulation rounded-xl border px-3 py-2 text-left transition-colors {ativa
-						? 'border-purple-300/45 bg-purple-500/18 text-purple-100'
-						: 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10'}"
+					aria-pressed={estrategia === e.nome}
+					onclick={() => (estrategia = e.nome)}
+					class="mg-choice flex min-h-16 flex-col items-start gap-1 p-2.5 text-left"
 				>
-					<span class="block text-xs font-semibold">{estrategia.nome}</span>
-					<span class="block text-[10px] opacity-70">{estrategia.descricao}</span>
+					<span class="text-xs font-semibold text-foreground">{e.titulo}</span>
+					<span class="text-[10px] leading-tight">{e.descricao}</span>
 				</button>
 			{/each}
 		</div>
-	</section>
+	</fieldset>
 
-	<!-- Carga horária -->
-	<section>
-		<p class="mb-1.5 text-[10px] font-medium tracking-wide text-white/40 uppercase">
-			Carga horária do semestre
-		</p>
-		<div
-			class="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-white/10 bg-black/25 px-3 py-2"
-		>
-			<input
-				type="range"
-				min={LIMITE_MIN}
-				max={LIMITE_MAX}
-				step="1"
-				bind:value={limiteCreditos}
-				class="h-1.5 min-w-[8rem] flex-1 touch-manipulation accent-purple-400"
-				aria-label="Limite de créditos"
-			/>
-			<span class="shrink-0 text-xs tabular-nums text-white/70">{limiteCreditos} créditos</span>
+	<div>
+		<div class="flex items-center justify-between">
+			<label for="mg-carga" class="mg-eyebrow mb-0">Carga máxima</label>
+			<span class="text-xs font-semibold text-foreground tabular-nums">
+				{limiteCreditos} créditos
+				<span class="font-normal text-muted-foreground">· {limiteCreditos * HORAS_POR_CREDITO}h</span>
+			</span>
 		</div>
-	</section>
+		<input
+			id="mg-carga"
+			type="range"
+			min={LIMITE_CREDITOS_MIN}
+			max={LIMITE_CREDITOS_MAX}
+			step="1"
+			bind:value={limiteCreditos}
+			class="mt-3 h-1 w-full cursor-pointer touch-manipulation accent-primary"
+		/>
+	</div>
 
-	<!-- Turnos -->
-	<section>
-		<p class="mb-1.5 text-[10px] font-medium tracking-wide text-white/40 uppercase">
-			Turnos permitidos
-		</p>
-		<div class="flex items-center gap-0.5 rounded-full border border-white/10 bg-white/5 p-0.5">
+	<fieldset>
+		<legend class="mg-eyebrow mb-2">Turnos permitidos</legend>
+		<div class="mg-sunken grid grid-cols-3 gap-1 rounded-[10px] p-1">
 			{#each TURNO_OPCOES as [t, label] (t)}
 				{@const ativo = gradeStore.turnosPermitidos.has(t)}
 				<button
 					type="button"
-					onclick={() => gradeStore.toggleTurno(t)}
 					aria-pressed={ativo}
-					class="touch-manipulation rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors {ativo
-						? 'bg-purple-500/25 text-purple-100'
-						: 'text-white/40 hover:text-white/70'}"
+					onclick={() => gradeStore.toggleTurno(t)}
+					class="min-h-9 touch-manipulation rounded-lg text-xs font-medium transition-colors {ativo
+						? 'bg-primary text-primary-foreground dark:bg-[#3a225b] dark:text-[#f1eaff]'
+						: 'text-muted-foreground hover:text-foreground'}"
 				>
 					{label}
 				</button>
 			{/each}
 		</div>
-	</section>
+	</fieldset>
 
-	<!-- Disciplina essencial -->
-	<section>
-		<p class="mb-1.5 text-[10px] font-medium tracking-wide text-white/40 uppercase">
-			Disciplina essencial
-			<span class="normal-case text-white/30">— nunca fica de fora</span>
-		</p>
-
-		{#if materiaEssencial}
-			<div class="flex items-start gap-2 rounded-xl border border-emerald-300/35 bg-emerald-500/12 px-3 py-2">
-				<GraduationCap class="mt-0.5 h-4 w-4 shrink-0 text-emerald-200" />
+	<div>
+		<label for="mg-essencial" class="mg-eyebrow mb-2">
+			Disciplina essencial <span class="font-medium tracking-normal normal-case">· opcional</span>
+		</label>
+		{#if essencial}
+			<div class="mg-sunken flex items-start gap-2 rounded-[10px] px-3 py-2.5">
 				<div class="min-w-0 flex-1">
-					<p class="truncate text-xs font-semibold text-emerald-100">
-						{materiaEssencial.codigo} · {materiaEssencial.nome}
+					<p class="truncate text-xs font-semibold text-foreground">
+						<span class="font-mono">{essencial.codigo}</span> · {essencial.nome}
 					</p>
-
-					<!-- Professor preferido só aparece depois de escolhida a essencial. -->
-					{#if docentesEssencial.length > 0}
-						<label class="mt-1.5 flex items-center gap-2">
-							<span class="text-[10px] font-medium tracking-wide text-white/40 uppercase"
+					<p class="mt-0.5 text-[10px] text-muted-foreground">Entra em todas as opções, se couber.</p>
+					{#if docentes.length > 0}
+						<label class="mt-2 flex items-center gap-2">
+							<span class="text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
 								>Prof.</span
 							>
 							<select
-								value={professorPreferidoEssencial ?? ''}
-								onchange={(e) =>
-									(professorPreferidoEssencial =
-										(e.currentTarget as HTMLSelectElement).value || null)}
-								class="min-w-0 flex-1 rounded-lg border border-white/10 bg-zinc-900 px-2 py-1 text-[11px] text-white/80 focus:ring-1 focus:ring-emerald-400/50 focus:outline-none"
+								value={professor ?? ''}
+								onchange={(e) => (professor = (e.currentTarget as HTMLSelectElement).value || null)}
+								class="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1 text-[11px] text-foreground focus:ring-1 focus:ring-ring/50 focus:outline-none"
 							>
 								<option value="">Tanto faz</option>
-								{#each docentesEssencial as d (d)}
+								{#each docentes as d (d)}
 									<option value={d}>{d}</option>
 								{/each}
 							</select>
 						</label>
 					{/if}
-
-					<div class="mt-1.5 flex flex-wrap items-center gap-1.5">
-						<span class="text-[10px] font-medium tracking-wide text-white/40 uppercase"
-							>Turno dela</span
-						>
-						{#each TURNO_OPCOES as [t, label] (t)}
-							{@const ativo = turnosEssencial.has(t)}
-							<button
-								type="button"
-								onclick={() => toggleTurnoEssencial(t)}
-								aria-pressed={ativo}
-								class="touch-manipulation rounded-full border px-2 py-1 text-[10px] font-medium transition-colors {ativo
-									? 'border-emerald-300/45 bg-emerald-500/20 text-emerald-100'
-									: 'border-white/10 bg-white/5 text-white/45 hover:bg-white/10'}"
-							>
-								{label}
-							</button>
-						{/each}
-					</div>
 				</div>
 				<button
 					type="button"
-					onclick={limparEssencial}
-					class="shrink-0 touch-manipulation rounded-lg p-1 text-white/40 transition-colors hover:bg-white/10 hover:text-white/80"
+					onclick={() => {
+						essencialCodigo = null;
+						professor = null;
+					}}
+					class="shrink-0 touch-manipulation rounded-md p-1 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
 					aria-label="Remover disciplina essencial"
 				>
 					<X class="h-3.5 w-3.5" />
 				</button>
 			</div>
 		{:else}
-			<div class="relative">
-				<div
-					class="flex items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2"
-				>
-					<Search class="h-3.5 w-3.5 shrink-0 text-white/35" />
-					<input
-						type="text"
-						placeholder="Buscar matéria na sua lista (opcional)"
-						bind:value={buscaEssencial}
-						onfocus={() => (mostrarResultadosBusca = true)}
-						onblur={() => setTimeout(() => (mostrarResultadosBusca = false), 150)}
-						class="min-w-0 flex-1 bg-transparent text-xs text-white/80 placeholder:text-white/30 focus:outline-none"
-					/>
-				</div>
-				{#if mostrarResultadosBusca && resultadosBusca.length > 0}
-					<ul
-						class="absolute z-10 mt-1 w-full space-y-0.5 rounded-xl border border-white/10 bg-zinc-950 p-1 shadow-xl"
-					>
-						{#each resultadosBusca as materia (materia.codigo)}
-							<li>
-								<button
-									type="button"
-									onclick={() => escolherEssencial(materia)}
-									class="w-full touch-manipulation rounded-lg px-2 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/10"
-								>
-									<span class="font-mono font-semibold text-white/90">{materia.codigo}</span>
-									· {materia.nome}
-								</button>
-							</li>
-						{/each}
-					</ul>
-				{/if}
+			<div class="mg-sunken flex min-h-10 items-center gap-2 rounded-[10px] px-3">
+				<Plus class="h-4 w-4 shrink-0 text-muted-foreground" />
+				<input
+					id="mg-essencial"
+					type="text"
+					bind:value={busca}
+					placeholder="Buscar por código ou nome"
+					autocomplete="off"
+					class="min-w-0 flex-1 border-0 bg-transparent p-0 text-xs text-foreground shadow-none placeholder:text-muted-foreground focus:ring-0 focus:outline-none"
+				/>
 			</div>
+			{#if resultados.length > 0}
+				<ul class="mt-1.5 space-y-0.5">
+					{#each resultados as m (m.codigo)}
+						<li>
+							<button
+								type="button"
+								onclick={() => escolherEssencial(m)}
+								class="w-full touch-manipulation rounded-lg px-2.5 py-1.5 text-left text-[11px] text-muted-foreground hover:bg-foreground/5"
+							>
+								<span class="font-mono font-semibold text-foreground">{m.codigo}</span> · {m.nome}
+							</button>
+						</li>
+					{/each}
+				</ul>
+			{:else if busca.trim()}
+				<p class="mt-1.5 px-1 text-[11px] text-muted-foreground">
+					Nenhuma matéria da sua lista com esse nome. Adicione-a antes em “Manual”.
+				</p>
+			{/if}
 		{/if}
-	</section>
+	</div>
 
 	<button
 		type="button"
 		onclick={gerar}
 		disabled={gerando}
-		class="inline-flex w-full touch-manipulation items-center justify-center gap-1.5 rounded-full bg-purple-500 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_2px_14px_rgba(168,85,247,0.4)] transition-colors hover:bg-purple-400 disabled:opacity-60"
+		class="mg-btn mg-btn-primary sticky bottom-0 w-full"
 	>
-		<Wand2 class="h-4 w-4" />
-		{gerando ? 'Gerando opções…' : 'Gerar opções'}
+		{#if gerando}
+			<Loader2 class="h-4 w-4 animate-spin" /> Gerando opções…
+		{:else}
+			<Sparkles class="h-4 w-4" /> Gerar opções
+		{/if}
 	</button>
 </div>

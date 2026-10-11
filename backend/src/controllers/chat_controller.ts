@@ -186,7 +186,7 @@ export const ChatController: EndpointController = {
                     endpoint: "chat-send",
                     durationMs: Date.now() - startTime,
                     success: false,
-                    requestExcerpt: message,
+                    requestExcerpt: corpo.message,
                     usage: usageDoAgente(contextoRun.usage, MARITACA_MODELS.AGENTE),
                     modeloPadrao: MARITACA_MODELS.AGENTE,
                     erro: error,

@@ -1,47 +1,41 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import ScheduleGrid from './ScheduleGrid.svelte';
-	import SubjectTurmaSelector from './SubjectTurmaSelector.svelte';
+	import MateriasPanel from './MateriasPanel.svelte';
+	import AnaliseGradePanel from './AnaliseGradePanel.svelte';
 	import MateriaSearchAdd from './MateriaSearchAdd.svelte';
-	import GradeResumo from './GradeResumo.svelte';
 	import SituacaoPanel from './SituacaoPanel.svelte';
-	import CenarioSwitcher from './CenarioSwitcher.svelte';
 	import TrocarTurmaDialog from './TrocarTurmaDialog.svelte';
 	import MontadorParametros, { type ParametrosMontagem } from './MontadorParametros.svelte';
 	import ResponsiveSheet from '$lib/components/ui/ResponsiveSheet.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { gradeStore } from '$lib/stores/grade.store.svelte';
-	import { unidadeCargaStore } from '$lib/stores/unidade-carga.store.svelte';
+	import { unidadeCargaStore, HORAS_POR_CREDITO } from '$lib/stores/unidade-carga.store.svelte';
 	import { preferenciasGradeService } from '$lib/services/preferencias-grade.service';
 	import type { OpcoesSemeadura, SemeaduraResultado } from '$lib/services/grade-pool.service';
 	import type { SituacaoAcademica } from '$lib/services/situacao-academica.service';
-	import type { TurmaOferta } from '$lib/services/turmas.service';
-	import type { Turno, OpcaoGrade, ErroMontagem } from '$lib/utils/horario-slots';
+	import type { Turno, ErroMontagem } from '$lib/utils/horario-slots';
 	import { ROUTES } from '$lib/config/routes';
 	import { LIMITE_CREDITOS_MAX, LIMITE_CREDITOS_MIN } from '$lib/types/plano-formatura';
 	import {
-		CalendarDays,
-		Wand2,
-		Trash2,
-		Loader2,
-		Info,
+		Sparkles,
+		Plus,
+		SlidersHorizontal,
 		Download,
-		Star,
+		MoreHorizontal,
+		Loader2,
 		Search,
 		Compass,
-		Maximize2,
-		Minimize2,
-		MoreHorizontal,
-		ListChecks,
-		BookMarked,
-		Check,
 		Undo2,
-		GraduationCap,
-		ArrowLeft,
-		Sparkles
+		Trash2,
+		Info,
+		Check,
+		X,
+		CalendarDays,
+		BookMarked,
+		ChartColumn
 	} from 'lucide-svelte';
 	import OnboardingTour from '$lib/components/onboarding/OnboardingTour.svelte';
-	import HelpTip from '$lib/components/onboarding/HelpTip.svelte';
 	import { tourStore, type TourStep } from '$lib/components/onboarding/tour.store.svelte';
 	import { toast } from 'svelte-sonner';
 
@@ -50,6 +44,11 @@
 	 * Fica separado da rota para (a) a página cuidar só de auth/carregamento e
 	 * (b) o harness de dev (`/dev/grade-mobile`) montar a mesma tela com dados
 	 * falsos, sem backend, para conferir o layout no celular.
+	 *
+	 * Layout da repaginação (protótipo Figma "High Fidelity UI Design"): barra de
+	 * ações (montar / manual / carga / preferências / exportar), e embaixo três
+	 * colunas — suas matérias, a semana, a análise. No celular a semana vira lista
+	 * por dia e as colunas laterais saem para a navegação inferior.
 	 */
 	let {
 		periodo,
@@ -82,8 +81,8 @@
 		onSemear?: (opcoes?: OpcoesSemeadura) => Promise<SemeaduraResultado>;
 		/**
 		 * Refaz o preenchimento automático da primeira visita (recomendadas do plano
-		 * + matrículas reais do histórico), descartando edições. Quem sabe do
-		 * histórico e do plano é a rota; o harness de dev não passa e o botão some.
+		 * + matrículas reais do histórico), descartando edições. O harness de dev não
+		 * passa e a ação some do menu.
 		 */
 		onVoltarInicio?: () => void | Promise<void>;
 		aviso?: string | null;
@@ -102,293 +101,90 @@
 		buscandoModuloLivre?: boolean;
 		onResponderModuloLivre?: (quer: boolean, tema?: string) => void;
 		onBuscarModuloLivre?: (tema: string) => void;
-		/**
-		 * O aluno mudou o limite de carga. Quem persiste é a rota — o harness de dev
-		 * não passa nada e o slider segue valendo só para a sessão.
-		 */
+		/** O aluno mudou o limite de carga. Quem persiste é a rota. */
 		onLimiteCreditos?: (creditos: number) => void;
 	} = $props();
 
-	let materiaDialog = $state<string | null>(null);
-
 	/**
-	 * Limite de créditos em uso na tela. Começa no do plano e é o que a montagem
-	 * obedece; mexer no slider salva a escolha (`onLimiteCreditos`), porque limite
-	 * de carga por semestre é uma preferência do aluno, não um estado de sessão —
-	 * voltar ao padrão a cada recarga desfazia a escolha dele em silêncio.
-	 */
-	let limiteSessao = $state(limiteCreditos);
-	$effect(() => {
-		limiteSessao = limiteCreditos;
-	});
-
-	// A régua vai do piso ao teto do sistema — os mesmos que o Motor 2 aplica —, e
-	// é fixa: derivá-la do valor atual, agora que ele persiste, faria a barra
-	// crescer enquanto o aluno arrasta, mudando o fim da escala no meio do gesto.
-
-	const creditosPct = $derived(
-		limiteSessao > 0 ? Math.min(100, (gradeStore.creditosSelecionados / limiteSessao) * 100) : 0
-	);
-	const creditosAcima = $derived(gradeStore.creditosSelecionados > limiteSessao);
-
-	// Contadores e slider exibem na unidade que o aluno escolheu (horas por padrão,
-	// créditos se preferir) — o estado interno segue sempre em créditos.
-	const unidadeOposta = $derived(unidadeCargaStore.unidade === 'horas' ? 'créditos' : 'horas');
-	const contadorTexto = $derived(
-		`${unidadeCargaStore.emUnidade(gradeStore.creditosSelecionados)}/${unidadeCargaStore.emUnidade(limiteSessao)}`
-	);
-
-	// Arrastar o slider reajusta a grade ao vivo, mas só depois de soltar um pouco —
-	// chamar ajustarParaLimite a cada pixel arrastado tiraria matéria demais de uma
-	// vez só, sem o aluno conseguir ver o que está acontecendo.
-	let debounceLimite: ReturnType<typeof setTimeout> | undefined;
-	function moverSliderCreditos(valor: number): void {
-		limiteSessao = valor;
-		clearTimeout(debounceLimite);
-		debounceLimite = setTimeout(() => {
-			gradeStore.ajustarParaLimite(valor);
-			// Persiste junto com o reajuste, e no mesmo debounce: sem isso o valor
-			// vivia só nesta sessão e voltava ao padrão na recarga seguinte.
-			onLimiteCreditos?.(valor);
-		}, 250);
-	}
-
-	// "Voltar ao início" refaz a semeadura na rede — trava o botão enquanto roda.
-	let voltando = $state(false);
-	async function voltarAoInicio(): Promise<void> {
-		if (!onVoltarInicio || voltando) return;
-		voltando = true;
-		try {
-			await onVoltarInicio();
-		} finally {
-			voltando = false;
-		}
-	}
-
-	/** Esvazia lista e grade; o toast aponta o caminho de volta. */
-	function limparTudo(): void {
-		gradeStore.limparTudo();
-		toast.info('Tudo limpo. "Voltar ao início" refaz o preenchimento automático.');
-	}
-
-	// Calendário em tela cheia (só faz diferença no desktop; no compacto já é 1 coluna).
-	let calendarioExpandido = $state(false);
-
-	/**
-	 * Abaixo de `lg` não existem três colunas: tudo empilha. Empilhado, a página
-	 * passava de 3.500px — o resumo ficava a quatro telas de rolagem e a barra de
-	 * ações comia três fileiras antes do calendário. No compacto o cabeçalho vira
-	 * uma linha, as ações secundárias vão para um menu, o que importa (créditos,
-	 * turnos, montar) fica numa barra fixa, e matérias/resumo viram abas.
-	 * É decisão de layout, não de estilo, então precisa de JS: renderizar os dois
-	 * e esconder um por CSS duplicaria os alvos `data-tour` e o `#grade-export`.
+	 * Layout de celular abaixo de `md`: lista por dia + navegação inferior. É
+	 * decisão de estrutura, não de estilo — renderizar os dois e esconder um por
+	 * CSS duplicaria os alvos `data-tour` e o `#grade-export`.
 	 */
 	let compacto = $state(false);
 	$effect(() => {
 		if (!browser) return;
-		const mq = window.matchMedia('(max-width: 1023px)');
+		const mq = window.matchMedia('(max-width: 767px)');
 		const aplicar = () => (compacto = mq.matches);
 		aplicar();
 		mq.addEventListener('change', aplicar);
 		return () => mq.removeEventListener('change', aplicar);
 	});
 
-	let painel = $state<'materias' | 'resumo' | 'situacao'>('materias');
+	type Painel = 'gerar' | 'manual' | 'preferencias' | 'materias' | 'progresso' | null;
+	let painel = $state<Painel>(null);
+	let materiaDialog = $state<string | null>(null);
 
+	// ---------------------------------------------------------------------------
+	// Carga do semestre
+	// ---------------------------------------------------------------------------
 	/**
-	 * O snippet do painel de situação, para o compacto (aba) e o desktop (coluna)
-	 * renderizarem exatamente a mesma coisa sem duplicar a lista de props.
+	 * Limite de créditos em uso na tela. Começa no do plano e é o que a montagem
+	 * obedece; mexer no slider salva a escolha (`onLimiteCreditos`), porque limite
+	 * de carga é preferência do aluno, não estado de sessão.
 	 */
-	const naGrade = $derived(new Set(gradeStore.pool.map((m) => m.codigo)));
+	let limiteSessao = $state(limiteCreditos);
+	$effect(() => {
+		limiteSessao = limiteCreditos;
+	});
 
-	/**
-	 * Há pergunta de módulo livre esperando resposta? Só então a aba ganha o ponto
-	 * de aviso — badge permanente vira ruído e o aluno para de enxergar.
-	 */
-	const temPerguntaModuloLivre = $derived(
-		!!situacao &&
-			situacao.exigeModuloLivre &&
-			situacao.faltam.modulo_livre !== null &&
-			situacao.faltam.modulo_livre > 0 &&
-			(moduloLivre?.quer ?? null) === null
+	const creditosPct = $derived(
+		limiteSessao > 0 ? Math.min(100, (gradeStore.creditosSelecionados / limiteSessao) * 100) : 0
 	);
+	const creditosAcima = $derived(gradeStore.creditosSelecionados > limiteSessao);
+	const cargaTexto = $derived(
+		`${gradeStore.creditosSelecionados * HORAS_POR_CREDITO}/${limiteSessao * HORAS_POR_CREDITO} h · ${gradeStore.creditosSelecionados}/${limiteSessao} créditos`
+	);
+	let cargaPopover = $state(false);
 
-	/** Assinatura da seleção atual — para saber se a montagem mudou alguma coisa. */
-	function assinaturaSelecao(): string {
-		return [...gradeStore.selecao]
-			.map(([codigo, tg]) => `${codigo}:${tg.turma.id_turmas}`)
-			.sort()
-			.join('|');
-	}
-
-	let montando = $state(false);
-
-	/**
-	 * Ação principal da tela: monta a grade do zero. Primeiro enche a lista com o que
-	 * falta na matriz do aluno — em curso, obrigatórias e, com o que sobrar,
-	 * optativas (por isso é async) —, depois encaixa tudo sem conflito de horário.
-	 *
-	 * Termina sempre num toast. O motor costuma acertar de primeira, e a partir daí
-	 * o clique não muda um pixel — sem uma resposta explícita isso é
-	 * indistinguível de um botão morto.
-	 */
-	async function montarGrade(): Promise<void> {
-		if (montando) return;
-		montando = true;
-		try {
-			const semeadas = (await onSemear?.({ limiteCreditos: limiteSessao })) ?? {
-				adicionadas: [],
-				obrigatoriasSemOferta: [],
-				pendentesSemOferta: 0
-			};
-			const puxadas = semeadas.adicionadas.length;
-			/**
-			 * Por que a lista não trouxe optativa (ou módulo livre): a carga já está
-			 * cumprida. Sem dizer isso, a ausência parece bug — e o aluno que quiser uma
-			 * assim mesmo não descobre que pode buscá-la na mão.
-			 */
-			const saturadas = semeadas.naturezasSaturadas ?? [];
-
-			// Só sobra avisar quando não existe oferta nenhuma para o aluno neste
-			// período — a semeadura já tentou o plano e a matriz antes de chegar aqui.
-			if (!gradeStore.pool.some((m) => m.turmas.length > 0)) {
-				toast.warning(
-					gradeStore.pool.length > 0
-						? `Nenhuma matéria da sua lista tem turma em ${periodo ?? 'neste semestre'}. Busque outra ou veja a oferta completa.`
-						: 'Não achei matérias com turma neste semestre para montar. Adicione uma na busca.'
-				);
-				return;
-			}
-
-			const antes = assinaturaSelecao();
-			// `limiteSessao` (o slider), não o limite do plano: o aluno pode estar
-			// testando "e se eu quisesse menos" e a montagem tem que obedecer isso.
-			const resultado = gradeStore.montarAutomatico({ limiteCreditos: limiteSessao });
-			const mudou = assinaturaSelecao() !== antes;
-
-			const materias = gradeStore.selecao.size;
-			const creditos = gradeStore.creditosSelecionados;
-			const naoCoube = resultado.naoAlocadas.length;
-
-			if (materias === 0) {
-				// Quatro causas distintas terminam aqui. Chamar todas de "não há turma"
-				// mandava o aluno procurar defeito na oferta quando o problema era
-				// outro — e uma versão anterior chegou a mandá-lo apertar um botão que
-				// não mudaria nada. A ordem abaixo vai da causa mais forte para a mais
-				// fraca; `candidatas` separa "ninguém concorreu" de "ninguém coube".
-				const semOferta = semeadas.pendentesSemOferta ?? 0;
-				toast.warning(
-					resultado.candidatas === 0
-						? semOferta > 0
-							? // Fim de curso: a matriz ainda tem pendências, mas nenhuma é
-								// ofertada agora. Religar as em curso não muda isso, e este é o
-								// número que de fato altera o planejamento do aluno.
-								`Nenhuma das suas ${semOferta} matérias pendentes tem turma em ${periodo ?? 'neste período'}. Só o que você já cursa está ofertado — use “Buscar turmas” para procurar fora da matriz.`
-							: gradeStore.temCursando && !gradeStore.incluirCursando
-								? 'Sua lista só tem matérias que você já cursa, e elas estão fora da montagem. Ligue de volta o botão das matérias em curso para vê-las na grade.'
-								: 'Não sobrou nenhuma matéria para montar. Busque uma acima ou use “Voltar ao início”.'
-						: naoCoube > 0
-							? `Nenhuma matéria coube em ${limiteSessao} créditos e nos turnos escolhidos (${resultado.naoAlocadas.join(', ')}).`
-							: 'Nenhuma turma disponível para as matérias da lista.'
-				);
-				return;
-			}
-
-			const plural = (n: number) => (n === 1 ? 'matéria' : 'matérias');
-			// A procedência importa: puxar da matriz é um palpite nosso, não o plano de
-			// formatura do aluno — ele precisa saber para conferir antes da matrícula.
-			const prefixo =
-				puxadas > 0 ? `Puxei ${puxadas} ${plural(puxadas)} da sua matriz. ` : '';
-			const resumo = `${materias} ${plural(materias)} · ${unidadeCargaStore.formatar(creditos)}`;
-			const NOME_NATUREZA: Record<string, string> = {
-				optativa: 'optativa',
-				modulo_livre: 'de módulo livre'
-			};
-			const porque =
-				saturadas.length > 0
-					? ` Priorizei o que ainda te falta — sua carga ${saturadas
-							.map((n) => NOME_NATUREZA[n] ?? n)
-							.join(' e ')} já está cumprida.`
-					: '';
-			// Depois que a montagem passou a respeitar o teto, estourar só sobra quando
-			// são matérias que o aluno JÁ cursa (MATR): elas entram por obrigação e não
-			// podem ser cortadas. Dizer "passa do seu limite" seco soaria como erro do
-			// app, quando na verdade é a matrícula real dele.
-			const excedeu =
-				creditos > limiteSessao
-					? ` São ${unidadeCargaStore.formatar(creditos)} porque as matérias que você já cursa não podem sair da grade.`
-					: '';
-			// `naoAlocadas` tem duas causas agora — conflito de horário/turno e teto de
-			// créditos —, e o motor não distingue. Não afirme a causa.
-			const faltou = naoCoube > 0 ? ` Não coube: ${resultado.naoAlocadas.join(', ')}.` : '';
-
-			if (mudou || puxadas > 0) {
-				toast.success(`${prefixo}Grade montada: ${resumo}.${porque}${excedeu}${faltou}`);
-			} else {
-				toast.info(
-					`Nada mudou: sua grade já é o melhor encaixe possível (${resumo}).${excedeu}${faltou}`
-				);
-			}
-		} catch {
-			toast.error('Não consegui montar a grade agora. Tente de novo.');
-		} finally {
-			montando = false;
-		}
+	// Arrastar reajusta a grade ao vivo, mas só depois de soltar um pouco — a cada
+	// pixel tiraria matéria demais de uma vez, sem o aluno ver o que aconteceu.
+	let debounceLimite: ReturnType<typeof setTimeout> | undefined;
+	function moverSliderCreditos(valor: number): void {
+		limiteSessao = valor;
+		clearTimeout(debounceLimite);
+		debounceLimite = setTimeout(() => {
+			gradeStore.ajustarParaLimite(valor);
+			onLimiteCreditos?.(valor);
+		}, 250);
 	}
 
 	// ---------------------------------------------------------------------------
-	// Wizard "Montar grade" (Passo 1 Configurar → Passo 2 Resultados)
+	// Opções (cenários)
 	// ---------------------------------------------------------------------------
-	/**
-	 * `'fechado'` = tela normal (lista de matérias). Clicar em "Montar grade" abre
-	 * o Passo 1; "Gerar opções" leva ao Passo 2. No desktop os dois substituem a
-	 * coluna de matérias inline (painel estilo "modo mágico", calendário fica fixo
-	 * ao lado); no compacto abrem como bottom sheet (`ResponsiveSheet`).
-	 */
-	let modoMontador = $state<'fechado' | 'parametros' | 'resultados'>('fechado');
-	/** Preservado entre Passo 2 → "Voltar" → Passo 1, pra não perder o que o aluno escolheu. */
+	const tituloSemana = $derived(gradeStore.cenarioAtivo?.nome ?? 'Sua grade');
+	const naoCouberam = $derived(gradeStore.ultimaMontagem?.naoAlocadas.length ?? 0);
+
+	// ---------------------------------------------------------------------------
+	// Gerar grade (painel "Montar grade")
+	// ---------------------------------------------------------------------------
 	let parametrosAtuais = $state<ParametrosMontagem | null>(null);
-	let opcoesGeradas = $state<OpcaoGrade<TurmaOferta>[]>([]);
-	/**
-	 * `gradeStore.montarOpcoes` não devolve `ErroMontagem[]` (só `montarAutomatico`
-	 * diagnostica causa — ver o aviso "não coube" mais abaixo, fora do wizard).
-	 * Aqui, se a essencial pedida não aparece em NENHUMA das opções geradas, um
-	 * aviso genérico já é suficiente pro aluno saber que precisa ajustar algo.
-	 */
-	let avisoEssencial = $state<string | null>(null);
 	let gerandoOpcoes = $state(false);
-
-	function abrirWizard(): void {
-		modoMontador = 'parametros';
-		calendarioExpandido = false; // não cabem os dois ao mesmo tempo
-	}
-	function fecharWizard(): void {
-		modoMontador = 'fechado';
-	}
-	function voltarParaParametros(): void {
-		modoMontador = 'parametros';
-	}
+	let avisoEssencial = $state<string | null>(null);
 
 	/**
-	 * Passo 1 → Passo 2: primeiro puxa da matriz o que falta na lista (mesma
-	 * semeadura que a montagem rápida já fazia), persiste a preferência de turno/
-	 * professor da essencial se o aluno marcou algum, e então chama o solver de
-	 * múltiplas opções.
+	 * Semeia o que falta na lista, guarda a preferência de professor da essencial e
+	 * gera as três opções — que viram as abas "Opção 1/2/3" no lugar das geradas
+	 * antes (senão cada clique empilhava mais três abas). A estratégia preferida
+	 * entra aplicada; as outras ficam a um clique.
 	 */
 	async function handleGerarOpcoes(params: ParametrosMontagem): Promise<void> {
 		if (gerandoOpcoes) return;
 		gerandoOpcoes = true;
 		parametrosAtuais = params;
 		try {
-			// A semeadura usa o limite e o escopo do Passo 1 — com o limite do plano,
-			// quem pede mais créditos recebia uma lista que nunca chegava lá.
 			await onSemear?.({ limiteCreditos: params.limiteCreditos, escopo: params.escopo });
 
-			// Persiste turno/professor da essencial pra próxima sessão puxar sozinha
-			// (`preferencias_grade`). O turno dela também vale já nesta montagem:
-			// `turnosEssencial` filtra só as turmas da essencial, por cima do turno
-			// global (`gradeStore.turnosPermitidos`).
-			if (params.essencial && (params.professorPreferidoEssencial || params.turnosEssencial.length > 0)) {
+			if (params.essencial && params.professorPreferidoEssencial) {
 				void preferenciasGradeService.salvar(params.essencial, {
 					turnos: params.turnosEssencial,
 					docente: params.professorPreferidoEssencial
@@ -403,20 +199,34 @@
 				estrategias: params.estrategias
 			});
 
-			opcoesGeradas = opcoes;
 			avisoEssencial =
 				params.essencial && !opcoes.some((o) => o.resultado.selecao.has(params.essencial as string))
-					? `${nomeMateria(params.essencial)} não coube em nenhuma opção — pode ser falta de vaga, conflito de horário ou os turnos escolhidos. Tente afrouxar os turnos ou trocar a essencial.`
+					? `${nomeMateria(params.essencial)} não coube em nenhuma opção — pode ser falta de vaga, conflito de horário ou os turnos escolhidos.`
 					: null;
 
 			if (opcoes.length === 0) {
 				toast.warning(avisoEssencial ?? 'Não consegui montar nenhuma opção com esses parâmetros.');
-				modoMontador = 'parametros';
 				return;
 			}
 
+			for (const g of [...gradeStore.grades]) {
+				if (g.origem === 'opcao-solver' && gradeStore.grades.length > 1) gradeStore.removerCenario(g.id);
+			}
 			gradeStore.popularOpcoes(opcoes);
-			modoMontador = 'resultados';
+			const preferida =
+				gradeStore.grades.find(
+					(g) => g.origem === 'opcao-solver' && g.nome === params.estrategiaPreferida
+				) ?? gradeStore.grades.find((g) => g.origem === 'opcao-solver');
+			if (preferida) gradeStore.selecionarCenario(preferida.id);
+
+			limiteSessao = params.limiteCreditos;
+			onLimiteCreditos?.(params.limiteCreditos);
+			painel = null;
+			const n = gradeStore.selecao.size;
+			toast.success(
+				`${opcoes.length} ${opcoes.length === 1 ? 'opção gerada' : 'opções geradas'} — aplicada: ${preferida?.nome ?? opcoes[0].estrategia} (${n} ${n === 1 ? 'matéria' : 'matérias'}).`
+			);
+			if (avisoEssencial) toast.warning(avisoEssencial);
 		} catch {
 			toast.error('Não consegui gerar as opções agora. Tente de novo.');
 		} finally {
@@ -424,13 +234,152 @@
 		}
 	}
 
-	/** Aplica a opção escolhida (o cenário já foi criado por `popularOpcoes`) e fecha o wizard. */
-	function escolherOpcao(opcao: OpcaoGrade<TurmaOferta>): void {
-		const cenario = gradeStore.grades.find((g) => g.nome === opcao.estrategia);
-		if (cenario) gradeStore.selecionarCenario(cenario.id);
-		modoMontador = 'fechado';
-		toast.success(`Grade aplicada: ${opcao.estrategia}.`);
+	/** Assinatura da seleção atual — para saber se a montagem mudou alguma coisa. */
+	function assinaturaSelecao(): string {
+		return [...gradeStore.selecao]
+			.map(([codigo, tg]) => `${codigo}:${tg.turma.id_turmas}`)
+			.sort()
+			.join('|');
 	}
+
+	let remontando = $state(false);
+
+	/**
+	 * Remonta a grade ativa depois de mudar preferências (turnos, matérias em curso).
+	 * Termina sempre num toast: o motor costuma acertar de primeira, e sem uma
+	 * resposta explícita "nada mudou" é indistinguível de um botão morto.
+	 */
+	async function remontar(): Promise<void> {
+		if (remontando) return;
+		remontando = true;
+		try {
+			const semeadas = (await onSemear?.({ limiteCreditos: limiteSessao })) ?? {
+				adicionadas: [],
+				obrigatoriasSemOferta: [],
+				pendentesSemOferta: 0
+			};
+			if (!gradeStore.pool.some((m) => m.turmas.length > 0)) {
+				toast.warning(
+					gradeStore.pool.length > 0
+						? `Nenhuma matéria da sua lista tem turma em ${periodo ?? 'neste semestre'}.`
+						: 'Não achei matérias com turma neste semestre. Adicione uma manualmente.'
+				);
+				return;
+			}
+			const antes = assinaturaSelecao();
+			const resultado = gradeStore.montarAutomatico({ limiteCreditos: limiteSessao });
+			const materias = gradeStore.selecao.size;
+			if (materias === 0) {
+				toast.warning(
+					resultado.candidatas === 0
+						? (semeadas.pendentesSemOferta ?? 0) > 0
+							? `Nenhuma das suas matérias pendentes tem turma em ${periodo ?? 'neste período'}.`
+							: gradeStore.temCursando && !gradeStore.incluirCursando
+								? 'Sua lista só tem matérias que você já cursa, e elas estão fora da montagem.'
+								: 'Não sobrou nenhuma matéria para montar. Adicione uma manualmente.'
+						: `Nenhuma matéria coube em ${limiteSessao} créditos e nos turnos escolhidos.`
+				);
+				return;
+			}
+			const resumo = `${materias} ${materias === 1 ? 'matéria' : 'matérias'} · ${unidadeCargaStore.formatar(gradeStore.creditosSelecionados)}`;
+			if (assinaturaSelecao() !== antes || semeadas.adicionadas.length > 0) {
+				toast.success(`Grade remontada: ${resumo}.`);
+			} else {
+				toast.info(`Nada mudou: a grade já é o melhor encaixe (${resumo}).`);
+			}
+		} catch {
+			toast.error('Não consegui montar a grade agora. Tente de novo.');
+		} finally {
+			remontando = false;
+		}
+	}
+
+	// ---------------------------------------------------------------------------
+	// Preferências (gaveta)
+	// ---------------------------------------------------------------------------
+	const UNIDADES = [
+		['horas', 'Horas'],
+		['creditos', 'Créditos']
+	] as const;
+
+	const TURNO_OPCOES: ReadonlyArray<[Turno, string]> = [
+		['M', 'Aulas de manhã'],
+		['T', 'Aulas à tarde'],
+		['N', 'Aulas à noite']
+	];
+
+	/** Turnos/em-curso ao abrir a gaveta — só remonta se algo disso mudou. */
+	let preferenciasAoAbrir = '';
+	function assinaturaPreferencias(): string {
+		return `${[...gradeStore.turnosPermitidos].sort().join('')}|${gradeStore.incluirCursando}`;
+	}
+	function abrirPreferencias(): void {
+		preferenciasAoAbrir = assinaturaPreferencias();
+		painel = 'preferencias';
+	}
+	function aplicarPreferencias(): void {
+		painel = null;
+		if (assinaturaPreferencias() !== preferenciasAoAbrir && gradeStore.pool.length > 0) void remontar();
+	}
+
+	// ---------------------------------------------------------------------------
+	// Montagem manual
+	// ---------------------------------------------------------------------------
+	let poolAoAbrirManual = 0;
+	function abrirManual(): void {
+		poolAoAbrirManual = gradeStore.pool.length;
+		painel = 'manual';
+	}
+	const adicionadasNoManual = $derived(
+		painel === 'manual' ? Math.max(0, gradeStore.pool.length - poolAoAbrirManual) : 0
+	);
+
+	// ---------------------------------------------------------------------------
+	// Ações secundárias
+	// ---------------------------------------------------------------------------
+	let voltando = $state(false);
+	async function voltarAoInicio(): Promise<void> {
+		if (!onVoltarInicio || voltando) return;
+		voltando = true;
+		try {
+			await onVoltarInicio();
+		} finally {
+			voltando = false;
+		}
+	}
+
+	function limparTudo(): void {
+		gradeStore.limparTudo();
+		toast.info('Tudo limpo. "Voltar ao início" refaz o preenchimento automático.');
+	}
+
+	let exportando = $state(false);
+	async function exportarGrade(): Promise<void> {
+		if (exportando) return;
+		const el = document.getElementById('grade-export');
+		if (!el) return;
+		exportando = true;
+		try {
+			const html2canvas = (await import('html2canvas-pro')).default;
+			const canvas = await html2canvas(el, {
+				// Fundo do tema em uso: o PNG é opaco, e fundo preto sob texto escuro
+				// (claro) saía ilegível.
+				backgroundColor: document.documentElement.classList.contains('dark') ? '#0f0f12' : '#ffffff',
+				scale: 2,
+				logging: false
+			});
+			const link = document.createElement('a');
+			link.download = `grade-${(periodo ?? '').replace('.', '-')}.png`;
+			link.href = canvas.toDataURL('image/png');
+			link.click();
+		} catch {
+			toast.error('Não consegui exportar a imagem. Tente de novo.');
+		} finally {
+			exportando = false;
+		}
+	}
+
+	const semTurmaEscolhida = $derived(gradeStore.selecao.size === 0);
 
 	function nomeMateria(codigo: string): string {
 		return gradeStore.pool.find((m) => m.codigo === codigo)?.nome ?? codigo;
@@ -461,85 +410,66 @@
 		}
 	}
 
-	let exportando = $state(false);
-	async function exportarGrade(): Promise<void> {
-		if (exportando) return;
-		const el = document.getElementById('grade-export');
-		if (!el) return;
-		exportando = true;
-		try {
-			const html2canvas = (await import('html2canvas-pro')).default;
-			const canvas = await html2canvas(el, {
-				// Exporta no tema em uso: o PNG tem fundo opaco, e um fundo preto embaixo
-				// de texto escuro (light) saía ilegível.
-				backgroundColor: document.documentElement.classList.contains('dark') ? '#0a0a0a' : '#ffffff',
-				scale: 2,
-				logging: false
-			});
-			const link = document.createElement('a');
-			link.download = `grade-${(periodo ?? '').replace('.', '-')}.png`;
-			link.href = canvas.toDataURL('image/png');
-			link.click();
-		} catch {
-			aviso = 'Não foi possível exportar a imagem.';
-		} finally {
-			exportando = false;
+	/** Avisos da última montagem para o painel de análise. */
+	const avisosAnalise = $derived.by(() => {
+		const lista: string[] = (gradeStore.ultimaMontagem?.erros ?? []).map(mensagemErro);
+		if (gradeStore.ultimaMontagem?.truncado) {
+			lista.push(
+				'São muitas combinações — paramos numa grade boa, sem conflito, mas talvez não a melhor. Marque estrela nas essenciais e monte de novo.'
+			);
 		}
-	}
+		if (avisoEssencial) lista.push(avisoEssencial);
+		return lista;
+	});
+
+	const naGrade = $derived(new Set(gradeStore.pool.map((m) => m.codigo)));
 
 	// ---------------------------------------------------------------------------
 	// Onboarding guiado
 	// ---------------------------------------------------------------------------
-	const TOUR_ID = 'montador-grade-v1';
+	const TOUR_ID = 'montador-grade-v2';
 
-	// 7 passos: só o caminho crítico (achar → turma → calendário → montar →
-	// exportar → IA). Turnos, créditos e modos de visualização são secundários e
-	// já têm HelpTip permanente ao lado do próprio controle.
 	const TOUR_STEPS: TourStep[] = [
 		{
 			title: 'Bem-vindo ao Montador de Grade 👋',
 			description:
-				'Em 1 minuto você monta uma grade sem conflito de horário, com as turmas realmente ofertadas. Já deixamos as matérias recomendadas pelo seu plano na lista — é só escolher as turmas.',
+				'Em 1 minuto você monta uma grade sem conflito de horário, com as turmas realmente ofertadas. Já deixamos na lista as matérias recomendadas pelo seu plano.',
 			hint: 'Dá pra navegar com as setas ← → do teclado e sair com Esc.'
-		},
-		{
-			target: 'buscar-materia',
-			side: 'right',
-			title: '1. Ache a matéria',
-			description:
-				'Digite o código (ex.: CIC0004) ou parte do nome e clique no resultado para jogar a matéria na sua lista. Só aparecem matérias da sua matriz que você ainda não cursou.',
-			hint: 'Quer algo fora da matriz? Use “Buscar turmas”, no menu do topo.'
-		},
-		{
-			target: 'escolher-turma',
-			side: 'right',
-			title: '2. Escolha a turma',
-			description:
-				'Cada matéria mostra as turmas ofertadas com professor, horário e vagas. Clique numa turma para colocá-la na grade — clicar de novo tira. A estrela marca a matéria como prioritária.',
-			hint: 'Turma lotada? Dá pra seguir a turma e ser avisado quando abrir vaga.'
-		},
-		{
-			target: 'calendario',
-			side: 'left',
-			title: '3. Veja sua semana',
-			description:
-				'As turmas escolhidas viram blocos coloridos aqui. Conflito de horário aparece destacado na hora, então não tem como se matricular em duas aulas no mesmo slot sem perceber.',
-			hint: 'Clique num bloco para trocar a turma; os controles abaixo do calendário mudam a visualização.'
 		},
 		{
 			target: 'montar',
 			side: 'bottom',
-			title: 'Ou deixe a gente montar',
+			title: '1. Deixe a gente montar',
 			description:
-				'“Montar grade” puxa do seu plano de formatura as matérias que faltam na lista e testa as combinações até encaixar o máximo delas sem conflito, respeitando os turnos ligados ali ao lado e começando pelas marcadas com estrela. Se algo não couber, a gente avisa.'
+				'Escolha como prefere a semana, a carga e os turnos: geramos três opções sem conflito e aplicamos a que você preferir. As matérias com estrela entram primeiro.'
 		},
 		{
-			target: 'resumo',
-			side: 'left',
-			title: '4. Confira e exporte',
+			target: 'manual',
+			side: 'bottom',
+			title: '2. Ou monte manualmente',
 			description:
-				'O resumo lista tudo que está na grade com turma e horário. Quando estiver do jeito que você quer, use “Exportar imagem” para baixar a grade e levar pro dia da matrícula.',
-			hint: 'O contador de carga na barra de cima compara sua seleção com o limite do seu plano — em horas ou créditos, você escolhe.'
+				'Busque pelo código (ex.: CIC0004) ou pelo nome. Só aparecem matérias da sua matriz que você ainda não cursou.'
+		},
+		{
+			target: 'materias',
+			side: 'right',
+			title: '3. Suas matérias',
+			description:
+				'Toque numa matéria para escolher ou trocar a turma — com professor, horário e vagas. A estrela prioriza; o X tira da lista.'
+		},
+		{
+			target: 'calendario',
+			side: 'left',
+			title: '4. Sua semana',
+			description:
+				'As turmas escolhidas viram blocos aqui. Clique num bloco para ver os detalhes ou trocar de turma. Embaixo, alterne entre as opções geradas.'
+		},
+		{
+			target: 'analise',
+			side: 'left',
+			title: '5. Confira a análise',
+			description:
+				'O que ainda falta para você se formar, janelas entre aulas, dias com aula e o que não coube. Quando estiver bom, exporte a grade como imagem.'
 		},
 		{
 			target: 'assistente-ia',
@@ -548,7 +478,7 @@
 			title: '✨ E tem a Darcy, nossa IA',
 			description:
 				'Peça em português: “optativas de redes à tarde com turma aberta” ou “monta minha grade sem aula de manhã”. Ela sugere só matérias com turma neste semestre e joga direto na sua grade.',
-			hint: 'Reveja este passo a passo em “Como funciona” — e os “?” explicam cada controle.'
+			hint: 'Reveja este passo a passo em “Como funciona”, no menu ⋯ do topo.'
 		}
 	];
 
@@ -562,864 +492,519 @@
 		const t = setTimeout(() => tourStore.startSeNovo(TOUR_ID, TOUR_STEPS), 500);
 		return () => clearTimeout(t);
 	});
-
-	// No compacto o alvo do passo pode estar na aba escondida — o spotlight cairia
-	// num elemento inexistente e o card viraria um aviso solto no meio da tela.
-	$effect(() => {
-		const alvo = tourStore.aberto ? tourStore.stepAtual?.target : null;
-		if (!compacto || !alvo) return;
-		if (alvo === 'buscar-materia' || alvo === 'escolher-turma') painel = 'materias';
-		else if (alvo === 'resumo') painel = 'resumo';
-	});
-
-	const TURNO_OPCOES: ReadonlyArray<[Turno, string]> = [
-		['M', 'Manhã'],
-		['T', 'Tarde'],
-		['N', 'Noite']
-	];
-
-	const semTurmaEscolhida = $derived(gradeStore.selecao.size === 0);
-
-	const rotuloCursando = $derived(
-		gradeStore.incluirCursando
-			? 'As matérias que você já cursa estão na grade — clique para montar sem elas'
-			: 'Montando sem as matérias que você já cursa — clique para trazê-las de volta'
-	);
-
-	/**
-	 * Alterna e já remonta: sem remontar, o botão muda de cor e a grade continua a
-	 * mesma, o que faz o controle parecer quebrado. Remontar é o que o aluno quer
-	 * dizer ao clicar.
-	 */
-	function alternarCursando(): void {
-		gradeStore.setIncluirCursando(!gradeStore.incluirCursando);
-		void montarGrade();
-	}
-
-	/** Subtítulo do cabeçalho compacto: só a oferta que está sendo usada. */
-	const subtitulo = $derived(periodo ? `Turmas de ${periodo}` : 'Oferta atual');
 </script>
 
-<!--
-	`pb` grande no compacto: o botão da Darcy e a pílula de suporte flutuam sobre
-	o rodapé da página, e sem essa folga eles cobriam o último card da lista.
--->
-<div
-	class="relative z-10 mx-auto w-full max-w-7xl px-3 py-4 sm:px-5 lg:pb-6"
-	style="padding-bottom: {compacto ? 'calc(6.5rem + env(safe-area-inset-bottom, 0px))' : ''}"
->
-	{#if compacto}
-		<!-- Cabeçalho de uma linha: título + menu com as ações secundárias -->
-		<header class="mb-2 flex items-center gap-2.5">
-			<CalendarDays class="h-5 w-5 shrink-0 text-ai" />
-			<div class="min-w-0 flex-1">
-				<h1 class="truncate text-base leading-tight font-bold text-foreground">Montador de Grade</h1>
-				<p class="truncate text-[11px] text-muted-foreground">{subtitulo}</p>
-			</div>
-			<DropdownMenu.Root>
-				<DropdownMenu.Trigger
-					class="flex h-9 w-9 shrink-0 touch-manipulation items-center justify-center rounded-full border border-border bg-foreground/5 text-foreground/70 transition-colors hover:bg-foreground/10"
-					aria-label="Mais ações da grade"
-				>
-					<MoreHorizontal class="h-4 w-4" />
-				</DropdownMenu.Trigger>
-				<DropdownMenu.Content class="w-60" align="end">
-					<DropdownMenu.Item onclick={exportarGrade} disabled={exportando || semTurmaEscolhida}>
-						{#if exportando}
-							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
-						{:else}
-							<Download class="mr-2 h-4 w-4" />
-						{/if}
-						Exportar imagem
-					</DropdownMenu.Item>
-					<DropdownMenu.Item>
-						{#snippet child({ props })}
-							<a {...props} href={ROUTES.BUSCAR_TURMAS}>
-								<Search class="mr-2 h-4 w-4" />
-								Buscar turmas na oferta
-							</a>
-						{/snippet}
-					</DropdownMenu.Item>
-					<DropdownMenu.Separator />
-					<DropdownMenu.Item onclick={abrirTour}>
-						<Compass class="mr-2 h-4 w-4" />
-						Como funciona
-					</DropdownMenu.Item>
-					{#if onVoltarInicio}
-						<DropdownMenu.Item onclick={voltarAoInicio} disabled={voltando}>
-							{#if voltando}
-								<Loader2 class="mr-2 h-4 w-4 animate-spin" />
-							{:else}
-								<Undo2 class="mr-2 h-4 w-4" />
-							{/if}
-							Voltar ao início
-						</DropdownMenu.Item>
-					{/if}
-					<DropdownMenu.Item onclick={() => gradeStore.limpar()}>
-						<Trash2 class="mr-2 h-4 w-4" />
-						Limpar a grade
-					</DropdownMenu.Item>
-					<DropdownMenu.Item onclick={limparTudo}>
-						<Trash2 class="mr-2 h-4 w-4 text-destructive dark:text-red-300" />
-						Limpar tudo
-					</DropdownMenu.Item>
-				</DropdownMenu.Content>
-			</DropdownMenu.Root>
-		</header>
+{#snippet painelSituacao()}
+	<SituacaoPanel
+		{situacao}
+		carregando={situacaoCarregando}
+		embutido
+		{obrigatoriasSemOferta}
+		{periodo}
+		{moduloLivre}
+		{buscandoModuloLivre}
+		sugestoes={sugestoesModuloLivre}
+		{naGrade}
+		{onResponderModuloLivre}
+		{onBuscarModuloLivre}
+		onIncluir={onAdd}
+	/>
+{/snippet}
 
-		<!--
-			Faixa de comando: o que se usa o tempo todo (créditos, turnos, montar)
-			numa linha só, no lugar das três fileiras de pílulas de antes.
-			NÃO é sticky de propósito: `overflow-x: hidden` no body e no wrapper do
-			layout promove `overflow-y` para `auto` e mata `position: sticky` na
-			página inteira (é o mesmo motivo de a navbar `sticky top-0` nunca grudar).
-		-->
+{#snippet seletorOpcoes()}
+	{#if gradeStore.grades.length > 1}
 		<div
-			class="-mx-3 mb-3 flex touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain border-y border-border bg-foreground/[0.03] px-3 py-2 [scrollbar-width:none] sm:-mx-5 sm:px-5 [&::-webkit-scrollbar]:hidden"
+			class="mg-sunken flex gap-1.5 overflow-x-auto rounded-[11px] p-1 [scrollbar-width:none]"
+			role="tablist"
+			aria-label="Opções de grade"
+			data-tour="opcoes"
 		>
-			<button
-				type="button"
-				onclick={() => unidadeCargaStore.alternar()}
-				class="flex shrink-0 touch-manipulation items-center gap-1.5 rounded-full border border-border bg-foreground/5 px-2.5 py-1 transition-colors hover:bg-foreground/10"
-				data-tour="creditos"
-				title="Carga escolhida contra o limite do seu plano — toque para ver em {unidadeOposta}"
-			>
-				<span
-					class="text-[11px] tabular-nums {creditosAcima
-						? 'font-semibold text-red-700 dark:text-red-300'
-						: 'text-foreground/70'}"
-				>
-					{contadorTexto}{unidadeCargaStore.sufixo}
-				</span>
-				<!-- Abaixo de 380px a barrinha some para o rótulo do botão principal
-				     caber inteiro; o próprio número já fica vermelho ao estourar. -->
-				<span
-					class="hidden h-1.5 w-9 overflow-hidden rounded-full bg-foreground/10 min-[380px]:inline-block"
-				>
-					<span
-						class="block h-full rounded-full transition-all {creditosAcima
-							? 'bg-red-600 dark:bg-red-400'
-							: creditosPct > 85
-								? 'bg-amber-700 dark:bg-amber-400'
-								: 'bg-emerald-700 dark:bg-emerald-400'}"
-						style="width: {creditosPct}%"
-					></span>
-				</span>
-			</button>
-
-			<div
-				class="flex shrink-0 items-center gap-0.5 rounded-full border border-border bg-foreground/5 p-0.5"
-				data-tour="turnos"
-			>
-				{#each TURNO_OPCOES as [t, label] (t)}
-					{@const ativo = gradeStore.turnosPermitidos.has(t)}
-					<button
-						type="button"
-						onclick={() => gradeStore.toggleTurno(t)}
-						aria-pressed={ativo}
-						aria-label="{label} — permitir ao montar a grade"
-						title="{label} — permitir ao montar a grade"
-						class="h-7 w-7 touch-manipulation rounded-full text-[11px] font-semibold transition-colors {ativo
-							? 'bg-accent text-accent-foreground'
-							: 'text-muted-foreground'}"
-					>
-						{t}
-					</button>
-				{/each}
-			</div>
-
-			{#if gradeStore.temCursando}
+			{#each gradeStore.grades as g, i (g.id)}
+				{@const ativo = g.id === gradeStore.activeId}
 				<button
 					type="button"
-					onclick={alternarCursando}
-					aria-pressed={gradeStore.incluirCursando}
-					aria-label={rotuloCursando}
-					title={rotuloCursando}
-					class="flex h-7 shrink-0 touch-manipulation items-center gap-1 rounded-full border px-2.5 text-[11px] font-medium transition-colors {gradeStore.incluirCursando
-						? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-400/40 dark:bg-emerald-500/15 dark:text-emerald-100'
-						: 'border-border bg-foreground/5 text-muted-foreground'}"
+					role="tab"
+					aria-selected={ativo}
+					onclick={() => gradeStore.selecionarCenario(g.id)}
+					class="mg-choice flex min-w-24 flex-1 items-center justify-center gap-1 border-transparent bg-transparent px-2.5 py-2 text-[11px] whitespace-nowrap"
 				>
-					<GraduationCap class="h-3 w-3" />
-					<span>Cursando</span>
+					<span class="font-medium">Opção {i + 1}</span>
+					<small class="hidden text-[11px] opacity-80 sm:inline">· {g.nome}</small>
 				</button>
+			{/each}
+		</div>
+	{/if}
+{/snippet}
+
+{#snippet semana()}
+	<section
+		id="grade-export"
+		data-tour="calendario"
+		class="{compacto ? '' : 'mg-panel rounded-[18px] p-4 lg:p-5'} min-w-0 transition-opacity {gerandoOpcoes ||
+		remontando
+			? 'opacity-60'
+			: ''}"
+		aria-label="Sua semana"
+	>
+		<div class="mb-4 flex items-end justify-between gap-3">
+			<div class="min-w-0">
+				<span class="mg-eyebrow">{compacto ? 'Sua semana' : 'Sua semana ideal'}</span>
+				<h2 class="truncate text-lg font-semibold text-foreground md:text-xl">{tituloSemana}</h2>
+			</div>
+			{#if !semTurmaEscolhida}
+				{#if naoCouberam > 0}
+					<span class="mg-pill mg-pill-warn">{naoCouberam} não {naoCouberam === 1 ? 'coube' : 'couberam'}</span>
+				{:else}
+					<span class="mg-pill mg-pill-ok">Sem conflitos</span>
+				{/if}
 			{/if}
-			<!-- Único botão preenchido da tela: é a ação principal, não mais uma pílula. -->
+		</div>
+		<ScheduleGrid modo={compacto ? 'agenda' : 'grade'} onBlocoClick={(c) => (materiaDialog = c)} />
+		{#if !compacto}
+			<div class="mt-4">{@render seletorOpcoes()}</div>
+		{/if}
+	</section>
+{/snippet}
+
+<div
+	class="relative z-10 mx-auto w-full max-w-[86rem] px-4 pt-4 md:px-6 md:pb-10"
+	style="padding-bottom: {compacto ? 'calc(7rem + env(safe-area-inset-bottom, 0px))' : ''}"
+>
+	<!-- Cabeçalho -->
+	<header class="flex items-center gap-3 border-b border-border pb-3">
+		<div class="min-w-0 flex-1">
+			<h1 class="truncate text-lg leading-tight font-semibold text-foreground md:text-xl">
+				Montador de Grade
+			</h1>
+			<p class="truncate text-xs text-muted-foreground">
+				{#if periodo}Turmas de <span class="font-mono">{periodo}</span>{:else}Oferta atual{/if}
+			</p>
+		</div>
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger class="mg-icon-btn" aria-label="Mais ações da grade">
+				<MoreHorizontal class="h-4 w-4" />
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content class="w-60" align="end">
+				{#if compacto}
+					<DropdownMenu.Item onclick={exportarGrade} disabled={exportando || semTurmaEscolhida}>
+						<Download class="mr-2 h-4 w-4" />
+						Exportar imagem
+					</DropdownMenu.Item>
+				{/if}
+				<DropdownMenu.Item>
+					{#snippet child({ props })}
+						<a {...props} href={ROUTES.BUSCAR_TURMAS}>
+							<Search class="mr-2 h-4 w-4" />
+							Buscar turmas na oferta
+						</a>
+					{/snippet}
+				</DropdownMenu.Item>
+				<DropdownMenu.Item onclick={abrirTour}>
+					<Compass class="mr-2 h-4 w-4" />
+					Como funciona
+				</DropdownMenu.Item>
+				<DropdownMenu.Separator />
+				{#if onVoltarInicio}
+					<DropdownMenu.Item onclick={voltarAoInicio} disabled={voltando}>
+						<Undo2 class="mr-2 h-4 w-4" />
+						Voltar ao início
+					</DropdownMenu.Item>
+				{/if}
+				<DropdownMenu.Item onclick={() => gradeStore.limpar()}>
+					<Trash2 class="mr-2 h-4 w-4" />
+					Limpar a grade
+				</DropdownMenu.Item>
+				<DropdownMenu.Item onclick={limparTudo}>
+					<Trash2 class="mr-2 h-4 w-4 text-destructive dark:text-red-300" />
+					Limpar tudo
+				</DropdownMenu.Item>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
+	</header>
+
+	<!-- Barra de ações -->
+	<section
+		class="mg-panel relative z-20 mt-4 mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl p-2.5 md:grid-cols-[auto_minmax(14rem,1fr)_auto] md:gap-6 md:p-3"
+		aria-label="Ações da grade"
+	>
+		<div class="flex min-w-0 gap-2">
 			<button
 				type="button"
-				onclick={abrirWizard}
+				onclick={() => (painel = 'gerar')}
 				data-tour="montar"
-				class="ml-auto inline-flex shrink-0 touch-manipulation items-center justify-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-colors active:bg-primary/85 dark:shadow-[0_2px_14px_rgba(168,85,247,0.4)] disabled:opacity-60"
+				class="mg-btn mg-btn-primary flex-1 md:flex-none"
 			>
-				<Wand2 class="h-3.5 w-3.5 shrink-0" />
-				<span>Montar grade</span>
-				{#if gradeStore.temPrioritarias}<Star
-						class="h-3 w-3 shrink-0 fill-current text-amber-200"
-					/>{/if}
+				<Sparkles class="h-4 w-4" /> Montar grade
+			</button>
+			<button
+				type="button"
+				onclick={abrirManual}
+				data-tour="manual"
+				class="mg-btn mg-btn-secondary flex-1 md:flex-none"
+			>
+				<Plus class="h-4 w-4" /><span class="md:hidden">Manual</span><span class="hidden md:inline"
+					>Montar manualmente</span
+				>
 			</button>
 		</div>
-	{:else}
-		<!-- Cabeçalho -->
-		<header
-			class="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
+
+		<div
+			class="relative col-span-2 row-start-2 w-full md:col-span-1 md:col-start-2 md:row-start-1 md:max-w-md md:justify-self-center"
+			role="presentation"
+			onmouseenter={() => (cargaPopover = true)}
+			onmouseleave={() => (cargaPopover = false)}
 		>
-			<div class="flex items-center gap-2.5">
-				<CalendarDays class="h-6 w-6 shrink-0 text-ai" />
-				<div>
-					<h1 class="text-lg font-bold text-foreground sm:text-xl">Montador de Grade</h1>
-					<!-- `&nbsp;` porque o Svelte come o espaço no começo do bloco `{#if}` e
-					     o texto saía grudado ("semestre· 2026.1"). -->
-					<!-- O Montador não diz mais qual semestre monta. Ele monta uma grade com a
-					     oferta real publicada; quem estima o que pegar em cada semestre até
-					     formar é o Plano de Formatura. Prometer "próximo semestre" aqui era o
-					     que fazia a grade brigar com as matérias já matriculadas. -->
-					<p class="text-xs text-muted-foreground">
-						{#if periodo}Turmas de <span class="font-mono">{periodo}</span>{:else}Oferta atual{/if}
+			<button
+				type="button"
+				onclick={abrirPreferencias}
+				onfocus={() => (cargaPopover = true)}
+				onblur={() => (cargaPopover = false)}
+				data-tour="creditos"
+				class="block w-full touch-manipulation rounded-lg px-0.5 py-1 text-left"
+				aria-label="Carga do semestre: {cargaTexto}. Abrir preferências para mudar o limite."
+			>
+				<span class="mb-2 flex items-baseline justify-between gap-2 text-[11px] text-muted-foreground">
+					<span>Carga do semestre</span>
+					<strong
+						class="text-xs font-semibold tabular-nums {creditosAcima
+							? 'text-red-700 dark:text-red-300'
+							: 'text-foreground/85'}">{cargaTexto}</strong
+					>
+				</span>
+				<span class="mg-track">
+					<span class={creditosAcima ? 'mg-track-alerta' : ''} style="width: {creditosPct}%"></span>
+				</span>
+			</button>
+			{#if cargaPopover && !compacto}
+				<div
+					class="mg-overlay absolute top-full left-1/2 z-30 mt-2 grid w-64 -translate-x-1/2 gap-2 rounded-xl p-4 text-xs"
+					role="tooltip"
+				>
+					<span class="mg-eyebrow mb-0">Limite desejado</span>
+					<p class="flex justify-between font-semibold text-foreground">
+						Selecionado
+						<span class="text-primary dark:text-purple-300">
+							{gradeStore.creditosSelecionados * HORAS_POR_CREDITO}h · {gradeStore.creditosSelecionados} créditos
+						</span>
+					</p>
+					<p class="flex justify-between font-semibold text-foreground">
+						Máximo
+						<span class="text-primary dark:text-purple-300">
+							{limiteSessao * HORAS_POR_CREDITO}h · {limiteSessao} créditos
+						</span>
+					</p>
+					<p class="border-t border-border pt-2 text-[11px] text-muted-foreground">
+						15 horas equivalem a 1 crédito. Clique para mudar o limite.
 					</p>
 				</div>
-			</div>
+			{/if}
+		</div>
 
-			<div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-				<HelpTip
-					side="bottom"
-					title="Carga do semestre"
-					text="Soma da carga das turmas já escolhidas contra o limite do seu plano. A barra fica amarela perto do limite e vermelha se passar. Clique no contador para alternar entre horas e créditos."
-				>
-					<button
-						type="button"
-						onclick={() => unidadeCargaStore.alternar()}
-						class="flex touch-manipulation items-center gap-2 rounded-full border border-border bg-foreground/5 px-3 py-1 transition-colors hover:bg-foreground/10"
-						data-tour="creditos"
-						title="Mostrar em {unidadeOposta}"
-					>
-						<span class="text-xs {creditosAcima ? 'font-semibold text-red-700 dark:text-red-300' : 'text-foreground/70'}">
-							{contadorTexto}
-							{unidadeCargaStore.sufixo}
-						</span>
-						<span class="h-1.5 w-16 overflow-hidden rounded-full bg-foreground/10">
-							<span
-								class="block h-full rounded-full transition-all {creditosAcima
-									? 'bg-red-600 dark:bg-red-400'
-									: creditosPct > 85
-										? 'bg-amber-700 dark:bg-amber-400'
-										: 'bg-emerald-700 dark:bg-emerald-400'}"
-								style="width: {creditosPct}%"
-							></span>
-						</span>
-					</button>
-				</HelpTip>
-				<div
-					class="flex items-center gap-0.5 rounded-full border border-border bg-foreground/5 p-0.5"
-					data-tour="turnos"
-					title="Turnos permitidos ao montar a grade"
-				>
-					{#each TURNO_OPCOES as [t, label] (t)}
-						{@const ativo = gradeStore.turnosPermitidos.has(t)}
-						<button
-							type="button"
-							onclick={() => gradeStore.toggleTurno(t)}
-							aria-pressed={ativo}
-							class="touch-manipulation rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors {ativo
-								? 'bg-accent text-accent-foreground'
-								: 'text-muted-foreground hover:text-foreground/70'}"
-						>
-							{label}
-						</button>
-					{/each}
-				</div>
-
-				{#if gradeStore.temCursando}
-					<HelpTip
-						side="bottom"
-						title="Matérias que você já cursa"
-						text="Ligado, elas ocupam a grade e não podem ser cortadas — é a sua semana de verdade. Desligado, a grade é montada como se elas não existissem, liberando horário e créditos para o que você ainda vai pegar. Nos dois casos elas seguem valendo como pré-requisito cumprido."
-					>
-						<button
-							type="button"
-							onclick={alternarCursando}
-							aria-pressed={gradeStore.incluirCursando}
-							class="flex touch-manipulation items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors {gradeStore.incluirCursando
-								? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-400/40 dark:bg-emerald-500/15 dark:text-emerald-100'
-								: 'border-border bg-foreground/5 text-muted-foreground hover:text-foreground/70'}"
-						>
-							<GraduationCap class="h-3.5 w-3.5" />
-							<span>{gradeStore.incluirCursando ? 'Incluindo cursando' : 'Sem as cursando'}</span>
-						</button>
-					</HelpTip>
-				{/if}
-				<HelpTip
-					side="bottom"
-					title="Montar grade"
-					text="Abre o assistente de montagem: escolha escopo, carga horária, turnos e uma disciplina essencial (se quiser), e a gente gera até 6 opções de grade sem conflito de horário pra você escolher."
-				>
-					<!-- Único botão preenchido da barra: é a ação principal da tela. -->
-					<button
-						type="button"
-						onclick={abrirWizard}
-						data-tour="montar"
-						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 dark:shadow-[0_2px_14px_rgba(168,85,247,0.4)] disabled:opacity-60"
-					>
-						<Wand2 class="h-3.5 w-3.5" /> Montar grade
-						{#if gradeStore.temPrioritarias}<Star
-								class="h-3 w-3 fill-current text-amber-200"
-							/>{/if}
-					</button>
-				</HelpTip>
-				<HelpTip
-					side="bottom"
-					title="Exportar"
-					text="Baixa a grade como imagem PNG — boa pra mandar no grupo do curso ou conferir na hora da matrícula."
-				>
-					<button
-						type="button"
-						onclick={exportarGrade}
-						disabled={exportando || semTurmaEscolhida}
-						data-tour="exportar"
-						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-border bg-foreground/5 px-3 py-1.5 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/10 disabled:opacity-40"
-					>
-						{#if exportando}<Loader2 class="h-3.5 w-3.5 animate-spin" />{:else}<Download
-								class="h-3.5 w-3.5"
-							/>{/if} Exportar
-					</button>
-				</HelpTip>
-				<HelpTip
-					side="bottom"
-					title="Buscar turmas"
-					text="Procura na oferta inteira do semestre por professor, horário ou sala — inclusive matérias que não estão na sua matriz."
-				>
-					<a
-						href={ROUTES.BUSCAR_TURMAS}
-						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-border bg-foreground/5 px-3 py-1.5 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/10"
-					>
-						<Search class="h-3.5 w-3.5" /> Buscar turmas
-					</a>
-				</HelpTip>
-				{#if onVoltarInicio}
-					<HelpTip
-						side="bottom"
-						title="Voltar ao início"
-						text="Refaz o preenchimento automático da primeira visita: as matérias em que você já está matriculado (com a turma real do SIGAA) e as recomendadas do seu plano. Descarta as edições feitas aqui."
-					>
-						<button
-							type="button"
-							onclick={voltarAoInicio}
-							disabled={voltando}
-							class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-border bg-foreground/5 px-3 py-1.5 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/10 disabled:opacity-60"
-						>
-							{#if voltando}<Loader2 class="h-3.5 w-3.5 animate-spin" />{:else}<Undo2
-									class="h-3.5 w-3.5"
-								/>{/if} Voltar ao início
-						</button>
-					</HelpTip>
-				{/if}
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger
-						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-border bg-foreground/5 px-3 py-1.5 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/10"
-					>
-						<Trash2 class="h-3.5 w-3.5" /> Limpar
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content class="w-64" align="end">
-						<DropdownMenu.Item onclick={() => gradeStore.limpar()}>
-							<Trash2 class="mr-2 h-4 w-4" />
-							<div class="flex flex-col">
-								<span>Limpar a grade</span>
-								<span class="text-[11px] text-muted-foreground">Tira só as turmas escolhidas</span>
-							</div>
-						</DropdownMenu.Item>
-						<DropdownMenu.Item onclick={limparTudo}>
-							<Trash2 class="mr-2 h-4 w-4 text-destructive dark:text-red-300" />
-							<div class="flex flex-col">
-								<span>Limpar tudo</span>
-								<span class="text-[11px] text-muted-foreground">Esvazia a lista de matérias e a grade</span>
-							</div>
-						</DropdownMenu.Item>
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
-				<HelpTip
-					side="bottom"
-					title="Tour guiado"
-					text="Refaz o passo a passo do montador quando quiser."
-				>
-					<button
-						type="button"
-						onclick={abrirTour}
-						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-accent-foreground transition-colors hover:bg-primary/20"
-					>
-						<Compass class="h-3.5 w-3.5" /> Como funciona
-					</button>
-				</HelpTip>
-			</div>
-		</header>
-	{/if}
-
-	<!--
-		Slider dedicado numa linha própria: a barra de comando do compacto já vive no
-		limite da largura (a barrinha decorativa da pílula some abaixo de 380px), sem
-		espaço sobrando pra um alvo de arrastar. Aqui, largura cheia, cabe em qualquer
-		tela — e vale só nesta sessão, não mexe no limite salvo no plano.
-	-->
-	<div
-		class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl border border-border bg-card dark:bg-background/80 px-3 py-2.5"
-	>
-		<HelpTip
-			side="bottom"
-			title="Limite de carga desta montagem"
-			text="Arraste pra ver o que cabe com menos carga — a grade se ajusta na hora, tirando primeiro as matérias sem estrela (a de maior carga primeiro). Vale só nesta tela; não muda o limite do seu plano de formatura. Clique na unidade ao lado pra alternar entre horas e créditos."
-		>
-			<span class="shrink-0 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase"
-				>Limite</span
+		<div class="flex gap-2">
+			<button
+				type="button"
+				onclick={abrirPreferencias}
+				class="mg-btn mg-btn-secondary w-10 px-0 lg:w-auto lg:px-3.5"
+				aria-label="Filtros e preferências"
 			>
-		</HelpTip>
-		<input
-			type="range"
-			min={LIMITE_CREDITOS_MIN}
-			max={LIMITE_CREDITOS_MAX}
-			step="1"
-			value={limiteSessao}
-			oninput={(e) => moverSliderCreditos(Number((e.currentTarget as HTMLInputElement).value))}
-			class="h-1.5 min-w-[8rem] flex-1 touch-manipulation accent-primary"
-			aria-label="Limite de carga desta montagem"
-		/>
-		<span
-			class="shrink-0 text-xs tabular-nums {creditosAcima
-				? 'font-semibold text-red-700 dark:text-red-300'
-				: 'text-foreground/70'}"
-		>
-			{contadorTexto}
-		</span>
-		<button
-			type="button"
-			onclick={() => unidadeCargaStore.alternar()}
-			class="shrink-0 touch-manipulation rounded text-xs text-muted-foreground underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground/80"
-			title="Mostrar em {unidadeOposta}"
-		>
-			{unidadeCargaStore.unidade}
-		</button>
-	</div>
-
-	<div class="mb-3">
-		<CenarioSwitcher />
-	</div>
+				<SlidersHorizontal class="h-4 w-4" /><span class="hidden lg:inline">Filtros e preferências</span>
+			</button>
+			{#if !compacto}
+				<button
+					type="button"
+					onclick={exportarGrade}
+					disabled={exportando || semTurmaEscolhida}
+					data-tour="exportar"
+					class="mg-btn mg-btn-secondary"
+				>
+					{#if exportando}<Loader2 class="h-4 w-4 animate-spin" />{:else}<Download class="h-4 w-4" />{/if}
+					Exportar
+				</button>
+			{/if}
+		</div>
+	</section>
 
 	{#if confirmacaoProfessor}
 		<div
-			class="mb-3 flex flex-col gap-2 rounded-xl border border-ai/30 bg-ai-soft px-3 py-2.5 text-xs text-ai dark:border-pink-300/35 dark:bg-pink-500/10 dark:text-pink-100 sm:flex-row sm:items-center sm:justify-between"
+			class="mb-4 flex flex-col gap-2 rounded-xl border border-ai/30 bg-ai-soft px-3 py-2.5 text-xs text-ai sm:flex-row sm:items-center sm:justify-between"
 		>
 			<span class="flex items-start gap-2">
 				<Info class="mt-0.5 h-3.5 w-3.5 shrink-0" />
-				Rearranjei a grade pra tentar encaixar <strong>{confirmacaoProfessor.resumo}</strong> — confere
-				se ficou bom.
+				<span>
+					Rearranjei a grade pra tentar encaixar <strong>{confirmacaoProfessor.resumo}</strong> — confere
+					se ficou bom.
+				</span>
 			</span>
 			<div class="flex shrink-0 items-center gap-2 self-end sm:self-auto">
-				<button
-					type="button"
-					onclick={onRecusarConfirmacaoProfessor}
-					class="inline-flex touch-manipulation items-center gap-1 rounded-full border border-border bg-foreground/5 px-2.5 py-1 text-[11px] font-medium text-foreground/70 transition-colors hover:bg-foreground/10"
-				>
+				<button type="button" onclick={onRecusarConfirmacaoProfessor} class="mg-btn mg-btn-secondary min-h-8 text-[11px]">
 					<Undo2 class="h-3 w-3" /> Manter grade anterior
 				</button>
-				<button
-					type="button"
-					onclick={onAceitarConfirmacaoProfessor}
-					class="inline-flex touch-manipulation items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 dark:border-emerald-300/40 dark:bg-emerald-500/20 dark:text-emerald-100 dark:hover:bg-emerald-500/30"
-				>
+				<button type="button" onclick={onAceitarConfirmacaoProfessor} class="mg-btn mg-btn-primary min-h-8 text-[11px]">
 					<Check class="h-3 w-3" /> Aceitar
 				</button>
 			</div>
 		</div>
 	{/if}
 
-	{#if gradeStore.ultimaMontagem && gradeStore.ultimaMontagem.naoAlocadas.length > 0}
-		<div
-			class="mb-3 space-y-1 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-300/30 dark:bg-amber-500/10 dark:text-amber-100"
-		>
-			{#if gradeStore.ultimaMontagem.erros && gradeStore.ultimaMontagem.erros.length > 0}
-				<!-- Diagnóstico estruturado da essencial (quando houver) — nunca o `tipo` cru. -->
-				{#each gradeStore.ultimaMontagem.erros as erro (erro.chave + erro.tipo)}
-					<p class="flex items-start gap-2">
-						<Info class="mt-0.5 h-3.5 w-3.5 shrink-0" />{mensagemErro(erro)}
-					</p>
-				{/each}
-			{:else}
-				<p class="flex items-start gap-2">
-					<Info class="mt-0.5 h-3.5 w-3.5 shrink-0" />
-					<span
-						>Não coube sem conflito: <strong
-							>{gradeStore.ultimaMontagem.naoAlocadas.join(', ')}</strong
-						>. Ajuste manualmente.</span
-					>
-				</p>
-			{/if}
-		</div>
-	{/if}
-
-	{#if gradeStore.ultimaMontagem?.truncado}
-		<div
-			class="mb-3 flex items-start gap-2 rounded-xl border border-border bg-foreground/5 px-3 py-2 text-xs text-foreground/70"
+	{#if aviso && painel !== 'manual'}
+		<p
+			class="mb-4 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-300/30 dark:bg-amber-500/10 dark:text-amber-100"
 		>
 			<Info class="mt-0.5 h-3.5 w-3.5 shrink-0" />
-			<span>
-				São muitas combinações possíveis — paramos numa grade boa, sem conflito, mas talvez não a
-				melhor. Marque estrela nas matérias essenciais e monte de novo.
-			</span>
-		</div>
+			<span class="flex-1">{aviso}</span>
+			<button type="button" onclick={() => (aviso = null)} class="shrink-0 rounded p-0.5 hover:bg-amber-500/15" aria-label="Fechar aviso">
+				<X class="h-3.5 w-3.5" />
+			</button>
+		</p>
 	{/if}
 
-	<!--
-		As três áreas viram snippets para poderem ser rearranjadas sem duplicação:
-		no desktop o calendário fica ao centro com matérias à esquerda e resumo à
-		direita (ordem 1→2→3→4 do tour); ampliado ele ocupa a largura toda; no
-		compacto ele abre a tela e matérias/resumo viram abas logo abaixo.
-	-->
-	{#snippet painelSituacao(ehCompacto: boolean)}
-		<SituacaoPanel
-			{situacao}
-			carregando={situacaoCarregando}
-			compacto={ehCompacto}
-			{obrigatoriasSemOferta}
-			{periodo}
-			{moduloLivre}
-			{buscandoModuloLivre}
-			sugestoes={sugestoesModuloLivre}
-			{naGrade}
-			{onResponderModuloLivre}
-			{onBuscarModuloLivre}
-			onIncluir={onAdd}
-		/>
-	{/snippet}
+	{#if compacto}
+		<div class="mb-5">{@render seletorOpcoes()}</div>
+		{@render semana()}
+	{:else}
+		<div
+			class="grid items-start gap-4 md:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)_17rem]"
+		>
+			<div class="md:col-start-1 md:row-start-1">
+				<MateriasPanel onAbrir={(c) => (materiaDialog = c)} onAdicionar={abrirManual} />
+			</div>
+			<div class="md:col-start-2 md:row-start-1">
+				{@render semana()}
+			</div>
+			<div class="md:col-span-2 md:col-start-1 md:row-start-2 xl:col-span-1 xl:col-start-3 xl:row-start-1">
+				<AnaliseGradePanel limiteCreditos={limiteSessao} avisos={avisosAnalise} situacao={painelSituacao} />
+			</div>
+		</div>
+	{/if}
+</div>
 
-	{#snippet colunaMaterias()}
-		<MateriaSearchAdd {onAdd} {compacto} />
+{#if compacto}
+	<!--
+		Navegação inferior do celular. O espaço à direita é do botão da Darcy
+		(`AssistenteChatFab`, fixo em right-4/bottom-4), que fica encaixado na barra.
+	-->
+	<nav
+		class="mg-overlay fixed inset-x-3 z-40 grid h-[68px] grid-cols-3 rounded-[17px] py-1.5 pr-[74px] pl-2"
+		style="bottom: calc(12px + env(safe-area-inset-bottom, 0px));"
+		aria-label="Navegação do montador"
+	>
+		<button
+			type="button"
+			onclick={() => {
+				painel = null;
+				window.scrollTo({ top: 0, behavior: 'smooth' });
+			}}
+			aria-current={painel === null ? 'page' : undefined}
+			class="flex touch-manipulation flex-col items-center justify-center gap-1 rounded-[10px] text-[10px] {painel === null
+				? 'bg-primary/10 text-primary dark:bg-purple-500/10 dark:text-purple-300'
+				: 'text-muted-foreground'}"
+		>
+			<CalendarDays class="h-[18px] w-[18px]" /> Grade
+		</button>
+		<button
+			type="button"
+			onclick={() => (painel = 'materias')}
+			data-tour="materias"
+			class="relative flex touch-manipulation flex-col items-center justify-center gap-1 rounded-[10px] text-[10px] {painel ===
+			'materias'
+				? 'bg-primary/10 text-primary dark:bg-purple-500/10 dark:text-purple-300'
+				: 'text-muted-foreground'}"
+		>
+			<BookMarked class="h-[18px] w-[18px]" /> Matérias
+			<span class="sr-only">({gradeStore.pool.length})</span>
+		</button>
+		<button
+			type="button"
+			onclick={() => (painel = 'progresso')}
+			data-tour="analise"
+			class="flex touch-manipulation flex-col items-center justify-center gap-1 rounded-[10px] text-[10px] {painel ===
+			'progresso'
+				? 'bg-primary/10 text-primary dark:bg-purple-500/10 dark:text-purple-300'
+				: 'text-muted-foreground'}"
+		>
+			<ChartColumn class="h-[18px] w-[18px]" /> Progresso
+		</button>
+	</nav>
+
+	<ResponsiveSheet
+		aberto={painel === 'materias'}
+		onClose={() => (painel = null)}
+		eyebrow="Curadoria"
+		titulo="Suas matérias"
+		subtitulo="{gradeStore.pool.length} na lista · {gradeStore.selecao.size} na grade"
+	>
+		<div class="px-5 pb-5">
+			<MateriasPanel
+				embutido
+				onAbrir={(c) => (materiaDialog = c)}
+				onAdicionar={() => {
+					painel = null;
+					abrirManual();
+				}}
+			/>
+		</div>
+	</ResponsiveSheet>
+
+	<ResponsiveSheet
+		aberto={painel === 'progresso'}
+		onClose={() => (painel = null)}
+		eyebrow="Visão rápida"
+		titulo="Análise da grade"
+	>
+		<div class="px-5 pb-5">
+			<AnaliseGradePanel
+				embutido
+				limiteCreditos={limiteSessao}
+				avisos={avisosAnalise}
+				situacao={painelSituacao}
+			/>
+		</div>
+	</ResponsiveSheet>
+{/if}
+
+<ResponsiveSheet
+	aberto={painel === 'gerar'}
+	onClose={() => (painel = null)}
+	eyebrow="Configuração rápida"
+	titulo="Gerar grade"
+	maxWidthClass="sm:max-w-[500px]"
+>
+	<MontadorParametros
+		limiteCreditosInicial={limiteSessao}
+		gerando={gerandoOpcoes}
+		valorInicial={parametrosAtuais}
+		onGerar={handleGerarOpcoes}
+	/>
+</ResponsiveSheet>
+
+<ResponsiveSheet
+	aberto={painel === 'manual'}
+	onClose={() => (painel = null)}
+	eyebrow="Montagem manual"
+	titulo="Adicionar matéria"
+	maxWidthClass="sm:max-w-[470px]"
+>
+	<div class="space-y-3 px-5 pb-5">
+		<MateriaSearchAdd {onAdd} compacto />
 		{#if aviso}
 			<p
-				class="rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-300/30 dark:bg-amber-500/10 px-3 py-2 text-[11px] text-amber-900 dark:text-amber-100"
+				class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-900 dark:border-amber-300/30 dark:bg-amber-500/10 dark:text-amber-100"
 			>
 				{aviso}
 			</p>
 		{/if}
-
-		<!--
-			O aviso de obrigatória sem oferta vive no painel de Situação: é informação
-			sobre a formatura do aluno, não sobre a lista de turmas, e repeti-la nos
-			dois lugares só faria o mesmo texto competir consigo mesmo.
-		-->
-		{#if gradeStore.pool.length === 0}
-			<div class="rounded-2xl border border-border bg-card dark:bg-background/80 px-3 py-6 text-center">
-				<p class="text-xs text-muted-foreground">
-					Use “Montar grade” para trazer as matérias do seu plano, busque uma acima ou peça
-					recomendações ao assistente (botão flutuante).
-				</p>
-				<button
-					type="button"
-					onclick={abrirTour}
-					class="mt-3 inline-flex items-center gap-1.5 rounded-full border border-primary/35 bg-primary/10 px-3 py-1.5 text-[11px] font-medium text-accent-foreground transition-colors hover:bg-primary/20"
-				>
-					<Compass class="h-3.5 w-3.5" /> Ver o passo a passo
+		<p class="text-[11px] text-muted-foreground">
+			Matérias da sua matriz que você ainda não cursou. Depois de adicionar, escolha a turma em
+			“Suas matérias”. Procurando algo de fora?
+			<a href={ROUTES.BUSCAR_TURMAS} class="font-medium text-primary underline-offset-2 hover:underline dark:text-purple-300"
+				>Busque na oferta inteira</a
+			>.
+		</p>
+	</div>
+	{#snippet footer()}
+		{#if adicionadasNoManual > 0}
+			<footer class="border-t border-border px-5 py-3">
+				<button type="button" onclick={() => (painel = null)} class="mg-btn mg-btn-primary w-full">
+					<Check class="h-4 w-4" /> Concluir · {adicionadasNoManual}
+					{adicionadasNoManual === 1 ? 'matéria' : 'matérias'}
 				</button>
-			</div>
-		{:else}
-			<div class="flex items-center justify-between gap-2 px-1 pt-1">
-				<p class="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-					{compacto ? 'Turmas' : '2 · Turmas'}
-				</p>
-				<HelpTip
-					title="Escolha uma turma por matéria"
-					text="Clique numa turma para colocá-la na grade; clicar de novo tira. A estrela marca a matéria como prioritária ao montar."
-				/>
-			</div>
-			<SubjectTurmaSelector />
+			</footer>
 		{/if}
 	{/snippet}
+</ResponsiveSheet>
 
-	<!--
-		Painel "modo mágico" do wizard: substitui `colunaMaterias()` no lugar (desktop)
-		ou abre como bottom sheet (compacto — ver `ResponsiveSheet` mais abaixo) quando
-		`modoMontador !== 'fechado'`. Passo 1 é `MontadorParametros`; Passo 2 é a lista
-		de até 6 `OpcaoGrade`, renderizada aqui mesmo (não vira componente à parte —
-		é pouco código e específico desta tela).
-	-->
-	{#snippet wizardMontador()}
-		{#if modoMontador === 'parametros'}
-			<MontadorParametros
-				{periodo}
-				limiteCreditosInicial={limiteSessao}
-				gerando={gerandoOpcoes}
-				valorInicial={parametrosAtuais}
-				onGerar={handleGerarOpcoes}
-				onCancelar={fecharWizard}
+<ResponsiveSheet
+	aberto={painel === 'preferencias'}
+	onClose={aplicarPreferencias}
+	lado="direita"
+	eyebrow="Personalização"
+	titulo="Filtros e preferências"
+	maxWidthClass="sm:max-w-[390px]"
+>
+	<div class="px-5 pb-5">
+		<p class="mg-eyebrow mt-1 mb-1">Turnos permitidos</p>
+		{#each TURNO_OPCOES as [t, label] (t)}
+			{@const ativo = gradeStore.turnosPermitidos.has(t)}
+			<button
+				type="button"
+				role="switch"
+				aria-checked={ativo}
+				onclick={() => gradeStore.toggleTurno(t)}
+				class="flex min-h-[52px] w-full touch-manipulation items-center justify-between border-b border-border text-left text-sm text-foreground/90"
+			>
+				{label}
+				<span class="mg-switch" aria-checked={ativo}></span>
+			</button>
+		{/each}
+
+		{#if gradeStore.temCursando}
+			<button
+				type="button"
+				role="switch"
+				aria-checked={gradeStore.incluirCursando}
+				onclick={() => gradeStore.setIncluirCursando(!gradeStore.incluirCursando)}
+				class="flex min-h-[52px] w-full touch-manipulation items-center justify-between gap-3 border-b border-border text-left text-sm text-foreground/90"
+			>
+				<span>
+					Incluir matérias que já curso
+					<small class="block text-[11px] text-muted-foreground">
+						Desligado, a grade é montada sem elas, liberando horário e carga.
+					</small>
+				</span>
+				<span class="mg-switch" aria-checked={gradeStore.incluirCursando}></span>
+			</button>
+		{/if}
+
+		<div class="mt-6">
+			<div class="flex items-center justify-between">
+				<label for="mg-limite" class="mg-eyebrow mb-0">Limite de carga</label>
+				<span class="text-xs font-semibold text-foreground tabular-nums">
+					{limiteSessao} créditos
+					<span class="font-normal text-muted-foreground">· {limiteSessao * HORAS_POR_CREDITO}h</span>
+				</span>
+			</div>
+			<input
+				id="mg-limite"
+				type="range"
+				min={LIMITE_CREDITOS_MIN}
+				max={LIMITE_CREDITOS_MAX}
+				step="1"
+				value={limiteSessao}
+				oninput={(e) => moverSliderCreditos(Number((e.currentTarget as HTMLInputElement).value))}
+				class="mt-3 h-1 w-full cursor-pointer touch-manipulation accent-primary"
 			/>
-		{:else if modoMontador === 'resultados'}
-			<div class="space-y-3">
-				<div class="flex items-center justify-between gap-2 px-1">
+			<p class="mt-1.5 text-[11px] text-muted-foreground">
+				A grade se ajusta na hora, tirando primeiro as matérias sem estrela.
+			</p>
+		</div>
+
+		<fieldset class="mt-6">
+			<legend class="mg-eyebrow mb-2">Mostrar carga em</legend>
+			<div class="mg-sunken grid grid-cols-2 gap-1 rounded-[10px] p-1">
+				{#each UNIDADES as [valor, rotulo] (valor)}
 					<button
 						type="button"
-						onclick={voltarParaParametros}
-						class="inline-flex touch-manipulation items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/60 transition-colors hover:bg-white/10"
+						aria-pressed={unidadeCargaStore.unidade === valor}
+						onclick={() => unidadeCargaStore.set(valor)}
+						class="min-h-9 touch-manipulation rounded-lg text-xs font-medium transition-colors {unidadeCargaStore.unidade ===
+						valor
+							? 'bg-primary text-primary-foreground dark:bg-[#3a225b] dark:text-[#f1eaff]'
+							: 'text-muted-foreground hover:text-foreground'}"
 					>
-						<ArrowLeft class="h-3 w-3" /> Voltar
+						{rotulo}
 					</button>
-					<p
-						class="flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.12em] text-white/55 uppercase"
-					>
-						<Sparkles class="h-3.5 w-3.5 text-purple-300" /> 2 · Resultados
-					</p>
-				</div>
-
-				{#if avisoEssencial}
-					<div
-						class="rounded-xl border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"
-					>
-						<p class="flex items-start gap-1.5">
-							<Info class="mt-0.5 h-3.5 w-3.5 shrink-0" />{avisoEssencial}
-						</p>
-					</div>
-				{/if}
-
-				{#if opcoesGeradas.length === 0}
-					<p class="px-1 text-xs text-white/50">
-						Nenhuma opção coube com esses parâmetros. Volte e ajuste turnos, carga ou a essencial.
-					</p>
-				{:else}
-					<div class="space-y-2">
-						{#each opcoesGeradas as opcao (opcao.estrategia)}
-							<button
-								type="button"
-								onclick={() => escolherOpcao(opcao)}
-								class="w-full touch-manipulation rounded-2xl border border-white/10 bg-zinc-950/78 p-3 text-left transition-colors hover:border-purple-300/40 hover:bg-purple-500/10"
-							>
-								<div class="flex items-center justify-between gap-2">
-									<p class="text-sm font-semibold text-white">{opcao.estrategia}</p>
-									{#if opcao.metricas.professorEssencialAtendido && parametrosAtuais?.professorPreferidoEssencial}
-										<span
-											class="shrink-0 rounded-full border border-sky-300/45 bg-sky-500/18 px-2 py-0.5 text-[10px] font-semibold text-sky-100"
-										>
-											Professor preferido
-										</span>
-									{/if}
-								</div>
-								<p class="mt-1 text-[11px] text-white/55">
-									{opcao.resultado.selecao.size} disciplina(s) · {opcao.metricas.diasComAula} dia(s) ·
-									{opcao.metricas.horasTotais.toFixed(1)}h ·
-									{Math.round(opcao.metricas.minutosDeLacuna / 60)}h de furo
-								</p>
-								{#if opcao.resultado.naoAlocadas.length > 0}
-									<p class="mt-1 text-[10px] text-amber-300/85">
-										Não coube: {opcao.resultado.naoAlocadas.map(nomeMateria).join(', ')}
-									</p>
-								{/if}
-							</button>
-						{/each}
-					</div>
-				{/if}
+				{/each}
 			</div>
-		{/if}
+		</fieldset>
+	</div>
+	{#snippet footer()}
+		<footer class="border-t border-border px-5 py-3">
+			<button type="button" onclick={aplicarPreferencias} class="mg-btn mg-btn-primary w-full">
+				Aplicar preferências
+			</button>
+		</footer>
 	{/snippet}
-
-	{#snippet calendario()}
-		<div class="mb-1.5 flex items-center justify-between px-1">
-			<p class="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-				{compacto ? 'Sua semana' : '3 · Sua semana'}
-			</p>
-			<HelpTip
-				side="left"
-				title={calendarioExpandido ? 'Voltar ao layout compacto' : 'Ampliar o calendário'}
-				text={calendarioExpandido
-					? 'Traz matérias e resumo de volta para o lado do calendário.'
-					: 'O calendário ocupa a tela inteira e os painéis descem — melhor pra enxergar a semana toda.'}
-			>
-				<button
-					type="button"
-					onclick={() => (calendarioExpandido = !calendarioExpandido)}
-					data-tour="ampliar"
-					class="hidden touch-manipulation items-center gap-1 rounded-full border border-border bg-foreground/5 px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-foreground/10 lg:inline-flex"
-				>
-					{#if calendarioExpandido}
-						<Minimize2 class="h-3 w-3" /> Reduzir
-					{:else}
-						<Maximize2 class="h-3 w-3" /> Ampliar
-					{/if}
-				</button>
-			</HelpTip>
-		</div>
-		<ScheduleGrid onBlocoClick={(codigo) => (materiaDialog = codigo)} />
-	{/snippet}
-
-	{#if compacto}
-		{@render calendario()}
-
-		<!--
-			Abas em vez de empilhar: o resumo ficava depois de toda a lista de turmas,
-			a mais de três telas de rolagem de onde ele é útil.
-		-->
-		<div class="mt-4">
-			<div
-				class="mb-3 flex gap-1 rounded-full border border-border bg-foreground/5 p-1"
-				role="tablist"
-				aria-label="Painéis do montador"
-			>
-				<button
-					type="button"
-					role="tab"
-					aria-selected={painel === 'materias'}
-					onclick={() => (painel = 'materias')}
-					class="flex flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition-colors {painel ===
-					'materias'
-						? 'bg-accent text-accent-foreground'
-						: 'text-muted-foreground'}"
-				>
-					<BookMarked class="h-3.5 w-3.5" />
-					Matérias
-					<span class="rounded-full bg-foreground/10 px-1.5 text-[10px] text-muted-foreground tabular-nums">
-						{gradeStore.pool.length}
-					</span>
-				</button>
-				<button
-					type="button"
-					role="tab"
-					aria-selected={painel === 'resumo'}
-					onclick={() => (painel = 'resumo')}
-					class="flex flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition-colors {painel ===
-					'resumo'
-						? 'bg-accent text-accent-foreground'
-						: 'text-muted-foreground'}"
-				>
-					<ListChecks class="h-3.5 w-3.5" />
-					Na grade
-					<span class="rounded-full bg-foreground/10 px-1.5 text-[10px] text-muted-foreground tabular-nums">
-						{gradeStore.selecao.size}
-					</span>
-				</button>
-				<!--
-					Só ícone: com três abas em `flex-1`, "Situação" por extenso não cabe
-					abaixo de 380px sem espremer os outros dois rótulos.
-				-->
-				<button
-					type="button"
-					role="tab"
-					aria-selected={painel === 'situacao'}
-					onclick={() => (painel = 'situacao')}
-					aria-label="Situação — o que falta para você se formar"
-					title="Situação — o que falta para você se formar"
-					class="flex touch-manipulation items-center justify-center gap-1 rounded-full px-3 py-2 text-xs font-semibold transition-colors {painel ===
-					'situacao'
-						? 'bg-accent text-accent-foreground'
-						: 'text-muted-foreground'}"
-				>
-					<GraduationCap class="h-3.5 w-3.5" />
-					{#if temPerguntaModuloLivre}
-						<!-- Um ponto, não um "1": não é contagem, é "tem coisa aqui pra você". -->
-						<span class="h-1.5 w-1.5 rounded-full bg-amber-700 dark:bg-amber-400"></span>
-					{/if}
-				</button>
-			</div>
-
-			{#if painel === 'materias'}
-				<div class="space-y-3">{@render colunaMaterias()}</div>
-			{:else if painel === 'situacao'}
-				{@render painelSituacao(true)}
-			{:else}
-				<GradeResumo compacto />
-			{/if}
-		</div>
-	{:else if calendarioExpandido}
-		<div class="space-y-4">
-			<div>{@render calendario()}</div>
-			<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-				<div class="space-y-3">
-					{#if modoMontador !== 'fechado'}
-						{@render wizardMontador()}
-					{:else}
-						{@render colunaMaterias()}
-					{/if}
-				</div>
-				<div class="space-y-3">
-					{@render painelSituacao(false)}
-					<GradeResumo />
-				</div>
-			</div>
-		</div>
-	{:else}
-		<div class="grid gap-4 lg:grid-cols-[22rem_minmax(0,1fr)_18rem]">
-			<!--
-				Coluna esquerda: matérias + busca — ou o painel "modo mágico" do wizard,
-				substituindo-a inline quando "Montar grade" está aberto (não é modal: o
-				calendário e o resumo continuam fixos ao lado, "Minha semana" sem sumir).
-			-->
-			<div
-				class="order-2 space-y-3 lg:sticky lg:top-24 lg:order-1 lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto lg:pr-0.5"
-			>
-				{#if modoMontador !== 'fechado'}
-					{@render wizardMontador()}
-				{:else}
-					{@render colunaMaterias()}
-				{/if}
-			</div>
-
-			<!-- Centro: calendário -->
-			<div class="order-1 lg:order-2">{@render calendario()}</div>
-
-			<!--
-				Direita: situação e resumo. A situação vem primeiro porque é contexto —
-				o que falta para se formar se lê antes do que a grade ficou. No desktop
-				não há abas: as duas ficam visíveis ao mesmo tempo.
-			-->
-			<div class="order-3 space-y-3">
-				{@render painelSituacao(false)}
-				<GradeResumo />
-			</div>
-		</div>
-	{/if}
-
-	<!--
-		Resumo compacto fixo mobile: só faz sentido fora da aba "resumo" (que já É o
-		resumo) e com o wizard fechado (o sheet do wizard cobre a tela toda por cima).
-		Créditos + matérias na grade + o que não coube — os mesmos números que já
-		existem no store, sem cálculo novo.
-	-->
-	{#if compacto && painel !== 'resumo' && modoMontador === 'fechado'}
-		<div
-			class="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-zinc-950/95 px-3 backdrop-blur-sm"
-			style="padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px)); padding-top: 0.5rem;"
-		>
-			<div class="mx-auto flex max-w-7xl items-center gap-3 text-[11px] text-white/60">
-				<span class="flex items-center gap-1 {creditosAcima ? 'font-semibold text-red-300' : ''}">
-					<ListChecks class="h-3.5 w-3.5 shrink-0" />
-					{contadorTexto}{unidadeCargaStore.sufixo}
-				</span>
-				<span class="flex items-center gap-1">
-					<BookMarked class="h-3.5 w-3.5 shrink-0" />
-					{gradeStore.selecao.size} na grade
-				</span>
-				{#if gradeStore.ultimaMontagem && gradeStore.ultimaMontagem.naoAlocadas.length > 0}
-					<span class="ml-auto flex items-center gap-1 text-amber-300/85">
-						<Info class="h-3.5 w-3.5 shrink-0" />
-						{gradeStore.ultimaMontagem.naoAlocadas.length} não coube
-					</span>
-				{/if}
-			</div>
-		</div>
-	{/if}
-
-	<!--
-		Painel de parâmetros/resultados do wizard no compacto: bottom sheet (Fase 4 do
-		plano), em vez de mais uma aba — abre por cima de qualquer aba selecionada e
-		fecha de volta pra ela. Fica dentro do wrapper porque é aqui que `wizardMontador`
-		está em escopo (snippets do Svelte seguem o aninhamento do template).
-	-->
-	{#if compacto}
-		<ResponsiveSheet
-			aberto={modoMontador !== 'fechado'}
-			onClose={fecharWizard}
-			titulo="Montar grade"
-			subtitulo={modoMontador === 'parametros'
-				? 'Passo 1 de 2 — Configurar'
-				: 'Passo 2 de 2 — Resultados'}
-		>
-			<div class="max-h-[70dvh] touch-pan-y overflow-y-auto overscroll-y-contain p-3">
-				{@render wizardMontador()}
-			</div>
-		</ResponsiveSheet>
-	{/if}
-</div>
+</ResponsiveSheet>
 
 <TrocarTurmaDialog codigo={materiaDialog} onClose={() => (materiaDialog = null)} />
 

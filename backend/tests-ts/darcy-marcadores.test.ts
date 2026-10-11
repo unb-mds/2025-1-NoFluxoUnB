@@ -67,7 +67,18 @@ jest.mock("../src/supabase_wrapper", () => ({
     SupabaseWrapper: {
         get: () => ({
             from: (t: string) => tableFrom(t),
-            rpc: async () => ({ data: "2026.2", error: null }),
+            rpc: async (fn: string) => {
+                if (fn === "darcy_reservar_pergunta") {
+                    return {
+                        data: [{ permitido: true, usadas: 1, limite: 30, dia: "2026-10-07", renova_em: "2026-10-08T03:00:00Z" }],
+                        error: null,
+                    };
+                }
+                if (fn === "darcy_custo_ia_hoje") {
+                    return { data: 0, error: null };
+                }
+                return { data: "2026.2", error: null };
+            },
             auth: {
                 getUser: async (token: string) =>
                     token === "token-valido"
@@ -98,6 +109,7 @@ import { canonicalizarResposta, marcadorGradePronta } from "../src/services/chat
 import { marcadorTurma, consultarTurmasMateria } from "../src/services/agente/tools/materia_tools";
 import { responderAtalhoTurmas } from "../src/services/chat/atalhos";
 import { ChatController } from "../src/controllers/chat_controller";
+import { _limparCacheTeto } from "../src/services/darcy_cota.service";
 
 function fakeRes() {
     const res: any = { statusCode: 0, body: undefined };
@@ -189,6 +201,10 @@ describe("[TURMA] com 9 campos", () => {
 });
 
 describe("/chat/send grava o texto final na sessão", () => {
+    beforeEach(() => {
+        _limparCacheTeto();
+    });
+
     it("reply e /chat/historico trazem o [MONTAR_GRADE] canônico, não o do modelo", async () => {
         const textoModelo = "Pronto, ficou em 3 dias.\n[MONTAR_GRADE|FGA0242:1]";
         // Simula o SDK: grava pergunta + resposta do modelo na sessão e devolve o texto.

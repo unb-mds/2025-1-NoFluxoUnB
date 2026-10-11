@@ -107,28 +107,27 @@ for (const s of ALVOS) {
 		const t0 = Date.now();
 		await page.goto('/planejamento/grade', { waitUntil: 'domcontentloaded' });
 
-		// O onMount dispara montar(): plano → semeadura → solver. Espera o Resumo
-		// existir e sair do estado de carregando.
-		const resumo = page.locator('[data-tour="resumo"]');
+		// O onMount dispara montar(): plano → semeadura → solver. Espera "Suas
+		// matérias" existir (só aparece depois do carregamento).
+		const materias = page.locator('[data-tour="materias"]');
 		let chegou = true;
 		let clicou = false;
 		try {
-			await resumo.waitFor({ state: 'visible', timeout: 45_000 });
+			await materias.waitFor({ state: 'visible', timeout: 45_000 });
 			// O `onMount` só SEMEIA a lista; quem dispara o solver é o aluno clicando
 			// em "Montar grade". A auditoria faz exatamente esse clique.
 			if (MODO === 'sem-matr') {
-				// Mesmo caminho do aluno: o botão na barra. Ele já remonta sozinho.
-				const alternar = page
-					.getByRole('button', { name: /Incluindo cursando|Sem as cursando/i })
-					.first();
-				if (await alternar.isVisible().catch(() => false)) {
-					await alternar.click();
-					await page.waitForTimeout(2500);
-				}
+				// Mesmo caminho do aluno: o interruptor em "Filtros e preferências".
+				// Aplicar remonta sozinho.
+				await page.getByRole('button', { name: /Filtros e preferências/i }).first().click();
+				const alternar = page.getByRole('switch', { name: /Incluir matérias que já curso/i });
+				if (await alternar.isVisible().catch(() => false)) await alternar.click();
+				await page.getByRole('button', { name: /Aplicar preferências/i }).click();
+				await page.waitForTimeout(2500);
 			}
-			// "Montar grade" agora abre o wizard de 2 passos (Configurar → Resultados)
-			// em vez de montar direto: gera as opções e aplica a primeira, que é o
-			// equivalente do clique único de antes pro que esta auditoria mede.
+			// "Montar grade" abre o painel "Gerar grade"; "Gerar opções" monta as opções
+			// e já aplica a estratégia escolhida — o equivalente do clique único de
+			// antes pro que esta auditoria mede.
 			const botao = page.getByRole('button', { name: /Montar grade/i }).first();
 			await botao.waitFor({ state: 'visible', timeout: 20_000 });
 			await botao.click();
@@ -136,11 +135,7 @@ for (const s of ALVOS) {
 			const gerar = page.getByRole('button', { name: /Gerar opções/i });
 			await gerar.waitFor({ state: 'visible', timeout: 10_000 });
 			await gerar.click();
-			const opcaoGerada = page
-				.getByRole('button', { name: /Menos dias|Menos lacunas|Semana equilibrada/i })
-				.first();
-			await opcaoGerada.waitFor({ state: 'visible', timeout: 20_000 });
-			await opcaoGerada.click();
+			await gerar.waitFor({ state: 'hidden', timeout: 20_000 });
 			await page.waitForTimeout(1500);
 		} catch {
 			chegou = false;
@@ -148,11 +143,20 @@ for (const s of ALVOS) {
 		const ms = Date.now() - t0;
 
 		const url = page.url();
-		const textoResumo = chegou ? ((await resumo.textContent()) ?? '') : '';
-		const codigosGrade = [...new Set(textoResumo.match(/[A-Z]{2,4}\d{4}/g) ?? [])];
+		// Na grade = chips de "Suas matérias" com turma escolhida.
+		const codigosGrade: string[] = [];
+		if (chegou) {
+			for (const li of await materias.locator('li[data-codigo]').all()) {
+				if (await li.getAttribute('data-turma')) codigosGrade.push((await li.getAttribute('data-codigo')) ?? '');
+			}
+		}
 
+		// "Carga do semestre": "300/360 h · 20/24 créditos".
+		const textoCarga = chegou
+			? ((await page.locator('[data-tour="creditos"]').first().textContent().catch(() => '')) ?? '')
+			: '';
 		const creditos = (() => {
-			const m = textoResumo.match(/(\d+)\s*créditos/);
+			const m = textoCarga.match(/(\d+)\/\d+\s*créditos/);
 			return m ? Number(m[1]) : null;
 		})();
 
@@ -169,7 +173,7 @@ for (const s of ALVOS) {
 		const avisoPreReq = /pré-requisito/i.test(textoPagina);
 		const avisoCoReq = /Co-requisito fora da grade/i.test(textoPagina);
 		const avisoPlano = /não indicou matérias|não consegui carregar seu plano/i.test(textoPagina);
-		const semGrade = /Nenhuma matéria na grade ainda/i.test(textoResumo);
+		const semGrade = chegou && codigosGrade.length === 0;
 
 		await page.screenshot({
 			path: path.join(DIR_SHOTS, `aluno-${s.idUser}-${MODO}.png`),
