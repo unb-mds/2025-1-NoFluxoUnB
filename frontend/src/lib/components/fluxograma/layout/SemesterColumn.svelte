@@ -136,7 +136,7 @@
 		class="sticky top-0 z-10 rounded-[10px] border border-primary/35 px-3 py-1.5 text-center"
 		style="background: hsl(var(--primary) / 0.18); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 0 12px hsl(var(--primary) / 0.15);"
 	>
-		<span class="text-[length:clamp(12px,5.8cqw,14px)] font-bold uppercase tracking-wider text-white/95">
+		<span class="text-[length:clamp(12px,5.8cqw,14px)] font-bold uppercase tracking-wider text-foreground/95">
 			{headerLabel ?? `Semestre ${semester}`}
 		</span>
 	</div>
@@ -144,12 +144,12 @@
 	<!-- Badge: horas/créditos no topo (menos transparência para fácil leitura) -->
 	{#if subjectsVisiveis.length > 0 || optPlannedVisiveis.length > 0 || extrasVisiveis.length > 0}
 		<div
-			class="flex justify-center rounded-lg border border-white/15 bg-white/[0.06] px-2 py-1.5 text-center shadow-sm backdrop-blur-sm"
+			class="flex justify-center rounded-lg border border-border bg-foreground/5 px-2 py-1.5 text-center shadow-sm backdrop-blur-sm"
 			title={displayUnit === 'creditos'
 				? `${stats.completedCredits} de ${stats.totalCredits} créditos do semestre`
 				: `${stats.completedHours} de ${stats.totalHours}h do semestre`}
 		>
-			<span class="text-[length:clamp(12px,5.6cqw,13.5px)] font-semibold text-white/90">{badgeLabel}</span>
+			<span class="text-[length:clamp(12px,5.6cqw,13.5px)] font-semibold text-foreground/90">{badgeLabel}</span>
 		</div>
 	{/if}
 

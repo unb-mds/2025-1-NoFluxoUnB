@@ -18,7 +18,9 @@ const PUBLIC_ROUTES_EXACT = [
 	'/auth/callback',
 	'/auth/reset-password',
 	'/termos',
-	'/privacidade'
+	'/privacidade',
+	'/conheca',
+	'/acessibilidade'
 ];
 
 /** Rotas públicas por prefixo: qualquer path que comece com um deles é público (ex: /fluxogramas, /meu-fluxograma/Engenharia). */

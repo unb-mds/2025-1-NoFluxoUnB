@@ -8,14 +8,14 @@
 				default:
 					"border-transparent bg-primary text-primary-foreground [a&]:hover:brightness-110",
 				secondary:
-					"border-white/10 bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/85",
+					"border-foreground/10 bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/85",
 				ai: "nf-chip-ai border-0 px-2.5 font-medium text-[12px]",
 				destructive:
 					"border-transparent bg-destructive text-destructive-foreground [a&]:hover:brightness-110 focus-visible:ring-destructive/30",
 				outline:
-					"border-white/12 bg-transparent text-muted-foreground [a&]:hover:bg-secondary/55 [a&]:hover:text-foreground",
+					"border-foreground/12 bg-transparent text-muted-foreground [a&]:hover:bg-secondary/55 [a&]:hover:text-foreground",
 				muted:
-					"border-white/10 bg-secondary/50 text-muted-foreground [a&]:hover:border-white/14 [a&]:hover:text-foreground",
+					"border-foreground/10 bg-secondary/50 text-muted-foreground [a&]:hover:border-foreground/14 [a&]:hover:text-foreground",
 			},
 		},
 		defaultVariants: {

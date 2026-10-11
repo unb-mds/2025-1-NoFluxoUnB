@@ -5,7 +5,7 @@
  */
 
 import { supabaseDataService } from '$lib/services/supabase-data.service';
-import type { IntegralizacaoResult, MatrizModel } from '$lib/types/matriz';
+import type { IntegralizacaoResult } from '$lib/types/matriz';
 import type { DadosFluxogramaUser } from '$lib/types/user';
 import type { CargaHorariaIntegralizada } from '$lib/types/user';
 import { getCompletedSubjectCodes } from '$lib/types/user';
@@ -77,13 +77,19 @@ export interface IntegralizacaoInput {
 }
 
 /**
- * Retorna o JSON de integralização: Exigido (matriz) vs Realizado (soma das concluídas).
+ * Percentual cumprido. Só chega a 100 quando realizado >= exigido: arredondar
+ * para cima mostrava 100% com horas ainda faltando (ex.: 3840 de 3855 h).
+ * Manter igual a `pct` em backend/src/services/integralizacao.service.ts.
  */
-function pct(exigido: number, realizado: number): number {
+export function pct(exigido: number, realizado: number): number {
 	if (exigido <= 0) return 0;
-	return Math.min(100, Math.round((realizado / exigido) * 100));
+	if (realizado >= exigido) return 100;
+	return Math.max(0, Math.min(99, Math.floor((realizado / exigido) * 100)));
 }
 
+/**
+ * Retorna o JSON de integralização: Exigido (matriz) vs Realizado (soma das concluídas).
+ */
 export async function getIntegralizacao(input: IntegralizacaoInput): Promise<IntegralizacaoResult | null> {
 	const {
 		curriculoCompleto,
@@ -99,12 +105,10 @@ export async function getIntegralizacao(input: IntegralizacaoInput): Promise<Int
 	const matriz = await supabaseDataService.getMatrizByCurriculoCompleto(cc);
 	if (!matriz) return null;
 
+	// Grade vazia não zera o realizado: sem recálculo, a CH do PDF continua valendo.
+	// Só no modo de recálculo o loop sobre a grade vazia resulta em 0.
 	const gradeRaw = await supabaseDataService.getGradeByMatriz(matriz.idMatriz);
-	if (!gradeRaw || gradeRaw.length === 0) {
-		return buildResultZeroRealizado(matriz, [], []);
-	}
-
-	const grade = dedupeGradePorCodigoENatureza(gradeRaw);
+	const grade = dedupeGradePorCodigoENatureza(gradeRaw ?? []);
 
 	const codigosObrigatorios = grade.filter((g) => g.categoria === 'obrigatoria').map((g) => g.codigoMateria);
 	const completedCodes = dadosFluxograma ? getCompletedSubjectCodes(dadosFluxograma) : new Set<string>();
@@ -298,10 +302,19 @@ export async function getIntegralizacao(input: IntegralizacaoInput): Promise<Int
 		chTotal: matriz.chTotalExigida ?? 0
 	};
 
+	// No recálculo, cada categoria só conta até o exigido dela: optativa excedente
+	// não pode esconder obrigatória pendente no total. Exigido 0 = matriz sem o dado,
+	// aí não há teto. (Módulo livre não entra aqui; ver card "FIX: Módulo Livre".)
+	const ateOExigido = (realizadoCat: number, exigidoCat: number) =>
+		exigidoCat > 0 ? Math.min(realizadoCat, exigidoCat) : realizadoCat;
 	const chTotalRealizado =
 		!recalcularPorDisciplinas && cargaHorariaIntegralizada && cargaHorariaIntegralizada.total > 0
 			? cargaHorariaIntegralizada.total
-			: chObrigatoriaRealizado + chOptativaRealizado + chComplementarRealizado;
+			: recalcularPorDisciplinas
+				? ateOExigido(chObrigatoriaRealizado, exigido.chObrigatoria) +
+					ateOExigido(chOptativaRealizado, exigido.chOptativa) +
+					ateOExigido(chComplementarRealizado, exigido.chComplementar)
+				: chObrigatoriaRealizado + chOptativaRealizado + chComplementarRealizado;
 
 	const realizado = {
 		chObrigatoria: chObrigatoriaRealizado,
@@ -346,35 +359,5 @@ export async function getIntegralizacao(input: IntegralizacaoInput): Promise<Int
 		chOptativaPlanejada,
 		pctOptativaComPlanejamento,
 		faltamChOptativaAposPlanejamento
-	};
-}
-
-function buildResultZeroRealizado(
-	matriz: MatrizModel,
-	codigosObrigatorios: string[],
-	codigosConcluidos: string[]
-): IntegralizacaoResult {
-	const exigido = {
-		chObrigatoria: matriz.chObrigatoriaExigida ?? 0,
-		chOptativa: matriz.chOptativaExigida ?? 0,
-		chComplementar: matriz.chComplementarExigida ?? 0,
-		chTotal: matriz.chTotalExigida ?? 0
-	};
-	return {
-		curriculoCompleto: matriz.curriculoCompleto,
-		idMatriz: matriz.idMatriz,
-		idCurso: matriz.idCurso,
-		exigido,
-		realizado: { chObrigatoria: 0, chOptativa: 0, chComplementar: 0, chTotal: 0 },
-		faltam: { ...exigido },
-		codigosObrigatorios,
-		codigosConcluidos,
-		pctObrigatoria: 0,
-		pctOptativa: 0,
-		pctComplementar: 0,
-		pctTotal: 0,
-		chOptativaPlanejada: 0,
-		pctOptativaComPlanejamento: 0,
-		faltamChOptativaAposPlanejamento: exigido.chOptativa
 	};
 }

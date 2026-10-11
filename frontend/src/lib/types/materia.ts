@@ -158,18 +158,6 @@ export function prerequisitosAprovadosParaRegistrarConcluida(
 	return st !== SubjectStatusEnum.LOCKED && st !== SubjectStatusEnum.COMPLETED;
 }
 
-export function getStatusColorClass(status: SubjectStatusValue): string {
-	const colorMap: Record<SubjectStatusValue, string> = {
-		[SubjectStatusEnum.COMPLETED]: 'bg-green-500',
-		[SubjectStatusEnum.IN_PROGRESS]: 'bg-blue-500',
-		[SubjectStatusEnum.FAILED]: 'bg-red-500',
-		[SubjectStatusEnum.AVAILABLE]: 'bg-yellow-500',
-		[SubjectStatusEnum.LOCKED]: 'bg-gray-400',
-		[SubjectStatusEnum.NOT_STARTED]: 'bg-gray-300'
-	};
-	return colorMap[status];
-}
-
 export function getStatusLabel(status: SubjectStatusValue): string {
 	const labelMap: Record<SubjectStatusValue, string> = {
 		[SubjectStatusEnum.COMPLETED]: 'Aprovado',

@@ -264,11 +264,11 @@ export function createOrquestradorAgent(opts: OpcoesOrquestrador): Agent {
         estadoMontador?.grade.map((g) => g.codigo) ?? [],
         perfil?.semestreAtual
     );
-    const executarGrade = async (input: string) => {
+    const executarGrade = async (input: string, contexto?: RunContext<unknown>) => {
         if (!curriculoCompleto) {
             return "O aluno ainda não enviou o histórico — sem a matriz dele não dá para montar a grade. Oriente a enviar o histórico.";
         }
-        const resultado = await runGradeComRevisao(grade, input);
+        const resultado = await runGradeComRevisao(grade, input, contexto);
         if (resultado.opcaoGrade) efeitos.opcaoGrade = resultado.opcaoGrade;
         return resultado.reply;
     };
@@ -279,7 +279,8 @@ export function createOrquestradorAgent(opts: OpcoesOrquestrador): Agent {
             description: "Delega para o atuador de integralização: créditos, carga horária e progresso do aluno.",
             parameters: z.object({ input: z.string() }),
             // Wrapper com revisor numérico (outputGuardrail) — docs/chatbot-orquestrador.md.
-            execute: async ({ input }) => runIntegralizacaoComRevisao(integralizacao, input),
+            // O RunContext do orquestrador vai junto pro usage da sub-execução somar no chat-send.
+            execute: async ({ input }, contexto) => runIntegralizacaoComRevisao(integralizacao, input, contexto),
         }),
         optativas.asTool({
             toolName: "buscar_optativas",
@@ -295,14 +296,14 @@ export function createOrquestradorAgent(opts: OpcoesOrquestrador): Agent {
             description:
                 "Delega para o atuador que recomenda matérias que cabem no horário livre atual do aluno (a grade aberta no Montador; fora dele, a semana inteira), priorizando afinidade com o histórico.",
             parameters: z.object({ input: z.string() }),
-            execute: async ({ input }) => executarGrade(input),
+            execute: async ({ input }, contexto) => executarGrade(input, contexto),
         }),
         tool({
             name: "montar_grade",
             description:
                 "Delega para o atuador que MONTA/REARRANJA a grade horária inteira (matéria essencial, turnos, professor preferido, estratégia), com o solver determinístico do backend — resultado garantidamente ótimo, não uma prévia. Matérias em curso ficam sempre na turma real.",
             parameters: z.object({ input: z.string() }),
-            execute: async ({ input }) => executarGrade(input),
+            execute: async ({ input }, contexto) => executarGrade(input, contexto),
         }),
     ];
 

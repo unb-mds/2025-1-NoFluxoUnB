@@ -5,7 +5,6 @@
 	import PageMeta from '$lib/components/seo/PageMeta.svelte';
 	import { authService } from '$lib/services/auth.service';
 	import { goto } from '$app/navigation';
-	import { UserX } from 'lucide-svelte';
 
 	function handleAnonymousLogin() {
 		authService.setAnonymous();
@@ -18,21 +17,20 @@
 <AuthHomeLink />
 <PageBackground />
 
-<div class="flex min-h-screen items-start justify-center overflow-x-hidden px-3 py-8 sm:px-4 sm:py-10">
-	<div class="flex w-full max-w-md flex-col items-center gap-4">
-		<a href="/" class="nf-wordmark nf-wordmark--hero drop-shadow-sm" aria-label="NoFluxo UNB — início">
-			<span class="nf-wordmark-noflx">NOFLX</span><span class="nf-wordmark-unb">UNB</span>
-		</a>
-		<button
-			type="button"
-			class="inline-flex items-center justify-center gap-2 rounded-full bg-white/95 px-4 py-2 text-sm font-medium text-blue-700 shadow-md hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-blue-700"
-			on:click={handleAnonymousLogin}
-		>
-			<UserX class="h-4 w-4" />
-			<span>Entrar como visitante</span>
-		</button>
-		<div class="auth-card w-full mt-8">
-			<LoginForm />
+<div class="flex min-h-screen items-center justify-center overflow-x-hidden px-4 py-10 sm:px-6">
+	<div class="flex w-full max-w-[440px] flex-col items-center gap-7">
+		<!-- Marca + frase: a mesma abertura do app -->
+		<div class="flex flex-col items-center gap-3 text-center">
+			<a href="/" class="nf-wordmark nf-wordmark--hero drop-shadow-sm" aria-label="NoFluxo UNB — início">
+				<span class="nf-wordmark-noflx">NOFLX</span><span class="nf-wordmark-unb">UNB</span>
+			</a>
+			<p class="max-w-[30ch] text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
+				A vida do estudante não é linear.<br />Cada um tem o seu próprio fluxo.
+			</p>
+		</div>
+
+		<div class="auth-card w-full">
+			<LoginForm onVisitor={handleAnonymousLogin} />
 		</div>
 	</div>
 </div>

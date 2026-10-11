@@ -110,7 +110,7 @@
 						onclick={() => scrollToSemester(sem)}
 						class="h-9 min-w-[2.5rem] shrink-0 rounded-full border px-2.5 text-xs font-semibold transition-colors active:scale-95 {sem === semestreAtualAluno
 							? 'border-primary/70 bg-primary/85 text-primary-foreground shadow-lg shadow-primary/25'
-							: 'border-white/15 bg-white/[0.06] text-white/80'}"
+							: 'border-border bg-foreground/5 text-foreground/85'}"
 						aria-label="Ir para o semestre {sem}"
 					>
 						{sem}º
@@ -125,7 +125,7 @@
 			<button
 				type="button"
 				onclick={onToggleFocus}
-				class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-cyan-500/35 bg-cyan-500/15 text-cyan-100 shadow-lg transition-colors active:scale-95"
+				class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-cyan-500/35 bg-cyan-500/15 text-cyan-800 shadow-lg transition-colors active:scale-95 dark:text-cyan-100"
 				aria-label={focusMode ? 'Sair do modo foco do fluxograma' : 'Modo foco do fluxograma'}
 				title={focusMode ? 'Sair do modo foco' : 'Modo foco'}
 			>

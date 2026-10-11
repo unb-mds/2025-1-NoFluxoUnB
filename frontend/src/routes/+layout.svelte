@@ -2,8 +2,10 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
-	import { goto } from '$app/navigation';
+	import { goto, afterNavigate } from '$app/navigation';
 	import { authStore, isLoading, currentUser, isAuthenticated, isAnonymous } from '$lib/stores/auth';
+	// Importar a store já aplica as classes de acessibilidade no <html> e as mantém em dia.
+	import '$lib/stores/a11y';
 	import { authService } from '$lib/services/auth.service';
 	import { checkAuth, isPublicRoute } from '$lib/guards/authGuard';
 	import { isAuthRoute } from '$lib/config/routes';
@@ -12,6 +14,8 @@
 	import PageTransition from '$lib/components/layout/PageTransition.svelte';
 	import SuporteFab from '$lib/components/support/SuporteFab.svelte';
 	import ReleaseNotesModal from '$lib/components/layout/ReleaseNotesModal.svelte';
+	import DarcyLoginModal from '$lib/components/chat/DarcyLoginModal.svelte';
+	import DarcyPedidoMaisPerguntas from '$lib/components/chat/DarcyPedidoMaisPerguntas.svelte';
 	import { Toaster } from 'svelte-sonner';
 	import '../app.css';
 
@@ -45,8 +49,22 @@
 
 	// Determine layout visibility based on current route
 	let showNavbar = $derived(
-		!isAuthRoute($page.url.pathname) && $page.url.pathname !== '/'
+		!isAuthRoute($page.url.pathname) &&
+		$page.url.pathname !== '/' &&
+		// Página de apresentação acessada por link direto (QR/NFC/bio): sem navbar.
+		!$page.url.pathname.startsWith('/conheca')
 	);
+
+	// WCAG 2.4.3: em navegação SPA o foco vai para o conteúdo principal, não fica perdido no
+	// link clicado. Só depois da primeira navegação (na carga inicial o foco fica no documento).
+	let firstNavigation = true;
+	afterNavigate(() => {
+		if (firstNavigation) {
+			firstNavigation = false;
+			return;
+		}
+		requestAnimationFrame(() => document.getElementById('main-content')?.focus({ preventScroll: true }));
+	});
 
 	// Watch for route changes and verify auth
 	$effect(() => {
@@ -90,6 +108,9 @@
 	<title>NoFluxo UNB</title>
 </svelte:head>
 
+<!-- WCAG 2.4.1: primeiro elemento focável da página; só aparece ao receber foco. -->
+<a href="#main-content" class="skip-link">Pular para o conteúdo</a>
+
 <LoadingBar />
 <PageTransition />
 
@@ -107,12 +128,12 @@
 		</div>
 	{/if}
 
-	<main class="flex-1">
+	<main id="main-content" tabindex="-1" class="flex-1 outline-none">
 		{#if $isLoading && !isPublicRoute($page.url.pathname)}
 			<div class="flex min-h-[60vh] items-center justify-center">
 				<div class="text-center">
-					<div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-white/10 border-t-purple-500"></div>
-					<p class="mt-4 text-gray-400">Carregando...</p>
+					<div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-foreground/10 border-t-primary"></div>
+					<p class="mt-4 text-muted-foreground">Carregando...</p>
 				</div>
 			</div>
 		{:else}
@@ -128,6 +149,12 @@
 <!-- Novidades do release: 1x por usuário; pede reenvio do histórico se o dado for antigo -->
 {#if $isAuthenticated && showNavbar}
 	<ReleaseNotesModal />
+{/if}
+
+<!-- Darcy: login obrigatório (visitante/401) e pedido de mais perguntas (vira ticket) -->
+<DarcyLoginModal />
+{#if $isAuthenticated && !$isAnonymous}
+	<DarcyPedidoMaisPerguntas />
 {/if}
 
 <Toaster richColors position="top-right" />

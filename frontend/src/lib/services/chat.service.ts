@@ -9,6 +9,7 @@
  */
 import { apiRequest } from '$lib/utils/api';
 import type { OpcaoGradeChat, PlanoFormaturav2, RestricoesPlano } from '$lib/types/plano-formatura';
+import { ErroIA, type CotaIA } from '$lib/utils/darcy-cota';
 
 export type Superficie = 'assistente' | 'plano' | 'montador';
 export type TurnoChat = 'M' | 'T' | 'N';
@@ -42,6 +43,8 @@ export interface ChatSendResponse {
 	/** Plano atualizado quando uma tool de plano (adiar, mover, ajustar carga…) mudou algo. */
 	plano?: PlanoFormaturav2;
 	restricoes?: RestricoesPlano;
+	/** Cota diária do aluno já contando esta pergunta (rodinha do chat). */
+	cota?: CotaIA;
 }
 
 export interface MensagemHistorico {
@@ -63,7 +66,7 @@ export class ChatService {
 			body
 		});
 		if (error || !data) {
-			throw new Error(`Erro ${status} ao chamar /chat/send: ${error ?? 'Resposta inválida'}`);
+			throw new ErroIA(status, error ?? '', '/chat/send');
 		}
 		return data;
 	}

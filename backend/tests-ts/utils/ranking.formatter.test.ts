@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { formatRanking } from '../../src/utils/ranking.formatter';
+import { formatRanking, RankingFormatError } from '../../src/utils/ranking.formatter';
 import { RagflowResponse } from '../../src/services/ragflow.types';
 
 describe('Ranking Formatter', () => {
@@ -42,11 +42,13 @@ describe('Ranking Formatter', () => {
             expect(result).toContain('Pontuação: **90/100**');
         });
 
-        it('deve lidar com ausência de dados ou objetos malformados (Error Guessing / Valor Limite)', () => {
-            const mockResponse = { code: 0, data: {} } as RagflowResponse;
-            const result = formatRanking(mockResponse);
-            expect(typeof result).toBe('string');
-            expect(result).toContain('Erro');
+        // Pré-mortem 27/09/2026, R53: antes devolvia a string "Erro ao processar
+        // o JSON: Cannot read properties of undefined" e o controller mandava
+        // isso com HTTP 200 como se fosse o ranking.
+        it('deve lançar RankingFormatError quando o RAGFlow responde sem answer (Error Guessing / Valor Limite)', () => {
+            expect(() => formatRanking({ code: 0, data: {} } as RagflowResponse)).toThrow(RankingFormatError);
+            expect(() => formatRanking({ code: 0 } as unknown as RagflowResponse)).toThrow(RankingFormatError);
+            expect(() => formatRanking({ code: 0, data: { answer: '   ' } } as unknown as RagflowResponse)).toThrow(RankingFormatError);
         });
     });
 
@@ -129,7 +131,7 @@ describe('Ranking Formatter', () => {
             expect(result).toContain('**0/100**'); // O parseInt("Invalida") gera NaN, fallback da pontuação para 0
         });
 
-        it('deve retornar mensagem de erro nativa se o content for estritamente vazio após o parsing (Grafo de Fluxo de Controle)', () => {
+        it('deve lançar erro se o content for estritamente vazio após o parsing (Grafo de Fluxo de Controle)', () => {
             const mockResponse: RagflowResponse = {
                 code: 0,
                 data: {
@@ -137,11 +139,10 @@ describe('Ranking Formatter', () => {
                     session_id: 'test'
                 }
             };
-            const result = formatRanking(mockResponse);
-            expect(result).toBe('Erro: Não foi possível extrair um bloco de ranking válido do JSON.');
+            expect(() => formatRanking(mockResponse)).toThrow(RankingFormatError);
         });
 
-        it('deve retornar string vazia caso o dict Python não possua o índice 0 (fallback extractContent)', () => {
+        it('deve lançar erro caso o dict Python não possua o índice 0 (fallback extractContent)', () => {
             const mockResponse: RagflowResponse = {
                 code: 0,
                 data: {
@@ -149,8 +150,7 @@ describe('Ranking Formatter', () => {
                     session_id: 'test'
                 }
             };
-            const result = formatRanking(mockResponse);
-            expect(result).toBe('Erro: Não foi possível extrair um bloco de ranking válido do JSON.');
+            expect(() => formatRanking(mockResponse)).toThrow('Não foi possível extrair um bloco de ranking válido do JSON.');
         });
 
         it('deve lidar com formato de linha única faltando pontuação e justificativa explicitamente', () => {
@@ -180,8 +180,8 @@ describe('Ranking Formatter', () => {
 
         it('deve tratar exceções primitivas (não-Error objects) no catch final', () => {
             const mockResponse = { get data() { throw "Exceção em String"; } } as unknown as RagflowResponse;
-            const result = formatRanking(mockResponse);
-            expect(result).toContain('Erro ao processar o JSON: Exceção em String');
+            expect(() => formatRanking(mockResponse)).toThrow(RankingFormatError);
+            expect(() => formatRanking(mockResponse)).toThrow('Erro ao processar o JSON: Exceção em String');
         });
         it('deve preencher as ramificações faltantes: fallbacks do formato legado, ementa fantasma e limpeza de traços finais', () => {
             const mockResponse: RagflowResponse = {

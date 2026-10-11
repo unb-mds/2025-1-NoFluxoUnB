@@ -6,13 +6,22 @@ import os
 import json
 import re
 import time
-from math import ceil
 from pydantic import BaseModel
 from openai import OpenAI
 import google.generativeai as genai
 from supabase import create_client
 from dotenv import load_dotenv
 from tool_call_utils import extrair_tool_call_texto, termo_materia
+from sabia_utils import (
+    MAX_TERMOS_BUSCA,
+    codigos_validos_de,
+    linha_uso_embeddings,
+    maritaca_client_kwargs,
+    maritaca_opcoes_geracao_sem_stream,
+    maritaca_opcoes_roteamento,
+    normalizar_termos_busca,
+    parse_resposta_sabia,
+)
 
 
 # 1. INICIALIZAÇÃO GLOBAL (Roda apenas quando o servidor liga)
@@ -59,9 +68,11 @@ genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
 supabase = create_client(
     os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 )
-client_maritaca = OpenAI(
-    api_key=os.environ.get("MARITACA_API_KEY"), base_url="https://chat.maritaca.ai/api"
-)
+# Timeout e retries limitados (ver sabia_utils): o padrão do SDK (600s x 3
+# tentativas) deixava a request presa com a Maritaca pendurada. O padrão do
+# cliente vale para o stream; as chamadas sem stream usam with_options com o
+# teto próprio (sem stream, o read timeout limita a geração inteira).
+client_maritaca = OpenAI(**maritaca_client_kwargs(os.environ.get("MARITACA_API_KEY")))
 
 # Configuração do FastAPI
 app = FastAPI(title="Darcy AI - API da UnB", version="1.0")
@@ -84,6 +95,11 @@ app.add_middleware(
 class Consulta(BaseModel):
     interesse: str
     matriz_curricular: str = ""
+    # Quem perguntou e qual pergunta (o backend manda do contexto da pergunta
+    # do Darcy): as embeddings Gemini da busca feita dentro do /recomendar e do
+    # /recomendar-stream vão para o ai_usage_log na mesma pergunta.
+    user_id: str | None = None
+    pergunta_id: str | None = None
 
 
 # Prompt de ROTEAMENTO — usado na 1ª chamada, apenas para o modelo escolher a ferramenta.
@@ -134,6 +150,7 @@ TOOLS = [
                     "termos_busca": {
                         "type": "array",
                         "items": {"type": "string"},
+                        "maxItems": MAX_TERMOS_BUSCA,
                         "description": "Lista com EXATAMENTE 4 strings obrigatórias: [termo_principal, sinônimo1, sinônimo2, termo_relacionado]. SEMPRE preencha os 4 campos, mesmo que repita termos similares.",
                     }
                 },
@@ -176,64 +193,6 @@ TOOLS = [
         },
     },
 ]
-
-
-def parse_resposta_sabia(texto: str) -> list:
-    """Extrai as disciplinas do texto da IA bloqueando qualquer duplicação."""
-    disciplinas = []
-    codigos_vistos = set()  # O nosso rastreador de duplicatas
-
-    linhas = texto.split("\n")
-    for linha in linhas:
-        linha = linha.strip().lstrip("*").lstrip("-").lstrip("•").strip()
-        codigo_match = re.match(r"([A-Z]{3}\d{4})", linha)
-        if not codigo_match:
-            continue
-
-        try:
-            codigo = codigo_match.group(1).upper()
-
-            # Se já vimos esse código pula para a próxima linha
-            if codigo in codigos_vistos:
-                continue
-
-            codigos_vistos.add(codigo)  # Registra que já pegou essa matéria
-
-            resto = linha[len(codigo) :].strip().lstrip("-").strip()
-
-            nome = (
-                resto.split("|")[0].strip()
-                if "|" in resto
-                else (
-                    resto.split("Nota:")[0].strip()
-                    if "Nota:" in resto
-                    else resto.strip()
-                )
-            )
-            nome = nome.strip("*").strip()
-
-            nota = 7
-            if "Nota:" in linha:
-                nota_texto = re.sub(r"[^\d]", "", linha.split("Nota:")[1].split("/")[0])
-                if nota_texto:
-                    nota = int(nota_texto)
-
-            justificativa = ""
-            if "Motivo:" in linha:
-                justificativa = linha.split("Motivo:")[1].strip().strip("*").strip()
-
-            disciplinas.append(
-                {
-                    "codigo": codigo,
-                    "nome": nome,
-                    "nota": nota,
-                    "justificativa": justificativa,
-                }
-            )
-        except Exception:
-            continue
-
-    return disciplinas
 
 
 # --- NOVA FUNÇÃO: O FLUXO DIRETO PELA MATRIZ (COM LIMPEZA REGEX) ---
@@ -330,11 +289,16 @@ def ferramenta_buscar_optativas(matriz_curricular: str) -> str:
         return json.dumps([])
 
 
-def ferramenta_buscar_materias_unb(termos_busca: list) -> str:
+def ferramenta_buscar_materias_unb(
+    termos_busca: list, estado: dict | None = None
+) -> str:
+    """Busca semântica. `estado`, se passado, recebe "ok": False quando a busca
+    falha (a função engole o erro e devolve "[]" para o modelo seguir)."""
     print(f"\n[DEBUG] 🧠 Termos recebidos da Maritaca: {termos_busca}")
     try:
-        # Filtrar termos vazios antes de enviar para o Gemini
-        termos_validos = [t.strip() for t in termos_busca if t and t.strip()]
+        # Filtrar termos vazios/duplicados e limitar a MAX_TERMOS_BUSCA antes de
+        # enviar para o Gemini: cada termo custa 1 embedding + 1 RPC no Supabase.
+        termos_validos = normalizar_termos_busca(termos_busca)
 
         if not termos_validos:
             print("⚠️ Nenhum termo válido para busca.")
@@ -406,7 +370,36 @@ def ferramenta_buscar_materias_unb(termos_busca: list) -> str:
 
     except Exception as e:
         print(f"❌ Erro na ferramenta de busca, tente novamente mais tarde: {e}")
+        if estado is not None:
+            estado["ok"] = False
         return json.dumps([])
+
+
+def _buscar_materias_logando(
+    endpoint: str,
+    termos_busca: list,
+    user_id: str | None = None,
+    pergunta_id: str | None = None,
+) -> str:
+    """Busca semântica feita dentro do /recomendar(-stream), com as embeddings
+    Gemini registradas no ai_usage_log (antes só o /buscar-materias logava).
+
+    Sem termo válido não há chamada ao Gemini e nada é logado.
+    """
+    termos_validos = normalizar_termos_busca(termos_busca)
+    estado = {"ok": True}
+    inicio = time.time()
+    resultado = ferramenta_buscar_materias_unb(termos_busca, estado)
+    if termos_validos:
+        _log_ai_usage_embeddings(
+            endpoint,
+            termos_validos,
+            int((time.time() - inicio) * 1000),
+            estado["ok"],
+            user_id,
+            pergunta_id,
+        )
+    return resultado
 
 
 def ferramenta_explicar_materia(termo: str) -> dict:
@@ -477,40 +470,41 @@ def resolver_tool_call(msg_ia):
 @app.get("/health")
 async def health_check():
     """Endpoint para verificar se a API está funcionando"""
-    return {"status": "healthy", "service": "Darcy AI", "version": "2.0"}
+    # commit (GIT_SHA, injetado pelo deploy): o workflow confere a versão no ar
+    return {
+        "status": "healthy",
+        "service": "Darcy AI",
+        "version": "2.0",
+        "commit": os.getenv("GIT_SHA"),
+    }
 
 
 # Busca semântica PURA (embeddings), sem LLM. Exposta como TOOL para o agente
 # TypeScript (planejador_agente). Evita a 2ª chamada de modelo do /recomendar.
 class BuscaMaterias(BaseModel):
     termos_busca: list[str] = []
+    # Quem perguntou e qual pergunta (o backend manda quando a busca é uma
+    # ferramenta do Darcy). Vão para o ai_usage_log junto das embeddings.
+    user_id: str | None = None
+    pergunta_id: str | None = None
 
 
 def _log_ai_usage_embeddings(
-    endpoint: str, termos: list[str], duration_ms: int, success: bool
+    endpoint: str,
+    termos: list[str],
+    duration_ms: int,
+    success: bool,
+    user_id: str | None = None,
+    pergunta_id: str | None = None,
 ) -> None:
     """Loga uso de embeddings Gemini em `ai_usage_log` (tracking de custo no
-    dashboard admin). Fire-and-forget best-effort: nunca lança, não bloqueia a
-    resposta ao chamador além do próprio insert síncrono do supabase-py.
-
-    `genai.embed_content` não devolve contagem de tokens — aproxima por
-    len(texto)/4 (heurística documentada; preço real fica configurado em
-    `ai_pricing` para `gemini-embedding-001`).
+    dashboard admin). Best-effort: nunca lança. Ver linha_uso_embeddings.
     """
     try:
-        texto_concatenado = " ".join(termos)
-        tokens_estimados = max(1, ceil(len(texto_concatenado) / 4))
         supabase.table("ai_usage_log").insert(
-            {
-                "endpoint": endpoint,
-                "model": "gemini-embedding-001",
-                "prompt_tokens": tokens_estimados,
-                "completion_tokens": 0,
-                "total_tokens": tokens_estimados,
-                "duration_ms": duration_ms,
-                "success": success,
-                "request_excerpt": texto_concatenado[:120],
-            }
+            linha_uso_embeddings(
+                endpoint, termos, duration_ms, success, user_id, pergunta_id
+            )
         ).execute()
     except Exception as e:
         print(f"[WARN] Falha ao logar uso de embeddings ({endpoint}): {e}")
@@ -526,7 +520,14 @@ async def buscar_materias(busca: BuscaMaterias):
     inicio = time.time()
     resultado_json = ferramenta_buscar_materias_unb(termos)
     duration_ms = int((time.time() - inicio) * 1000)
-    _log_ai_usage_embeddings("buscar-materias", termos, duration_ms, True)
+    _log_ai_usage_embeddings(
+        "buscar-materias",
+        termos,
+        duration_ms,
+        True,
+        busca.user_id,
+        busca.pergunta_id,
+    )
     try:
         materias = json.loads(resultado_json)
     except Exception:
@@ -568,7 +569,9 @@ async def recomendar_materias(consulta: Consulta):
 
     try:
         # 1ª chamada: só para o modelo ESCOLHER a ferramenta (roteamento).
-        response = client_maritaca.chat.completions.create(
+        response = client_maritaca.with_options(
+            **maritaca_opcoes_roteamento()
+        ).chat.completions.create(
             model="sabiazinho-4",
             messages=[
                 {"role": "system", "content": ROUTING_PROMPT},
@@ -615,7 +618,9 @@ async def recomendar_materias(consulta: Consulta):
         elif nome_ferramenta == "buscar_materias_unb":
             termos = args.get("termos_busca", [])
             print(f"\n[DEBUG] Termos enviados para o banco: {termos}\n")
-            dados_banco = ferramenta_buscar_materias_unb(termos)
+            dados_banco = _buscar_materias_logando(
+                "recomendar", termos, consulta.user_id, consulta.pergunta_id
+            )
             modo = "lista"
         else:
             dados_banco = "[]"
@@ -623,7 +628,9 @@ async def recomendar_materias(consulta: Consulta):
 
         # 2ª chamada: geração final com o prompt certo para cada modo.
         final_prompt = EXPLICACAO_PROMPT if modo == "explicacao" else SYSTEM_PROMPT
-        final_response = client_maritaca.chat.completions.create(
+        final_response = client_maritaca.with_options(
+            **maritaca_opcoes_geracao_sem_stream()
+        ).chat.completions.create(
             model="sabia-4",
             messages=[
                 {"role": "system", "content": final_prompt},
@@ -639,9 +646,12 @@ async def recomendar_materias(consulta: Consulta):
         resposta_texto = final_response.choices[0].message.content or ""
         print(f"\n[DEBUG] Texto bruto da IA:\n{resposta_texto}\n")
 
-        # Modo explicação é prosa: não extrai lista de disciplinas.
+        # Modo explicação é prosa: não extrai lista de disciplinas. No modo lista,
+        # só vira card o código que veio da ferramenta (não o inventado pelo modelo).
         disciplinas = (
-            [] if modo == "explicacao" else parse_resposta_sabia(resposta_texto)
+            []
+            if modo == "explicacao"
+            else parse_resposta_sabia(resposta_texto, codigos_validos_de(dados_banco))
         )
         return {
             "success": True,
@@ -691,12 +701,20 @@ async def recomendar_materias_stream(consulta: Consulta):
                 }
             )
 
+        def _fim(stage: str, **kwargs) -> str:
+            # Todo fim de stream (done ou error) leva antes o evento `usage`:
+            # sem ele o backend logava a pergunta com 0 tokens (768 linhas de
+            # analyze-sabia-stream entre maio e julho de 2026).
+            return _sse_event("usage", calls=usage_calls) + _sse_event(stage, **kwargs)
+
         try:
             # Stage 1: Thinking
             yield _sse_event("thinking", message="Analisando seu interesse...")
 
             # 1ª chamada: só para o modelo ESCOLHER a ferramenta (roteamento).
-            response = client_maritaca.chat.completions.create(
+            response = client_maritaca.with_options(
+                **maritaca_opcoes_roteamento()
+            ).chat.completions.create(
                 model="sabiazinho-4",
                 messages=[
                     {"role": "system", "content": ROUTING_PROMPT},
@@ -712,13 +730,13 @@ async def recomendar_materias_stream(consulta: Consulta):
 
             # Modelo respondeu direto, sem ferramenta.
             if not nome_ferramenta:
-                yield _sse_event("done", resultado=msg_ia.content or "")
+                yield _fim("done", resultado=msg_ia.content or "")
                 return
 
             # Stage 2: Searching & Roteamento
             if nome_ferramenta == "buscar_optativas_curso":
                 if not consulta.matriz_curricular.strip():
-                    yield _sse_event("error", message="Envie o historico academico")
+                    yield _fim("error", message="Envie o historico academico")
                     return
                 yield _sse_event(
                     "searching", message="Consultando sua matriz curricular..."
@@ -739,7 +757,9 @@ async def recomendar_materias_stream(consulta: Consulta):
                 yield _sse_event(
                     "searching", message="Buscando disciplinas no banco de dados..."
                 )
-                dados_banco = ferramenta_buscar_materias_unb(termos)
+                dados_banco = _buscar_materias_logando(
+                    "recomendar-stream", termos, consulta.user_id, consulta.pergunta_id
+                )
                 modo = "lista"
 
             # Stage 3: Generating (with streaming)
@@ -764,10 +784,15 @@ async def recomendar_materias_stream(consulta: Consulta):
                 ],
                 max_tokens=5000,
                 stream=True,
+                # Sem isto a Maritaca não manda o chunk final com `usage` e os
+                # tokens da geração (a parte cara) nunca chegavam ao log.
+                stream_options={"include_usage": True},
             )
 
             resposta_texto = ""
             codigos_emitidos = set()
+            # Só emite card de código que veio da ferramenta (ver /recomendar).
+            codigos_validos = codigos_validos_de(dados_banco)
 
             for chunk in stream:
                 # Chunk final de usage (include_usage) vem sem choices.
@@ -789,7 +814,7 @@ async def recomendar_materias_stream(consulta: Consulta):
                         continue
                     complete_text = resposta_texto[:last_newline]
 
-                    disciplinas = parse_resposta_sabia(complete_text)
+                    disciplinas = parse_resposta_sabia(complete_text, codigos_validos)
                     for disc in disciplinas:
                         if disc["codigo"] not in codigos_emitidos:
                             codigos_emitidos.add(disc["codigo"])
@@ -797,19 +822,16 @@ async def recomendar_materias_stream(consulta: Consulta):
 
             # Parse any remaining text after stream ends (apenas no modo lista)
             if modo == "lista":
-                disciplinas = parse_resposta_sabia(resposta_texto)
+                disciplinas = parse_resposta_sabia(resposta_texto, codigos_validos)
                 for disc in disciplinas:
                     if disc["codigo"] not in codigos_emitidos:
                         codigos_emitidos.add(disc["codigo"])
                         yield _sse_event("disciplina", data=disc)
 
-            # Evento de uso de tokens (para tracking de custo no dashboard)
-            yield _sse_event("usage", calls=usage_calls)
-
-            # Stage 4: Done
-            yield _sse_event("done", resultado=resposta_texto)
+            # Stage 4: Done (precedido do evento de uso de tokens)
+            yield _fim("done", resultado=resposta_texto)
 
         except Exception as e:
-            yield _sse_event("error", message=str(e))
+            yield _fim("error", message=str(e))
 
     return StreamingResponse(generate(), media_type="text/event-stream")

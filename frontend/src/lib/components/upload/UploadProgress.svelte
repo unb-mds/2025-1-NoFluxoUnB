@@ -81,6 +81,10 @@
 		flex: 1;
 		overflow: hidden;
 		border-radius: 9999px;
+		background: hsl(var(--border));
+	}
+
+	:global(.dark) .bar-track {
 		background: hsl(0 0% 100% / 0.08);
 	}
 

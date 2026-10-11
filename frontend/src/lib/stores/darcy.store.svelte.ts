@@ -19,6 +19,7 @@ import {
 	type EstadoSuperficie,
 	type Superficie
 } from '$lib/services/chat.service';
+import { darcyCotaStore } from '$lib/stores/darcy-cota.store.svelte';
 import { mensagemErroChat } from '$lib/utils/ai-errors';
 import type {
 	OpcaoGradeChat,
@@ -183,10 +184,21 @@ function createDarcyStore() {
 					...mensagens,
 					{ role: 'assistant', content: resposta.reply, opcaoGrade: resposta.opcaoGrade }
 				];
+				if (resposta.cota) {
+					darcyCotaStore.atualizar(resposta.cota);
+				}
 				if (resposta.opcaoGrade) registro?.onOpcaoGrade?.(resposta.opcaoGrade);
 				if (resposta.plano) registro?.onPlano?.(resposta.plano);
 				if (resposta.restricoes) registro?.onRestricoes?.(resposta.restricoes);
 			} catch (err) {
+				// Login (401), cota (429) e teto global (503) viram modal/card, não
+				// bolha de erro — a pergunta volta pro aluno reenviar depois.
+				const tipo = darcyCotaStore.tratarErro(err);
+				if (tipo !== 'outro') {
+					mensagens = mensagens.slice(0, -1);
+					error = null;
+					return;
+				}
 				// Bolha amigável: "sem créditos" da Maritaca ganha texto próprio;
 				// o resto cai no fallback genérico (ver $lib/utils/ai-errors).
 				const bolha = mensagemErroChat(err);

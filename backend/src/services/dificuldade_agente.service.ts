@@ -2,6 +2,7 @@ import { SupabaseWrapper } from "../supabase_wrapper";
 import { createControllerLogger } from "../utils/controller_logger";
 import { logAiUsage, type LlmUsage } from "../utils/ai_usage_logger";
 import { MARITACA_URL, MARITACA_MODELS } from "../config/maritaca";
+import { isMaritacaSemCreditos } from "../config/maritaca_errors";
 import type { MateriaInput } from "../types/planejamento";
 
 const logger = createControllerLogger("DificuldadeAgenteService", "avaliar");
@@ -30,6 +31,9 @@ export class DificuldadeAgenteService {
         const inicio = Date.now();
         let chamouLlm = false;
         let houveErro = false;
+        // 403 de saldo: nenhuma chamada foi paga, mas o evento vai ao log (é o
+        // que acende o alerta "Créditos acabaram" no dashboard).
+        let erroSemCreditos: unknown;
         let promptTokensAcc = 0;
         let completionTokensAcc = 0;
         let totalTokensAcc = 0;
@@ -398,6 +402,7 @@ ${listaMaterias}`;
                     }
                     logger.error(`Erro ao avaliar chunk da LLM: ${error.message}`);
                     houveErro = true;
+                    if (isMaritacaSemCreditos(error)) erroSemCreditos = error;
                     for (const m of chunk) {
                         m.dificuldadeEstimada = 4;
                         m.motivoDificuldade = "Erro na IA";
@@ -407,7 +412,7 @@ ${listaMaterias}`;
             }
         }
         
-        if (chamouLlm) {
+        if (chamouLlm || erroSemCreditos !== undefined) {
             const usage: LlmUsage[] = [{
                 model: MARITACA_MODELS.CLASSIFICACAO,
                 prompt_tokens: promptTokensAcc,
@@ -420,6 +425,7 @@ ${listaMaterias}`;
                 success: !houveErro,
                 requestExcerpt: `${materiasComNome.length} materias`,
                 usage,
+                erro: erroSemCreditos,
             });
         }
 

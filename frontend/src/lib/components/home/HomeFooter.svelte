@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Github } from 'lucide-svelte';
+	import CrianexWordmark from '$lib/components/brand/CrianexWordmark.svelte';
 
 	const currentYear = new Date().getFullYear();
 
@@ -18,13 +19,16 @@
 	];
 </script>
 
-<footer class="home-footer border-t border-white/[0.07]">
+<footer class="home-footer">
 	<div class="footer-content">
 		<div class="footer-brand">
 			<p class="footer-logo">
 				<span class="text-foreground">NOFLX</span><span class="text-primary"> UNB</span>
 			</p>
 			<p class="footer-copyright">© {currentYear} NoFluxo UNB — todos os direitos reservados</p>
+			<a class="footer-crianex" href="https://crianex.com" target="_blank" rel="noopener noreferrer">
+				Um produto <CrianexWordmark />
+			</a>
 		</div>
 
 		<nav class="footer-links">
@@ -55,8 +59,23 @@
 </footer>
 
 <style>
+	.footer-crianex {
+		display: inline-block;
+		margin-top: 0.375rem;
+		font-size: 0.8125rem;
+		color: hsl(var(--muted-foreground));
+		text-decoration: none;
+	}
+
+	.footer-crianex:hover,
+	.footer-crianex:focus-visible {
+		color: hsl(var(--foreground));
+	}
+
 	.home-footer {
 		background: hsl(var(--background));
+		/* divisória: foreground ≈ branco no dark → mesmo valor visual de antes */
+		border-top: 1px solid hsl(var(--foreground) / 0.07);
 	}
 
 	.footer-content {

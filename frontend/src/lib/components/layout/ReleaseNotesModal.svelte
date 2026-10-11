@@ -10,7 +10,18 @@
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { fade, fly } from 'svelte/transition';
-	import { Sparkles, X, Upload, PartyPopper, Heart } from 'lucide-svelte';
+	import {
+		Sparkles,
+		X,
+		Upload,
+		PartyPopper,
+		Heart,
+		CalendarDays,
+		MapPin,
+		Gift,
+		ArrowUpRight,
+		Hammer
+	} from 'lucide-svelte';
 	import { authStore } from '$lib/stores/auth';
 	import { ROUTES } from '$lib/config/routes';
 	import {
@@ -18,6 +29,8 @@
 		RELEASE_TITULO,
 		RELEASE_NOVIDADES,
 		RELEASE_NOTA_EQUIPE,
+		RELEASE_EVENTO,
+		RELEASE_EM_CONSTRUCAO,
 		FLUXOGRAMA_SCHEMA_VERSION
 	} from '$lib/config/release';
 
@@ -45,8 +58,15 @@
 		return out;
 	}
 
+	/** Força a exibição sem login nem localStorage (página de pré-visualização). */
+	let { previsualizar = false }: { previsualizar?: boolean } = $props();
+
 	let authState = $derived($authStore);
 	let visivel = $state(false);
+
+	$effect(() => {
+		if (previsualizar) visivel = true;
+	});
 
 	const chaveStorage = (idUser: number) => `nofluxo:release-vista:${idUser}`;
 
@@ -116,26 +136,26 @@
 			TrocarTurmaDialog.
 		-->
 		<div
-			class="relative z-10 flex max-h-[88dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0e1117] shadow-2xl"
+			class="relative z-10 flex max-h-[88dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-nofluxoLg dark:shadow-2xl"
 			transition:fly={{ y: 24, duration: 250 }}
 		>
 			<!-- Header -->
-			<div class="relative border-b border-white/8 px-6 py-5">
+			<div class="relative border-b border-border px-6 py-5">
 				<div class="flex items-center gap-3">
 					<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-pink-500/15">
-						<PartyPopper class="h-5 w-5 text-pink-400" />
+						<PartyPopper class="h-5 w-5 text-pink-700 dark:text-pink-400" />
 					</div>
 					<div>
-						<p class="text-[11px] font-semibold uppercase tracking-widest text-pink-400">
+						<p class="text-[11px] font-semibold uppercase tracking-widest text-pink-700 dark:text-pink-400">
 							Atualização
 						</p>
-						<h2 class="text-base font-semibold leading-tight text-white">{RELEASE_TITULO}</h2>
+						<h2 class="text-base font-semibold leading-tight text-foreground">{RELEASE_TITULO}</h2>
 					</div>
 				</div>
 				<button
 					type="button"
 					onclick={marcarVisto}
-					class="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-white/40 transition-colors hover:bg-white/8 hover:text-white/80"
+					class="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 					aria-label="Fechar"
 				>
 					<X class="h-4 w-4" />
@@ -144,20 +164,72 @@
 
 			<!-- Novidades (overscroll-contain: rolar aqui não arrasta a página) -->
 			<div class="min-h-0 overflow-y-auto overscroll-contain px-6 py-6">
+				{#if RELEASE_EVENTO}
+					<!-- Evento em destaque -->
+					<section
+						class="mb-6 rounded-xl border border-primary/30 bg-primary/10 px-4 py-4"
+						aria-label={RELEASE_EVENTO.titulo}
+					>
+						<p class="text-[11px] font-semibold uppercase tracking-widest text-primary dark:text-ai">
+							{RELEASE_EVENTO.kicker}
+						</p>
+						<h3 class="mt-1 text-[15px] font-bold leading-snug text-foreground">
+							{RELEASE_EVENTO.titulo}
+						</h3>
+						<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium text-muted-foreground">
+							<span class="flex items-center gap-1.5">
+								<CalendarDays class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+								{RELEASE_EVENTO.quando}
+							</span>
+							<span class="flex items-center gap-1.5">
+								<MapPin class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+								{RELEASE_EVENTO.onde}
+							</span>
+						</div>
+						<p class="mt-3 text-[13px] leading-relaxed text-foreground/80">
+							{#each segmentos(RELEASE_EVENTO.texto) as s}
+								{#if s.negrito}<strong class="text-foreground">{s.valor}</strong>{:else}{s.valor}{/if}
+							{/each}
+						</p>
+						<p class="mt-3 flex items-start gap-2 text-[13px] font-semibold leading-relaxed text-foreground">
+							<Gift class="mt-0.5 h-4 w-4 shrink-0 text-primary dark:text-ai" aria-hidden="true" />
+							{RELEASE_EVENTO.destaque}
+						</p>
+						<a
+							href={RELEASE_EVENTO.href}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+						>
+							{RELEASE_EVENTO.cta}
+							<ArrowUpRight class="h-4 w-4" aria-hidden="true" />
+						</a>
+					</section>
+				{/if}
+
 				<ul class="flex flex-col gap-3">
 					{#each RELEASE_NOVIDADES as novidade}
 						<li class="flex items-start gap-2.5">
-							<Sparkles class="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-400" />
-							<span class="text-[13.5px] leading-relaxed text-white/80">{novidade}</span>
+							<Sparkles class="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
+							<span class="text-[13.5px] leading-relaxed text-foreground/80">{novidade}</span>
 						</li>
 					{/each}
 				</ul>
 
+				{#if RELEASE_EM_CONSTRUCAO}
+					<p
+						class="mt-4 flex items-start gap-2.5 rounded-lg border border-dashed border-border px-3 py-2.5 text-xs leading-relaxed text-muted-foreground"
+					>
+						<Hammer class="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+						{RELEASE_EM_CONSTRUCAO}
+					</p>
+				{/if}
+
 				{#if dadosDesatualizados}
 					<div class="mt-5 rounded-xl border border-amber-500/25 bg-amber-600/10 px-4 py-3.5">
-						<p class="text-xs leading-relaxed text-amber-200/85">
+						<p class="text-xs leading-relaxed text-amber-800 dark:text-amber-200/85">
 							Seu histórico foi enviado antes dessas melhorias. Para o fluxograma reconhecer
-							<strong class="text-amber-100">módulo livre e equivalências</strong> com os dados
+							<strong class="text-amber-900 dark:text-amber-100">módulo livre e equivalências</strong> com os dados
 							novos, reenvie o PDF do histórico: leva menos de um minuto.
 						</p>
 					</div>
@@ -167,31 +239,31 @@
 					<!-- Nota da equipe -->
 					<div class="mt-5 rounded-xl border border-purple-500/25 bg-gradient-to-br from-purple-500/10 to-pink-500/10 px-4 py-4">
 						<div class="mb-2.5 flex items-center gap-2">
-							<Heart class="h-3.5 w-3.5 shrink-0 text-pink-400" />
-							<p class="text-[11px] font-semibold uppercase tracking-widest text-pink-300">
+							<Heart class="h-3.5 w-3.5 shrink-0 text-pink-700 dark:text-pink-400" />
+							<p class="text-[11px] font-semibold uppercase tracking-widest text-pink-700 dark:text-pink-300">
 								Uma nota da equipe
 							</p>
 						</div>
-						<p class="text-xs leading-relaxed text-white/75">
+						<p class="text-xs leading-relaxed text-foreground/75">
 							{#each segmentos(RELEASE_NOTA_EQUIPE.agradecimento) as s}
 								{#if s.href}<a
 										href={s.href}
 										target="_blank"
 										rel="noopener noreferrer"
-										class="font-semibold text-pink-300 underline decoration-pink-400/50 underline-offset-2 hover:text-pink-200"
+										class="font-semibold text-pink-700 underline decoration-pink-700/50 underline-offset-2 hover:text-pink-800 dark:text-pink-300 dark:decoration-pink-400/50 dark:hover:text-pink-200"
 										>{s.valor}</a
-									>{:else if s.negrito}<strong class="text-white">{s.valor}</strong>{:else}{s.valor}{/if}
+									>{:else if s.negrito}<strong class="text-foreground">{s.valor}</strong>{:else}{s.valor}{/if}
 							{/each}
 						</p>
-						<p class="my-3 border-l-2 border-pink-400/60 pl-3 text-[13px] font-medium italic leading-relaxed text-purple-100">
+						<p class="my-3 border-l-2 border-pink-400/60 pl-3 text-[13px] font-medium italic leading-relaxed text-foreground dark:text-purple-100">
 							“{RELEASE_NOTA_EQUIPE.lema}”
 						</p>
-						<p class="text-xs leading-relaxed text-white/75">
+						<p class="text-xs leading-relaxed text-foreground/75">
 							{#each segmentos(RELEASE_NOTA_EQUIPE.corpo) as s}
-								{#if s.negrito}<strong class="text-white">{s.valor}</strong>{:else}{s.valor}{/if}
+								{#if s.negrito}<strong class="text-foreground">{s.valor}</strong>{:else}{s.valor}{/if}
 							{/each}
 						</p>
-						<p class="mt-3 text-right text-[11.5px] font-semibold text-pink-200/90">
+						<p class="mt-3 text-right text-[11.5px] font-semibold text-pink-700 dark:text-pink-200/90">
 							{RELEASE_NOTA_EQUIPE.assinatura}
 						</p>
 					</div>
@@ -201,12 +273,12 @@
 			<!-- Ações (shrink-0 + safe area: o rodapé nunca some nem fica sob a
 			     barra de gestos do iPhone) -->
 			<div
-				class="flex shrink-0 items-center justify-between gap-3 border-t border-white/8 px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+				class="flex shrink-0 items-center justify-between gap-3 border-t border-border px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
 			>
 				<button
 					type="button"
 					onclick={marcarVisto}
-					class="text-sm font-medium text-white/45 transition-colors hover:text-white/70"
+					class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground/70"
 				>
 					{dadosDesatualizados ? 'Agora não' : 'Entendi'}
 				</button>

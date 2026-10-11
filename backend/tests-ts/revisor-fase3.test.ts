@@ -10,7 +10,7 @@
 
 process.env.MARITACA_API_KEY = "test-key";
 
-import { run, OutputGuardrailTripwireTriggered } from "@openai/agents";
+import { run, OutputGuardrailTripwireTriggered, RunContext } from "@openai/agents";
 
 type Row = Record<string, any>;
 const db: { users: Row[]; historicos_usuarios: Row[] } = { users: [], historicos_usuarios: [] };
@@ -211,5 +211,33 @@ describe("Fase 4 — escalonamento condicional (reprovou duas vezes seguidas)", 
         expect(respostaFinal).toContain("65%");
         // 1 chamada de tool-call + 1 chamada de resposta final = 2, nenhuma reexecução.
         expect(mockCreate).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe("custo das sub-execuções no run do orquestrador (ai_usage_log do chat-send)", () => {
+    // Cada chamada do mock custa 5 + 5 = 10 tokens (mockLlmComRespostaFinal).
+    it("soma no RunContext do pai as duas execuções quando o revisor reprova e reexecuta", async () => {
+        mockLlmComRespostaFinal("Faltam 20 créditos pra você se formar."); // reprova 2x → escalona
+
+        const pai = new RunContext<unknown>();
+        const agente = createIntegralizacaoAgent("aluno@unb.br");
+        await runIntegralizacaoComRevisao(agente, "quantos créditos faltam?", pai);
+
+        // 2 execuções × (tool call + resposta) = 4 chamadas pagas, todas no pai
+        // (antes: 0 — cada run() criava um RunContext novo e o usage sumia).
+        expect(mockCreate).toHaveBeenCalledTimes(4);
+        expect(pai.usage.requests).toBe(4);
+        expect(pai.usage.inputTokens).toBe(20);
+        expect(pai.usage.outputTokens).toBe(20);
+    });
+
+    it("caminho comum (aprovado de primeira) soma só a execução feita", async () => {
+        mockLlmComRespostaFinal("Você já concluiu 65% da integralização — faltam 8 obrigatórias.");
+
+        const pai = new RunContext<unknown>();
+        await runIntegralizacaoComRevisao(createIntegralizacaoAgent("aluno@unb.br"), "quantos créditos faltam?", pai);
+
+        expect(pai.usage.requests).toBe(2);
+        expect(pai.usage.totalTokens).toBe(20);
     });
 });

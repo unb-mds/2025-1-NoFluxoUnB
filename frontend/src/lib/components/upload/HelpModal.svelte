@@ -69,12 +69,12 @@
 	>
 			<!-- Header -->
 			<div class="modal-header">
-				<h2 class="text-lg font-bold text-white md:text-xl">
+				<h2 class="text-lg font-bold text-foreground md:text-xl">
 					Como obter seu histórico acadêmico
 				</h2>
 				<button
 					type="button"
-					class="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
+					class="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
 					onclick={onclose}
 					aria-label="Fechar"
 				>
@@ -91,24 +91,24 @@
 								{step.number}
 							</div>
 							<div>
-								<h3 class="text-sm font-semibold text-white md:text-base">
+								<h3 class="text-sm font-semibold text-foreground md:text-base">
 									{step.title}
 								</h3>
 								{#if step.number === 1}
-									<p class="mt-0.5 text-sm text-gray-400">
+									<p class="mt-0.5 text-sm text-muted-foreground">
 										Entre no
 										<a
 											href="https://sig.unb.br/sigaa/"
 											target="_blank"
 											rel="noopener noreferrer"
-											class="font-medium text-blue-400 underline hover:text-blue-300"
+											class="font-medium text-primary underline hover:text-accent-foreground dark:text-blue-400 dark:hover:text-blue-300"
 										>
 											SIGAA
 										</a>
 										com seu login e senha institucional.
 									</p>
 								{:else if step.description}
-									<p class="mt-0.5 text-sm text-gray-400">{step.description}</p>
+									<p class="mt-0.5 text-sm text-muted-foreground">{step.description}</p>
 								{/if}
 							</div>
 						</div>
@@ -167,8 +167,15 @@
 		max-height: 90vh;
 		overflow: hidden;
 		border-radius: 1.125rem;
+		background: hsl(var(--card));
+		border: 1px solid hsl(var(--border));
+		box-shadow: var(--nf-shadow-card-lg);
+	}
+
+	/* Dark: valores históricos (borda/inset branco translúcido + sombra profunda) */
+	:global(.dark) .modal {
 		background: hsl(var(--card) / 0.97);
-		border: 1px solid hsl(0 0% 100% / 0.058);
+		border-color: hsl(0 0% 100% / 0.058);
 		box-shadow:
 			inset 0 1px 0 hsl(0 0% 100% / 0.052),
 			0 0 0 1px hsl(var(--primary) / 0.06),
@@ -186,8 +193,12 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		border-bottom: 1px solid hsl(0 0% 100% / 0.08);
+		border-bottom: 1px solid hsl(var(--border));
 		padding: 1rem 1.5rem;
+	}
+
+	:global(.dark) .modal-header {
+		border-bottom-color: hsl(0 0% 100% / 0.08);
 	}
 
 	.modal-scroll-area {
@@ -201,8 +212,12 @@
 
 	.modal-footer {
 		flex-shrink: 0;
-		border-top: 1px solid hsl(0 0% 100% / 0.08);
+		border-top: 1px solid hsl(var(--border));
 		padding: 1rem 1.5rem;
+	}
+
+	:global(.dark) .modal-footer {
+		border-top-color: hsl(0 0% 100% / 0.08);
 	}
 
 	.step-number {
@@ -222,16 +237,26 @@
 
 	.step-block {
 		border-radius: var(--radius-lg, 14px);
-		border: 1px solid hsl(0 0% 100% / 0.06);
-		background: hsl(0 0% 100% / 0.03);
+		border: 1px solid hsl(var(--border));
+		background: hsl(var(--muted) / 0.5);
 		padding: 1rem;
+	}
+
+	:global(.dark) .step-block {
+		border-color: hsl(0 0% 100% / 0.06);
+		background: hsl(0 0% 100% / 0.03);
 		box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.045);
 	}
 
 	.step-image {
 		max-width: 17rem;
 		border-radius: 0.625rem;
-		border: 1px solid hsl(0 0% 100% / 0.1);
+		border: 1px solid hsl(var(--border));
+		box-shadow: var(--nf-shadow-card);
+	}
+
+	:global(.dark) .step-image {
+		border-color: hsl(0 0% 100% / 0.1);
 		box-shadow: 0 14px 32px hsl(0 0% 0% / 0.35);
 	}
 

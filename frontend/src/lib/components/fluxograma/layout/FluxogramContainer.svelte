@@ -5,6 +5,7 @@
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
 	import {
 		matchesFluxogramCompactTouchMode,
+		computeInitialZoom,
 		FLUXOGRAM_NARROW_QUERY,
 		FLUXOGRAM_COMPACT_LANDSCAPE_QUERY
 	} from '$lib/utils/fluxogram-viewport';
@@ -257,11 +258,12 @@
 	});
 
 	/**
-	 * Zoom inicial adaptativo (one-shot por montagem): desktop ajusta para a coluna
-	 * mais alta caber inteira na vertical (teto 1.0 — eixo de navegação é o horizontal);
-	 * modo compacto mira ~2 colunas visíveis na largura. Precisa rodar ANTES do efeito
-	 * de reancoragem e atualizar `prevZoomForAnchor`, senão a fórmula do centro com
-	 * scroll (0,0) deslocaria o viewport no primeiro frame.
+	 * Visualização inicial (one-shot por montagem): zoom adaptativo via
+	 * computeInitialZoom (desktop cabe a coluna mais alta; compacto com piso de
+	 * texto legível). Só zoom: a rolagem inicial é de centerFluxogramaViewport
+	 * (utils/fluxogram-initial-focus.ts), chamado pelas páginas — um mecanismo só.
+	 * Precisa rodar ANTES do efeito de reancoragem e atualizar `prevZoomForAnchor`,
+	 * senão a fórmula do centro com scroll (0,0) deslocaria o viewport no primeiro frame.
 	 */
 	let initialZoomApplied = false;
 	$effect(() => {
@@ -269,16 +271,14 @@
 		const scroller = containerRef;
 		const inner = innerRef;
 		if (!scroller || !inner || sortedSemesters.length === 0) return;
-		let target: number;
-		if (useNativeTouchScroll) {
-			const pitch = 220 + 48; // w-[220px] da coluna + gap 3rem (mobile usa conexões 'direct')
-			target = Math.min(0.8, Math.max(0.5, scroller.clientWidth / (2 * pitch)));
-		} else {
+		const target = computeInitialZoom({
+			compact: useNativeTouchScroll,
+			clientWidth: scroller.clientWidth,
+			clientHeight: scroller.clientHeight,
 			// getBoundingClientRect reflete o CSS zoom; dividir pelo zoom vigente dá o tamanho natural
-			const naturalH = inner.getBoundingClientRect().height / store.state.zoomLevel;
-			if (naturalH <= 0) return;
-			target = Math.min(1.0, scroller.clientHeight / naturalH);
-		}
+			naturalH: inner.getBoundingClientRect().height / store.state.zoomLevel
+		});
+		if (target == null) return;
 		initialZoomApplied = true;
 		store.applyAdaptiveZoom(target);
 		prevZoomForAnchor = store.state.zoomLevel; // valor já clampado pelo store
@@ -322,8 +322,8 @@
 	bind:this={containerRef}
 	data-fluxogram-scroll-root
 	class="fluxogram-container relative h-full min-h-0 w-full flex-1 select-none overflow-auto [overflow-anchor:none] {focusMode
-		? 'rounded-2xl border border-primary/24 bg-[hsl(var(--background)/0.93)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_0_1px_rgba(124,58,237,0.11),0_0_14px_rgba(124,58,237,0.12),0_16px_48px_rgba(0,0,0,0.52)]'
-		: 'rounded-xl border border-white/10 bg-black/30'} {useNativeTouchScroll
+		? 'rounded-2xl border border-primary/24 bg-background/[0.93] shadow-[0_0_0_1px_rgba(124,58,237,0.11),0_16px_48px_hsl(var(--foreground)/0.08)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_0_1px_rgba(124,58,237,0.11),0_0_14px_rgba(124,58,237,0.12),0_16px_48px_rgba(0,0,0,0.52)]'
+		: 'rounded-xl border border-border bg-card/70 dark:bg-background/30'} {useNativeTouchScroll
 		? 'overscroll-y-auto [overscroll-behavior-x:contain]'
 		: ''}"
 	style:cursor="grab"

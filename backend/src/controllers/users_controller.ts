@@ -27,7 +27,17 @@ async function criarUsuario(routeName: string, req: Request, res: Response) {
     const email = authUser.email;
     logger.info(`Registrando usuário autenticado: ${email}`);
 
-    var { data: userExistsResult, error: userExistsError } = await SupabaseWrapper.get().from("users").select("*").eq("email", email);
+    // A linha nasce amarrada ao auth_id do token: é por ele que o frontend busca
+    // o perfil, e é ele que tem UNIQUE no banco (users_auth_id_key). Sem auth_id
+    // o UNIQUE não barrava nada (NULLs são distintos) e duas requisições
+    // concorrentes criavam duas linhas (pré-mortem 27/09/2026, R22).
+    let { data: userExistsResult, error: userExistsError } = await SupabaseWrapper.get().from("users").select("id_user").eq("auth_id", authUser.id);
+
+    if (!userExistsError && (!userExistsResult || userExistsResult.length === 0)) {
+        // Linhas antigas foram criadas sem auth_id: o email ainda identifica
+        // o cadastro legado e evita uma segunda linha para a mesma pessoa.
+        ({ data: userExistsResult, error: userExistsError } = await SupabaseWrapper.get().from("users").select("id_user").eq("email", email));
+    }
 
     if (userExistsError) {
         logger.error(`Erro ao buscar usuário: ${JSON.stringify(userExistsError)}`);
@@ -36,13 +46,20 @@ async function criarUsuario(routeName: string, req: Request, res: Response) {
 
     if (userExistsResult && userExistsResult.length > 0) {
         logger.error("Usuário já cadastrado");
-        return res.status(400).json({ error: "Usuário já cadastrado" });
+        return res.status(409).json({ error: "Usuário já cadastrado" });
     }
 
     var { data: userCreatedResult, error: userCreatedError } = await SupabaseWrapper.get().from("users").insert({
+        auth_id: authUser.id,
         email,
         nome_completo
     }).select("*").single();
+
+    // Corrida entre o SELECT e o INSERT: o UNIQUE de auth_id barra a segunda.
+    if (userCreatedError?.code === "23505") {
+        logger.error("Usuário já cadastrado (violação de UNIQUE no insert)");
+        return res.status(409).json({ error: "Usuário já cadastrado" });
+    }
 
     if (userCreatedError) {
         logger.error(`Erro ao criar usuário: ${JSON.stringify(userCreatedError)}`);

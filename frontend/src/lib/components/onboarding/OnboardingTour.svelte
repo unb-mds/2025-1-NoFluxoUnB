@@ -234,7 +234,7 @@
 		</div>
 
 		<footer class="tour-actions">
-			<Button variant="ghost" size="sm" class="text-white/50" onclick={pular}>Pular</Button>
+			<Button variant="ghost" size="sm" class="text-muted-foreground" onclick={pular}>Pular</Button>
 			<div class="tour-actions-right">
 				{#if !tourStore.isPrimeiro}
 					<Button variant="outline" size="sm" onclick={() => tourStore.anterior()}>
@@ -351,10 +351,15 @@
 		border-radius: 999px;
 		border: 1px solid hsl(var(--primary) / 0.3);
 		background: hsl(var(--primary) / 0.14);
-		color: hsl(var(--primary-foreground));
+		/* Light: roxo escuro sobre o tint (5,1:1). Dark mantém o branco histórico abaixo. */
+		color: hsl(var(--primary));
 		font-size: 0.6875rem;
 		font-weight: 600;
 		letter-spacing: 0.01em;
+	}
+
+	:global(.dark) .tour-step-badge {
+		color: hsl(var(--primary-foreground));
 	}
 
 	.tour-close {
@@ -372,7 +377,7 @@
 	}
 
 	.tour-close:hover {
-		background: hsl(0 0% 100% / 0.08);
+		background: hsl(var(--foreground) / 0.08);
 		color: hsl(var(--foreground));
 	}
 
@@ -417,7 +422,7 @@
 		border: none;
 		padding: 0;
 		cursor: pointer;
-		background: hsl(0 0% 100% / 0.14);
+		background: hsl(var(--foreground) / 0.14);
 		transition:
 			background 0.25s ease,
 			width 0.25s ease;

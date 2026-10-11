@@ -1,0 +1,42 @@
+# Dependabot (06/10/2026). Avisos de segurança novos no npm audit do backend
+# reprovavam o Security Scan de todos os PRs (#202, #206); com as atualizações
+# de segurança ligadas nas configurações do repositório, o Dependabot abre o PR
+# de correção sozinho, agrupado, assim que o aviso sai.
+#
+# Frontend fica de fora de propósito: ele tem dois lockfiles (package-lock.json
+# no CI, pnpm-lock.yaml no build da imagem) e o Dependabot atualizaria só um,
+# quebrando o deploy (ver #203). Atualizar o frontend à mão, nos dois.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "fix(deps)"
+      prefix-development: "chore(deps)"
+    groups:
+      seguranca:
+        applies-to: security-updates
+        patterns: ["*"]
+      producao-minor-patch:
+        dependency-type: production
+        update-types: [minor, patch]
+      dev-minor-patch:
+        dependency-type: development
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+      timezone: America/Sao_Paulo
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      actions:
+        patterns: ["*"]

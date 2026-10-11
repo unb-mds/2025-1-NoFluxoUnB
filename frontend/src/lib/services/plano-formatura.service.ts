@@ -4,7 +4,8 @@
  * Also handles loading/saving user preferences via supabaseDataService.
  */
 
-import type { PlanoFormaturav2, PreferenciasPlano } from '$lib/types/plano-formatura';
+import type { PlanoFormaturav2, PreferenciasPlano, PlannerChatMessage, PlannerChatResponse, RestricoesPlano } from '$lib/types/plano-formatura';
+import { ErroIA } from '$lib/utils/darcy-cota';
 import { DEFAULT_PREFERENCIAS } from '$lib/types/plano-formatura';
 import { supabaseDataService } from './supabase-data.service';
 import { apiRequest } from '$lib/utils/api';
@@ -68,6 +69,47 @@ class PlanoFormaturaService {
 	 */
 	async savePreferencias(idUser: number, preferencias: PreferenciasPlano): Promise<void> {
 		await supabaseDataService.savePreferenciasPlano(idUser, preferencias);
+	}
+	/**
+	 * Envia mensagem para o agente planejador via chat.
+	 * Stateless — frontend envia histórico + planoInput + restrições atuais.
+	 */
+	async chat(
+		messages: PlannerChatMessage[],
+		planoInput: {
+			curriculoCompleto: string;
+			codigosConcluidos: string[];
+			semestreAtual: number;
+			limiteCreditos: number;
+			objetivo: 'velocidade' | 'equilibrio';
+			trabalha: boolean;
+		},
+		restricoes: RestricoesPlano
+	): Promise<PlannerChatResponse> {
+		const { data, error, status } = await apiRequest<PlannerChatResponse>(
+			'/planejamento/chat',
+			{
+				method: 'POST',
+				body: {
+					messages,
+					planoInput: {
+						curriculo_completo: planoInput.curriculoCompleto,
+						codigos_concluidos: planoInput.codigosConcluidos,
+						semestre_atual: planoInput.semestreAtual,
+						limite_creditos: planoInput.limiteCreditos,
+						objetivo: planoInput.objetivo === 'velocidade' ? 'velocidade' : 'equilibrado',
+						trabalha: planoInput.trabalha
+					},
+					restricoes
+				}
+			}
+		);
+
+		if (error || !data) {
+			throw new ErroIA(status, error ?? '', 'chat agente');
+		}
+
+		return data;
 	}
 }
 

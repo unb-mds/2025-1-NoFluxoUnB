@@ -54,9 +54,9 @@
 
 	/** Cores por natureza, as mesmas do painel de carga horária do fluxograma. */
 	const CORES: Record<NaturezaCH, string> = {
-		obrigatoria: 'bg-blue-400',
-		optativa: 'bg-purple-400',
-		modulo_livre: 'bg-amber-400'
+		obrigatoria: 'bg-blue-600 dark:bg-blue-400',
+		optativa: 'bg-purple-600 dark:bg-purple-400',
+		modulo_livre: 'bg-amber-700 dark:bg-amber-400'
 	};
 
 	/**
@@ -119,10 +119,10 @@
 	}
 </script>
 
-<section class="rounded-2xl border border-white/10 bg-zinc-950/78 p-3" data-tour="situacao">
-	<header class="mb-2.5 flex items-center justify-between border-b border-white/10 pb-2">
+<section class="rounded-2xl border border-border bg-card dark:bg-background/80 p-3" data-tour="situacao">
+	<header class="mb-2.5 flex items-center justify-between border-b border-border pb-2">
 		<p
-			class="flex items-center gap-1.5 text-xs font-semibold tracking-[0.12em] text-white/80 uppercase"
+			class="flex items-center gap-1.5 text-xs font-semibold tracking-[0.12em] text-foreground/80 uppercase"
 		>
 			<GraduationCap class="h-3.5 w-3.5" />
 			{compacto ? 'Situação' : '1 · Situação'}
@@ -134,7 +134,7 @@
 	</header>
 
 	{#if carregando}
-		<p class="flex items-center justify-center gap-2 py-6 text-xs text-white/40">
+		<p class="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
 			<Loader2 class="h-3.5 w-3.5 animate-spin" /> Vendo sua situação…
 		</p>
 	{:else if !situacao}
@@ -143,7 +143,7 @@
 			sem saber o saldo. Dizer isso é melhor do que sumir com o painel, senão o
 			aluno não entende por que a aba está vazia.
 		-->
-		<p class="py-5 text-center text-xs text-white/40">
+		<p class="py-5 text-center text-xs text-muted-foreground">
 			Não consegui carregar sua situação agora. A grade continua sendo montada
 			normalmente.
 		</p>
@@ -152,26 +152,26 @@
 			{#each linhas as l (l.natureza)}
 				<li>
 					<div class="flex items-baseline justify-between gap-2">
-						<span class="text-[11px] font-medium text-white/75">{l.rotulo}</span>
+						<span class="text-[11px] font-medium text-foreground/75">{l.rotulo}</span>
 						{#if l.desconhecido}
-							<span class="text-[10px] text-white/35">sem dado</span>
+							<span class="text-[10px] text-muted-foreground">sem dado</span>
 						{:else}
-							<span class="text-[10px] tabular-nums text-white/45">
+							<span class="text-[10px] tabular-nums text-muted-foreground">
 								{formatar(l.realizado)} / {formatar(l.exigido)}
 							</span>
 						{/if}
 					</div>
-					<span class="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+					<span class="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-foreground/10">
 						{#if !l.desconhecido}
 							<span
 								class="block h-full rounded-full transition-all {l.cumprida
-									? 'bg-emerald-400'
+									? 'bg-emerald-700 dark:bg-emerald-400'
 									: l.cor}"
 								style="width: {l.pct}%"
 							></span>
 						{/if}
 					</span>
-					<p class="mt-1 text-[10px] {l.cumprida ? 'text-emerald-300/90' : 'text-white/45'}">
+					<p class="mt-1 text-[10px] {l.cumprida ? 'text-emerald-800 dark:text-emerald-300/90' : 'text-muted-foreground'}">
 						{#if l.desconhecido}
 							<!--
 								Só a carga complementar cai aqui: o cálculo por disciplinas nunca
@@ -199,7 +199,7 @@
 				muda o planejamento — não adianta esperar por ela neste semestre.
 			-->
 			<p
-				class="mt-2.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 text-[10px] text-white/55"
+				class="mt-2.5 rounded-lg border border-border bg-foreground/5 px-2.5 py-2 text-[10px] text-muted-foreground"
 			>
 				{obrigatoriasSemOferta.length === 1
 					? 'Uma obrigatória sua não tem'
@@ -217,9 +217,9 @@
 				atenção do aluno, e uma terceira interrupção seria demais.
 			-->
 			<div
-				class="mt-3 rounded-xl border border-amber-300/25 bg-amber-500/8 px-2.5 py-2.5"
+				class="mt-3 rounded-xl border border-amber-300 bg-amber-50 dark:border-amber-300/25 dark:bg-amber-500/8 px-2.5 py-2.5"
 			>
-				<p class="flex items-start gap-1.5 text-[11px] text-amber-100/90">
+				<p class="flex items-start gap-1.5 text-[11px] text-amber-900 dark:text-amber-100/90">
 					<Info class="mt-px h-3.5 w-3.5 shrink-0" />
 					<span>
 						Faltam {formatar(situacao.faltam.modulo_livre ?? 0)} de módulo livre — matéria
@@ -237,23 +237,23 @@
 					<button
 						type="button"
 						onclick={() => onResponderModuloLivre?.(false)}
-						class="flex-1 touch-manipulation rounded-full border border-white/12 px-3 py-1.5 text-[11px] font-medium text-white/55 transition-colors hover:bg-white/5"
+						class="flex-1 touch-manipulation rounded-full border border-border px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-foreground/5"
 					>
 						Agora não
 					</button>
 				</div>
 			</div>
 		{:else if querModuloLivre}
-			<div class="mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-2.5">
-				<p class="flex items-center gap-1.5 text-[11px] font-medium text-white/70">
-					<Sparkles class="h-3.5 w-3.5 text-amber-300" /> Módulo livre
+			<div class="mt-3 rounded-xl border border-border bg-foreground/[0.03] px-2.5 py-2.5">
+				<p class="flex items-center gap-1.5 text-[11px] font-medium text-foreground/70">
+					<Sparkles class="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" /> Módulo livre
 				</p>
 				<!--
 					O tema não é enfeite: módulo livre é tudo o que está fora da matriz, ou
 					seja, o catálogo inteiro da UnB. Sem um recorte não há recomendação a
 					fazer — só uma lista em ordem de código fingindo ser uma.
 				-->
-				<p class="mt-1 text-[10px] text-white/40">
+				<p class="mt-1 text-[10px] text-muted-foreground">
 					Sobre o que te interessa? Ex.: música, libras, robótica, direito.
 				</p>
 				<div class="mt-1.5 flex gap-1.5">
@@ -262,7 +262,7 @@
 						bind:value={tema}
 						onkeydown={(e) => e.key === 'Enter' && confirmarTema()}
 						placeholder="um assunto"
-						class="min-w-0 flex-1 rounded-lg border border-white/12 bg-black/30 px-2.5 py-1.5 text-[11px] text-white/85 placeholder:text-white/25 focus:border-amber-300/40 focus:outline-none"
+						class="min-w-0 flex-1 rounded-lg border border-border-strong bg-background px-2.5 py-1.5 text-[11px] text-foreground/85 placeholder:text-muted-foreground focus:border-amber-700 dark:border-border dark:bg-black/30 dark:focus:border-amber-300/40 focus:outline-none"
 					/>
 					<button
 						type="button"
@@ -282,18 +282,18 @@
 					<ul class="mt-2 space-y-1.5">
 						{#each sugestoes as s (s.codigo)}
 							{@const dentro = naGrade.has(s.codigo)}
-							<li class="flex items-start gap-2 rounded-lg bg-black/25 px-2 py-1.5">
+							<li class="flex items-start gap-2 rounded-lg bg-muted/50 dark:bg-black/20 px-2 py-1.5">
 								<div class="min-w-0 flex-1">
-									<p class="font-mono text-[11px] font-semibold text-white/85">{s.codigo}</p>
-									<p class="truncate text-[10px] text-white/50">{s.nome}</p>
+									<p class="font-mono text-[11px] font-semibold text-foreground/85">{s.codigo}</p>
+									<p class="truncate text-[10px] text-muted-foreground">{s.nome}</p>
 								</div>
 								<button
 									type="button"
 									onclick={() => onIncluir?.(s.codigo)}
 									disabled={dentro}
 									class="shrink-0 touch-manipulation rounded-full border px-2 py-1 text-[10px] font-medium transition-colors {dentro
-										? 'border-emerald-400/30 text-emerald-300/80'
-										: 'border-white/15 text-white/65 hover:bg-white/10'}"
+										? 'border-emerald-300 text-emerald-700 dark:border-emerald-400/30 dark:text-emerald-300/80'
+										: 'border-border text-muted-foreground hover:bg-foreground/10'}"
 								>
 									{dentro ? 'na lista' : 'Incluir'}
 								</button>
@@ -301,7 +301,7 @@
 						{/each}
 					</ul>
 				{:else if tema.trim().length >= 2 && !buscandoModuloLivre}
-					<p class="mt-2 text-[10px] text-white/40">
+					<p class="mt-2 text-[10px] text-muted-foreground">
 						Nada com turma neste semestre sobre isso. Tente outro assunto ou veja a
 						oferta completa na busca de turmas.
 					</p>
@@ -309,12 +309,12 @@
 			</div>
 		{:else if moduloLivre?.quer === false && situacao.exigeModuloLivre}
 			<!-- Dispensar a sugestão não apaga a pendência: as horas continuam faltando. -->
-			<p class="mt-2.5 text-[10px] text-white/35">
+			<p class="mt-2.5 text-[10px] text-muted-foreground">
 				Você dispensou o módulo livre por ora.
 				<button
 					type="button"
 					onclick={() => onResponderModuloLivre?.(true)}
-					class="underline decoration-dotted underline-offset-2 hover:text-white/60"
+					class="underline decoration-dotted underline-offset-2 hover:text-muted-foreground"
 				>
 					mudar
 				</button>
@@ -325,7 +325,7 @@
 			Proveniência: sem isto o aluno não entende por que o número aqui pode
 			divergir do que ele lê no SIGAA.
 		-->
-		<p class="mt-2.5 border-t border-white/8 pt-2 text-[10px] text-white/30">
+		<p class="mt-2.5 border-t border-border pt-2 text-[10px] text-muted-foreground">
 			{situacao.complementarConfiavel
 				? 'Fonte: carga horária do seu histórico do SIGAA.'
 				: 'Fonte: soma das disciplinas concluídas na sua matriz.'}

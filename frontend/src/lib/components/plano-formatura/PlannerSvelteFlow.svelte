@@ -2,6 +2,7 @@
 	import { SvelteFlow, Background, Controls, type Node, type Edge, Position, MarkerType } from '@xyflow/svelte';
 	import '@xyflow/svelte/dist/style.css';
 	import { browser } from '$app/environment';
+	import { resolvedTheme } from '$lib/stores/theme';
 	import type { PlanoFormatura } from '$lib/types/plano-formatura';
 	import type { CursoModel } from '$lib/types/curso';
 	import { getCodigosFromExpressaoLogica } from '$lib/utils/expressao-logica';
@@ -48,6 +49,12 @@
 	}
 
 	let modoToque = $state(detectaToque());
+
+	// Tema efetivo: `colorMode` do xyflow e o fundo do <Background> são props, não
+	// CSS, então precisam do tema resolvido. Cores de aresta/seta e as variáveis
+	// --xy-* ficam no bloco de estilo do componente: trocam pelo cascade quando .dark muda no
+	// <html>, sem reconstruir o grafo.
+	const isDark = $derived($resolvedTheme === 'dark');
 
 	$effect(() => {
 		if (!browser) return;
@@ -202,7 +209,10 @@
 				const id = `edge-${coreq ? 'co-' : ''}${sourceNodeId}-${targetNodeId}`;
 				if (edgeIds.has(id) || sourceNodeId === targetNodeId) return;
 				edgeIds.add(id);
-				const cor = coreq ? 'rgba(168,85,247,0.45)' : 'rgba(255,255,255,0.2)';
+				// Custom properties por tema definidas no bloco de estilo (--planner-edge*): o
+				// id do marker embute a string, e `var()` é aceito tanto no `style` da
+				// aresta quanto no style:stroke/fill do <marker>.
+				const cor = coreq ? 'var(--planner-edge-coreq)' : 'var(--planner-edge)';
 				newEdges.push({
 					id,
 					source: sourceNodeId,
@@ -254,7 +264,7 @@
 </script>
 
 <div
-	class="planner-flow relative h-[68dvh] min-h-[360px] w-full overflow-hidden rounded-xl border border-white/10 bg-[#090c12] lg:h-full lg:min-h-[600px]"
+	class="planner-flow relative h-[68dvh] min-h-[360px] w-full overflow-hidden rounded-xl border border-border bg-background lg:h-full lg:min-h-[600px] dark:bg-[#090c12]"
 	class:modo-toque={modoToque}
 >
 	<!--
@@ -287,15 +297,18 @@
 		selectionOnDrag={false}
 		zoomOnDoubleClick={false}
 		defaultEdgeOptions={{ type: 'smoothstep' }}
-		colorMode="dark"
+		colorMode={isDark ? 'dark' : 'light'}
 	>
-		<Background bgColor="#090c12" />
+		<Background
+			bgColor={isDark ? '#090c12' : 'hsl(var(--background))'}
+			patternColor={isDark ? undefined : 'hsl(var(--border-strong) / 0.6)'}
+		/>
 		<Controls showLock={false} />
 	</SvelteFlow>
 
 	{#if modoToque}
 		<p
-			class="pointer-events-none absolute right-2 top-2 z-10 rounded-full border border-white/10 bg-black/60 px-2.5 py-1 text-[10px] text-white/50 backdrop-blur-sm"
+			class="pointer-events-none absolute right-2 top-2 z-10 rounded-full border border-border bg-background/80 dark:bg-black/60 px-2.5 py-1 text-[10px] text-muted-foreground backdrop-blur-sm"
 		>
 			Arraste na horizontal · pinça para zoom
 		</p>
@@ -303,6 +316,47 @@
 </div>
 
 <style>
+	/*
+	 * Tema do canvas xyflow. `colorMode` só troca os *-default do @xyflow/svelte;
+	 * aqui as variáveis --xy-* (fundo, nó, aresta, rótulo, minimap) são amarradas
+	 * aos tokens no light. Cores das arestas/setas (--planner-edge*): foreground a
+	 * 50% (≈3,4:1) e roxo IA a 70% (≈3,8:1) sobre o fundo claro — ≥ 3:1 (não-texto).
+	 */
+	.planner-flow :global(.svelte-flow) {
+		--xy-background-color: hsl(var(--background));
+		--xy-background-pattern-dots-color: hsl(var(--border-strong) / 0.6);
+		--xy-edge-stroke: hsl(var(--foreground) / 0.5);
+		--xy-edge-stroke-selected: hsl(var(--foreground) / 0.8);
+		--xy-edge-label-background-color: hsl(var(--card));
+		--xy-edge-label-color: hsl(var(--foreground));
+		--xy-node-color: hsl(var(--card-foreground));
+		--xy-node-border: 1px solid hsl(var(--border));
+		--xy-node-background-color: hsl(var(--card));
+		--xy-minimap-background-color: hsl(var(--card));
+		--xy-minimap-mask-background-color: hsl(var(--background) / 0.7);
+		--xy-minimap-node-background-color: hsl(var(--primary) / 0.35);
+		--planner-edge: hsl(var(--foreground) / 0.5);
+		--planner-edge-coreq: hsl(var(--ai) / 0.7);
+	}
+	/* Dark: valores históricos — defaults de `.svelte-flow.dark` (@xyflow/svelte 1.6),
+	   fundo #090c12 e as cores de aresta que estavam fixas no código. */
+	:global(.dark) .planner-flow :global(.svelte-flow) {
+		--xy-background-color: #090c12;
+		--xy-background-pattern-dots-color: #777;
+		--xy-edge-stroke: #3e3e3e;
+		--xy-edge-stroke-selected: #727272;
+		--xy-edge-label-background-color: #141414;
+		--xy-edge-label-color: #f8f8f8;
+		--xy-node-color: #f8f8f8;
+		--xy-node-border: 1px solid #3c3c3c;
+		--xy-node-background-color: #1e1e1e;
+		--xy-minimap-background-color: #141414;
+		--xy-minimap-mask-background-color: rgba(60, 60, 60, 0.6);
+		--xy-minimap-node-background-color: #2b2b2b;
+		--planner-edge: rgba(255, 255, 255, 0.2);
+		--planner-edge-coreq: rgba(168, 85, 247, 0.45);
+	}
+
 	/* Botões dos Controls no tamanho mínimo de alvo de toque. */
 	.modo-toque :global(.svelte-flow__controls-button) {
 		width: 36px;
@@ -321,14 +375,20 @@
 		touch-action: pan-y;
 	}
 
-	/* Controls do xyflow com o acabamento do resto da UI (vidro escuro, borda
-	   sutil, hover suave) em vez do painel branco padrão. */
+	/* Controls do xyflow com o acabamento do resto da UI em vez do painel padrão.
+	   Light: card + borda 1px + sombra discreta (tokens). Dark: vidro escuro com
+	   os valores históricos, mantidos via :global(.dark). */
 	.planner-flow :global(.svelte-flow__controls) {
 		overflow: hidden;
 		border-radius: 12px;
-		border: 1px solid hsl(0 0% 100% / 0.1);
-		background: hsl(222 30% 7% / 0.85);
+		border: 1px solid hsl(var(--border));
+		background: hsl(var(--card) / 0.92);
 		backdrop-filter: blur(12px);
+		box-shadow: var(--nf-shadow-card-lg);
+	}
+	:global(.dark) .planner-flow :global(.svelte-flow__controls) {
+		border-color: hsl(0 0% 100% / 0.1);
+		background: hsl(222 30% 7% / 0.85);
 		box-shadow:
 			0 8px 30px hsl(0 0% 0% / 0.45),
 			inset 0 1px 0 hsl(0 0% 100% / 0.06);
@@ -340,26 +400,41 @@
 		width: 30px;
 		height: 30px;
 		border: none;
-		border-bottom: 1px solid hsl(0 0% 100% / 0.07);
+		border-bottom: 1px solid hsl(var(--border));
 		background: transparent;
 		transition: background-color 0.15s ease;
+	}
+	:global(.dark) .planner-flow :global(.svelte-flow__controls-button) {
+		border-bottom-color: hsl(0 0% 100% / 0.07);
 	}
 	.planner-flow :global(.svelte-flow__controls-button:last-child) {
 		border-bottom: none;
 	}
 	.planner-flow :global(.svelte-flow__controls-button:hover) {
-		background: hsl(0 0% 100% / 0.09);
+		background: hsl(var(--foreground) / 0.06);
 	}
 	.planner-flow :global(.svelte-flow__controls-button:active) {
+		background: hsl(var(--foreground) / 0.1);
+	}
+	:global(.dark) .planner-flow :global(.svelte-flow__controls-button:hover) {
+		background: hsl(0 0% 100% / 0.09);
+	}
+	:global(.dark) .planner-flow :global(.svelte-flow__controls-button:active) {
 		background: hsl(0 0% 100% / 0.14);
 	}
 	.planner-flow :global(.svelte-flow__controls-button svg) {
 		max-width: 12px;
 		max-height: 12px;
-		fill: hsl(0 0% 100% / 0.6);
+		fill: hsl(var(--muted-foreground));
 		transition: fill 0.15s ease;
 	}
 	.planner-flow :global(.svelte-flow__controls-button:hover svg) {
+		fill: hsl(var(--foreground));
+	}
+	:global(.dark) .planner-flow :global(.svelte-flow__controls-button svg) {
+		fill: hsl(0 0% 100% / 0.6);
+	}
+	:global(.dark) .planner-flow :global(.svelte-flow__controls-button:hover svg) {
 		fill: hsl(0 0% 100% / 0.95);
 	}
 </style>

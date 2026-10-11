@@ -13,14 +13,22 @@
  *
  * Marcadores interativos da resposta (`[MONTAR_GRADE]`, `[TURMA]`, `[BOTAO]`): ver
  * `services/chat/marcadores.ts` e a seção "Ações no chat" de docs/darcy-unificada.md.
+ *
+ * Login obrigatório + cota diária de perguntas (utils/ia_acesso.ts): sem token
+ * válido → 401 LOGIN_NECESSARIO antes de qualquer chamada ao modelo; a pergunta
+ * é estornada se o orquestrador falhar.
+ *
+ * Isolado do Darcy legado (PlanejadorAgenteService / /assistente/chat /
+ * /planejamento/chat) — esta rota não toca nesses arquivos.
  */
 
 import { EndpointController, RequestType } from "../interfaces";
 import { Pair } from "../utils";
 import { Request, Response } from "express";
-import { run } from "@openai/agents";
+import { run, RunContext } from "@openai/agents";
 import { createControllerLogger } from "../utils/controller_logger";
-import { logAiUsage } from "../utils/ai_usage_logger";
+import { executarComContextoIA, logAiUsage, usageDoAgente } from "../utils/ai_usage_logger";
+import { exigirLoginIA, reservarPerguntaIA } from "../utils/ia_acesso";
 import { SupabaseWrapper } from "../supabase_wrapper";
 import { SupabaseSession } from "../services/chat/supabase_session";
 import {
@@ -81,65 +89,61 @@ export const ChatController: EndpointController = {
             const logger = createControllerLogger("ChatController", "send");
             const startTime = Date.now();
 
-            if (!req.headers["authorization"]) {
-                return res.status(401).json({ error: "Header 'Authorization' é obrigatório." });
-            }
+            const usuario = await exigirLoginIA(req, res);
+            if (!usuario) return;
+
             const corpo = parseCorpoChat(req.body);
             if ("error" in corpo) return res.status(400).json({ error: corpo.error });
 
+            // Atalho sem LLM (botões "ver turmas" do plano) — responde e grava a troca.
+            // Comando direto (/turmas COD) responde do banco, sem LLM: não gasta cota.
+            const codigoTurmas = codigoDoAtalhoTurmas(corpo.message);
+            if (codigoTurmas) {
+                const session = new SupabaseSession(usuario.id);
+                const reply = await responderAtalhoTurmas(codigoTurmas);
+                await session.addItems(itensDaTroca(corpo.message, reply));
+                return res.status(200).json({ reply });
+            }
+
+            if (!isMaritacaConfigured()) {
+                logger.error("Maritaca não configurada");
+                return res.status(503).json({ error: "Serviço de chat indisponível." });
+            }
+
+            const pergunta = await reservarPerguntaIA(res, usuario);
+            if (!pergunta) return;
+            const ctxIA = { userId: usuario.id, perguntaId: pergunta.perguntaId };
+            const contextoRun = new RunContext<unknown>();
+
             try {
-                const usuario = await autenticar(req, res);
-                if (!usuario) return;
-                const session = new SupabaseSession(usuario.authId);
-
-                // Atalho sem LLM (botões "ver turmas" do plano) — responde e grava a troca.
-                const codigoTurmas = codigoDoAtalhoTurmas(corpo.message);
-                if (codigoTurmas) {
-                    const reply = await responderAtalhoTurmas(codigoTurmas);
-                    await session.addItems(itensDaTroca(corpo.message, reply));
-                    return res.status(200).json({ reply });
-                }
-
-                if (!isMaritacaConfigured()) {
-                    logger.error("Maritaca não configurada");
-                    return res.status(503).json({ error: "Serviço de chat indisponível." });
-                }
+                const session = new SupabaseSession(usuario.id);
 
                 // Perfil falhando não derruba o chat: a Darcy responde sem ele e as
                 // tools continuam buscando o que precisam.
                 let perfil: PerfilAluno | null = null;
                 try {
-                    perfil = await montarPerfilAluno(usuario.email);
+                    perfil = await montarPerfilAluno(usuario.email ?? "");
                 } catch (err) {
                     logger.error(`Falha ao montar perfil do aluno: ${err instanceof Error ? err.message : String(err)}`);
                 }
 
                 const orquestrador = createOrquestradorAgent({
-                    email: usuario.email,
+                    email: usuario.email ?? "",
                     perfil,
                     superficie: corpo.superficie,
                     estado: corpo.estado,
                 });
-                const resultado = await run(orquestrador, corpo.message, { session });
+                const resultado = await executarComContextoIA(ctxIA, () =>
+                    run(orquestrador, corpo.message, { session, context: contextoRun })
+                );
 
-                // Usage acumulado do run inteiro (orquestrador + atuadores) — dashboard
-                // de custo. O SDK confia em `usage.total_tokens ?? 0` da Maritaca, que às
-                // vezes vem nulo; recalcula aqui.
-                const usage = resultado.state.usage;
-                const totalTokens = usage.totalTokens || usage.inputTokens + usage.outputTokens;
                 logAiUsage({
                     endpoint: "chat-send",
                     durationMs: Date.now() - startTime,
                     success: true,
                     requestExcerpt: corpo.message,
-                    usage: [
-                        {
-                            model: MARITACA_MODELS.AGENTE,
-                            prompt_tokens: usage.inputTokens,
-                            completion_tokens: usage.outputTokens,
-                            total_tokens: totalTokens,
-                        },
-                    ],
+                    usage: usageDoAgente(resultado.state?.usage ?? contextoRun.usage, MARITACA_MODELS.AGENTE),
+                    ...ctxIA,
                 });
 
                 // Efeitos estruturados da run: a tela aplica ISSO, não faz parsing do texto.
@@ -164,13 +168,30 @@ export const ChatController: EndpointController = {
                     }
                 }
 
+                // O modelo já respondeu (e cobrou): quem saiu gasta a pergunta, só não recebe a resposta.
+                if (pergunta.clienteSaiu()) return;
+
                 return res.status(200).json({
                     reply,
                     opcaoGrade: efeitos.opcaoGrade ?? undefined,
                     plano: efeitos.plano ?? undefined,
                     restricoes: efeitos.restricoes ?? undefined,
+                    cota: pergunta.cota,
                 });
             } catch (error) {
+                await pergunta.estornar();
+                // A pergunta volta para o aluno, mas o que o modelo já respondeu
+                // até a falha foi cobrado: entra no custo como falha.
+                logAiUsage({
+                    endpoint: "chat-send",
+                    durationMs: Date.now() - startTime,
+                    success: false,
+                    requestExcerpt: message,
+                    usage: usageDoAgente(contextoRun.usage, MARITACA_MODELS.AGENTE),
+                    modeloPadrao: MARITACA_MODELS.AGENTE,
+                    erro: error,
+                    ...ctxIA,
+                });
                 if (isMaritacaSemCreditos(error)) {
                     logger.error("Chat (orquestrador): Maritaca sem créditos ativos");
                     return res.status(503).json(AI_SEM_CREDITOS_BODY);

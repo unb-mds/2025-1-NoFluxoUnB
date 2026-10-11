@@ -88,29 +88,45 @@ describe('UsersController', () => {
       expect(jsonSpy).toHaveBeenCalledWith({ error: "Nome completo é obrigatório" });
     });
 
-    it('should return 400 if user already exists', async () => {
+    it('should return 409 if user already exists (lookup by auth_id from the token)', async () => {
       mockRequest.body = { nome_completo: 'Test User' };
 
       mockEq.mockResolvedValueOnce({
-        data: [{ id: 1, email: 'test@example.com' }],
+        data: [{ id_user: 1 }],
         error: null,
       });
 
       const handler = UsersController.routes["register-user-with-google"].value;
       await handler(mockRequest as Request, mockResponse as Response);
 
-      expect(statusSpy).toHaveBeenCalledWith(400);
+      expect(mockEq).toHaveBeenCalledWith('auth_id', 'auth-uuid');
+      expect(mockSingle).not.toHaveBeenCalled();
+      expect(statusSpy).toHaveBeenCalledWith(409);
       expect(jsonSpy).toHaveBeenCalledWith({ error: "Usuário já cadastrado" });
     });
 
-    it('should create the user with the email from the auth token, ignoring body email', async () => {
+    it('should return 409 for a legacy row (no auth_id) with the same email', async () => {
+      mockRequest.body = { nome_completo: 'Test User' };
+
+      mockEq
+        .mockResolvedValueOnce({ data: [], error: null })
+        .mockResolvedValueOnce({ data: [{ id_user: 7 }], error: null });
+
+      const handler = UsersController.routes["register-user-with-google"].value;
+      await handler(mockRequest as Request, mockResponse as Response);
+
+      expect(mockEq).toHaveBeenNthCalledWith(2, 'email', 'test@example.com');
+      expect(mockSingle).not.toHaveBeenCalled();
+      expect(statusSpy).toHaveBeenCalledWith(409);
+    });
+
+    it('should create the user bound to the auth_id and email from the token, ignoring body email', async () => {
       mockRequest.body = { email: 'attacker@evil.com', nome_completo: 'Test User' };
       const mockUser = { id: 1, email: 'test@example.com', nome_completo: 'Test User' };
 
-      mockEq.mockResolvedValueOnce({
-        data: [],
-        error: null,
-      });
+      mockEq
+        .mockResolvedValueOnce({ data: [], error: null })
+        .mockResolvedValueOnce({ data: [], error: null });
       mockSingle.mockResolvedValueOnce({
         data: mockUser,
         error: null,
@@ -119,12 +135,33 @@ describe('UsersController', () => {
       const handler = UsersController.routes["register-user-with-google"].value;
       await handler(mockRequest as Request, mockResponse as Response);
 
+      // Pré-mortem 27/09/2026, R22: sem auth_id a linha ficava órfã para o
+      // frontend e o UNIQUE de auth_id não barrava duplicatas.
       expect(mockInsert).toHaveBeenCalledWith({
+        auth_id: 'auth-uuid',
         email: 'test@example.com',
         nome_completo: 'Test User',
       });
       expect(statusSpy).toHaveBeenCalledWith(200);
       expect(jsonSpy).toHaveBeenCalledWith(mockUser);
+    });
+
+    it('should return 409 when the insert loses the race (23505 unique violation)', async () => {
+      mockRequest.body = { nome_completo: 'Test User' };
+
+      mockEq
+        .mockResolvedValueOnce({ data: [], error: null })
+        .mockResolvedValueOnce({ data: [], error: null });
+      mockSingle.mockResolvedValueOnce({
+        data: null,
+        error: { code: '23505', message: 'duplicate key value violates unique constraint "users_auth_id_key"' },
+      });
+
+      const handler = UsersController.routes["register-user-with-google"].value;
+      await handler(mockRequest as Request, mockResponse as Response);
+
+      expect(statusSpy).toHaveBeenCalledWith(409);
+      expect(jsonSpy).toHaveBeenCalledWith({ error: "Usuário já cadastrado" });
     });
 
     it('should return 500 when database error occurs during user check', async () => {
@@ -234,10 +271,9 @@ describe('UsersController', () => {
       mockRequest.body = { nome_completo: 'Test User' };
       const mockUser = { id: 1, email: 'test@example.com', nome_completo: 'Test User' };
 
-      mockEq.mockResolvedValueOnce({
-        data: [],
-        error: null,
-      });
+      mockEq
+        .mockResolvedValueOnce({ data: [], error: null })
+        .mockResolvedValueOnce({ data: [], error: null });
       mockSingle.mockResolvedValueOnce({
         data: mockUser,
         error: null,

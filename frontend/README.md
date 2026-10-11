@@ -42,3 +42,7 @@ No CI (`pipelineCI.yml`) roda só o Vitest; Playwright e svelte-check são locai
   (`pdfjs-dist`; o worker é copiado no `postinstall`). Export de imagem: `html2canvas-pro`.
 - Aliases: `$components`, `$lib`, `$stores`, `$types`, `$services`, `$utils`
   (`svelte.config.js`).
+- Tema e design system: tokens em `src/app.css` (`:root` = claro, `.dark` = escuro),
+  utilitários em `src/lib/styles/nofluxo-ds.css`, store em `src/lib/stores/theme.ts`,
+  toggle em `components/layout/navbar/ModeToggle.svelte`. Regras e inventário em
+  `docs/design-system.md`.

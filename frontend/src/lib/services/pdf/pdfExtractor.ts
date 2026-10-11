@@ -128,6 +128,24 @@ function extractItemsFromTextContent(textContent: { items: unknown[] }): Positio
 }
 
 /**
+ * Traduz o erro do pdf.js para uma mensagem em pt-BR. O uploadStore mostra
+ * err.message direto no toast, e antes o aluno via "No password given" ou
+ * "Invalid PDF structure" (pré-mortem R38).
+ */
+export function mensagemErroPdfjs(err: unknown): string {
+	const name = (err as { name?: string } | null)?.name ?? '';
+	switch (name) {
+		case 'PasswordException':
+			return 'Este PDF está protegido por senha. Baixe o histórico novamente pelo SIGAA, sem senha, e tente de novo.';
+		case 'InvalidPDFException':
+		case 'FormatError':
+			return 'O arquivo não é um PDF válido ou está corrompido. Baixe o histórico novamente pelo SIGAA.';
+		default:
+			return 'Não foi possível ler o PDF. Baixe o histórico novamente pelo SIGAA e tente de novo.';
+	}
+}
+
+/**
  * Load a PDF file once and return the PDFDocumentProxy.
  * This should be called once and the result passed to both
  * extractTextFromPdfDoc and extractPositionedItemsFromDoc.
@@ -136,8 +154,15 @@ export async function loadPdf(file: File): Promise<PDFDocumentProxy> {
 	console.time(`${LOG_PREFIX} loadPdf`);
 	const pdfjs = await getPdfjs();
 	const arrayBuffer = await file.arrayBuffer();
-	const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-	console.timeEnd(`${LOG_PREFIX} loadPdf`);
+	let pdf: PDFDocumentProxy;
+	try {
+		pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+	} catch (err) {
+		console.error(`${LOG_PREFIX} pdf.js failed to open the file`, err);
+		throw new Error(mensagemErroPdfjs(err));
+	} finally {
+		console.timeEnd(`${LOG_PREFIX} loadPdf`);
+	}
 	console.log(`${LOG_PREFIX} PDF loaded — ${pdf.numPages} page(s), ${(file.size / 1024).toFixed(1)} KB`);
 	return pdf;
 }

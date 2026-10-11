@@ -110,12 +110,12 @@
 	};
 
 	const statusColors: Record<string, string> = {
-		[SubjectStatusEnum.COMPLETED]: 'text-green-400',
-		[SubjectStatusEnum.IN_PROGRESS]: 'text-purple-400',
-		[SubjectStatusEnum.AVAILABLE]: 'text-amber-400',
-		[SubjectStatusEnum.FAILED]: 'text-red-400',
-		[SubjectStatusEnum.LOCKED]: 'text-gray-400',
-		[SubjectStatusEnum.NOT_STARTED]: 'text-gray-400'
+		[SubjectStatusEnum.COMPLETED]: 'text-emerald-700 dark:text-green-400',
+		[SubjectStatusEnum.IN_PROGRESS]: 'text-ai',
+		[SubjectStatusEnum.AVAILABLE]: 'text-amber-700 dark:text-amber-400',
+		[SubjectStatusEnum.FAILED]: 'text-red-700 dark:text-red-400',
+		[SubjectStatusEnum.LOCKED]: 'text-muted-foreground',
+		[SubjectStatusEnum.NOT_STARTED]: 'text-muted-foreground'
 	};
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -237,26 +237,26 @@
 	onclick={handleBackdropClick}
 >
 	<div
-		class="relative max-h-[calc(100dvh-5.5rem)] w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 bg-gray-900/95 shadow-2xl backdrop-blur-xl sm:max-h-[90vh]"
+		class="relative max-h-[calc(100dvh-5.5rem)] w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-nofluxoLg backdrop-blur-xl dark:bg-gray-900/95 dark:shadow-2xl sm:max-h-[90vh]"
 		role="dialog"
 		aria-modal="true"
 		aria-label="Cadeia de pré-requisitos"
 	>
-		<div class="border-b border-white/10 px-5 py-4 sm:px-6">
+		<div class="border-b border-border px-5 py-4 sm:px-6">
 			<div class="flex items-start justify-between gap-3">
 				<div class="min-w-0 flex-1">
 					<div class="mb-1 flex items-center gap-2">
-						<GitBranch class="h-4 w-4 shrink-0 text-purple-400" />
-						<span class="text-xs font-semibold uppercase tracking-wider text-white/60">
+						<GitBranch class="h-4 w-4 shrink-0 text-ai" />
+						<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
 							Cadeia de matérias
 						</span>
 					</div>
-					<h2 class="text-lg font-bold text-white sm:text-xl">{materia.nomeMateria}</h2>
-					<p class="text-xs text-white/50">{materia.codigoMateria} · {materia.creditos} créditos</p>
+					<h2 class="text-lg font-bold text-foreground sm:text-xl">{materia.nomeMateria}</h2>
+					<p class="text-xs text-muted-foreground">{materia.codigoMateria} · {materia.creditos} créditos</p>
 				</div>
 				<button
 					onclick={onclose}
-					class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/70 transition-colors hover:bg-white/20 hover:text-white"
+					class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-foreground/70 transition-colors hover:bg-foreground/20 hover:text-foreground"
 					aria-label="Fechar"
 				>
 					<X class="h-4 w-4" />
@@ -264,16 +264,16 @@
 			</div>
 		</div>
 
-		<div class="border-b border-white/10 px-5 py-3 sm:px-6">
+		<div class="border-b border-border px-5 py-3 sm:px-6">
 			<div
 				class="flex items-center gap-2 rounded-lg px-3 py-2 {canTake ? 'bg-green-500/10' : 'bg-amber-500/10'}"
 			>
 				{#if canTake}
-					<Check class="h-4 w-4 text-green-400" />
-					<span class="text-sm font-medium text-green-300">Pode cursar esta matéria</span>
+					<Check class="h-4 w-4 text-emerald-700 dark:text-green-400" />
+					<span class="text-sm font-medium text-emerald-800 dark:text-green-300">Pode cursar esta matéria</span>
 				{:else}
-					<AlertTriangle class="h-4 w-4 text-amber-400" />
-					<span class="text-sm font-medium text-amber-300">Pré-requisitos pendentes</span>
+					<AlertTriangle class="h-4 w-4 text-amber-700 dark:text-amber-400" />
+					<span class="text-sm font-medium text-amber-800 dark:text-amber-300">Pré-requisitos pendentes</span>
 				{/if}
 			</div>
 		</div>
@@ -282,26 +282,26 @@
 			{#if chainDisplay.layers.length > 0}
 				<!-- Roadmap: ordem topológica (mesmas cores do diagrama: violeta = pré, âmbar = foco) -->
 				<section class="mb-6">
-					<div class="mb-3 flex items-center gap-2 text-white/70">
-						<MapIcon class="h-4 w-4 shrink-0 text-purple-400" />
+					<div class="mb-3 flex items-center gap-2 text-foreground/70">
+						<MapIcon class="h-4 w-4 shrink-0 text-ai" />
 						<h3 class="text-xs font-semibold uppercase tracking-wider">
 							Roadmap até esta matéria (ordem topológica)
 						</h3>
 					</div>
-					<p class="mb-3 text-[10px] leading-relaxed text-white/40">
+					<p class="mb-3 text-[10px] leading-relaxed text-muted-foreground">
 						Siga as setas da esquerda para a direita: o que vem antes deve ser cumprido (ou equivalência)
 						antes do próximo passo. Co-requisitos na mesma camada ficam ligados por
-						<span class="text-cyan-400/90">↔</span>.
+						<span class="text-cyan-700 dark:text-cyan-400/90">↔</span>.
 					</p>
 
 					<div
 						use:dragScroll
-						class="roadmap-scroll flex min-h-[4.5rem] items-center gap-1 overflow-x-auto rounded-xl border border-purple-500/20 bg-black/25 px-3 py-4 [scrollbar-width:thin]"
+						class="roadmap-scroll flex min-h-[4.5rem] items-center gap-1 overflow-x-auto rounded-xl border border-primary/20 bg-muted/50 dark:bg-black/25 px-3 py-4 [scrollbar-width:thin]"
 					>
 						{#each chainDisplay.layers as layer, li}
 							{#if li > 0}
 								<ArrowRight
-									class="h-5 w-5 shrink-0 self-center text-purple-400/90"
+									class="h-5 w-5 shrink-0 self-center text-ai/90"
 									strokeWidth={2.5}
 									aria-hidden="true"
 								/>
@@ -311,13 +311,13 @@
 									{#if mi > 0}
 										{#if layer.isCoReqCluster}
 											<ArrowLeftRight
-												class="h-4 w-4 shrink-0 text-cyan-400/85"
+												class="h-4 w-4 shrink-0 text-cyan-700 dark:text-cyan-400/85"
 												strokeWidth={2.25}
 												aria-hidden="true"
 											/>
 										{:else}
 											<ArrowRight
-												class="h-4 w-4 shrink-0 text-purple-400/70"
+												class="h-4 w-4 shrink-0 text-ai/70"
 												strokeWidth={2.25}
 												aria-hidden="true"
 											/>
@@ -328,31 +328,31 @@
 									<div
 										class="roadmap-pill flex max-w-[11rem] flex-col gap-0.5 rounded-2xl border px-3 py-2 text-left shadow-sm transition-colors sm:max-w-[13rem] {isFocus(lm)
 											? 'border-amber-400/55 bg-amber-500/15 ring-1 ring-amber-400/35'
-											: 'border-purple-400/45 bg-purple-500/10 shadow-purple-950/30'}"
+											: 'border-purple-400/45 bg-primary/10 shadow-purple-950/30'}"
 									>
 										<span
 											class="font-mono text-[10px] font-semibold tracking-wide {isFocus(lm)
-												? 'text-amber-200/95'
-												: 'text-purple-200/90'}"
+												? 'text-amber-800 dark:text-amber-200/95'
+												: 'text-accent-foreground dark:text-purple-200/90'}"
 										>
 											{lm.codigoMateria}
 										</span>
 										<span
 											class="line-clamp-2 text-[11px] font-medium leading-snug {isFocus(lm)
-												? 'text-amber-50/95'
-												: 'text-white/90'}"
+												? 'text-amber-950 dark:text-amber-50/95'
+												: 'text-foreground/90'}"
 										>
 											{lm.nomeMateria}
 										</span>
 										<div class="flex items-center gap-1 text-[9px] opacity-80">
 											<Icon class="h-3 w-3 shrink-0 {statusColors[st]}" />
-											<span class={isFocus(lm) ? 'text-amber-200/75' : 'text-purple-200/65'}
+											<span class={isFocus(lm) ? 'text-amber-800 dark:text-amber-200/75' : 'text-accent-foreground dark:text-purple-200/65'}
 												>{getStatusLabel(st)}</span
 											>
 										</div>
 										{#if isFocus(lm)}
 											<span
-												class="mt-0.5 inline-block w-fit rounded bg-amber-500/25 px-1.5 py-px text-[8px] font-bold uppercase tracking-wide text-amber-200/90"
+												class="mt-0.5 inline-block w-fit rounded bg-amber-500/25 px-1.5 py-px text-[8px] font-bold uppercase tracking-wide text-amber-800 dark:text-amber-200/90"
 												>Objetivo</span
 											>
 										{/if}
@@ -363,7 +363,7 @@
 					</div>
 				</section>
 			{:else}
-				<p class="mb-6 text-sm text-white/45">
+				<p class="mb-6 text-sm text-muted-foreground">
 					{#if chainDisplay.emptyKind === 'no_prereq'}
 						Nenhum pré-requisito na grade deste curso para montar o roadmap.
 					{:else if chainDisplay.emptyKind === 'topo_fail'}
@@ -376,38 +376,38 @@
 
 			{#if dependents.length > 0}
 				<section class="mb-6">
-					<div class="mb-3 flex items-center gap-2 text-white/70">
-						<GitBranch class="h-4 w-4 shrink-0 text-teal-400" />
+					<div class="mb-3 flex items-center gap-2 text-foreground/70">
+						<GitBranch class="h-4 w-4 shrink-0 text-teal-700 dark:text-teal-400" />
 						<h3 class="text-xs font-semibold uppercase tracking-wider">
 							Depois desta matéria (dependentes diretos)
 						</h3>
 					</div>
-					<p class="mb-3 text-[10px] leading-relaxed text-white/40">
+					<p class="mb-3 text-[10px] leading-relaxed text-muted-foreground">
 						Fluxo na grade: esta disciplina é pré-requisito das abaixo (cor
-						<span class="text-teal-400/90">teal</span>, como no diagrama).
+						<span class="text-teal-700 dark:text-teal-400/90">teal</span>, como no diagrama).
 					</p>
 					<div
 						use:dragScroll
-						class="roadmap-scroll flex min-h-[4rem] items-center gap-1 overflow-x-auto rounded-xl border border-teal-500/25 bg-black/20 px-3 py-4 [scrollbar-width:thin]"
+						class="roadmap-scroll flex min-h-[4rem] items-center gap-1 overflow-x-auto rounded-xl border border-teal-500/25 bg-muted/50 dark:bg-black/20 px-3 py-4 [scrollbar-width:thin]"
 					>
 						<div
 							class="flex max-w-[10rem] shrink-0 flex-col gap-0.5 rounded-2xl border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-left shadow-sm shadow-amber-950/20 sm:max-w-[12rem]"
 						>
-							<span class="font-mono text-[10px] font-semibold text-amber-200/90"
+							<span class="font-mono text-[10px] font-semibold text-amber-800 dark:text-amber-200/90"
 								>{materia.codigoMateria}</span
 							>
-							<span class="line-clamp-2 text-[11px] font-medium leading-snug text-amber-50/90"
+							<span class="line-clamp-2 text-[11px] font-medium leading-snug text-amber-950 dark:text-amber-50/90"
 								>{materia.nomeMateria}</span
 							>
-							<span class="text-[8px] font-semibold uppercase tracking-wide text-amber-300/70"
+							<span class="text-[8px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300/70"
 								>Você está aqui</span
 							>
 						</div>
-						<ArrowRight class="h-5 w-5 shrink-0 text-teal-400/90" strokeWidth={2.5} aria-hidden="true" />
+						<ArrowRight class="h-5 w-5 shrink-0 text-teal-700 dark:text-teal-400/90" strokeWidth={2.5} aria-hidden="true" />
 						{#each dependents as dep, di}
 							{#if di > 0}
 								<ArrowRight
-									class="h-5 w-5 shrink-0 text-teal-400/75"
+									class="h-5 w-5 shrink-0 text-teal-700 dark:text-teal-400/75"
 									strokeWidth={2.5}
 									aria-hidden="true"
 								/>
@@ -417,13 +417,13 @@
 							<div
 								class="flex max-w-[11rem] shrink-0 flex-col gap-0.5 rounded-2xl border border-teal-400/45 bg-teal-500/10 px-3 py-2 text-left shadow-sm shadow-teal-950/25 sm:max-w-[13rem]"
 							>
-								<span class="font-mono text-[10px] font-semibold text-teal-200/90"
+								<span class="font-mono text-[10px] font-semibold text-teal-800 dark:text-teal-200/90"
 									>{dep.codigoMateria}</span
 								>
-								<span class="line-clamp-2 text-[11px] font-medium leading-snug text-white/90"
+								<span class="line-clamp-2 text-[11px] font-medium leading-snug text-foreground/90"
 									>{dep.nomeMateria}</span
 								>
-								<div class="flex items-center gap-1 text-[9px] text-teal-200/70">
+								<div class="flex items-center gap-1 text-[9px] text-teal-800 dark:text-teal-200/70">
 									<DIcon class="h-3 w-3 shrink-0 {statusColors[dst]}" />
 									<span>{getStatusLabel(dst)} · nív. {dep.nivel}</span>
 								</div>
@@ -434,10 +434,10 @@
 			{/if}
 
 			{#if transitive.ancestors.length > 0 || transitive.descendants.length > 0}
-				<section class="space-y-4 border-t border-white/10 pt-5">
+				<section class="space-y-4 border-t border-border pt-5">
 					{#if transitive.ancestors.length > 0}
 						<div>
-							<h4 class="mb-2 text-[10px] font-semibold uppercase tracking-wider text-purple-400/80">
+							<h4 class="mb-2 text-[10px] font-semibold uppercase tracking-wider text-ai/80">
 								Precisa cursar antes (transitivo na grade)
 							</h4>
 							<div class="flex flex-wrap gap-1.5">
@@ -445,12 +445,12 @@
 									<button
 										type="button"
 										onclick={() => toggleCodigo(`a-${a.codigoMateria}`)}
-										class="inline-flex max-w-full items-center gap-1.5 rounded-full border border-purple-400/35 bg-purple-500/10 px-2.5 py-1 text-left text-[10px] leading-tight text-purple-100/95 transition-colors hover:bg-purple-500/20"
+										class="inline-flex max-w-full items-center gap-1.5 rounded-full border border-purple-400/35 bg-primary/10 px-2.5 py-1 text-left text-[10px] leading-tight text-violet-900 dark:text-purple-100/95 transition-colors hover:bg-primary/20"
 										title={a.codigoMateria}
 									>
 										<span class="truncate">{a.nomeMateria}</span>
 										{#if codigoVisivel === `a-${a.codigoMateria}`}
-											<span class="shrink-0 font-mono text-purple-200/75">{a.codigoMateria}</span>
+											<span class="shrink-0 font-mono text-accent-foreground dark:text-purple-200/75">{a.codigoMateria}</span>
 										{/if}
 									</button>
 								{/each}
@@ -459,7 +459,7 @@
 					{/if}
 					{#if transitive.descendants.length > 0}
 						<div>
-							<h4 class="mb-2 text-[10px] font-semibold uppercase tracking-wider text-teal-400/85">
+							<h4 class="mb-2 text-[10px] font-semibold uppercase tracking-wider text-teal-700 dark:text-teal-400/85">
 								Desbloqueia depois (transitivo na grade)
 							</h4>
 							<div class="flex flex-wrap gap-1.5">
@@ -467,12 +467,12 @@
 									<button
 										type="button"
 										onclick={() => toggleCodigo(`d-${d.codigoMateria}`)}
-										class="inline-flex max-w-full items-center gap-1.5 rounded-full border border-teal-400/35 bg-teal-500/10 px-2.5 py-1 text-left text-[10px] leading-tight text-teal-100/95 transition-colors hover:bg-teal-500/20"
+										class="inline-flex max-w-full items-center gap-1.5 rounded-full border border-teal-400/35 bg-teal-500/10 px-2.5 py-1 text-left text-[10px] leading-tight text-teal-900 dark:text-teal-100/95 transition-colors hover:bg-teal-500/20"
 										title={d.codigoMateria}
 									>
 										<span class="truncate">{d.nomeMateria}</span>
 										{#if codigoVisivel === `d-${d.codigoMateria}`}
-											<span class="shrink-0 font-mono text-teal-200/75">{d.codigoMateria}</span>
+											<span class="shrink-0 font-mono text-teal-800 dark:text-teal-200/75">{d.codigoMateria}</span>
 										{/if}
 									</button>
 								{/each}

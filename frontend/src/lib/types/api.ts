@@ -61,7 +61,7 @@ export interface SaveFluxogramaRequest {
 	}>;
 	fluxograma_atual: {
 		nome_curso: string;
-		ira: number;
+		ira: number | null;
 		matricula: string;
 		matriz_curricular: string;
 		semestre_atual: number;

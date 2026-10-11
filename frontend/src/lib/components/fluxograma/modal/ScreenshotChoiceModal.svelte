@@ -47,47 +47,47 @@
 			aria-modal="true"
 			aria-labelledby="screenshot-modal-title"
 			tabindex="-1"
-			class="w-full max-w-md rounded-2xl border border-white/15 bg-gray-950/98 shadow-2xl backdrop-blur-xl"
+			class="w-full max-w-md rounded-2xl border border-border bg-card shadow-nofluxoLg backdrop-blur-xl dark:bg-gray-950/98 dark:shadow-2xl"
 			onmousedown={(e) => e.stopPropagation()}
 			onclick={(e) => e.stopPropagation()}
 		>
-			<div class="flex items-center justify-between border-b border-white/10 px-4 py-3">
-				<h2 id="screenshot-modal-title" class="text-base font-bold text-white">Screenshot do fluxograma</h2>
+			<div class="flex items-center justify-between border-b border-border px-4 py-3">
+				<h2 id="screenshot-modal-title" class="text-base font-bold text-foreground">Screenshot do fluxograma</h2>
 				<button
 					type="button"
 					onclick={onclose}
-					class="rounded-lg p-2 text-white/60 hover:bg-white/10"
+					class="rounded-lg p-2 text-muted-foreground hover:bg-foreground/10"
 					aria-label="Fechar"
 				>
 					<X class="h-5 w-5" />
 				</button>
 			</div>
 			<div class="space-y-3 px-4 py-4">
-				<p class="text-sm text-white/60">Como você quer exportar a imagem?</p>
+				<p class="text-sm text-muted-foreground">Como você quer exportar a imagem?</p>
 				<button
 					type="button"
 					onclick={() => choose('off')}
-					class="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left transition-colors hover:border-white/20 hover:bg-white/10"
+					class="flex w-full items-center gap-3 rounded-xl border border-border bg-foreground/5 px-4 py-3 text-left transition-colors hover:border-foreground/20 hover:bg-foreground/10"
 				>
-					<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/90">
+					<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-foreground/10 text-foreground/90">
 						<Camera class="h-5 w-5" />
 					</span>
 					<span class="min-w-0 flex-1">
-						<span class="block font-medium text-white">Normal</span>
-						<span class="mt-0.5 block text-xs text-white/50">Apenas as disciplinas, sem linhas de conexão</span>
+						<span class="block font-medium text-foreground">Normal</span>
+						<span class="mt-0.5 block text-xs text-muted-foreground">Apenas as disciplinas, sem linhas de conexão</span>
 					</span>
 				</button>
 				<button
 					type="button"
 					onclick={() => choose('all')}
-					class="flex w-full items-center gap-3 rounded-xl border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-left transition-colors hover:border-purple-400/40 hover:bg-purple-500/15"
+					class="flex w-full items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-left transition-colors hover:border-purple-400/40 hover:bg-primary/15"
 				>
-					<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-500/25 text-purple-200">
+					<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/25 text-accent-foreground dark:text-purple-200">
 						<Link2 class="h-5 w-5" />
 					</span>
 					<span class="min-w-0 flex-1">
-						<span class="block font-medium text-purple-100">Com todas as conexões</span>
-						<span class="mt-0.5 block text-xs text-purple-200/60">
+						<span class="block font-medium text-violet-900 dark:text-purple-100">Com todas as conexões</span>
+						<span class="mt-0.5 block text-xs text-accent-foreground dark:text-purple-200/60">
 							Pré-requisitos, dependentes e co-requisitos (modo “Todas”)
 						</span>
 					</span>
@@ -95,7 +95,7 @@
 				<button
 					type="button"
 					onclick={onclose}
-					class="w-full rounded-xl border border-white/10 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/5"
+					class="w-full rounded-xl border border-border py-2.5 text-sm font-medium text-foreground/70 transition-colors hover:bg-foreground/5"
 				>
 					Cancelar
 				</button>

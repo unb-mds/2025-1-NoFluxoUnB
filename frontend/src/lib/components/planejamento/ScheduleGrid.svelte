@@ -166,12 +166,12 @@
 	function hoverClasses(codigo: string): string {
 		const h = gradeStore.hoverCodigo;
 		if (!h) return '';
-		return h === codigo ? 'ring-2 ring-white/50 brightness-110' : 'opacity-30';
+		return h === codigo ? 'ring-2 ring-foreground/50 dark:brightness-110' : 'opacity-30';
 	}
 </script>
 
 <div
-	class="rounded-2xl border border-white/10 bg-zinc-950/78 p-3 sm:p-4"
+	class="rounded-2xl border border-border bg-card dark:bg-background/80 p-3 sm:p-4"
 	id="grade-export"
 	data-tour="calendario"
 >
@@ -182,11 +182,11 @@
 				style="grid-template-columns: var(--axis-w) repeat({diasVisiveis.length}, minmax(var(--col-min), 1fr)); grid-template-rows: auto repeat({slotsVisiveis.length}, minmax(var(--row-h), 1fr));"
 			>
 				<!-- Canto (fixo na horizontal junto com o eixo de horários) -->
-				<div class="sticky left-0 z-20 bg-zinc-950" style="grid-column: 1; grid-row: 1;"></div>
+				<div class="sticky left-0 z-20 bg-card dark:bg-background" style="grid-column: 1; grid-row: 1;"></div>
 				<!-- Cabeçalho de dias -->
 				{#each diasVisiveis as dia, di (dia.cod)}
 					<div
-						class="pb-1.5 text-center text-xs font-semibold tracking-wide text-white/70 uppercase"
+						class="pb-1.5 text-center text-xs font-semibold tracking-wide text-foreground/70 uppercase"
 						style="grid-column: {di + 2}; grid-row: 1;"
 					>
 						{dia.label}
@@ -196,14 +196,14 @@
 				<!-- Eixo de horários — sticky para não sumir ao rolar a semana no celular -->
 				{#each slotsVisiveis as { slot }, vi (slot.label)}
 					<div
-						class="sticky left-0 z-20 flex flex-col items-end justify-center bg-zinc-950 pr-1.5 text-right {slot.modulo ===
+						class="sticky left-0 z-20 flex flex-col items-end justify-center bg-card dark:bg-background pr-1.5 text-right {slot.modulo ===
 						1
-							? 'border-t border-white/10'
+							? 'border-t border-border'
 							: ''}"
 						style="grid-column: 1; grid-row: {vi + 2};"
 					>
-						<span class="hora-inicio font-semibold text-white/70 tabular-nums">{slot.inicio}</span>
-						<span class="hora-modulo font-mono text-white/30">{slot.label}</span>
+						<span class="hora-inicio font-semibold text-foreground/70 tabular-nums">{slot.inicio}</span>
+						<span class="hora-modulo font-mono text-muted-foreground">{slot.label}</span>
 					</div>
 				{/each}
 
@@ -211,8 +211,8 @@
 				{#each diasVisiveis as dia, di (dia.cod)}
 					{#each slotsVisiveis as { slot }, vi (slot.label)}
 						<div
-							class="border-l border-white/[0.05] {slot.modulo === 1
-								? 'border-t border-white/10'
+							class="border-l border-border/60 {slot.modulo === 1
+								? 'border-t border-border'
 								: ''}"
 							style="grid-column: {di + 2}; grid-row: {vi + 2};"
 						></div>
@@ -274,7 +274,7 @@
 			</div>
 		</div>
 		{#if transborda}
-			<p class="mt-2 text-center text-[10px] text-white/25">
+			<p class="mt-2 text-center text-[10px] text-muted-foreground">
 				Arraste para o lado para ver o resto da semana.
 			</p>
 		{/if}
@@ -284,7 +284,7 @@
 			{#each agendaPorDia as coluna (coluna.dia.cod)}
 				<section>
 					<p
-						class="mb-1.5 px-0.5 text-[11px] font-semibold tracking-[0.14em] text-white/45 uppercase"
+						class="mb-1.5 px-0.5 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase"
 					>
 						{DIA_LONGO[coluna.dia.cod]}
 					</p>
@@ -299,35 +299,35 @@
 									onclick={() => onBlocoClick(bloco.codigo)}
 									onmouseenter={() => gradeStore.setHover(bloco.codigo)}
 									onmouseleave={() => gradeStore.setHover(null)}
-									class="flex w-full touch-manipulation items-stretch gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-2 text-left transition-colors hover:bg-white/[0.07] active:bg-white/10 {hoverClasses(
+									class="flex w-full touch-manipulation items-stretch gap-2.5 rounded-xl border border-border bg-foreground/[0.03] p-2 text-left transition-colors hover:bg-foreground/[0.07] active:bg-foreground/10 {hoverClasses(
 										bloco.codigo
 									)}"
 								>
 									<span class="w-1 shrink-0 rounded-full {cor.dot}"></span>
 									<span class="w-[3.4rem] shrink-0 tabular-nums">
-										<span class="block text-[13px] font-semibold text-white/85"
+										<span class="block text-[13px] font-semibold text-foreground/85"
 											>{SLOTS_DIA[bloco.offsetStart].inicio}</span
 										>
-										<span class="block text-[11px] text-white/35">{SLOTS_DIA[fim].fim}</span>
+										<span class="block text-[11px] text-muted-foreground">{SLOTS_DIA[fim].fim}</span>
 									</span>
 									<span class="min-w-0 flex-1">
 										<span class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-											<span class="font-mono text-[13px] font-bold text-white/90"
+											<span class="font-mono text-[13px] font-bold text-foreground/90"
 												>{bloco.codigo}</span
 											>
 											{#if sel}
 												<span
-													class="rounded-full border border-white/10 bg-white/5 px-1.5 py-px text-[10px] text-white/55"
+													class="rounded-full border border-border bg-foreground/5 px-1.5 py-px text-[10px] text-muted-foreground"
 													>T. {sel.turma.turma}</span
 												>
 											{/if}
 											<!-- Módulo SIGAA (M1–M2) na mesma linha do código: numa lista de uma
 											     aula por card, cada linha extra custa meia tela de rolagem. -->
-											<span class="font-mono text-[10px] text-white/30">
+											<span class="font-mono text-[10px] text-muted-foreground">
 												{faixaModulos(bloco.offsetStart, bloco.span)}
 											</span>
 										</span>
-										<span class="mt-0.5 block truncate text-[11px] leading-snug text-white/55">
+										<span class="mt-0.5 block truncate text-[11px] leading-snug text-muted-foreground">
 											{nomeMateria(bloco.codigo)}
 										</span>
 									</span>
@@ -343,7 +343,7 @@
 	<!-- Rodapé: legenda + alternar visão + expandir turnos -->
 	{#if temAlgo}
 		<div
-			class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-2.5"
+			class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2.5"
 		>
 			<div class="flex flex-wrap items-center gap-1.5">
 				{#each legenda as m (m.codigo)}
@@ -354,7 +354,7 @@
 						onmouseenter={() => gradeStore.setHover(m.codigo)}
 						onmouseleave={() => gradeStore.setHover(null)}
 						title={m.nome}
-						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-medium text-white/75 transition-colors hover:bg-white/10"
+						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-border bg-foreground/5 px-2 py-1 text-[10px] font-medium text-foreground/75 transition-colors hover:bg-foreground/10"
 					>
 						<span class="h-2 w-2 rounded-full {cor.dot}"></span>
 						<span class="font-mono">{m.codigo}</span>
@@ -370,7 +370,7 @@
 				<button
 					type="button"
 					onclick={trocarModo}
-					class="inline-flex touch-manipulation items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-white/55 transition-colors hover:bg-white/10"
+					class="inline-flex touch-manipulation items-center gap-1 rounded-full border border-border bg-foreground/5 px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-foreground/10"
 				>
 					{#if modo === 'grade'}
 						<List class="h-3 w-3" /> Ver como agenda
@@ -385,7 +385,7 @@
 						title={mostrarTudo
 							? 'Volta a mostrar só os dias e turnos com aula — cabe melhor na tela'
 							: 'Mostra a semana inteira, inclusive dias e turnos sem aula'}
-						class="inline-flex touch-manipulation items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-white/55 transition-colors hover:bg-white/10"
+						class="inline-flex touch-manipulation items-center gap-1 rounded-full border border-border bg-foreground/5 px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-foreground/10"
 					>
 						<ChevronsUpDown class="h-3 w-3" />
 						{mostrarTudo ? 'Só dias com aula' : 'Ver semana inteira'}
@@ -394,7 +394,7 @@
 			</div>
 		</div>
 	{:else}
-		<p class="mt-3 flex items-center justify-center gap-2 py-6 text-center text-xs text-white/40">
+		<p class="mt-3 flex items-center justify-center gap-2 py-6 text-center text-xs text-muted-foreground">
 			<CalendarClock class="h-4 w-4" />
 			Escolha turmas nas matérias (ou clique em “Montar grade”, no topo) para ver sua grade.
 		</p>
@@ -413,8 +413,12 @@
 		height: 4px;
 	}
 	.grade-scroll::-webkit-scrollbar-thumb {
-		background: hsl(0 0% 100% / 0.18);
+		background: hsl(var(--foreground) / 0.18);
 		border-radius: 999px;
+	}
+	/* Dark: mesmo branco/0.18 de sempre (o foreground do .dark não é 100% branco). */
+	:global(.dark) .grade-scroll::-webkit-scrollbar-thumb {
+		background: hsl(0 0% 100% / 0.18);
 	}
 
 	/* Linhas mais altas e eixo mais largo no celular — o texto sobe de 8px para 10–11px

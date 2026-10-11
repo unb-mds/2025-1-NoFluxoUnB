@@ -404,6 +404,7 @@
 </div>
 
 <style>
+	/* Light = padrão (tokens). O bloco :global(.dark) no fim restaura, verbatim, os valores históricos do tema escuro. */
 	.chat {
 		display: flex;
 		flex-direction: column;
@@ -486,8 +487,8 @@
 	.balao.minha {
 		border-radius: 14px;
 		border-top-right-radius: 4px;
-		background: rgba(147, 51, 234, 0.18);
-		border-color: rgba(147, 51, 234, 0.4);
+		background: hsl(var(--accent));
+		border-color: hsl(var(--primary) / 0.35);
 	}
 	.balao.enviando {
 		opacity: 0.55;
@@ -508,9 +509,9 @@
 		display: inline-flex;
 		padding: 1px 6px;
 		border-radius: 4px;
-		border: 1px solid rgba(147, 51, 234, 0.4);
-		background: rgba(147, 51, 234, 0.2);
-		color: #e9d5ff;
+		border: 1px solid hsl(var(--primary) / 0.4);
+		background: hsl(var(--accent));
+		color: hsl(var(--accent-foreground));
 		font-size: 9px;
 		font-weight: 600;
 		text-transform: uppercase;
@@ -540,7 +541,8 @@
 		font-size: 13px;
 		background: rgba(16, 185, 129, 0.1);
 		border: 1px solid rgba(16, 185, 129, 0.3);
-		color: #6ee7b7;
+		/* emerald-800: 7,3:1 sobre o card; .dark volta ao #6ee7b7 */
+		color: #065f46;
 	}
 
 	.composer {
@@ -570,7 +572,7 @@
 	}
 	.textarea:focus {
 		outline: none;
-		border-color: #9333ea;
+		border-color: hsl(var(--ring));
 	}
 	.textarea:disabled {
 		opacity: 0.7;
@@ -588,7 +590,7 @@
 		color: hsl(var(--muted-foreground));
 	}
 	.contador.estourado {
-		color: #fca5a5;
+		color: hsl(var(--destructive));
 	}
 
 	.enviar-btn {
@@ -599,8 +601,8 @@
 		padding: 9px 16px;
 		border-radius: 8px;
 		border: none;
-		background: linear-gradient(90deg, #9333ea, #ec4899);
-		color: white;
+		background: hsl(var(--primary));
+		color: hsl(var(--primary-foreground));
 		font-weight: 600;
 		font-size: 13px;
 		cursor: pointer;
@@ -612,5 +614,29 @@
 	.enviar-btn:disabled {
 		opacity: 0.55;
 		cursor: not-allowed;
+	}
+
+	/* Dark: receita histórica, sem alteração de aparência */
+	:global(.dark) .balao.minha {
+		background: rgba(147, 51, 234, 0.18);
+		border-color: rgba(147, 51, 234, 0.4);
+	}
+	:global(.dark) .chip-suporte {
+		border-color: rgba(147, 51, 234, 0.4);
+		background: rgba(147, 51, 234, 0.2);
+		color: #e9d5ff;
+	}
+	:global(.dark) .aviso-encerrado {
+		color: #6ee7b7;
+	}
+	:global(.dark) .textarea:focus {
+		border-color: #9333ea;
+	}
+	:global(.dark) .contador.estourado {
+		color: #fca5a5;
+	}
+	:global(.dark) .enviar-btn {
+		background: linear-gradient(90deg, #9333ea, #ec4899);
+		color: white;
 	}
 </style>

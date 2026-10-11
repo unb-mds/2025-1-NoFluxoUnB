@@ -1,0 +1,51 @@
+name: Acessibilidade (axe)
+
+# Varredura WCAG 2 A/AA com axe: testes unitários de componentes (Vitest + jsdom) e
+# varredura das rotas públicas (Playwright). Não bloqueia o merge por enquanto —
+# o objetivo é dar visibilidade; `continue-on-error` sai quando a base estiver limpa.
+on:
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/a11y.yml"
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+
+jobs:
+  axe:
+    name: axe (Vitest + Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    env:
+      PUBLIC_SUPABASE_URL: https://example.supabase.co
+      PUBLIC_SUPABASE_ANON_KEY: ci-fake-anon-key
+      PUBLIC_API_URL: http://localhost:3000
+      PUBLIC_REDIRECT_URL: http://localhost:5173
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instalar dependências
+        run: npm ci
+      - name: Testes unitários de acessibilidade (axe + jsdom)
+        run: npm run test:a11y
+      - name: Instalar Chromium do Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Varredura axe nas rotas públicas
+        run: npm run test:e2e:a11y
+      - name: Relatório do Playwright
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-a11y-report
+          path: frontend/playwright-report
+          retention-days: 7

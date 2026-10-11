@@ -8,6 +8,22 @@ import { unescapeHtml } from './text.utils';
 import logger from '../logger';
 
 /**
+ * Resposta do RAGFlow que não dá para transformar em ranking.
+ *
+ * Antes formatRanking devolvia a STRING "Erro ao processar o JSON: ..." e o
+ * controller respondia 200 com ela como resultado — o usuário via
+ * "Cannot read properties of undefined (reading 'match')" como se fosse a
+ * resposta da IA (pré-mortem 27/09/2026, R53). Agora lança e o controller
+ * responde 502.
+ */
+export class RankingFormatError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'RankingFormatError';
+    }
+}
+
+/**
  * Parse a Python dict literal string into its content value.
  * The RAGFlow answer field looks like: "{'content': {'0': '...'}, 'component_id': {'0': '...'}}"
  */
@@ -92,7 +108,10 @@ function parseItem(itemStr: string): RankingItem {
  */
 export function formatRanking(response: RagflowResponse): string {
     try {
-        const answerStr = response.data.answer;
+        const answerStr = response?.data?.answer;
+        if (typeof answerStr !== 'string' || !answerStr.trim()) {
+            throw new RankingFormatError('RAGFlow respondeu sem answer');
+        }
         const contentStr = extractContent(answerStr);
 
         // Split on "INÍCIO DO RANKING"
@@ -101,7 +120,7 @@ export function formatRanking(response: RagflowResponse): string {
         rankingBlock = rankingBlock.replace(/---\s*$/, '').trim();
 
         if (!rankingBlock) {
-            return 'Erro: Não foi possível extrair um bloco de ranking válido do JSON.';
+            throw new RankingFormatError('Não foi possível extrair um bloco de ranking válido do JSON.');
         }
 
         // Extract numbered items — match "1. ... " up to next "2. ..." or end
@@ -194,6 +213,6 @@ export function formatRanking(response: RagflowResponse): string {
     } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         logger.error(`[RankingFormatter] Error formatting ranking: ${msg}`);
-        return `Erro ao processar o JSON: ${msg}`;
+        throw error instanceof RankingFormatError ? error : new RankingFormatError(`Erro ao processar o JSON: ${msg}`);
     }
 }

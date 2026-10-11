@@ -53,8 +53,8 @@
 			faltamAposPlanejamento: undefined as number | undefined,
 			pct: dadosUser?.pctObrigatoria ?? 0,
 			pctComPlanejamento: dadosUser?.pctObrigatoria ?? 0,
-			cor: '#3b82f6',
-			corClasse: 'text-blue-400',
+			cor: 'var(--ch-obrig)',
+			corClasse: 'text-blue-700 dark:text-blue-400',
 			bgClasse: 'bg-blue-500/20',
 			borderClasse: 'border-blue-500/30'
 		},
@@ -68,8 +68,8 @@
 			faltamAposPlanejamento: dadosUser?.faltamChOptativaAposPlanejamento,
 			pct: dadosUser?.pctOptativa ?? 0,
 			pctComPlanejamento: dadosUser?.pctOptativaComPlanejamento ?? dadosUser?.pctOptativa ?? 0,
-			cor: '#a855f7',
-			corClasse: 'text-purple-400',
+			cor: 'var(--ch-opt)',
+			corClasse: 'text-primary dark:text-purple-400',
 			bgClasse: 'bg-purple-500/20',
 			borderClasse: 'border-purple-500/30'
 		},
@@ -85,8 +85,8 @@
 						faltamAposPlanejamento: undefined as number | undefined,
 						pct: dadosUser?.pctComplementar ?? 0,
 						pctComPlanejamento: dadosUser?.pctComplementar ?? 0,
-						cor: '#f59e0b',
-						corClasse: 'text-amber-400',
+						cor: 'var(--ch-comp)',
+						corClasse: 'text-amber-800 dark:text-amber-400',
 						bgClasse: 'bg-amber-500/20',
 						borderClasse: 'border-amber-500/30'
 					}
@@ -107,20 +107,20 @@
 </script>
 
 {#if dadosUser}
-	<div class="min-w-0 rounded-xl border border-white/10 bg-black/40 p-3 backdrop-blur-md sm:p-4">
+	<div class="ch-dash min-w-0 rounded-xl border border-border bg-background/80 dark:bg-black/40 p-3 backdrop-blur-md sm:p-4">
 		<!-- Header: título + toggle Horas/Créditos -->
 		<div class="mb-3 flex flex-wrap items-center justify-between gap-2 sm:mb-4 sm:gap-3">
-			<div class="flex min-w-0 items-center gap-1.5 text-green-400">
+			<div class="flex min-w-0 items-center gap-1.5 text-emerald-700 dark:text-green-400">
 				<GraduationCap class="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
 				<span class="truncate text-[10px] font-semibold uppercase tracking-wider sm:text-xs">Carga horária (SIGAA)</span>
 			</div>
-			<div class="flex rounded-lg border border-white/20 bg-white/5 p-0.5">
+			<div class="flex rounded-lg border border-border bg-muted/60 p-0.5">
 				<button
 					type="button"
 					onclick={() => (unidade = 'horas')}
 					class="rounded-md px-3 py-1.5 text-xs font-medium transition-colors {unidade === 'horas'
-						? 'bg-cyan-500/20 text-cyan-400'
-						: 'text-white/60 hover:text-white'}"
+						? 'bg-cyan-500/20 text-cyan-800 dark:text-cyan-400'
+						: 'text-muted-foreground hover:text-foreground'}"
 				>
 					Horas
 				</button>
@@ -128,8 +128,8 @@
 					type="button"
 					onclick={() => (unidade = 'creditos')}
 					class="rounded-md px-3 py-1.5 text-xs font-medium transition-colors {unidade === 'creditos'
-						? 'bg-cyan-500/20 text-cyan-400'
-						: 'text-white/60 hover:text-white'}"
+						? 'bg-cyan-500/20 text-cyan-800 dark:text-cyan-400'
+						: 'text-muted-foreground hover:text-foreground'}"
 				>
 					Créditos
 				</button>
@@ -137,15 +137,15 @@
 		</div>
 
 		<!-- Card principal: círculo + total -->
-		<div class="mb-3 flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3 sm:mb-4 sm:gap-4 sm:p-4">
+		<div class="mb-3 flex items-center gap-3 rounded-xl border border-border bg-muted/60 p-3 sm:mb-4 sm:gap-4 sm:p-4">
 			<div class="relative h-20 w-20 shrink-0">
 				<svg class="h-20 w-20 -rotate-90" viewBox="0 0 88 88">
-					<circle cx="44" cy="44" r="38" stroke="rgba(255,255,255,0.1)" stroke-width="6" fill="none" />
+					<circle cx="44" cy="44" r="38" class="stroke-foreground/10" stroke-width="6" fill="none" />
 					<circle
 						cx="44"
 						cy="44"
 						r="38"
-						stroke="#22c55e"
+						style:stroke="var(--ch-total)"
 						stroke-width="6"
 						fill="none"
 						stroke-linecap="round"
@@ -155,20 +155,20 @@
 					/>
 				</svg>
 				<div class="absolute inset-0 flex flex-col items-center justify-center">
-					<span class="text-lg font-bold text-white">{pctTotal}%</span>
+					<span class="text-lg font-bold text-foreground">{pctTotal}%</span>
 				</div>
 			</div>
 			<div class="min-w-0 flex-1">
-				<p class="text-lg font-bold text-white">{totalExibido}</p>
-				<p class="text-xs text-white/50">{sublabel}</p>
+				<p class="text-lg font-bold text-foreground">{totalExibido}</p>
+				<p class="text-xs text-muted-foreground">{sublabel}</p>
 				{#if simulacaoMatr}
 					{@const totalExigido = dadosUser?.exigido.chTotal ?? 0}
 					{@const pctSimulado = totalExigido > 0 ? Math.round((simulacaoMatr.totalSimulado / totalExigido) * 100) : null}
 					<p
-						class="mt-2 text-[11px] text-white/50"
+						class="mt-2 text-[11px] text-muted-foreground"
 						title="+{simulacaoMatr.chMatriculadas.toLocaleString('pt-BR')}h se for aprovado nas disciplinas em que está matriculado"
 					>
-						Se aprovar em todas as disciplinas que está cursando neste semestre, ficará com <span class="font-medium text-cyan-300/90">{pctSimulado ?? '—'}%</span> integralizado no próximo semestre.
+						Se aprovar em todas as disciplinas que está cursando neste semestre, ficará com <span class="font-medium text-cyan-800 dark:text-cyan-300/90">{pctSimulado ?? '—'}%</span> integralizado no próximo semestre.
 					</p>
 				{/if}
 			</div>
@@ -180,7 +180,7 @@
 				{@const pctExibir = cat.planejada > 0 ? cat.pctComPlanejamento : cat.pct}
 				{@const c = circleProgress(pctExibir, 24)}
 				<div
-					class="overflow-hidden rounded-xl border bg-white/5 transition-colors hover:border-opacity-80 {cat.borderClasse}"
+					class="overflow-hidden rounded-xl border bg-muted/60 transition-colors {cat.borderClasse}"
 				>
 					<button
 						type="button"
@@ -190,12 +190,12 @@
 						<div class="flex items-center gap-3">
 							<div class="relative h-14 w-14 shrink-0">
 								<svg class="h-14 w-14 -rotate-90" viewBox="0 0 56 56">
-									<circle cx="28" cy="28" r="24" stroke="rgba(255,255,255,0.08)" stroke-width="4" fill="none" />
+									<circle cx="28" cy="28" r="24" class="stroke-foreground/[0.08]" stroke-width="4" fill="none" />
 									<circle
 										cx="28"
 										cy="28"
 										r="24"
-										stroke={cat.cor}
+										style:stroke={cat.cor}
 										stroke-width="4"
 										fill="none"
 										stroke-linecap="round"
@@ -205,18 +205,18 @@
 									/>
 								</svg>
 								<div class="absolute inset-0 flex items-center justify-center">
-									<span class="text-sm font-bold text-white">{pctExibir}%</span>
+									<span class="text-sm font-bold text-foreground">{pctExibir}%</span>
 								</div>
 							</div>
 							<div>
 								<p class="text-sm font-semibold {cat.corClasse}">{cat.label}</p>
-								<p class="text-xs text-white/60">
+								<p class="text-xs text-muted-foreground">
 									{#if cat.planejada > 0}
 										{formatarValor(cat.realizado + cat.planejada, unidade)} / {formatarValor(
 											cat.exigido,
 											unidade
 										)}
-										<span class="block text-[10px] text-white/40"
+										<span class="block text-[10px] text-muted-foreground"
 											>({formatarValor(cat.realizado, unidade)} aprov. + {formatarValor(
 												cat.planejada,
 												unidade
@@ -229,25 +229,25 @@
 							</div>
 						</div>
 						{#if expandido[cat.chave]}
-							<ChevronUp class="h-4 w-4 shrink-0 text-white/50" />
+							<ChevronUp class="h-4 w-4 shrink-0 text-muted-foreground" />
 						{:else}
-							<ChevronDown class="h-4 w-4 shrink-0 text-white/50" />
+							<ChevronDown class="h-4 w-4 shrink-0 text-muted-foreground" />
 						{/if}
 					</button>
 					{#if expandido[cat.chave]}
 						<div
 							transition:slide={{ duration: 200 }}
-							class="border-t border-white/10 px-4 py-3 {cat.bgClasse}"
+							class="border-t border-border px-4 py-3 {cat.bgClasse}"
 						>
-							<p class="text-xs text-white/70">
+							<p class="text-xs text-foreground/80">
 								Realizado (aprovado): {formatarValor(cat.realizado, unidade)}
 							</p>
 							{#if cat.planejada > 0}
-								<p class="text-xs text-white/70">
+								<p class="text-xs text-foreground/80">
 									Planejado no fluxograma: {formatarValor(cat.planejada, unidade)}
 								</p>
 							{/if}
-							<p class="text-xs text-white/70">
+							<p class="text-xs text-foreground/80">
 								Exigido: {formatarValor(cat.exigido, unidade)}
 							</p>
 							{#if cat.planejada > 0 && cat.faltamAposPlanejamento !== undefined}
@@ -270,3 +270,19 @@
 		</div>
 	</div>
 {/if}
+
+<style>
+	/* Cores dos anéis SVG: tons 600/700 no light (≥ 3:1 sobre o card); .dark mantém os hex históricos. */
+	.ch-dash {
+		--ch-total: #059669;
+		--ch-obrig: #1d4ed8;
+		--ch-opt: hsl(var(--primary));
+		--ch-comp: #b45309;
+	}
+	:global(.dark) .ch-dash {
+		--ch-total: #22c55e;
+		--ch-obrig: #3b82f6;
+		--ch-opt: #a855f7;
+		--ch-comp: #f59e0b;
+	}
+</style>

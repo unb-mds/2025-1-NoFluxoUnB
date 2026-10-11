@@ -49,6 +49,6 @@
 	<meta name="twitter:description" content={description} />
 	<meta name="twitter:image" content={imageUrl} />
 
-	<meta name="theme-color" content="#7c3aed" />
+	<!-- theme-color por tema vive no app.html (light #faf9fe / dark #09090b) -->
 	<meta name="application-name" content={siteName} />
 </svelte:head>

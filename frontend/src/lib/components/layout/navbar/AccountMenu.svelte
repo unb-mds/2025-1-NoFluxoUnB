@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Avatar from '$lib/components/ui/avatar';
+	import NavTooltip from './NavTooltip.svelte';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import { cn } from '$lib/utils';
 	import { createSupabaseBrowserClient } from '$lib/supabase/client';
@@ -41,14 +42,19 @@
 
 {#if isAnonymous}
 	<DropdownMenu.Root>
+		<NavTooltip label="Você está navegando como visitante">
+		{#snippet children(tip)}
 		<DropdownMenu.Trigger
+			{...tip}
 			class={cn(
 				buttonVariants({ variant: 'outline', size: 'sm' }),
-				'rounded-full border-white/14 bg-secondary/55'
+				'rounded-full border-border bg-secondary/55'
 			)}
 		>
 			Visitante
 		</DropdownMenu.Trigger>
+		{/snippet}
+		</NavTooltip>
 		<DropdownMenu.Content class="w-56" align="end">
 			<DropdownMenu.Label class="font-normal text-muted-foreground">
 				Modo anônimo — algumas funções limitadas
@@ -62,7 +68,10 @@
 	</DropdownMenu.Root>
 {:else}
 	<DropdownMenu.Root>
+		<NavTooltip label={user?.nomeCompleto ? `Minha conta · ${user.nomeCompleto}` : 'Minha conta'}>
+		{#snippet children(tip)}
 		<DropdownMenu.Trigger
+			{...tip}
 			class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-none bg-transparent p-0 transition-opacity hover:opacity-90"
 			aria-label="Menu da conta"
 		>
@@ -73,13 +82,15 @@
 			</Avatar.Root>
 			{#if $ticketsNaoLidas > 0}
 				<span
-					class="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#25d366] px-1 text-[10px] font-bold leading-none text-[#05240f] ring-2 ring-background"
+					class="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold leading-none text-white dark:bg-[#25d366] dark:text-[#05240f] ring-2 ring-background"
 					aria-label="{$ticketsNaoLidas} resposta{$ticketsNaoLidas > 1 ? 's' : ''} do suporte não lida{$ticketsNaoLidas > 1 ? 's' : ''}"
 				>
 					{$ticketsNaoLidas > 9 ? '9+' : $ticketsNaoLidas}
 				</span>
 			{/if}
 		</DropdownMenu.Trigger>
+		{/snippet}
+		</NavTooltip>
 		<DropdownMenu.Content class="w-56" align="end">
 			<DropdownMenu.Label class="font-normal">
 				<div class="flex flex-col space-y-1">
@@ -102,7 +113,7 @@
 				Suporte
 				{#if $ticketsNaoLidas > 0}
 					<span
-						class="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#25d366] px-1 text-[10px] font-bold leading-none text-[#05240f]"
+						class="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold leading-none text-white dark:bg-[#25d366] dark:text-[#05240f]"
 					>
 						{$ticketsNaoLidas > 9 ? '9+' : $ticketsNaoLidas}
 					</span>

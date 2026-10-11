@@ -149,6 +149,9 @@ jest.mock("../src/supabase_wrapper", () => {
 // nova realmente acontece.
 // ---------------------------------------------------------------------------
 const mockCreate = jest.fn();
+
+// Login/cota fora do escopo deste arquivo (ver darcy-login-cota.test.ts).
+jest.mock("../src/utils/ia_acesso", () => require("./utils/ia_acesso_liberado").iaAcessoLiberado());
 jest.mock("openai", () => {
     return {
         __esModule: true,

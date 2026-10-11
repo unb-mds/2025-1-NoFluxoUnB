@@ -345,7 +345,7 @@
 		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 	}
 	.suporte-fab:focus-visible {
-		outline: 2px solid #c4b5fd;
+		outline: 2px solid hsl(var(--ring));
 		outline-offset: 3px;
 	}
 	.fab-minimize {
@@ -454,7 +454,7 @@
 	.input:focus,
 	.textarea:focus {
 		outline: none;
-		border-color: #c4b5fd;
+		border-color: hsl(var(--ring));
 	}
 	.textarea {
 		resize: vertical;
@@ -478,9 +478,9 @@
 		background: hsl(var(--muted));
 	}
 	.cat-chip.active {
-		background: rgba(147, 51, 234, 0.3);
-		border-color: rgba(147, 51, 234, 0.6);
-		color: white;
+		background: hsl(var(--accent));
+		border-color: hsl(var(--primary) / 0.7);
+		color: hsl(var(--accent-foreground));
 	}
 	.upload-trigger {
 		display: inline-flex;
@@ -528,7 +528,7 @@
 		padding: 2px;
 	}
 	.file-remove:hover {
-		color: #f87171;
+		color: hsl(var(--destructive));
 	}
 	.alert {
 		display: flex;
@@ -538,7 +538,7 @@
 		font-size: 12px;
 		background: rgba(239, 68, 68, 0.1);
 		border: 1px solid rgba(239, 68, 68, 0.3);
-		color: #fca5a5;
+		color: hsl(var(--destructive));
 	}
 	.actions {
 		display: flex;
@@ -561,8 +561,8 @@
 		transition: transform 120ms, opacity 150ms;
 	}
 	.btn-primary {
-		background: linear-gradient(90deg, #9333ea, #ec4899);
-		color: white;
+		background: hsl(var(--primary));
+		color: hsl(var(--primary-foreground));
 	}
 	.btn-primary:hover:not(:disabled) {
 		transform: translateY(-1px);
@@ -602,5 +602,29 @@
 		display: flex;
 		gap: 8px;
 		margin-top: 8px;
+	}
+
+	/* Dark: receita histórica, sem alteração de aparência */
+	:global(.dark) .suporte-fab:focus-visible {
+		outline-color: #c4b5fd;
+	}
+	:global(.dark) .input:focus,
+	:global(.dark) .textarea:focus {
+		border-color: #c4b5fd;
+	}
+	:global(.dark) .cat-chip.active {
+		background: rgba(147, 51, 234, 0.3);
+		border-color: rgba(147, 51, 234, 0.6);
+		color: white;
+	}
+	:global(.dark) .file-remove:hover {
+		color: #f87171;
+	}
+	:global(.dark) .alert {
+		color: #fca5a5;
+	}
+	:global(.dark) .btn-primary {
+		background: linear-gradient(90deg, #9333ea, #ec4899);
+		color: white;
 	}
 </style>

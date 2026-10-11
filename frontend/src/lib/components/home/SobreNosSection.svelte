@@ -4,7 +4,21 @@
 	import { cubicOut } from 'svelte/easing';
 	import MemberCard from './MemberCard.svelte';
 
-	const founders = [
+	interface Member {
+		name: string;
+		githubUsername?: string;
+		/** Foto própria em /static — usada quando a pessoa não tem avatar no GitHub. */
+		photo?: string;
+		/** Sobrescreve o rótulo do grupo (ex. cargo na Crianex). */
+		role?: string;
+		funcao: string;
+		specialties: string[];
+		linkedin: string;
+		instagram?: string;
+		email: string;
+	}
+
+	const founders: Member[] = [
 		{
 			name: 'Guilherme Gusmão',
 			githubUsername: 'gusmoles',
@@ -16,6 +30,7 @@
 		{
 			name: 'Vitor Marconi',
 			githubUsername: 'Vitor-Trancoso',
+			photo: '/team/vitor-marconi.webp',
 			funcao: 'Fullstack, arquitetura visual e manutenção do produto',
 			specialties: ['Fullstack', 'Design', 'Arquitetura visual'],
 			linkedin: 'https://www.linkedin.com/in/vitor-marconi-4a069524a/',
@@ -81,9 +96,37 @@
 
 	const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'pt-BR');
 
-	const maintainers = founders
-		.filter((member) => ['Vitor-Trancoso', 'darkymeubem', 'staann'].includes(member.githubUsername))
-		.sort(byName);
+	// Time da Crianex que mantém o produto sem ter sido do time fundador.
+	const crianexTeam: Member[] = [
+		{
+			name: 'Rodrigo Bessone',
+			photo: '/team/bessone.webp',
+			role: 'CMO · Crianex',
+			funcao: 'Creator, direção criativa e comercial',
+			specialties: ['Marketing', 'Criação de conteúdo', 'Comercial'],
+			linkedin: '',
+			instagram: 'besssone',
+			email: ''
+		}
+	];
+
+	// Cargo na Crianex de quem também é dev e mantenedor — aparece só no "Time atual";
+	// na aba Fundadores o rótulo continua "Fundador".
+	const cargoNoTimeAtual: Record<string, { role: string; funcao: string }> = {
+		'Vitor-Trancoso': {
+			role: 'CEO · Crianex',
+			funcao: 'Dev e mantenedor: fullstack e arquitetura'
+		}
+	};
+
+	const maintainers = [
+		...founders
+			.filter((member) =>
+				['Vitor-Trancoso', 'darkymeubem', 'staann', 'hisarxt'].includes(member.githubUsername ?? '')
+			)
+			.map((member) => ({ ...member, ...cargoNoTimeAtual[member.githubUsername ?? ''] })),
+		...crianexTeam
+	].sort(byName);
 
 	// menção honrosa: destaque fora do grid, também mantém as linhas alinhadas (8 cards = 2x4)
 	const HONOR_USERNAME = 'knz13';
@@ -97,7 +140,7 @@
 			id: 'atuais',
 			label: 'Time atual',
 			title: 'Quem mantém hoje',
-			description: 'Os desenvolvedores que seguem cuidando do No Fluxo no dia a dia.',
+			description: 'O time que segue cuidando do No Fluxo no dia a dia.',
 			role: 'Mantenedor',
 			variant: 'maintainer' as const,
 			members: maintainers,
@@ -120,19 +163,79 @@
 	let activeIndex = $state(0);
 	let direction = $state(1);
 	let paused = $state(false);
+	// Troca automática: só roda com alguma parte da vitrine na tela (fora dela não
+	// há o que animar). Ao clicar numa aba, pausa por PAUSA_MANUAL_MS e retoma.
+	const PAUSA_MANUAL_MS = 30000;
+	let visivel = $state(false);
+	let escolhaManual = $state(false);
+	let reduzido = $state(false);
+	let showcaseEl: HTMLDivElement | undefined = $state();
+	let fimDaVitrine: HTMLDivElement | undefined = $state();
+	let timerPausaManual: ReturnType<typeof setTimeout> | undefined;
 
 	const activeGroup = $derived(showcase[activeIndex]);
+	const autoplayAtivo = $derived(!escolhaManual && !reduzido);
+	const rodando = $derived(autoplayAtivo && visivel && !paused);
 
 	function selectGroup(index: number) {
+		// quem escolheu uma aba quer ler: pausa a troca automática por um tempo
+		escolhaManual = true;
+		clearTimeout(timerPausaManual);
+		timerPausaManual = setTimeout(() => (escolhaManual = false), PAUSA_MANUAL_MS);
 		if (index === activeIndex) return;
 		direction = index > activeIndex ? 1 : -1;
 		activeIndex = index;
 	}
 
+	$effect(() => () => clearTimeout(timerPausaManual));
+
 	$effect(() => {
-		// lê activeIndex para reiniciar a contagem sempre que o grupo muda (auto ou manual)
+		reduzido = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+		const el = showcaseEl;
+		if (!el) return;
+		const io = new IntersectionObserver(([entrada]) => {
+			visivel = entrada.isIntersecting;
+		});
+		io.observe(el);
+		return () => io.disconnect();
+	});
+
+	// Âncora de rolagem manual. Fundadores é bem mais alta que o Time atual: ao
+	// trocar, tudo abaixo da vitrine sobe ou desce. Se quem está lendo está ABAIXO
+	// dela (fim da vitrine na metade de cima da tela ou acima), rola a página pelo
+	// mesmo tanto que o marcador `fimDaVitrine` se mexeu — o que está na tela fica
+	// parado. O Chrome já faz isso sozinho (scroll anchoring) e aí o deslocamento
+	// medido é ~0; o Safari não faz, e era onde a página "pulava".
+	$effect(() => {
+		const vitrine = showcaseEl;
+		const marcador = fimDaVitrine;
+		if (!vitrine || !marcador) return;
+		let ultimoTopo = marcador.getBoundingClientRect().top;
+		const lembrar = () => {
+			ultimoTopo = marcador.getBoundingClientRect().top;
+		};
+		const ro = new ResizeObserver(() => {
+			const topo = marcador.getBoundingClientRect().top;
+			const desvio = topo - ultimoTopo;
+			if (Math.abs(desvio) > 0.5 && ultimoTopo < window.innerHeight / 2) {
+				window.scrollBy(0, desvio);
+			}
+			lembrar();
+		});
+		ro.observe(vitrine);
+		window.addEventListener('scroll', lembrar, { passive: true });
+		window.addEventListener('resize', lembrar);
+		return () => {
+			ro.disconnect();
+			window.removeEventListener('scroll', lembrar);
+			window.removeEventListener('resize', lembrar);
+		};
+	});
+
+	$effect(() => {
+		// lê activeIndex para reiniciar a contagem sempre que o grupo muda
 		const current = activeIndex;
-		if (paused) return;
+		if (!rodando) return;
 		const timer = setTimeout(() => {
 			direction = 1;
 			activeIndex = (current + 1) % showcase.length;
@@ -170,6 +273,13 @@
 				sozinho, no Excel ou no papel.
 			</p>
 
+			<blockquote class="sobre-mote">
+				<p class="mote-linha">A vida do estudante não é linear.</p>
+				<p class="mote-linha">
+					Cada um tem o seu próprio <mark class="mote-fluxo">fluxo</mark>.
+				</p>
+			</blockquote>
+
 			<p class="sobre-text">
 				Aí a gente fez uma pesquisa e percebeu que não era só com a gente. A maioria dos cursos da
 				UnB nem tem um fluxograma visual decente, e os que têm ainda obrigam o aluno a grifar à mão
@@ -181,11 +291,17 @@
 				pela professora Dr Carla Rocha na FCTE/UnB. A ideia era construir um software que resolvesse um
 				problema real da comunidade, e a gente escolheu resolver um que vivia toda semana.
 			</p>
+
+			<p class="sobre-text">
+				Hoje o No Fluxo faz parte da <a class="sobre-link" href="https://crianex.com" target="_blank"
+					rel="noopener noreferrer">Crianex</a
+				>, que segue desenvolvendo o produto junto com quem o começou.
+			</p>
 		</div>
 
 		<!--
 		<div class="sobre-note">
-			<MessageCircle class="h-4 w-4 shrink-0 text-white/70" />
+			<MessageCircle class="h-4 w-4 shrink-0 text-foreground/70" />
 			<p>
 				<strong>Observação:</strong> Inicialmente disponível para cursos da FGA/UnB, com perspectiva
 				de expansão!
@@ -206,6 +322,7 @@
 
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
+		bind:this={showcaseEl}
 		class="showcase"
 		onmouseenter={() => (paused = true)}
 		onmouseleave={() => (paused = false)}
@@ -229,10 +346,17 @@
 		</div>
 
 		<div class="showcase-progress" aria-hidden="true">
-			{#key activeIndex}
-				<span class="progress-bar" class:paused style={`animation-duration: ${ROTATION_MS}ms`}
-				></span>
-			{/key}
+			<!-- recomeça junto com o timer a cada troca e a cada retomada (voltou à tela, saiu o mouse);
+			     sem troca automática, some só a barra (o espaço fica, para nada pular) -->
+			{#if autoplayAtivo}
+				{#key `${activeIndex}-${rodando}`}
+					<span
+						class="progress-bar"
+						class:paused={!rodando}
+						style={`animation-duration: ${ROTATION_MS}ms`}
+					></span>
+				{/key}
+			{/if}
 		</div>
 
 		<div class="showcase-stage">
@@ -247,9 +371,12 @@
 						<p>{activeGroup.description}</p>
 					</header>
 
-					<div class="team-grid" class:compact={activeGroup.members.length <= 3}>
+					<div
+						class="team-grid"
+						class:compact={activeGroup.members.length <= 3}
+						class:incompleta={activeGroup.members.length > 4 && activeGroup.members.length % 4 !== 0}
+					>
 						{#each activeGroup.members as member, memberIndex}
-							<!-- TODO: add instagram={member.instagram} prop -->
 							<div
 								class="team-grid-item"
 								style={`--stagger: ${Math.min(memberIndex, 8) * 55}ms`}
@@ -257,10 +384,12 @@
 								<MemberCard
 									name={member.name}
 									githubUsername={member.githubUsername}
+									photo={member.photo}
 									specialties={member.specialties}
 									linkedin={member.linkedin}
+									instagram={member.instagram}
 									email={member.email}
-									role={activeGroup.role}
+									role={member.role ?? activeGroup.role}
 									funcao={member.funcao}
 									variant={activeGroup.variant}
 								/>
@@ -324,6 +453,8 @@
 			{/key}
 		</div>
 	</div>
+	<!-- marcador do fim da vitrine: referência da âncora de rolagem manual -->
+	<div bind:this={fimDaVitrine} class="fim-da-vitrine" aria-hidden="true"></div>
 </section>
 
 <style>
@@ -339,7 +470,7 @@
 	.sobre-section {
 		padding: clamp(3.5rem, 8vw, 4.5rem) 1.5rem;
 		background: hsl(var(--background) / 0.9);
-		border-top: 1px solid hsl(0 0% 100% / 0.06);
+		border-top: 1px solid hsl(var(--foreground) / 0.06);
 	}
 
 	.sobre-card {
@@ -369,6 +500,58 @@
 		font-size: clamp(0.8125rem, 1.5vw, 1.0625rem);
 		line-height: 1.7;
 		text-align: left;
+	}
+
+	/* Mote "grafitado": Rock Salt (marcador rabiscado), escolhida pelo time. */
+	.sobre-mote {
+		margin: 0.5rem 0;
+		padding: 1.25rem 0 1.25rem 1.25rem;
+		border-left: 3px solid hsl(var(--primary));
+		border-radius: 0;
+		font-family: 'Rock Salt', 'Permanent Marker', cursive;
+		font-weight: 400;
+		font-size: clamp(1.125rem, 2.6vw, 1.75rem);
+		line-height: 1.7;
+		letter-spacing: 0.01em;
+		color: hsl(var(--foreground));
+		text-align: left;
+	}
+
+	.mote-linha {
+		margin: 0;
+	}
+
+	/* "fluxo" no roxo do UNB da logo, com um traço de marca-texto por trás —
+	   eco do "fluxograma impresso e uma caneta marca-texto" do começo do texto.
+	   Marca-texto a 22%: ≥ 4,5:1 nos dois temas (a 30% o claro cai para 4,0:1). */
+	.mote-fluxo {
+		color: hsl(var(--primary));
+		background: linear-gradient(
+			transparent 30%,
+			hsl(var(--primary) / 0.22) 30%,
+			hsl(var(--primary) / 0.22) 78%,
+			transparent 78%
+		);
+		padding: 0 0.12em;
+		border-radius: 0.15em;
+		box-decoration-break: clone;
+		-webkit-box-decoration-break: clone;
+	}
+
+	/* --primary sobre o card escuro dá ~4,2:1; o lilás --ai (como no UNB do escuro) passa */
+	:global(.dark) .mote-fluxo {
+		color: hsl(var(--ai));
+	}
+
+	.fim-da-vitrine {
+		height: 0;
+	}
+
+	.sobre-link {
+		color: hsl(var(--crianex));
+		font-weight: 600;
+		text-decoration: underline;
+		text-underline-offset: 3px;
 	}
 
 	.sobre-features {
@@ -415,8 +598,12 @@
 		margin: 0 auto;
 		padding: 0.3rem;
 		border-radius: 999px;
-		border: 1px solid hsl(0 0% 100% / 0.08);
+		border: 1px solid hsl(var(--foreground) / 0.08);
 		background: hsl(var(--card) / 0.6);
+		box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
+	}
+
+	:global(.dark) .showcase-switch {
 		box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.05);
 	}
 
@@ -451,7 +638,7 @@
 		min-width: 20px;
 		padding: 0.05rem 0.35rem;
 		border-radius: 999px;
-		background: hsl(0 0% 100% / 0.1);
+		background: hsl(var(--foreground) / 0.1);
 		font-size: 0.6875rem;
 		font-weight: 700;
 	}
@@ -482,7 +669,7 @@
 		height: 2px;
 		margin: 0.75rem auto 1.75rem;
 		border-radius: 999px;
-		background: hsl(0 0% 100% / 0.07);
+		background: hsl(var(--foreground) / 0.07);
 		overflow: hidden;
 	}
 
@@ -559,14 +746,32 @@
 		}
 	}
 
-	/* menção honrosa — card "diamante" */
+	/* menção honrosa — card "diamante".
+	   --honor: azul legível no light (#075985, 7,6:1 sobre card); no dark alimenta só os tints,
+	   e texto/borda mantêm os hex originais nos overrides :global(.dark) abaixo. */
 	.honor-card {
+		--honor: 201 90% 27%;
 		position: relative;
 		max-width: 1120px;
 		margin: 1.5rem auto 0;
 		padding: 1.5rem;
 		border-radius: 18px;
-		border: 1.5px solid rgba(168, 226, 255, 0.55);
+		border: 1.5px solid hsl(var(--honor) / 0.45);
+		background:
+			radial-gradient(120% 140% at 12% 0%, hsl(var(--honor) / 0.1) 0%, transparent 55%),
+			radial-gradient(120% 140% at 100% 100%, hsl(var(--primary) / 0.08) 0%, transparent 55%),
+			hsl(var(--card));
+		box-shadow:
+			0 1px 2px hsl(var(--foreground) / 0.04),
+			0 8px 24px hsl(var(--honor) / 0.1);
+		overflow: hidden;
+		animation: card-in 0.55s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+		animation-delay: calc(120ms + var(--stagger, 0ms));
+	}
+
+	:global(.dark) .honor-card {
+		--honor: 200 100% 83%;
+		border-color: rgba(168, 226, 255, 0.55);
 		background:
 			radial-gradient(120% 140% at 12% 0%, rgba(150, 220, 255, 0.14) 0%, transparent 55%),
 			radial-gradient(120% 140% at 100% 100%, rgba(196, 168, 255, 0.14) 0%, transparent 55%),
@@ -575,9 +780,6 @@
 			0 0 0 1px rgba(168, 226, 255, 0.16),
 			0 18px 48px rgba(90, 180, 255, 0.14),
 			inset 0 1px 0 rgba(255, 255, 255, 0.08);
-		overflow: hidden;
-		animation: card-in 0.55s cubic-bezier(0.4, 0, 0.2, 1) backwards;
-		animation-delay: calc(120ms + var(--stagger, 0ms));
 	}
 
 	/* brilho de diamante atravessando o card */
@@ -592,13 +794,24 @@
 		background: linear-gradient(
 			100deg,
 			transparent 0%,
+			hsl(var(--honor) / 0.08) 45%,
+			hsl(var(--honor) / 0.16) 50%,
+			hsl(var(--honor) / 0.08) 55%,
+			transparent 100%
+		);
+		transform: rotate(8deg);
+		animation: diamond-shine 6.5s ease-in-out infinite;
+	}
+
+	:global(.dark) .honor-card::before {
+		background: linear-gradient(
+			100deg,
+			transparent 0%,
 			rgba(255, 255, 255, 0.16) 45%,
 			rgba(190, 235, 255, 0.28) 50%,
 			rgba(255, 255, 255, 0.16) 55%,
 			transparent 100%
 		);
-		transform: rotate(8deg);
-		animation: diamond-shine 6.5s ease-in-out infinite;
 	}
 
 	@keyframes diamond-shine {
@@ -623,12 +836,18 @@
 		gap: 0.4rem;
 		padding: 0.3rem 0.7rem;
 		border-radius: 999px;
-		border: 1px solid rgba(168, 226, 255, 0.5);
-		background: linear-gradient(135deg, rgba(168, 226, 255, 0.24), rgba(196, 168, 255, 0.14));
-		color: #d8f1ff;
+		border: 1px solid hsl(var(--honor) / 0.5);
+		background: linear-gradient(135deg, hsl(var(--honor) / 0.12), hsl(var(--primary) / 0.08));
+		color: hsl(var(--honor));
 		font-size: 0.75rem;
 		font-weight: 700;
 		letter-spacing: 0.02em;
+	}
+
+	:global(.dark) .honor-badge {
+		border-color: rgba(168, 226, 255, 0.5);
+		background: linear-gradient(135deg, rgba(168, 226, 255, 0.24), rgba(196, 168, 255, 0.14));
+		color: #d8f1ff;
 	}
 
 	.honor-body {
@@ -647,6 +866,11 @@
 		flex-shrink: 0;
 		border-radius: 50%;
 		padding: 3px;
+		background: linear-gradient(135deg, hsl(200 90% 60%) 0%, hsl(200 70% 85%) 35%, hsl(var(--primary) / 0.7) 70%, hsl(200 90% 55%) 100%);
+		box-shadow: 0 0 24px hsl(var(--honor) / 0.2);
+	}
+
+	:global(.dark) .honor-avatar-wrap {
 		background: linear-gradient(135deg, #bfe9ff 0%, #ffffff 35%, #c9b8ff 70%, #8fd7ff 100%);
 		box-shadow: 0 0 24px rgba(150, 220, 255, 0.35);
 	}
@@ -656,8 +880,12 @@
 		height: 100%;
 		border-radius: 50%;
 		object-fit: cover;
-		background: #374151;
+		background: hsl(var(--muted));
 		display: block;
+	}
+
+	:global(.dark) .honor-avatar {
+		background: #374151;
 	}
 
 	.honor-name {
@@ -669,7 +897,7 @@
 	}
 
 	.honor-funcao {
-		color: #cfeaff;
+		color: hsl(var(--honor));
 		font-size: clamp(0.8125rem, 1.4vw, 0.9375rem);
 		font-weight: 600;
 		margin: 0.15rem 0 0.5rem;
@@ -694,11 +922,17 @@
 	.honor-tag {
 		padding: 0.25rem 0.65rem;
 		border-radius: 999px;
-		border: 1px solid rgba(168, 226, 255, 0.3);
-		background: rgba(168, 226, 255, 0.08);
-		color: #e6f6ff;
+		border: 1px solid hsl(var(--honor) / 0.3);
+		background: hsl(var(--honor) / 0.06);
+		color: hsl(var(--honor));
 		font-size: 0.75rem;
 		font-weight: 500;
+	}
+
+	:global(.dark) .honor-tag {
+		border-color: rgba(168, 226, 255, 0.3);
+		background: rgba(168, 226, 255, 0.08);
+		color: #e6f6ff;
 	}
 
 	.honor-links {
@@ -712,13 +946,21 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.35rem;
-		color: #e6f6ff;
+		color: hsl(var(--honor));
 		font-size: 0.8125rem;
 		text-decoration: none;
 	}
 
 	.honor-links a:hover {
 		text-decoration: underline;
+	}
+
+	:global(.dark) .honor-funcao {
+		color: #cfeaff;
+	}
+
+	:global(.dark) .honor-links a {
+		color: #e6f6ff;
 	}
 
 	@media (min-width: 768px) {
@@ -754,6 +996,17 @@
 		.team-grid {
 			grid-template-columns: repeat(4, 1fr);
 			gap: 1.5rem;
+		}
+
+		/* última linha incompleta (ex. 5 cards): centraliza em vez de alinhar à esquerda */
+		.team-grid.incompleta {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+		}
+
+		.team-grid.incompleta > .team-grid-item {
+			flex: 0 0 calc((100% - 3 * 1.5rem) / 4);
 		}
 
 		.team-grid.compact {

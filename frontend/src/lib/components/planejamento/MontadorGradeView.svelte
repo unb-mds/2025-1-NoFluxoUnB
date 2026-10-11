@@ -470,7 +470,9 @@
 		try {
 			const html2canvas = (await import('html2canvas-pro')).default;
 			const canvas = await html2canvas(el, {
-				backgroundColor: '#0a0a0a',
+				// Exporta no tema em uso: o PNG tem fundo opaco, e um fundo preto embaixo
+				// de texto escuro (light) saía ilegível.
+				backgroundColor: document.documentElement.classList.contains('dark') ? '#0a0a0a' : '#ffffff',
 				scale: 2,
 				logging: false
 			});
@@ -609,14 +611,14 @@
 	{#if compacto}
 		<!-- Cabeçalho de uma linha: título + menu com as ações secundárias -->
 		<header class="mb-2 flex items-center gap-2.5">
-			<CalendarDays class="h-5 w-5 shrink-0 text-purple-300" />
+			<CalendarDays class="h-5 w-5 shrink-0 text-ai" />
 			<div class="min-w-0 flex-1">
-				<h1 class="truncate text-base leading-tight font-bold text-white">Montador de Grade</h1>
-				<p class="truncate text-[11px] text-white/45">{subtitulo}</p>
+				<h1 class="truncate text-base leading-tight font-bold text-foreground">Montador de Grade</h1>
+				<p class="truncate text-[11px] text-muted-foreground">{subtitulo}</p>
 			</div>
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger
-					class="flex h-9 w-9 shrink-0 touch-manipulation items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/70 transition-colors hover:bg-white/10"
+					class="flex h-9 w-9 shrink-0 touch-manipulation items-center justify-center rounded-full border border-border bg-foreground/5 text-foreground/70 transition-colors hover:bg-foreground/10"
 					aria-label="Mais ações da grade"
 				>
 					<MoreHorizontal class="h-4 w-4" />
@@ -658,7 +660,7 @@
 						Limpar a grade
 					</DropdownMenu.Item>
 					<DropdownMenu.Item onclick={limparTudo}>
-						<Trash2 class="mr-2 h-4 w-4 text-red-300" />
+						<Trash2 class="mr-2 h-4 w-4 text-destructive dark:text-red-300" />
 						Limpar tudo
 					</DropdownMenu.Item>
 				</DropdownMenu.Content>
@@ -673,40 +675,40 @@
 			página inteira (é o mesmo motivo de a navbar `sticky top-0` nunca grudar).
 		-->
 		<div
-			class="-mx-3 mb-3 flex touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain border-y border-white/10 bg-white/[0.03] px-3 py-2 [scrollbar-width:none] sm:-mx-5 sm:px-5 [&::-webkit-scrollbar]:hidden"
+			class="-mx-3 mb-3 flex touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain border-y border-border bg-foreground/[0.03] px-3 py-2 [scrollbar-width:none] sm:-mx-5 sm:px-5 [&::-webkit-scrollbar]:hidden"
 		>
 			<button
 				type="button"
 				onclick={() => unidadeCargaStore.alternar()}
-				class="flex shrink-0 touch-manipulation items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 transition-colors hover:bg-white/10"
+				class="flex shrink-0 touch-manipulation items-center gap-1.5 rounded-full border border-border bg-foreground/5 px-2.5 py-1 transition-colors hover:bg-foreground/10"
 				data-tour="creditos"
 				title="Carga escolhida contra o limite do seu plano — toque para ver em {unidadeOposta}"
 			>
 				<span
 					class="text-[11px] tabular-nums {creditosAcima
-						? 'font-semibold text-red-300'
-						: 'text-white/70'}"
+						? 'font-semibold text-red-700 dark:text-red-300'
+						: 'text-foreground/70'}"
 				>
 					{contadorTexto}{unidadeCargaStore.sufixo}
 				</span>
 				<!-- Abaixo de 380px a barrinha some para o rótulo do botão principal
 				     caber inteiro; o próprio número já fica vermelho ao estourar. -->
 				<span
-					class="hidden h-1.5 w-9 overflow-hidden rounded-full bg-white/10 min-[380px]:inline-block"
+					class="hidden h-1.5 w-9 overflow-hidden rounded-full bg-foreground/10 min-[380px]:inline-block"
 				>
 					<span
 						class="block h-full rounded-full transition-all {creditosAcima
-							? 'bg-red-400'
+							? 'bg-red-600 dark:bg-red-400'
 							: creditosPct > 85
-								? 'bg-amber-400'
-								: 'bg-emerald-400'}"
+								? 'bg-amber-700 dark:bg-amber-400'
+								: 'bg-emerald-700 dark:bg-emerald-400'}"
 						style="width: {creditosPct}%"
 					></span>
 				</span>
 			</button>
 
 			<div
-				class="flex shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-white/5 p-0.5"
+				class="flex shrink-0 items-center gap-0.5 rounded-full border border-border bg-foreground/5 p-0.5"
 				data-tour="turnos"
 			>
 				{#each TURNO_OPCOES as [t, label] (t)}
@@ -718,8 +720,8 @@
 						aria-label="{label} — permitir ao montar a grade"
 						title="{label} — permitir ao montar a grade"
 						class="h-7 w-7 touch-manipulation rounded-full text-[11px] font-semibold transition-colors {ativo
-							? 'bg-purple-500/25 text-purple-100'
-							: 'text-white/35'}"
+							? 'bg-accent text-accent-foreground'
+							: 'text-muted-foreground'}"
 					>
 						{t}
 					</button>
@@ -734,8 +736,8 @@
 					aria-label={rotuloCursando}
 					title={rotuloCursando}
 					class="flex h-7 shrink-0 touch-manipulation items-center gap-1 rounded-full border px-2.5 text-[11px] font-medium transition-colors {gradeStore.incluirCursando
-						? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100'
-						: 'border-white/10 bg-white/5 text-white/40'}"
+						? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-400/40 dark:bg-emerald-500/15 dark:text-emerald-100'
+						: 'border-border bg-foreground/5 text-muted-foreground'}"
 				>
 					<GraduationCap class="h-3 w-3" />
 					<span>Cursando</span>
@@ -746,7 +748,7 @@
 				type="button"
 				onclick={abrirWizard}
 				data-tour="montar"
-				class="ml-auto inline-flex shrink-0 touch-manipulation items-center justify-center gap-1.5 rounded-full bg-purple-500 px-3.5 py-2 text-xs font-semibold text-white shadow-[0_2px_14px_rgba(168,85,247,0.4)] transition-colors active:bg-purple-600 disabled:opacity-60"
+				class="ml-auto inline-flex shrink-0 touch-manipulation items-center justify-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-colors active:bg-primary/85 dark:shadow-[0_2px_14px_rgba(168,85,247,0.4)] disabled:opacity-60"
 			>
 				<Wand2 class="h-3.5 w-3.5 shrink-0" />
 				<span>Montar grade</span>
@@ -761,16 +763,16 @@
 			class="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
 		>
 			<div class="flex items-center gap-2.5">
-				<CalendarDays class="h-6 w-6 shrink-0 text-purple-300" />
+				<CalendarDays class="h-6 w-6 shrink-0 text-ai" />
 				<div>
-					<h1 class="text-lg font-bold text-white sm:text-xl">Montador de Grade</h1>
+					<h1 class="text-lg font-bold text-foreground sm:text-xl">Montador de Grade</h1>
 					<!-- `&nbsp;` porque o Svelte come o espaço no começo do bloco `{#if}` e
 					     o texto saía grudado ("semestre· 2026.1"). -->
 					<!-- O Montador não diz mais qual semestre monta. Ele monta uma grade com a
 					     oferta real publicada; quem estima o que pegar em cada semestre até
 					     formar é o Plano de Formatura. Prometer "próximo semestre" aqui era o
 					     que fazia a grade brigar com as matérias já matriculadas. -->
-					<p class="text-xs text-white/50">
+					<p class="text-xs text-muted-foreground">
 						{#if periodo}Turmas de <span class="font-mono">{periodo}</span>{:else}Oferta atual{/if}
 					</p>
 				</div>
@@ -785,28 +787,28 @@
 					<button
 						type="button"
 						onclick={() => unidadeCargaStore.alternar()}
-						class="flex touch-manipulation items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 transition-colors hover:bg-white/10"
+						class="flex touch-manipulation items-center gap-2 rounded-full border border-border bg-foreground/5 px-3 py-1 transition-colors hover:bg-foreground/10"
 						data-tour="creditos"
 						title="Mostrar em {unidadeOposta}"
 					>
-						<span class="text-xs {creditosAcima ? 'font-semibold text-red-300' : 'text-white/70'}">
+						<span class="text-xs {creditosAcima ? 'font-semibold text-red-700 dark:text-red-300' : 'text-foreground/70'}">
 							{contadorTexto}
 							{unidadeCargaStore.sufixo}
 						</span>
-						<span class="h-1.5 w-16 overflow-hidden rounded-full bg-white/10">
+						<span class="h-1.5 w-16 overflow-hidden rounded-full bg-foreground/10">
 							<span
 								class="block h-full rounded-full transition-all {creditosAcima
-									? 'bg-red-400'
+									? 'bg-red-600 dark:bg-red-400'
 									: creditosPct > 85
-										? 'bg-amber-400'
-										: 'bg-emerald-400'}"
+										? 'bg-amber-700 dark:bg-amber-400'
+										: 'bg-emerald-700 dark:bg-emerald-400'}"
 								style="width: {creditosPct}%"
 							></span>
 						</span>
 					</button>
 				</HelpTip>
 				<div
-					class="flex items-center gap-0.5 rounded-full border border-white/10 bg-white/5 p-0.5"
+					class="flex items-center gap-0.5 rounded-full border border-border bg-foreground/5 p-0.5"
 					data-tour="turnos"
 					title="Turnos permitidos ao montar a grade"
 				>
@@ -817,8 +819,8 @@
 							onclick={() => gradeStore.toggleTurno(t)}
 							aria-pressed={ativo}
 							class="touch-manipulation rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors {ativo
-								? 'bg-purple-500/25 text-purple-100'
-								: 'text-white/40 hover:text-white/70'}"
+								? 'bg-accent text-accent-foreground'
+								: 'text-muted-foreground hover:text-foreground/70'}"
 						>
 							{label}
 						</button>
@@ -836,8 +838,8 @@
 							onclick={alternarCursando}
 							aria-pressed={gradeStore.incluirCursando}
 							class="flex touch-manipulation items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors {gradeStore.incluirCursando
-								? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100'
-								: 'border-white/10 bg-white/5 text-white/40 hover:text-white/70'}"
+								? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-400/40 dark:bg-emerald-500/15 dark:text-emerald-100'
+								: 'border-border bg-foreground/5 text-muted-foreground hover:text-foreground/70'}"
 						>
 							<GraduationCap class="h-3.5 w-3.5" />
 							<span>{gradeStore.incluirCursando ? 'Incluindo cursando' : 'Sem as cursando'}</span>
@@ -854,7 +856,7 @@
 						type="button"
 						onclick={abrirWizard}
 						data-tour="montar"
-						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full bg-purple-500 px-3.5 py-1.5 text-xs font-semibold text-white shadow-[0_2px_14px_rgba(168,85,247,0.4)] transition-colors hover:bg-purple-400 disabled:opacity-60"
+						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 dark:shadow-[0_2px_14px_rgba(168,85,247,0.4)] disabled:opacity-60"
 					>
 						<Wand2 class="h-3.5 w-3.5" /> Montar grade
 						{#if gradeStore.temPrioritarias}<Star
@@ -872,7 +874,7 @@
 						onclick={exportarGrade}
 						disabled={exportando || semTurmaEscolhida}
 						data-tour="exportar"
-						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/10 disabled:opacity-40"
+						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-border bg-foreground/5 px-3 py-1.5 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/10 disabled:opacity-40"
 					>
 						{#if exportando}<Loader2 class="h-3.5 w-3.5 animate-spin" />{:else}<Download
 								class="h-3.5 w-3.5"
@@ -886,7 +888,7 @@
 				>
 					<a
 						href={ROUTES.BUSCAR_TURMAS}
-						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/10"
+						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-border bg-foreground/5 px-3 py-1.5 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/10"
 					>
 						<Search class="h-3.5 w-3.5" /> Buscar turmas
 					</a>
@@ -901,7 +903,7 @@
 							type="button"
 							onclick={voltarAoInicio}
 							disabled={voltando}
-							class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/10 disabled:opacity-60"
+							class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-border bg-foreground/5 px-3 py-1.5 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/10 disabled:opacity-60"
 						>
 							{#if voltando}<Loader2 class="h-3.5 w-3.5 animate-spin" />{:else}<Undo2
 									class="h-3.5 w-3.5"
@@ -911,7 +913,7 @@
 				{/if}
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger
-						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/10"
+						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-border bg-foreground/5 px-3 py-1.5 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/10"
 					>
 						<Trash2 class="h-3.5 w-3.5" /> Limpar
 					</DropdownMenu.Trigger>
@@ -920,14 +922,14 @@
 							<Trash2 class="mr-2 h-4 w-4" />
 							<div class="flex flex-col">
 								<span>Limpar a grade</span>
-								<span class="text-[11px] text-white/45">Tira só as turmas escolhidas</span>
+								<span class="text-[11px] text-muted-foreground">Tira só as turmas escolhidas</span>
 							</div>
 						</DropdownMenu.Item>
 						<DropdownMenu.Item onclick={limparTudo}>
-							<Trash2 class="mr-2 h-4 w-4 text-red-300" />
+							<Trash2 class="mr-2 h-4 w-4 text-destructive dark:text-red-300" />
 							<div class="flex flex-col">
 								<span>Limpar tudo</span>
-								<span class="text-[11px] text-white/45">Esvazia a lista de matérias e a grade</span>
+								<span class="text-[11px] text-muted-foreground">Esvazia a lista de matérias e a grade</span>
 							</div>
 						</DropdownMenu.Item>
 					</DropdownMenu.Content>
@@ -940,7 +942,7 @@
 					<button
 						type="button"
 						onclick={abrirTour}
-						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-purple-300/30 bg-purple-500/10 px-3 py-1.5 text-xs font-medium text-purple-100/90 transition-colors hover:bg-purple-500/20"
+						class="inline-flex touch-manipulation items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-accent-foreground transition-colors hover:bg-primary/20"
 					>
 						<Compass class="h-3.5 w-3.5" /> Como funciona
 					</button>
@@ -956,14 +958,14 @@
 		tela — e vale só nesta sessão, não mexe no limite salvo no plano.
 	-->
 	<div
-		class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl border border-white/10 bg-zinc-950/60 px-3 py-2.5"
+		class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl border border-border bg-card dark:bg-background/80 px-3 py-2.5"
 	>
 		<HelpTip
 			side="bottom"
 			title="Limite de carga desta montagem"
 			text="Arraste pra ver o que cabe com menos carga — a grade se ajusta na hora, tirando primeiro as matérias sem estrela (a de maior carga primeiro). Vale só nesta tela; não muda o limite do seu plano de formatura. Clique na unidade ao lado pra alternar entre horas e créditos."
 		>
-			<span class="shrink-0 text-[11px] font-semibold tracking-[0.08em] text-white/50 uppercase"
+			<span class="shrink-0 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase"
 				>Limite</span
 			>
 		</HelpTip>
@@ -974,20 +976,20 @@
 			step="1"
 			value={limiteSessao}
 			oninput={(e) => moverSliderCreditos(Number((e.currentTarget as HTMLInputElement).value))}
-			class="h-1.5 min-w-[8rem] flex-1 touch-manipulation accent-purple-400"
+			class="h-1.5 min-w-[8rem] flex-1 touch-manipulation accent-primary"
 			aria-label="Limite de carga desta montagem"
 		/>
 		<span
 			class="shrink-0 text-xs tabular-nums {creditosAcima
-				? 'font-semibold text-red-300'
-				: 'text-white/70'}"
+				? 'font-semibold text-red-700 dark:text-red-300'
+				: 'text-foreground/70'}"
 		>
 			{contadorTexto}
 		</span>
 		<button
 			type="button"
 			onclick={() => unidadeCargaStore.alternar()}
-			class="shrink-0 touch-manipulation rounded text-xs text-white/45 underline decoration-dotted underline-offset-2 transition-colors hover:text-white/80"
+			class="shrink-0 touch-manipulation rounded text-xs text-muted-foreground underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground/80"
 			title="Mostrar em {unidadeOposta}"
 		>
 			{unidadeCargaStore.unidade}
@@ -1000,7 +1002,7 @@
 
 	{#if confirmacaoProfessor}
 		<div
-			class="mb-3 flex flex-col gap-2 rounded-xl border border-pink-300/35 bg-pink-500/10 px-3 py-2.5 text-xs text-pink-100 sm:flex-row sm:items-center sm:justify-between"
+			class="mb-3 flex flex-col gap-2 rounded-xl border border-ai/30 bg-ai-soft px-3 py-2.5 text-xs text-ai dark:border-pink-300/35 dark:bg-pink-500/10 dark:text-pink-100 sm:flex-row sm:items-center sm:justify-between"
 		>
 			<span class="flex items-start gap-2">
 				<Info class="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -1011,14 +1013,14 @@
 				<button
 					type="button"
 					onclick={onRecusarConfirmacaoProfessor}
-					class="inline-flex touch-manipulation items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/70 transition-colors hover:bg-white/10"
+					class="inline-flex touch-manipulation items-center gap-1 rounded-full border border-border bg-foreground/5 px-2.5 py-1 text-[11px] font-medium text-foreground/70 transition-colors hover:bg-foreground/10"
 				>
 					<Undo2 class="h-3 w-3" /> Manter grade anterior
 				</button>
 				<button
 					type="button"
 					onclick={onAceitarConfirmacaoProfessor}
-					class="inline-flex touch-manipulation items-center gap-1 rounded-full border border-emerald-300/40 bg-emerald-500/20 px-2.5 py-1 text-[11px] font-semibold text-emerald-100 transition-colors hover:bg-emerald-500/30"
+					class="inline-flex touch-manipulation items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 dark:border-emerald-300/40 dark:bg-emerald-500/20 dark:text-emerald-100 dark:hover:bg-emerald-500/30"
 				>
 					<Check class="h-3 w-3" /> Aceitar
 				</button>
@@ -1028,7 +1030,7 @@
 
 	{#if gradeStore.ultimaMontagem && gradeStore.ultimaMontagem.naoAlocadas.length > 0}
 		<div
-			class="mb-3 space-y-1 rounded-xl border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"
+			class="mb-3 space-y-1 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-300/30 dark:bg-amber-500/10 dark:text-amber-100"
 		>
 			{#if gradeStore.ultimaMontagem.erros && gradeStore.ultimaMontagem.erros.length > 0}
 				<!-- Diagnóstico estruturado da essencial (quando houver) — nunca o `tipo` cru. -->
@@ -1052,7 +1054,7 @@
 
 	{#if gradeStore.ultimaMontagem?.truncado}
 		<div
-			class="mb-3 flex items-start gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs text-white/70"
+			class="mb-3 flex items-start gap-2 rounded-xl border border-border bg-foreground/5 px-3 py-2 text-xs text-foreground/70"
 		>
 			<Info class="mt-0.5 h-3.5 w-3.5 shrink-0" />
 			<span>
@@ -1089,7 +1091,7 @@
 		<MateriaSearchAdd {onAdd} {compacto} />
 		{#if aviso}
 			<p
-				class="rounded-lg border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100"
+				class="rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-300/30 dark:bg-amber-500/10 px-3 py-2 text-[11px] text-amber-900 dark:text-amber-100"
 			>
 				{aviso}
 			</p>
@@ -1101,22 +1103,22 @@
 			dois lugares só faria o mesmo texto competir consigo mesmo.
 		-->
 		{#if gradeStore.pool.length === 0}
-			<div class="rounded-2xl border border-white/10 bg-zinc-950/78 px-3 py-6 text-center">
-				<p class="text-xs text-white/50">
+			<div class="rounded-2xl border border-border bg-card dark:bg-background/80 px-3 py-6 text-center">
+				<p class="text-xs text-muted-foreground">
 					Use “Montar grade” para trazer as matérias do seu plano, busque uma acima ou peça
 					recomendações ao assistente (botão flutuante).
 				</p>
 				<button
 					type="button"
 					onclick={abrirTour}
-					class="mt-3 inline-flex items-center gap-1.5 rounded-full border border-purple-300/35 bg-purple-500/12 px-3 py-1.5 text-[11px] font-medium text-purple-100 transition-colors hover:bg-purple-500/22"
+					class="mt-3 inline-flex items-center gap-1.5 rounded-full border border-primary/35 bg-primary/10 px-3 py-1.5 text-[11px] font-medium text-accent-foreground transition-colors hover:bg-primary/20"
 				>
 					<Compass class="h-3.5 w-3.5" /> Ver o passo a passo
 				</button>
 			</div>
 		{:else}
 			<div class="flex items-center justify-between gap-2 px-1 pt-1">
-				<p class="text-[11px] font-semibold tracking-[0.12em] text-white/55 uppercase">
+				<p class="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
 					{compacto ? 'Turmas' : '2 · Turmas'}
 				</p>
 				<HelpTip
@@ -1214,7 +1216,7 @@
 
 	{#snippet calendario()}
 		<div class="mb-1.5 flex items-center justify-between px-1">
-			<p class="text-[11px] font-semibold tracking-[0.12em] text-white/55 uppercase">
+			<p class="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
 				{compacto ? 'Sua semana' : '3 · Sua semana'}
 			</p>
 			<HelpTip
@@ -1228,7 +1230,7 @@
 					type="button"
 					onclick={() => (calendarioExpandido = !calendarioExpandido)}
 					data-tour="ampliar"
-					class="hidden touch-manipulation items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-white/55 transition-colors hover:bg-white/10 lg:inline-flex"
+					class="hidden touch-manipulation items-center gap-1 rounded-full border border-border bg-foreground/5 px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-foreground/10 lg:inline-flex"
 				>
 					{#if calendarioExpandido}
 						<Minimize2 class="h-3 w-3" /> Reduzir
@@ -1250,7 +1252,7 @@
 		-->
 		<div class="mt-4">
 			<div
-				class="mb-3 flex gap-1 rounded-full border border-white/10 bg-white/5 p-1"
+				class="mb-3 flex gap-1 rounded-full border border-border bg-foreground/5 p-1"
 				role="tablist"
 				aria-label="Painéis do montador"
 			>
@@ -1261,12 +1263,12 @@
 					onclick={() => (painel = 'materias')}
 					class="flex flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition-colors {painel ===
 					'materias'
-						? 'bg-purple-500/22 text-purple-100'
-						: 'text-white/45'}"
+						? 'bg-accent text-accent-foreground'
+						: 'text-muted-foreground'}"
 				>
 					<BookMarked class="h-3.5 w-3.5" />
 					Matérias
-					<span class="rounded-full bg-white/10 px-1.5 text-[10px] text-white/60 tabular-nums">
+					<span class="rounded-full bg-foreground/10 px-1.5 text-[10px] text-muted-foreground tabular-nums">
 						{gradeStore.pool.length}
 					</span>
 				</button>
@@ -1277,12 +1279,12 @@
 					onclick={() => (painel = 'resumo')}
 					class="flex flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition-colors {painel ===
 					'resumo'
-						? 'bg-purple-500/22 text-purple-100'
-						: 'text-white/45'}"
+						? 'bg-accent text-accent-foreground'
+						: 'text-muted-foreground'}"
 				>
 					<ListChecks class="h-3.5 w-3.5" />
 					Na grade
-					<span class="rounded-full bg-white/10 px-1.5 text-[10px] text-white/60 tabular-nums">
+					<span class="rounded-full bg-foreground/10 px-1.5 text-[10px] text-muted-foreground tabular-nums">
 						{gradeStore.selecao.size}
 					</span>
 				</button>
@@ -1299,13 +1301,13 @@
 					title="Situação — o que falta para você se formar"
 					class="flex touch-manipulation items-center justify-center gap-1 rounded-full px-3 py-2 text-xs font-semibold transition-colors {painel ===
 					'situacao'
-						? 'bg-purple-500/22 text-purple-100'
-						: 'text-white/45'}"
+						? 'bg-accent text-accent-foreground'
+						: 'text-muted-foreground'}"
 				>
 					<GraduationCap class="h-3.5 w-3.5" />
 					{#if temPerguntaModuloLivre}
 						<!-- Um ponto, não um "1": não é contagem, é "tem coisa aqui pra você". -->
-						<span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+						<span class="h-1.5 w-1.5 rounded-full bg-amber-700 dark:bg-amber-400"></span>
 					{/if}
 				</button>
 			</div>

@@ -72,12 +72,12 @@
 </script>
 
 <div
-	class={compacto ? '' : 'rounded-2xl border border-white/10 bg-zinc-950/78 p-3'}
+	class={compacto ? '' : 'rounded-2xl border border-border bg-card dark:bg-background/80 p-3'}
 	data-tour="buscar-materia"
 >
 	{#if !compacto}
 		<div class="mb-2 flex items-center justify-between gap-2">
-			<p class="text-[11px] font-semibold tracking-[0.12em] text-white/55 uppercase">
+			<p class="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
 				1 · Matérias
 			</p>
 			<HelpTip
@@ -88,13 +88,13 @@
 	{/if}
 	<div class="relative">
 		<Search
-			class="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-white/40"
+			class="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground dark:text-white/40"
 		/>
 		<input
 			type="text"
 			bind:value={query}
 			placeholder="Adicionar matéria (código ou nome)..."
-			class="w-full rounded-full border border-white/15 bg-white/5 py-2 pr-3 pl-9 text-xs text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+			class="w-full rounded-full border border-border-strong bg-background py-2 pr-3 pl-9 text-xs text-foreground placeholder:text-muted-foreground dark:placeholder:text-white/40 focus:border-ring dark:border-border dark:bg-foreground/5 dark:focus:border-foreground/30 focus:outline-none"
 		/>
 	</div>
 
@@ -104,16 +104,16 @@
 				<button
 					type="button"
 					onclick={() => adicionar(m.codigoMateria)}
-					class="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-black/25 px-2.5 py-1.5 text-left transition-colors hover:bg-white/5"
+					class="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/50 dark:bg-black/20 px-2.5 py-1.5 text-left transition-colors hover:bg-foreground/5 dark:hover:bg-white/5"
 				>
-					<Plus class="h-3.5 w-3.5 shrink-0 text-purple-300" />
-					<span class="font-mono text-[11px] font-semibold text-white/85">{m.codigoMateria}</span>
-					<span class="truncate text-[11px] text-white/55">{m.nomeMateria}</span>
+					<Plus class="h-3.5 w-3.5 shrink-0 text-ai dark:text-purple-300" />
+					<span class="font-mono text-[11px] font-semibold text-foreground/85">{m.codigoMateria}</span>
+					<span class="truncate text-[11px] text-muted-foreground">{m.nomeMateria}</span>
 				</button>
 			{/each}
 		</div>
 	{:else if query.trim().length >= 2}
-		<p class="mt-2 px-1 text-[11px] text-white/40">
+		<p class="mt-2 px-1 text-[11px] text-muted-foreground dark:text-white/40">
 			Nenhuma matéria nova encontrada na sua matriz.
 		</p>
 	{/if}

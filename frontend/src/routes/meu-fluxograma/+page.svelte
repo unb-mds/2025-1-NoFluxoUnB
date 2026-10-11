@@ -13,7 +13,9 @@
 	import PrerequisiteChainDialog from '$lib/components/fluxograma/modal/PrerequisiteChainDialog.svelte';
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
 	import { matchesFluxogramCompactTouchMode } from '$lib/utils/fluxogram-viewport';
+	import { scheduleCenterFluxogramaViewport as scheduleCenterFluxogramaViewportShared } from '$lib/utils/fluxogram-initial-focus';
 	import { getIntegralizacao } from '$lib/services/integralizacao.service';
+	import { iniciarCarregamento } from '$lib/utils/carregamento-cancelavel';
 	import { supabaseDataService } from '$lib/services/supabase-data.service';
 	import { goto } from '$app/navigation';
 	import { ROUTES } from '$lib/config/routes';
@@ -49,31 +51,51 @@
 		const fluxo = userFluxograma;
 		const cc = course?.curriculoCompleto;
 		void store.diagramLayoutRevision;
+		// Fonte única do cálculo (a troca de matriz só recarrega o curso). Cada execução
+		// cancela a anterior: resposta velha não sobrescreve a nova, e erro não prende o spinner.
+		const idCurso = course?.idCurso;
+		const carregarMatrizes = () =>
+			idCurso
+				? iniciarCarregamento(() => supabaseDataService.getMatrizesByCurso(idCurso), {
+						ok: (m) => {
+							matrizes = m.map((x) => ({ curriculoCompleto: x.curriculoCompleto, status: x.status }));
+						},
+						erro: (e) => console.warn('Erro ao carregar matrizes do curso:', e)
+					})
+				: undefined;
 		if (!cc || !fluxo) {
-			if (course?.idCurso && !cc) {
-				supabaseDataService.getMatrizesByCurso(course.idCurso).then((m) => {
-					matrizes = m.map((x) => ({ curriculoCompleto: x.curriculoCompleto, status: x.status }));
-				});
-			}
+			const cancelarMatrizes = !cc ? carregarMatrizes() : undefined;
 			integralizacao = null;
 			integralizacaoLoading = false;
-			return;
+			return () => cancelarMatrizes?.();
 		}
 		integralizacaoLoading = true;
-		getIntegralizacao({
-			curriculoCompleto: cc,
-			dadosFluxograma: fluxo,
-			cargaHorariaIntegralizada: store.cargaHorariaIntegralizada,
-			equivalencias: course?.equivalencias
-		}).then((r) => {
-			integralizacao = r;
-			integralizacaoLoading = false;
-		});
-		if (course?.idCurso) {
-			supabaseDataService.getMatrizesByCurso(course.idCurso).then((m) => {
-				matrizes = m.map((x) => ({ curriculoCompleto: x.curriculoCompleto, status: x.status }));
-			});
-		}
+		const cancelarIntegralizacao = iniciarCarregamento(
+			() =>
+				getIntegralizacao({
+					curriculoCompleto: cc,
+					dadosFluxograma: fluxo,
+					cargaHorariaIntegralizada: store.cargaHorariaIntegralizada,
+					equivalencias: course?.equivalencias
+				}),
+			{
+				ok: (r) => {
+					integralizacao = r;
+				},
+				erro: (e) => {
+					integralizacao = null;
+					console.error('Erro ao calcular integralização:', e);
+				},
+				fim: () => {
+					integralizacaoLoading = false;
+				}
+			}
+		);
+		const cancelarMatrizes = carregarMatrizes();
+		return () => {
+			cancelarIntegralizacao();
+			cancelarMatrizes?.();
+		};
 	});
 
 	onMount(() => {
@@ -107,21 +129,8 @@
 	});
 
 	async function handleMatrizChange(curriculoCompleto: string) {
+		// A integralização é recalculada pelo $effect quando courseData muda.
 		await store.loadCourseDataByCurriculoCompleto(curriculoCompleto, false);
-		if (userFluxograma) {
-			integralizacaoLoading = true;
-			try {
-				const r = await getIntegralizacao({
-					curriculoCompleto,
-					dadosFluxograma: userFluxograma,
-					cargaHorariaIntegralizada: store.cargaHorariaIntegralizada,
-					equivalencias: store.state.courseData?.equivalencias
-				});
-				integralizacao = r;
-			} finally {
-				integralizacaoLoading = false;
-			}
-		}
 	}
 
 	function handleSubjectClick(materia: MateriaModel) {
@@ -149,47 +158,8 @@
 		chainDialogSubject = null;
 	}
 
-	function centerFluxogramaViewport() {
-		const viewport = fluxogramaViewportRef;
-		if (!viewport) return;
-		const scrollRoot = viewport.querySelector<HTMLElement>('[data-fluxogram-scroll-root]');
-		if (!scrollRoot) return;
-		const columns = [...scrollRoot.querySelectorAll<HTMLElement>('.semester-column')];
-		if (columns.length === 0) {
-			scrollRoot.scrollLeft = 0;
-			return;
-		}
-		const margemEsquerda = Math.max(16, Math.round(scrollRoot.clientWidth * 0.08));
-		// Mobile: abre no semestre atual do aluno — a pergunta nº 1 é "onde estou agora?"
-		const semestreAtual = store.userFluxograma?.semestreAtual;
-		let alvo: HTMLElement | null = null;
-		if (semestreAtual && matchesFluxogramCompactTouchMode()) {
-			alvo = scrollRoot.querySelector<HTMLElement>(`[data-semester="${semestreAtual}"]`);
-		}
-		if (!alvo) {
-			alvo = [...columns].sort((a, b) => a.offsetLeft - b.offsetLeft)[0];
-		}
-		// getBoundingClientRect independe da mecânica do zoom (CSS zoom vs transform)
-		const rootRect = scrollRoot.getBoundingClientRect();
-		const alvoRect = alvo.getBoundingClientRect();
-		const targetLeft = scrollRoot.scrollLeft + (alvoRect.left - rootRect.left) - margemEsquerda;
-		scrollRoot.scrollLeft = Math.max(0, targetLeft);
-	}
-
 	function scheduleCenterFluxogramaViewport(): () => void {
-		let cancelled = false;
-		const timers: ReturnType<typeof setTimeout>[] = [];
-		const run = () => {
-			if (cancelled) return;
-			centerFluxogramaViewport();
-		};
-		requestAnimationFrame(run);
-		timers.push(setTimeout(run, 220));
-		timers.push(setTimeout(run, 520));
-		return () => {
-			cancelled = true;
-			for (const t of timers) clearTimeout(t);
-		};
+		return scheduleCenterFluxogramaViewportShared(() => fluxogramaViewportRef, store);
 	}
 
 	$effect(() => {
@@ -205,7 +175,8 @@
 		delete document.body.dataset.fluxogramaFocusMode;
 	});
 
-	// Mobile: primeiro paint já posicionado no semestre atual do aluno (fora do modo foco).
+	// Mobile: primeiro paint já posicionado pela regra única pickInitialFocusSemester
+	// (semestre atual do aluno ou, sem ele, 1º nível pendente), fora do modo foco.
 	let didInitialMobileCenter = false;
 	$effect(() => {
 		if (didInitialMobileCenter) return;
@@ -253,14 +224,14 @@
 >
 	{#if store.state.loading}
 		<div class="flex flex-col items-center justify-center gap-4 py-20">
-			<Loader2 class="h-10 w-10 animate-spin text-purple-400" />
-			<p class="text-sm text-white/60">Carregando fluxograma...</p>
+			<Loader2 class="h-10 w-10 animate-spin text-ai" />
+			<p class="text-sm text-muted-foreground">Carregando fluxograma...</p>
 		</div>
 	{:else if store.state.error}
 		<div class="mx-auto max-w-md rounded-2xl border border-red-500/20 bg-red-500/10 p-8 text-center backdrop-blur-md">
-			<AlertTriangle class="mx-auto mb-3 h-8 w-8 text-red-400" />
-			<h2 class="mb-2 text-lg font-semibold text-white">Erro ao carregar fluxograma</h2>
-			<p class="mb-4 text-sm text-red-300/80">{store.state.error}</p>
+			<AlertTriangle class="mx-auto mb-3 h-8 w-8 text-red-700 dark:text-red-400" />
+			<h2 class="mb-2 text-lg font-semibold text-foreground">Erro ao carregar fluxograma</h2>
+			<p class="mb-4 text-sm text-red-700 dark:text-red-300/80">{store.state.error}</p>
 			<div class="flex flex-col items-center gap-3">
 				<button
 					onclick={() =>
@@ -268,13 +239,13 @@
 							? store.loadCourseDataByCurriculoCompleto(matrizCurricular.trim())
 							: courseName && store.loadCourseData(courseName)
 					}
-					class="rounded-full bg-white/10 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20"
+					class="rounded-full bg-foreground/10 px-6 py-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/20"
 				>
 					Tentar novamente
 				</button>
 				<button
 					onclick={() => goto(ROUTES.UPLOAD_HISTORICO)}
-					class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-700 px-6 py-2 text-sm font-semibold text-white transition-transform hover:scale-105"
+					class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-2 text-sm font-semibold text-white transition-transform dark:from-blue-500 dark:to-blue-700 hover:scale-105"
 				>
 					<Upload class="h-4 w-4" />
 					Enviar histórico novamente
@@ -282,15 +253,15 @@
 			</div>
 		</div>
 	{:else if !userFluxograma}
-		<div class="mx-auto max-w-md rounded-2xl border border-white/10 bg-black/40 p-8 text-center backdrop-blur-md">
-			<Upload class="mx-auto mb-3 h-8 w-8 text-purple-400" />
-			<h2 class="mb-2 text-lg font-semibold text-white">Nenhum Fluxograma Encontrado</h2>
-			<p class="mb-4 text-sm text-white/50">
+		<div class="mx-auto max-w-md rounded-2xl border border-border bg-card p-8 text-center backdrop-blur-md dark:bg-background/80">
+			<Upload class="mx-auto mb-3 h-8 w-8 text-ai" />
+			<h2 class="mb-2 text-lg font-semibold text-foreground">Nenhum Fluxograma Encontrado</h2>
+			<p class="mb-4 text-sm text-muted-foreground">
 				Importe seu histórico acadêmico para gerar seu fluxograma personalizado.
 			</p>
 			<button
 				onclick={() => goto(ROUTES.UPLOAD_HISTORICO)}
-				class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-700 px-6 py-3 font-semibold text-white transition-transform hover:scale-105"
+				class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-3 font-semibold text-white transition-transform dark:from-blue-500 dark:to-blue-700 hover:scale-105"
 			>
 				<Upload class="h-4 w-4" />
 				Importar Histórico
@@ -318,10 +289,10 @@
 					>
 						{#if curriculoCompletoAtual && (resolvedMatrizCurricular || matrizCurricular) && curriculoCompletoAtual !== (resolvedMatrizCurricular || matrizCurricular)}
 							<div class="flex animate-in fade-in slide-in-from-top-2 items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 backdrop-blur-md">
-								<Info class="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+								<Info class="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-400" />
 								<div class="min-w-0 flex-1">
-									<h3 class="text-sm font-semibold text-amber-300">Você está simulando uma matriz diferente</h3>
-									<p class="mt-0.5 text-xs leading-relaxed text-amber-200/80">
+									<h3 class="text-sm font-semibold text-amber-800 dark:text-amber-300">Você está simulando uma matriz diferente</h3>
+									<p class="mt-0.5 text-xs leading-relaxed text-amber-800 dark:text-amber-200/80">
 										Sua matriz original (<strong>{matrizCurricular}</strong>) pode estar inativa ou você escolheu visualizar outra grade. O fluxograma abaixo corresponde à matriz <strong>{curriculoCompletoAtual}</strong>.
 									</p>
 								</div>
@@ -379,7 +350,7 @@
 			</div>
 
 			{#if !fluxogramaFocusMode && !store.state.isAnonymous}
-				<div class="relative z-40 shrink-0 space-y-4 border-t border-white/10 pt-4">
+				<div class="relative z-40 shrink-0 space-y-4 border-t border-border pt-4">
 					<ProgressSummarySection
 						courseData={store.state.courseData}
 						userFluxograma={store.userFluxograma}
@@ -392,7 +363,7 @@
 					<ProgressToolsSection />
 				</div>
 			{:else if !fluxogramaFocusMode}
-				<div class="relative z-40 border-t border-white/10 pt-4">
+				<div class="relative z-40 border-t border-border pt-4">
 					<ProgressSummarySection
 						courseData={store.state.courseData}
 						userFluxograma={store.userFluxograma}

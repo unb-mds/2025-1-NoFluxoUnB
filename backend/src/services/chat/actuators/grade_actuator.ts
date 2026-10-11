@@ -18,8 +18,9 @@
  * atuador segue o mesmo padrão de dois passos.
  */
 import { z } from "zod";
-import { Agent, run, tool, OutputGuardrailTripwireTriggered } from "@openai/agents";
-import type { OutputGuardrail } from "@openai/agents";
+import { Agent, tool, OutputGuardrailTripwireTriggered } from "@openai/agents";
+import type { OutputGuardrail, RunContext } from "@openai/agents";
+import { runSubAgente } from "../sub_run";
 import { SupabaseWrapper } from "../../../supabase_wrapper";
 import { resolveIdUserPorEmail } from "../aluno_identidade";
 import { montarDadosPlano } from "../../../controllers/PlanejamentoController";
@@ -736,19 +737,24 @@ export interface RespostaGradeComRevisao {
  * escalonamento (reprovou 2x) `opcaoGrade` fica ausente de propósito: nunca propaga uma
  * seleção associada a um texto que o revisor rejeitou.
  */
-export async function runGradeComRevisao(agent: Agent, input: string): Promise<RespostaGradeComRevisao> {
+export async function runGradeComRevisao(
+    agent: Agent,
+    input: string,
+    pai?: RunContext<unknown>
+): Promise<RespostaGradeComRevisao> {
     try {
-        const resultado = await run(agent, input);
+        const resultado = await runSubAgente(agent, input, pai);
         return { reply: String(resultado.finalOutput ?? ""), opcaoGrade: obterOpcaoGradeDoAgente(agent) ?? undefined };
     } catch (erro) {
         if (!(erro instanceof OutputGuardrailTripwireTriggered)) throw erro;
 
         const motivo = motivoDaReprovacaoGrade(erro);
         try {
-            const resultadoCorrigido = await run(
+            const resultadoCorrigido = await runSubAgente(
                 agent,
                 `${input}\n\n[Revisão automática] Sua resposta anterior foi rejeitada: ${motivo}. ` +
-                    "Responda de novo, citando só o que veio das tools (códigos de recomendar_por_horario_livre, ou pares código:idTurma de montar_grade)."
+                    "Responda de novo, citando só o que veio das tools (códigos de recomendar_por_horario_livre, ou pares código:idTurma de montar_grade).",
+                pai
             );
             return {
                 reply: String(resultadoCorrigido.finalOutput ?? ""),

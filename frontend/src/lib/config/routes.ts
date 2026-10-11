@@ -39,6 +39,8 @@ export const PUBLIC_ROUTES = [
   '/login-anonimo',
   '/auth/callback',
   '/auth/reset-password',
+  '/conheca',
+  '/acessibilidade',
 ] as const;
 
 // Protected routes require authentication

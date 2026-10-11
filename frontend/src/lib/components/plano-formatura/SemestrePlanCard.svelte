@@ -42,26 +42,26 @@
 
 	const containerClass = $derived(
 		isFirst
-			? 'border-blue-500/50 bg-white/[0.03] shadow-[0_0_0_1px_hsl(220_80%_60%/0.15),0_4px_24px_hsl(220_80%_40%/0.15)]'
-			: 'border-white/10 bg-white/[0.02]'
+			? 'border-blue-500/50 bg-card shadow-nofluxo dark:bg-foreground/[0.03] dark:shadow-[0_0_0_1px_hsl(220_80%_60%/0.15),0_4px_24px_hsl(220_80%_40%/0.15)]'
+			: 'border-border bg-card dark:bg-foreground/[0.02]'
 	);
 
 	const headerBg = $derived(
 		isFirst
 			? 'bg-blue-600/10 border-b border-blue-500/20'
-			: 'bg-white/[0.03] border-b border-white/8'
+			: 'bg-muted/60 border-b border-border'
 	);
 
 	const tagClass = $derived(
 		isRecomendado
-			? 'bg-blue-600/20 text-blue-300 ring-1 ring-blue-500/30'
-			: 'bg-white/8 text-white/45 ring-1 ring-white/10'
+			? 'bg-blue-600/20 text-blue-800 ring-1 ring-blue-500/30 dark:text-blue-300'
+			: 'bg-muted text-muted-foreground ring-1 ring-border'
 	);
 
 	const creditBadgeClass = $derived(
 		isFirst
-			? 'bg-blue-600/20 text-blue-200 ring-1 ring-blue-500/30'
-			: 'bg-white/8 text-white/60 ring-1 ring-white/10'
+			? 'bg-blue-600/20 text-blue-800 ring-1 ring-blue-500/30 dark:text-blue-200'
+			: 'bg-muted text-muted-foreground ring-1 ring-border'
 	);
 </script>
 
@@ -73,14 +73,14 @@
 	<div class="{headerBg} px-4 py-3.5">
 		<div class="flex items-center justify-between gap-2">
 			<div class="flex items-center gap-2">
-				<CalendarDays class="h-4 w-4 {isFirst ? 'text-blue-400' : 'text-white/35'}" />
-				<span class="text-sm font-semibold {isFirst ? 'text-white' : 'text-white/70'}">
+				<CalendarDays class="h-4 w-4 {isFirst ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'}" />
+				<span class="text-sm font-semibold {isFirst ? 'text-foreground' : 'text-foreground/70'}">
 					{headerLabel}
 				</span>
 			</div>
 		</div>
 		{#if semestre.semestre}
-			<div class="mt-1.5 text-[11px] text-white/35">
+			<div class="mt-1.5 text-[11px] text-muted-foreground">
 				{semestre.semestre}
 			</div>
 		{/if}
@@ -92,7 +92,7 @@
 					{displayValue} {displayLabel}
 				</span>
 			</div>
-			<div class="flex items-center gap-1 text-[11px] text-white/35">
+			<div class="flex items-center gap-1 text-[11px] text-muted-foreground">
 				<BookOpen class="h-3 w-3" />
 				<span>{semestre.materias.length} disciplinas</span>
 			</div>
@@ -103,7 +103,7 @@
 	<div class="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
 		{#if semestre.materias.length === 0}
 			<div class="flex flex-1 items-center justify-center py-8">
-				<p class="text-center text-xs text-white/25 leading-relaxed">
+				<p class="text-center text-xs text-muted-foreground dark:text-foreground/25 leading-relaxed">
 					Nenhuma matéria<br/>obrigatória pendente
 				</p>
 			</div>

@@ -39,6 +39,8 @@ class AppConfig:
     # --- Build-time args ---
     # Keys to read from the environment and pass as --build-arg to Docker
     build_arg_keys: Sequence[str] = ()
+    # Keys to read from the environment (optional — skipped silently if missing)
+    build_arg_optional_keys: Sequence[str] = ()
     # Static build args (hardcoded values, not from env)
     build_arg_static: Mapping[str, str] | None = None
 
@@ -49,6 +51,10 @@ class AppConfig:
     deploy_env_optional_keys: Sequence[str] = ()
     # Static env vars (hardcoded values)
     deploy_env_static: Mapping[str, str] | None = None
+
+    # --- Rollout check (verificar_rollout.py) ---
+    # Endpoint público que devolve {"commit": GIT_SHA}; None = não verifica.
+    version_path: str | None = None
 
     # --- App class (for node scheduling) ---
     app_class: str = "non-business"  # Route to non-business nodes
@@ -70,6 +76,7 @@ APPS: dict[str, AppConfig] = {
         port=3325,
         replicas=1,
         health_path="/health",
+        version_path="/health",
         domain="api-nofluxo.crianex.com",
         app_class="non-business",
         deploy_env_keys=(
@@ -84,6 +91,8 @@ APPS: dict[str, AppConfig] = {
             "RAGFLOW_AGENT_ID",
             "MARITACA_API_KEY",
             "GOOGLE_API_KEY",
+            # muda a cada deploy: força a troca dos pods e identifica a versão
+            "GIT_SHA",
         ),
         deploy_env_static={
             "NODE_ENV": "production",
@@ -102,6 +111,7 @@ APPS: dict[str, AppConfig] = {
         port=3000,
         replicas=1,
         health_path="/health.json",
+        version_path="/health.json",
         domain="no-fluxo.crianex.com",
         app_class="non-business",
         env_folder="frontend",
@@ -110,6 +120,7 @@ APPS: dict[str, AppConfig] = {
             "PUBLIC_SUPABASE_URL",
             "PUBLIC_SUPABASE_ANON_KEY",
         ),
+        build_arg_optional_keys=("GIT_SHA",),
         build_arg_static={
             "PUBLIC_API_URL": "https://api-nofluxo.crianex.com",
             "PUBLIC_REDIRECT_URL": "https://no-fluxo.crianex.com",
@@ -128,6 +139,7 @@ APPS: dict[str, AppConfig] = {
         port=8000,
         replicas=1,
         health_path="/health",
+        version_path="/health",
         domain="darcy-nofluxo.crianex.com",
         app_class="non-business",
         deploy_env_keys=(
@@ -137,6 +149,7 @@ APPS: dict[str, AppConfig] = {
             "SUPABASE_SERVICE_ROLE_KEY",
             "MCP_AGENT_API_KEY",
         ),
+        deploy_env_optional_keys=("GIT_SHA",),
         deploy_env_static={
             "ALLOWED_ORIGINS": "https://no-fluxo.crianex.com,https://api-nofluxo.crianex.com",
         },

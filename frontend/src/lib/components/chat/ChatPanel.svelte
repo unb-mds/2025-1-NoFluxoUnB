@@ -1,5 +1,9 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
+	import { authStore } from '$lib/stores/auth';
+	import { darcyCotaStore } from '$lib/stores/darcy-cota.store.svelte';
+	import DarcyUsoRing from '$lib/components/chat/DarcyUsoRing.svelte';
+	import DarcyLimiteCard from '$lib/components/chat/DarcyLimiteCard.svelte';
 	import {
 		Sparkles,
 		SendHorizontal,
@@ -62,7 +66,8 @@
 		emptyState,
 		prefillText,
 		prefillNonce,
-		onNovaConversa
+		onNovaConversa,
+		controleDeUso = true
 	}: {
 		messages: ChatMsg[];
 		loading?: boolean;
@@ -97,6 +102,11 @@
 		 * a conversa é uma só entre as telas, então apagar vale pra todas.
 		 */
 		onNovaConversa?: () => void;
+		/**
+		 * Chat do Darcy (padrão): exige login, mostra a rodinha de uso diário ao
+		 * lado do enviar e troca o campo pelo aviso de limite quando a cota acaba.
+		 */
+		controleDeUso?: boolean;
 	} = $props();
 
 	let confirmandoNovaConversa = $state(false);
@@ -115,6 +125,26 @@
 		return mapa;
 	});
 
+	// ─── Login obrigatório + cota diária ──────────────────────────────────────
+	// Visitante (login anônimo) ou sem sessão: enviar abre o modal de login em
+	// vez de chamar a IA (o texto digitado fica no campo).
+	const precisaLogin = $derived(controleDeUso && !($authStore.isAuthenticated && $authStore.user));
+	const bloqueio = $derived(controleDeUso ? darcyCotaStore.bloqueio : null);
+	const cotaAtual = $derived(controleDeUso ? darcyCotaStore.cota : null);
+	const PLACEHOLDER_BLOQUEADO = 'Volta amanhã às 00h';
+
+	onMount(() => {
+		if (controleDeUso && !precisaLogin) void darcyCotaStore.carregar();
+	});
+
+	/** True se pode seguir para a IA; senão abre o modal de login. */
+	function liberadoParaIA(): boolean {
+		if (precisaLogin) {
+			darcyCotaStore.abrirLogin();
+			return false;
+		}
+		return bloqueio === null;
+	}
 	/** "INTRODUÇÃO A COMPUTAÇÃO GRÁFICA" → "Introdução A Computação Gráfica". */
 	function nomeBonito(nome: string): string {
 		return nome.toLowerCase().replace(/(^|[\s(])\p{L}/gu, (c) => c.toUpperCase());
@@ -186,6 +216,7 @@
 
 	function enviar() {
 		if (messageInput.trim() === '' || loading) return;
+		if (!liberadoParaIA()) return;
 		const msg = messageInput.trim();
 		messageInput = '';
 		onSend(msg);
@@ -194,6 +225,7 @@
 	// Envio direto (botões/badges) — não mexe no que o usuário está digitando.
 	function enviarTexto(text: string) {
 		if (!text.trim() || loading) return;
+		if (!liberadoParaIA()) return;
 		onSend(text.trim());
 	}
 
@@ -220,18 +252,18 @@
 <ChatWrapper>
 	<!-- Header -->
 	<div
-		class="relative z-10 flex shrink-0 items-center border-b border-white/5 bg-black/20 px-4 py-3 backdrop-blur-xl {draggable
+		class="relative z-10 flex shrink-0 items-center border-b border-border bg-background/60 px-4 py-3 backdrop-blur-xl dark:border-white/5 dark:bg-black/20 {draggable
 			? 'chat-drag-handle cursor-move pr-20 select-none'
 			: ''}"
 	>
 		<div
-			class="inline-flex max-w-full items-center gap-2 overflow-hidden rounded-full border border-white/10 bg-white/5 px-3 py-1 shadow-sm backdrop-blur-md"
+			class="inline-flex max-w-full items-center gap-2 overflow-hidden rounded-full border border-foreground/10 bg-foreground/5 px-3 py-1 shadow-sm backdrop-blur-md"
 		>
-			<Sparkles class="h-3.5 w-3.5 shrink-0 text-pink-400" />
-			<span class="shrink-0 text-[11px] font-bold tracking-[0.16em] text-white uppercase"
+			<Sparkles class="h-3.5 w-3.5 shrink-0 text-pink-600 dark:text-pink-400" />
+			<span class="shrink-0 text-[11px] font-bold tracking-[0.16em] text-foreground uppercase"
 				>{title.toUpperCase()}</span
 			>
-			<span class="min-w-0 truncate text-[10.5px] font-normal text-white/40"
+			<span class="min-w-0 truncate text-[10.5px] font-normal text-muted-foreground dark:text-white/40"
 				>Powered by Maritaca AI</span
 			>
 		</div>
@@ -286,11 +318,11 @@
 							{@render emptyState()}
 						{:else}
 							<div
-								class="mb-4 flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border border-pink-500/50 bg-pink-500/10 shadow-[0_0_30px_rgba(236,72,153,0.15)] backdrop-blur-md"
+								class="mb-4 flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border border-pink-500/50 bg-pink-500/10 shadow-sm backdrop-blur-md dark:shadow-[0_0_30px_rgba(236,72,153,0.15)]"
 							>
-								<Bot class="h-8 w-8 text-pink-400" />
+								<Bot class="h-8 w-8 text-pink-600 dark:text-pink-400" />
 							</div>
-							<h3 class="text-xl font-semibold tracking-tight text-white">Pergunte à nossa IA</h3>
+							<h3 class="text-xl font-semibold tracking-tight text-foreground">Pergunte à nossa IA</h3>
 						{/if}
 
 						{#if promptStarters.length > 0}
@@ -306,16 +338,16 @@
 												enviar();
 											}
 										}}
-										class="group flex shrink-0 cursor-pointer items-center rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[12px] font-medium text-white/80 shadow-sm backdrop-blur-md transition-all hover:border-indigo-500/40 hover:bg-white/10 hover:text-white hover:shadow-[0_0_15px_rgba(99,102,241,0.15)]"
+										class="group flex shrink-0 cursor-pointer items-center rounded-full border border-foreground/10 bg-foreground/5 px-3 py-1.5 text-[12px] font-medium text-foreground/80 shadow-sm backdrop-blur-md transition-all hover:border-primary/40 hover:bg-foreground/10 hover:text-foreground dark:hover:border-indigo-500/40 dark:hover:shadow-[0_0_15px_rgba(99,102,241,0.15)]"
 									>
 										<Sparkles
-											class="mr-1.5 h-3 w-3 shrink-0 text-white/30 transition-colors group-hover:text-indigo-400"
+											class="mr-1.5 h-3 w-3 shrink-0 text-muted-foreground/70 transition-colors group-hover:text-primary dark:group-hover:text-indigo-400"
 										/>
 										<div class="flex-1 leading-snug">
 											{starter.prefix}
 											{#if starter.badge}
 												<span
-													class="mx-1 inline-flex items-center rounded-full border border-white/20 bg-white/5 px-1.5 py-px font-mono text-[10px] font-bold tracking-wide text-white transition-all duration-300 group-hover:border-indigo-400/80 group-hover:bg-indigo-500/20 group-hover:text-indigo-200 group-hover:shadow-[0_0_12px_rgba(129,140,248,0.5),inset_0_0_8px_rgba(129,140,248,0.3)]"
+													class="mx-1 inline-flex items-center rounded-full border border-foreground/20 bg-foreground/5 px-1.5 py-px font-mono text-[10px] font-bold tracking-wide text-foreground transition-all duration-300 group-hover:border-primary/80 group-hover:bg-primary/15 group-hover:text-accent-foreground dark:group-hover:border-indigo-400/80 dark:group-hover:bg-indigo-500/20 dark:group-hover:text-indigo-200 dark:group-hover:shadow-[0_0_12px_rgba(129,140,248,0.5),inset_0_0_8px_rgba(129,140,248,0.3)]"
 													><MarqueeText text={starter.badge} maxWidth={150} /></span
 												>
 											{/if}
@@ -407,7 +439,7 @@
 						{:else if block.tipo === 'turma'}
 							{@const t = block.turma}
 							<div
-								class="relative my-2 flex w-full max-w-[88%] min-w-0 flex-col gap-4 overflow-hidden rounded-3xl border border-indigo-500/40 bg-linear-to-br from-indigo-500/10 to-fuchsia-500/10 p-4 shadow-2xl backdrop-blur-2xl sm:p-5"
+								class="relative my-2 flex w-full max-w-[88%] min-w-0 flex-col gap-4 overflow-hidden rounded-3xl border border-border bg-card bg-linear-to-br from-indigo-500/10 to-fuchsia-500/10 p-4 shadow-nofluxo backdrop-blur-2xl sm:p-5 dark:border-indigo-500/40 dark:bg-transparent dark:shadow-2xl"
 							>
 								<div
 									class="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-indigo-500/30 blur-2xl"
@@ -417,39 +449,39 @@
 									class="relative z-10 flex flex-wrap items-center justify-between gap-2 border-b border-indigo-400/20 pb-3"
 								>
 									<div class="flex min-w-0 flex-wrap items-center gap-2">
-										<span class="text-lg font-black tracking-tight text-white sm:text-xl"
+										<span class="text-lg font-black tracking-tight text-foreground sm:text-xl dark:text-white"
 											>Turma {t.turma}</span
 										>
 										{#if t.codigo}
-											<span class="font-mono text-xs font-semibold text-indigo-200/80"
+											<span class="font-mono text-xs font-semibold text-indigo-700/80 dark:text-indigo-200/80"
 												>{nomeDe(t.codigo) ?? t.codigo}</span
 											>
 										{/if}
 										{#if t.periodo}
 											<span
-												class="rounded-full border border-indigo-400/40 bg-indigo-500/25 px-2.5 py-0.5 text-xs font-bold text-indigo-200 shadow-sm"
+												class="rounded-full border border-indigo-400/40 bg-indigo-500/25 px-2.5 py-0.5 text-xs font-bold text-indigo-800 shadow-sm dark:text-indigo-200"
 												>{t.periodo}</span
 											>
 										{/if}
 									</div>
 									<span
-										class="rounded-full border border-indigo-400/30 bg-indigo-500/30 px-3 py-1 text-[11px] font-bold tracking-wider text-white shadow-inner"
+										class="rounded-full border border-indigo-400/30 bg-indigo-500/30 px-3 py-1 text-[11px] font-bold tracking-wider text-foreground shadow-inner dark:text-white"
 										>{t.vagas} vagas</span
 									>
 								</div>
 
 								<div class="relative z-10 min-w-0 space-y-4">
 									<div class="min-w-0">
-										<p class="mb-1 text-[11px] font-bold tracking-widest text-indigo-200 uppercase">
+										<p class="mb-1 text-[11px] font-bold tracking-widest text-indigo-700 uppercase dark:text-indigo-200">
 											Professor
 										</p>
-										<p class="text-[15px] font-bold break-words text-white">{t.professor}</p>
+										<p class="text-[15px] font-bold break-words text-foreground dark:text-white">{t.professor}</p>
 									</div>
 
 									<div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:gap-8">
 										<div class="min-w-0 flex-1">
 											<p
-												class="mb-1.5 text-[11px] font-bold tracking-widest text-indigo-200 uppercase"
+												class="mb-1.5 text-[11px] font-bold tracking-widest text-indigo-700 uppercase dark:text-indigo-200"
 											>
 												Horário
 											</p>
@@ -457,21 +489,21 @@
 												<div class="space-y-1.5">
 													{#each formatHorarioSigaa(t.horario) as linha}
 														<div class="flex items-baseline gap-3 text-[14px]">
-															<span class="w-8 shrink-0 font-bold text-white">{linha.dia}</span>
-															<span class="min-w-0 font-medium break-words text-white/90"
+															<span class="w-8 shrink-0 font-bold text-foreground dark:text-white">{linha.dia}</span>
+															<span class="min-w-0 font-medium break-words text-foreground/90 dark:text-white/90"
 																>{compactarFaixasHorarias(linha.faixas)}</span
 															>
 														</div>
 													{/each}
 												</div>
 											{:else}
-												<p class="text-[14px] font-medium break-words text-white/90">{t.horario}</p>
+												<p class="text-[14px] font-medium break-words text-foreground/90 dark:text-white/90">{t.horario}</p>
 											{/if}
 										</div>
 
 										<div class="min-w-0 flex-1">
 											<p
-												class="mb-1.5 text-[11px] font-bold tracking-widest text-indigo-200 uppercase"
+												class="mb-1.5 text-[11px] font-bold tracking-widest text-indigo-700 uppercase dark:text-indigo-200"
 											>
 												Local
 											</p>
@@ -479,14 +511,14 @@
 												<div class="space-y-1.5">
 													{#each formatLocalSigaa(t.local) as localLinha}
 														<p
-															class="text-[14px] leading-snug font-medium [overflow-wrap:anywhere] text-white/90"
+															class="text-[14px] leading-snug font-medium [overflow-wrap:anywhere] text-foreground/90 dark:text-white/90"
 														>
 															{localLinha}
 														</p>
 													{/each}
 												</div>
 											{:else}
-												<p class="text-[14px] font-medium [overflow-wrap:anywhere] text-white/90">
+												<p class="text-[14px] font-medium [overflow-wrap:anywhere] text-foreground/90 dark:text-white/90">
 													{t.local}
 												</p>
 											{/if}
@@ -501,7 +533,7 @@
 										type="button"
 										disabled={!viva}
 										onclick={() => acoesEfetivas.usarTurma?.(codigoTurma, idTurma)}
-										class="relative z-10 inline-flex min-h-9 items-center justify-center gap-1.5 self-start rounded-full border border-emerald-400/40 bg-emerald-500/20 px-4 py-1.5 text-sm font-semibold text-emerald-50 transition-colors hover:bg-emerald-500/35 disabled:cursor-not-allowed disabled:opacity-40"
+										class="relative z-10 inline-flex min-h-9 items-center justify-center gap-1.5 self-start rounded-full border border-emerald-600/60 bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-800 shadow-sm transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-400/40 dark:bg-emerald-500/20 dark:text-emerald-50 dark:hover:bg-emerald-500/35"
 									>
 										<CalendarPlus class="h-4 w-4 shrink-0" /> Usar esta turma
 									</button>
@@ -520,10 +552,10 @@
 										title={btn.mensagem !== btn.rotulo ? btn.mensagem : undefined}
 										class="min-h-9 max-w-full cursor-pointer rounded-full border px-4 py-1.5 text-left text-[13px] font-medium break-words whitespace-normal transition-colors active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40
 											{r === 'sim'
-											? 'border-emerald-500/40 bg-emerald-600/25 text-emerald-50 hover:bg-emerald-600/45'
+											? 'border-emerald-600/60 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-600/25 dark:text-emerald-50 dark:hover:bg-emerald-600/45'
 											: r === 'não' || r === 'nao'
-												? 'border-rose-500/40 bg-rose-600/25 text-rose-50 hover:bg-rose-600/45'
-												: 'border-indigo-500/40 bg-indigo-600/25 text-indigo-50 hover:bg-indigo-600/45'}"
+												? 'border-rose-600/60 bg-rose-50 text-rose-800 hover:bg-rose-100 dark:border-rose-500/40 dark:bg-rose-600/25 dark:text-rose-50 dark:hover:bg-rose-600/45'
+												: 'border-primary/40 bg-accent text-accent-foreground hover:bg-primary/15 dark:border-indigo-500/40 dark:bg-indigo-600/25 dark:text-indigo-50 dark:hover:bg-indigo-600/45'}"
 									>
 										{btn.rotulo}
 									</button>
@@ -538,7 +570,7 @@
 								<button
 									type="button"
 									onclick={() => acoesEfetivas.grade.executar(block.codigos, opcao)}
-									class="flex w-full min-w-0 items-start gap-2.5 rounded-2xl border border-emerald-500/40 bg-emerald-600/20 px-4 py-2.5 text-left text-emerald-50 transition-colors hover:bg-emerald-600/40 active:scale-[0.99]"
+									class="flex w-full min-w-0 items-start gap-2.5 rounded-2xl border border-emerald-600/60 bg-emerald-50 px-4 py-2.5 text-left text-emerald-800 shadow-sm transition-colors hover:bg-emerald-100 active:scale-[0.99] dark:border-emerald-500/40 dark:bg-emerald-600/20 dark:text-emerald-50 dark:hover:bg-emerald-600/40"
 								>
 									{#if abrir}
 										<ArrowUpRight class="mt-0.5 h-4 w-4 shrink-0" />
@@ -550,7 +582,7 @@
 											>{rotuloGrade(!!opcao, block.codigos)}</span
 										>
 										{#if abrir || opcao}
-											<span class="mt-0.5 block text-[12px] break-words text-emerald-100/70">
+											<span class="mt-0.5 block text-[12px] break-words text-emerald-900/70 dark:text-emerald-100/70">
 												{block.codigos.map((c) => nomeDe(c) ?? c).join(' · ')}
 											</span>
 										{/if}
@@ -569,21 +601,29 @@
 
 		<!-- Input -->
 		<div class="relative z-10 bg-transparent p-5 pt-3 pb-6">
-			<div class="relative flex w-full items-center shadow-2xl">
+			{#if bloqueio}
+				<DarcyLimiteCard tipo={bloqueio} />
+			{/if}
+			<div class="relative flex w-full items-center dark:shadow-2xl">
 				<input
 					type="text"
 					bind:value={messageInput}
 					bind:this={inputRef}
-					{placeholder}
-					disabled={loading}
+					placeholder={bloqueio ? PLACEHOLDER_BLOQUEADO : placeholder}
+					disabled={loading || bloqueio !== null}
 					onkeydown={handleKeydown}
-					class="w-full rounded-full border border-white/20 bg-white/10 py-3.5 pr-12 pl-5 text-[14.5px] text-white shadow-inner backdrop-blur-2xl transition-all placeholder:text-white/50 focus:border-white/30 focus:bg-white/15 focus:outline-none disabled:opacity-50"
+					class="w-full rounded-full border border-border-strong bg-card py-3.5 pr-12 pl-5 text-[14.5px] text-foreground shadow-sm backdrop-blur-2xl transition-all placeholder:text-muted-foreground focus:border-ring focus:outline-none disabled:opacity-50 dark:border-white/20 dark:bg-white/10 dark:shadow-inner dark:focus:border-white/30 dark:focus:bg-white/15"
 				/>
+				{#if cotaAtual}
+					<span class="absolute right-12 flex items-center">
+						<DarcyUsoRing cota={cotaAtual} />
+					</span>
+				{/if}
 				<button
 					type="button"
 					onclick={enviar}
-					disabled={loading || messageInput.trim() === ''}
-					class="absolute right-2 cursor-pointer rounded-full border border-white/10 bg-white/10 p-2 text-white shadow-sm transition-all hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-white/40"
+					disabled={loading || bloqueio !== null || messageInput.trim() === ''}
+					class="absolute right-2 cursor-pointer rounded-full border border-foreground/10 bg-foreground/10 p-2 text-foreground shadow-sm transition-all hover:bg-foreground/20 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-foreground/40"
 					aria-label="Enviar"
 				>
 					<SendHorizontal class="h-4 w-4" />

@@ -69,7 +69,7 @@ export class TicketService {
 				description: input.description.trim(),
 				category: input.category,
 				status: 'aberto',
-				metadata: this.collectMetadata(),
+				metadata: { ...this.collectMetadata(), ...(input.metadata ?? {}) },
 				attachments: uploaded
 			})
 			.select('*')
@@ -191,6 +191,34 @@ export class TicketService {
 		});
 		if (error) throw new Error(error.message);
 		return data as TicketMessage;
+	}
+
+	/**
+	 * Pedido "Mais perguntas no Darcy": aprova criando a concessão vinculada ao
+	 * ticket (aprovado_por = admin logado), responde na conversa e resolve.
+	 */
+	async aprovarPedidoDarcy(
+		ticketId: number,
+		opcao: 'hoje' | 'semana' | 'limite',
+		quantidade: number,
+		resposta?: string
+	): Promise<void> {
+		const { error } = await this.supabase.rpc('darcy_aprovar_pedido', {
+			p_ticket_id: ticketId,
+			p_opcao: opcao,
+			p_quantidade: quantidade,
+			p_resposta: resposta?.trim() ? resposta.trim() : null
+		});
+		if (error) throw new Error(error.message);
+	}
+
+	/** Recusa o pedido, respondendo o motivo na conversa do ticket. */
+	async recusarPedidoDarcy(ticketId: number, resposta: string): Promise<void> {
+		const { error } = await this.supabase.rpc('darcy_recusar_pedido', {
+			p_ticket_id: ticketId,
+			p_resposta: resposta
+		});
+		if (error) throw new Error(error.message);
 	}
 
 	async getAuthUserId(): Promise<string | null> {

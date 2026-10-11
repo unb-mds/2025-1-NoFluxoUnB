@@ -12,6 +12,7 @@ import type {
 	EquivalenciaPdf
 } from '$lib/types/user';
 import { isMateriaAprovada } from '$lib/types/user';
+import { iraOuNull } from '$lib/utils/ira';
 import type {
 	CursoModel,
 	MinimalCursoModel,
@@ -130,7 +131,7 @@ export function createDadosFluxogramaUserFromJson(
 
 	return {
 		nomeCurso: String(json.nome_curso ?? ''),
-		ira: Number(json.ira ?? 0),
+		ira: iraOuNull(json.ira),
 		iraTexto:
 			json.ira_texto != null && String(json.ira_texto).trim() !== ''
 				? String(json.ira_texto).trim()
@@ -311,7 +312,7 @@ export function normalizeDadosFluxogramaFromStored(
 		);
 		return {
 			nomeCurso: String(raw.nomeCurso ?? ''),
-			ira: Number(raw.ira ?? 0),
+			ira: iraOuNull(raw.ira),
 			matricula: String(raw.matricula ?? ''),
 			horasIntegralizadas: Number(raw.horasIntegralizadas ?? 0),
 			suspensoes: Array.isArray(raw.suspensoes) ? (raw.suspensoes as string[]) : [],
@@ -397,6 +398,26 @@ export function buildDadosFluxogramaUserFromCasarResponse(
 
 		const equiv = equivalenciaByCode.get(codigoUpper);
 		const isAprovada = isMateriaAprovada(base);
+
+		// R17: a obrigatória foi reprovada/está em curso, mas o RPC a integralizou por uma
+		// equivalente aprovada. A tentativa REP/MATR dá lugar à equivalência; senão o
+		// código já está em codigosJaIncluidos, a entrada concluida_equivalencia nunca
+		// entra e o fluxograma salvo diverge do percentual do resumo.
+		if (equiv && !isAprovada) {
+			return createDadosMateriaFromJson({
+				...raw,
+				codigo: codigoMatriz,
+				status: equiv.status,
+				mencao: equiv.mencao,
+				professor: equiv.professor,
+				ano_periodo: equiv.ano_periodo,
+				frequencia: null,
+				turma: null,
+				tipo_dado: 'equivalencia',
+				codigo_equivalente: equiv.codigo_equivalente,
+				nome_equivalente: equiv.nome_equivalente
+			});
+		}
 		const usarComoEquivalencia =
 			isAprovada && (equiv || (foiCursadaComoEquivalente && (codigoHist || nomeHist)));
 
@@ -447,7 +468,7 @@ export function buildDadosFluxogramaUserFromCasarResponse(
 		null;
 	return {
 		nomeCurso: meta.nomeCurso,
-		ira: Number(response.dados_validacao?.ira ?? 0),
+		ira: iraOuNull(response.dados_validacao?.ira),
 		iraTexto:
 			iraTextoResolved != null && String(iraTextoResolved).trim() !== ''
 				? String(iraTextoResolved).trim()
