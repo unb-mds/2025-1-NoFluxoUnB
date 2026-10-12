@@ -22,6 +22,9 @@
 		Plus,
 		SlidersHorizontal,
 		Download,
+		Share2,
+		Eye,
+		FileText,
 		MoreHorizontal,
 		Loader2,
 		Search,
@@ -38,6 +41,15 @@
 	import OnboardingTour from '$lib/components/onboarding/OnboardingTour.svelte';
 	import { tourStore, type TourStep } from '$lib/components/onboarding/tour.store.svelte';
 	import { toast } from 'svelte-sonner';
+	import {
+		abrirArquivo,
+		baixarArquivo,
+		compartilharArquivo,
+		gerarGradePdf,
+		montarModeloGradePdf,
+		podeCompartilharArquivo,
+		type MateriaPdf
+	} from '$lib/utils/grade-pdf';
 
 	/**
 	 * Corpo do Montador de Grade — tudo que aparece depois que o pool carregou.
@@ -126,7 +138,7 @@
 		return () => mq.removeEventListener('change', aplicar);
 	});
 
-	type Painel = 'gerar' | 'manual' | 'preferencias' | 'materias' | 'progresso' | null;
+	type Painel = 'gerar' | 'manual' | 'preferencias' | 'materias' | 'progresso' | 'pdf' | null;
 	let painel = $state<Painel>(null);
 	let materiaDialog = $state<string | null>(null);
 
@@ -386,29 +398,76 @@
 	}
 
 	let exportando = $state(false);
+
+	function modeloPdfAtual() {
+		const materias: MateriaPdf[] = [];
+		for (const [codigo, t] of gradeStore.selecao) {
+			const m = gradeStore.pool.find((p) => p.codigo === codigo);
+			const ofertada = m?.turmas.find((x) => x.turma.id_turmas === t.turma.id_turmas);
+			materias.push({
+				codigo,
+				nome: m?.nome ?? codigo,
+				creditos: m?.creditos ?? 0,
+				turma: t.turma,
+				mask: t.mask,
+				codigoOfertado: ofertada?.codigoOfertado,
+				cor: Math.max(0, gradeStore.pool.findIndex((p) => p.codigo === codigo))
+			});
+		}
+		return montarModeloGradePdf({ titulo: tituloSemana, periodo: periodo ?? null, materias });
+	}
+
+	/** Desktop: PDF da grade (`$lib/utils/grade-pdf`) direto para download. */
 	async function exportarGrade(): Promise<void> {
-		if (exportando) return;
-		const el = document.getElementById('grade-export');
-		if (!el) return;
+		if (exportando || semTurmaEscolhida) return;
 		exportando = true;
 		try {
-			const html2canvas = (await import('html2canvas-pro')).default;
-			const canvas = await html2canvas(el, {
-				// Fundo do tema em uso: o PNG é opaco, e fundo preto sob texto escuro
-				// (claro) saía ilegível.
-				backgroundColor: document.documentElement.classList.contains('dark') ? '#0f0f12' : '#ffffff',
-				scale: 2,
-				logging: false
-			});
-			const link = document.createElement('a');
-			link.download = `grade-${(periodo ?? '').replace('.', '-')}.png`;
-			link.href = canvas.toDataURL('image/png');
-			link.click();
+			baixarArquivo(await gerarGradePdf(modeloPdfAtual()));
 		} catch {
-			toast.error('Não consegui exportar a imagem. Tente de novo.');
+			toast.error('Não consegui gerar o PDF. Tente de novo.');
 		} finally {
 			exportando = false;
 		}
+	}
+
+	/**
+	 * Celular: abre a folha "PDF da grade" e já gera o arquivo, para o aluno escolher
+	 * como receber. Gerar ANTES da escolha é o que faz o compartilhamento funcionar no
+	 * Safari, que só abre a folha do sistema logo após um toque.
+	 */
+	let pdfPronto = $state<File | null>(null);
+	let pdfFalhou = $state(false);
+	async function abrirOpcoesPdf(): Promise<void> {
+		if (semTurmaEscolhida) return;
+		painel = 'pdf';
+		pdfPronto = null;
+		pdfFalhou = false;
+		exportando = true;
+		try {
+			pdfPronto = await gerarGradePdf(modeloPdfAtual());
+		} catch {
+			pdfFalhou = true;
+		} finally {
+			exportando = false;
+		}
+	}
+	const podeCompartilharPdf = $derived(pdfPronto !== null && podeCompartilharArquivo(pdfPronto));
+
+	async function compartilharPdf(): Promise<void> {
+		if (!pdfPronto) return;
+		const r = await compartilharArquivo(pdfPronto, tituloSemana);
+		if (r === 'ok') painel = null;
+		else if (r !== 'cancelado') toast.error('Não consegui abrir o compartilhamento. Use "Baixar PDF".');
+	}
+	function baixarPdf(): void {
+		if (!pdfPronto) return;
+		baixarArquivo(pdfPronto);
+		painel = null;
+	}
+	function visualizarPdf(): void {
+		if (!pdfPronto) return;
+		if (!abrirArquivo(pdfPronto)) baixarArquivo(pdfPronto);
+		painel = null;
 	}
 
 	const semTurmaEscolhida = $derived(gradeStore.selecao.size === 0);
@@ -612,11 +671,25 @@
 				<h2 class="truncate text-lg font-semibold text-foreground md:text-xl">{tituloSemana}</h2>
 			</div>
 			{#if !semTurmaEscolhida}
-				{#if naoCouberam > 0}
-					<span class="mg-pill mg-pill-warn">{naoCouberam} não {naoCouberam === 1 ? 'coube' : 'couberam'}</span>
-				{:else}
-					<span class="mg-pill mg-pill-ok">Sem conflitos</span>
-				{/if}
+				<div class="flex shrink-0 items-center gap-2">
+					{#if naoCouberam > 0}
+						<span class="mg-pill mg-pill-warn">{naoCouberam} não {naoCouberam === 1 ? 'coube' : 'couberam'}</span>
+					{:else}
+						<span class="mg-pill mg-pill-ok">Sem conflitos</span>
+					{/if}
+					{#if compacto}
+						<!-- No celular a barra de ações não comporta mais um botão com texto. -->
+						<button
+							type="button"
+							onclick={abrirOpcoesPdf}
+							class="mg-btn mg-btn-secondary min-h-8 px-2.5 text-xs"
+							aria-label="PDF da grade: compartilhar, baixar ou visualizar"
+						>
+							<FileText class="h-3.5 w-3.5" />
+							PDF
+						</button>
+					{/if}
+				</div>
 			{/if}
 		</div>
 		<ScheduleGrid modo={compacto ? 'agenda' : 'grade'} onBlocoClick={(c) => (materiaDialog = c)} />
@@ -645,12 +718,6 @@
 				<MoreHorizontal class="h-4 w-4" />
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content class="w-60" align="end">
-				{#if compacto}
-					<DropdownMenu.Item onclick={exportarGrade} disabled={exportando || semTurmaEscolhida}>
-						<Download class="mr-2 h-4 w-4" />
-						Exportar imagem
-					</DropdownMenu.Item>
-				{/if}
 				<DropdownMenu.Item>
 					{#snippet child({ props })}
 						<a {...props} href={ROUTES.BUSCAR_TURMAS}>
@@ -778,7 +845,7 @@
 					class="mg-btn mg-btn-secondary"
 				>
 					{#if exportando}<Loader2 class="h-4 w-4 animate-spin" />{:else}<Download class="h-4 w-4" />{/if}
-					Exportar
+					Exportar PDF
 				</button>
 			{/if}
 		</div>
@@ -921,6 +988,55 @@
 		</div>
 	</ResponsiveSheet>
 {/if}
+
+<ResponsiveSheet
+	aberto={painel === 'pdf'}
+	onClose={() => (painel = null)}
+	eyebrow="Exportar"
+	titulo="PDF da grade"
+	subtitulo={pdfPronto?.name ?? (pdfFalhou ? 'Não foi possível gerar' : 'Gerando PDF…')}
+>
+	<div class="space-y-2 px-5 pb-5">
+		{#if pdfFalhou}
+			<p class="text-sm text-muted-foreground">Não consegui gerar o PDF desta grade.</p>
+			<button type="button" onclick={abrirOpcoesPdf} class="mg-btn mg-btn-primary w-full">
+				Tentar de novo
+			</button>
+		{:else}
+			{#snippet opcaoPdf(
+				Icone: typeof Share2,
+				rotulo: string,
+				detalhe: string,
+				onclick: () => void,
+				principal = false
+			)}
+				<button
+					type="button"
+					{onclick}
+					disabled={!pdfPronto}
+					class="flex w-full touch-manipulation items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors disabled:opacity-60 {principal
+						? 'border-primary/30 bg-primary/5 hover:bg-primary/10 dark:border-purple-400/30 dark:bg-purple-500/10'
+						: 'border-border hover:bg-foreground/5'}"
+				>
+					{#if pdfPronto}
+						<Icone class="h-5 w-5 shrink-0 {principal ? 'text-primary dark:text-purple-300' : 'text-muted-foreground'}" />
+					{:else}
+						<Loader2 class="h-5 w-5 shrink-0 animate-spin text-muted-foreground" />
+					{/if}
+					<span class="min-w-0">
+						<span class="block text-sm font-semibold text-foreground">{rotulo}</span>
+						<span class="block text-xs text-muted-foreground">{detalhe}</span>
+					</span>
+				</button>
+			{/snippet}
+			{#if podeCompartilharPdf || !pdfPronto}
+				{@render opcaoPdf(Share2, 'Compartilhar', 'WhatsApp, salvar em Arquivos, imprimir…', compartilharPdf, true)}
+			{/if}
+			{@render opcaoPdf(Download, 'Baixar PDF', 'Salva o arquivo no aparelho', baixarPdf, !podeCompartilharPdf && !!pdfPronto)}
+			{@render opcaoPdf(Eye, 'Visualizar', 'Abre o PDF no navegador', visualizarPdf)}
+		{/if}
+	</div>
+</ResponsiveSheet>
 
 <ResponsiveSheet
 	aberto={painel === 'gerar'}
