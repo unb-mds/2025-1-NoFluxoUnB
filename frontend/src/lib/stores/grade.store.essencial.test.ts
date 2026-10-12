@@ -275,27 +275,33 @@ describe('caso do relato: "FUNDAMENTOS DE SISTEMAS EMBARCADOS não coube em nenh
 		return m;
 	}
 
-	it('turma lotada não entra na montagem automática', () => {
-		const fse = comVagas('FGA0109', [
-			['35T23', 0],
-			['46M34', 10]
-		]);
+	// Vaga não filtra a montagem: turma lotada entra como qualquer outra (o aluno
+	// vê o status na turma e decide). Antes ela saía, e a essencial virava "não tem
+	// turma com vaga" — chamado da FGA0211 com a turma de 2026.2 em 80/80.
+	it('turma lotada entra na montagem automática', () => {
+		const fse = comVagas('FGA0109', [['35T23', 0]]);
 		gradeStore.init([fse], { idUser: null, periodo: '2026.2' });
 
 		const r = gradeStore.montarAutomatico({});
 
 		expect(r.naoAlocadas).toEqual([]);
-		expect(gradeStore.turmaSelecionada('FGA0109')?.turma.turma).toBe('2');
+		expect(gradeStore.turmaSelecionada('FGA0109')?.turma.horario).toBe('35T23');
 	});
 
-	it('só turmas lotadas: a essencial é diagnosticada como sem vaga, não fora do turno', () => {
-		const fse = comVagas('FGA0109', [['35T23', 0]]);
-		gradeStore.init([fse], { idUser: null, periodo: '2026.2' });
+	it.each([true, false])(
+		'essencial só com turma lotada entra, sem aviso (incluirCursando=%s)',
+		(incluir) => {
+			const redes = comVagas('FGA0211', [['35M12', 0]]);
+			gradeStore.init([redes], { idUser: null, periodo: '2026.2' });
+			gradeStore.setIncluirCursando(incluir);
 
-		const r = gradeStore.montarAutomatico({ essencial: 'FGA0109' });
+			const r = gradeStore.montarAutomatico({ essencial: 'FGA0211' });
 
-		expect(r.erros?.map((e) => e.tipo)).toEqual(['ESSENCIAL_SEM_VAGA']);
-	});
+			expect(r.erros ?? []).toEqual([]);
+			expect(gradeStore.turmaSelecionada('FGA0211')?.turma.horario).toBe('35M12');
+			gradeStore.setIncluirCursando(true);
+		}
+	);
 
 	it('essencial que o aluno já cursa entra mesmo com "incluir matérias que já curso" desligado, na turma real', () => {
 		const fse = comVagas('FGA0109', [

@@ -76,6 +76,19 @@ def listar_turmas_obsoletas(ano_periodo, run_started_at):
     return obsoletas
 
 
+def contar_turmas_tocadas(ano_periodo, run_started_at):
+    """Quantas turmas do ano_periodo esta rodada inseriu/atualizou."""
+    res = db(
+        supabase.table("turmas")
+        .select("id_turmas", count="exact")
+        .eq("ano_periodo", ano_periodo)
+        .gte("last_updated_at", run_started_at)
+        .limit(1)
+        .execute
+    )
+    return res.count or 0
+
+
 def apagar_turmas(ids, dry_run):
     if not ids:
         return 0
@@ -121,6 +134,15 @@ def main():
     if args.dry_run:
         print(" [DRY-RUN] Nenhuma alteração será persistida.")
     print(flush=True)
+
+    # Rodada que não tocou nenhuma turma do período não prova que elas sumiram:
+    # o SIGAA ainda não publicou a oferta (caso normal do próximo semestre), ou
+    # a coleta falhou/foi bloqueada. Reconciliar aí apagava o período inteiro.
+    tocadas = contar_turmas_tocadas(args.ano_periodo, run_started_at)
+    print(f"  Turmas tocadas nesta rodada: {tocadas}")
+    if tocadas == 0:
+        print("  Nada coletado para este período — reconciliação pulada, nada apagado.")
+        return
 
     obsoletas = listar_turmas_obsoletas(args.ano_periodo, run_started_at)
     print(f"  Turmas obsoletas encontradas: {len(obsoletas)}")

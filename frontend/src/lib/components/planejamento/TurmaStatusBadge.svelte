@@ -14,6 +14,9 @@
 	 *   cabeçalho da matéria, onde o texto varia (trava automática vs. manual,
 	 *   com ou sem botão "Destravar") — por isso aceita `children` em vez de um
 	 *   texto fixo, preservando exatamente o comportamento visual anterior.
+	 *
+	 * As pílulas têm cor própria nos dois temas: o texto claro (`-100`/`-200`)
+	 * só lê sobre fundo escuro — no tema claro "Sem vagas" sumia.
 	 */
 	let {
 		status,
@@ -36,25 +39,25 @@
 
 {#if status === 'vagas'}
 	<span
-		class="flex items-center gap-1 rounded-full border border-emerald-300/45 bg-emerald-500/18 px-2 py-0.5 text-[10px] font-semibold text-emerald-100"
+		class="flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:border-emerald-300/45 dark:bg-emerald-500/18 dark:text-emerald-100"
 	>
 		<Users class="h-2.5 w-2.5" />{quantidade ?? 0} vaga(s)
 	</span>
 {:else if status === 'sem-vagas'}
 	<span
-		class="flex items-center gap-1 rounded-full border border-red-300/40 bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold text-red-200"
+		class="flex items-center gap-1 rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-800 dark:border-red-300/40 dark:bg-red-500/15 dark:text-red-200"
 	>
 		<Users class="h-2.5 w-2.5" />Sem vagas
 	</span>
 {:else if status === 'fora-do-turno'}
 	<span
-		class="flex items-center gap-1 rounded-full border border-amber-300/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-200"
+		class="flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:border-amber-300/40 dark:bg-amber-500/15 dark:text-amber-200"
 	>
 		<Ban class="h-2.5 w-2.5" />Fora do turno
 	</span>
 {:else if status === 'professor-preferido'}
 	<span
-		class="flex items-center gap-1 rounded-full border border-sky-300/45 bg-sky-500/18 px-2 py-0.5 text-[10px] font-semibold text-sky-100"
+		class="flex items-center gap-1 rounded-full border border-sky-300 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-800 dark:border-sky-300/45 dark:bg-sky-500/18 dark:text-sky-100"
 	>
 		<Check class="h-2.5 w-2.5" />Professor preferido
 	</span>

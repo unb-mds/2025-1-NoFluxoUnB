@@ -56,6 +56,23 @@ export async function getTurmasPorMaterias(
 	return (data as TurmaOferta[] | null) ?? [];
 }
 
+/**
+ * Quais destas matérias já tiveram turma em algum período. A que nunca teve é
+ * atividade sem turma com horário (TCC, estágio): a matrícula é pela coordenação,
+ * então "não tem turma neste semestre" não é notícia para ela.
+ */
+export async function materiasComTurmaEmAlgumPeriodo(idMaterias: number[]): Promise<Set<number>> {
+	if (idMaterias.length === 0) return new Set();
+
+	const { data, error } = await supabase
+		.from('turmas')
+		.select('id_materia')
+		.in('id_materia', idMaterias);
+
+	if (error) throw new Error(error.message);
+	return new Set(((data as Array<{ id_materia: number }> | null) ?? []).map((t) => Number(t.id_materia)));
+}
+
 /** Turma da busca global, já com a matéria a que pertence. */
 export interface TurmaComMateria extends TurmaOferta {
 	codigoMateria: string;

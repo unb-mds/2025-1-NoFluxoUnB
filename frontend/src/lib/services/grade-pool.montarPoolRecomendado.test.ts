@@ -57,6 +57,15 @@ vi.mock('$lib/services/oferta-turmas.service', () => ({
 		)
 }));
 
+/** `id_materia` que nunca teve turma em período nenhum (TCC, estágio). */
+let nuncaOfertadas = new Set<number>();
+
+vi.mock('$lib/services/turmas.service', () => ({
+	getPeriodoAtivo: async () => '2026.2',
+	materiasComTurmaEmAlgumPeriodo: async (ids: number[]) =>
+		new Set(ids.filter((id) => !nuncaOfertadas.has(id)))
+}));
+
 const { montarPoolRecomendado } = await import('./grade-pool.service');
 
 function materiaDaMatriz(
@@ -93,6 +102,7 @@ describe('montarPoolRecomendado', () => {
 		comOferta = new Set();
 		horarioDe = new Map();
 		proximoHorario = 0;
+		nuncaOfertadas = new Set();
 	});
 
 	/**
@@ -166,6 +176,25 @@ describe('montarPoolRecomendado', () => {
 		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
 
 		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0001']);
+		expect(r.obrigatoriasSemOferta).toEqual(['OBR0002']);
+	});
+
+	/**
+	 * TCC e estágio não têm turma com horário em período nenhum — a matrícula é
+	 * pela coordenação. Avisar "não tem turma em 2026.2" para elas era ruído que
+	 * todo aluno no fim do curso via, e escondia o aviso que importa.
+	 */
+	it('obrigatória que nunca teve turma (TCC, estágio) não entra no aviso', async () => {
+		curso.materias = [
+			materiaDaMatriz('OBR0001', 1, 0, 1),
+			materiaDaMatriz('OBR0002', 2, 0, 2),
+			materiaDaMatriz('TCC0001', 9, 0, 3)
+		];
+		comOferta = new Set(['OBR0001']);
+		nuncaOfertadas = new Set([3]);
+
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
+
 		expect(r.obrigatoriasSemOferta).toEqual(['OBR0002']);
 	});
 

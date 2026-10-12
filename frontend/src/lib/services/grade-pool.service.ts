@@ -15,7 +15,7 @@ import {
 	slotMaskFromHorario,
 	type MateriaGrade
 } from '$lib/stores/grade.store.svelte';
-import { getPeriodoAtivo } from '$lib/services/turmas.service';
+import { getPeriodoAtivo, materiasComTurmaEmAlgumPeriodo } from '$lib/services/turmas.service';
 import { getMateriasByCodigos, searchMaterias } from '$lib/services/materias.service';
 import { buscarSugestoesModuloLivre } from '$lib/services/modulo-livre.service';
 import { getOfertaComEquivalencia } from '$lib/services/oferta-turmas.service';
@@ -397,7 +397,7 @@ async function candidatosClassificados(
 
 	const obrigatorias: CandidatoMatriz[] = [];
 	const optativas: CandidatoMatriz[] = [];
-	const obrigatoriasSemOferta: string[] = [];
+	const semOferta: MateriaGrade[] = [];
 
 	/**
 	 * Pendentes da matriz que não têm turma neste período — obrigatórias E
@@ -412,7 +412,7 @@ async function candidatosClassificados(
 		if (m.turmas.length === 0) {
 			pendentesSemOferta++;
 			// Optativa sem oferta é rotina e não vale aviso; obrigatória é notícia.
-			if (!optativa) obrigatoriasSemOferta.push(m.codigo);
+			if (!optativa) semOferta.push(m);
 			continue;
 		}
 		(optativa ? optativas : obrigatorias).push({
@@ -438,7 +438,25 @@ async function candidatosClassificados(
 	obrigatorias.sort(porUtilidade);
 	optativas.sort(porUtilidade);
 
+	const obrigatoriasSemOferta = (await semAtividadesSemTurma(semOferta)).map((m) => m.codigo);
 	return { obrigatorias, optativas, obrigatoriasSemOferta, pendentesSemOferta };
+}
+
+/**
+ * Tira do aviso de "sem turma" a obrigatória que nunca teve turma em período
+ * nenhum — TCC 1/2 e estágio, cuja matrícula é pela coordenação. Sem isto, todo
+ * aluno no fim do curso via "suas obrigatórias não têm turma" a cada montagem,
+ * e o aviso de verdade (obrigatória com aula que não abriu agora) se perdia.
+ * Se a consulta falhar, o aviso sai inteiro, como antes.
+ */
+async function semAtividadesSemTurma(materias: MateriaGrade[]): Promise<MateriaGrade[]> {
+	if (materias.length === 0) return materias;
+	try {
+		const jaOfertadas = await materiasComTurmaEmAlgumPeriodo(materias.map((m) => m.idMateria));
+		return materias.filter((m) => jaOfertadas.has(m.idMateria));
+	} catch {
+		return materias;
+	}
 }
 
 /**

@@ -307,6 +307,28 @@ export function construirSubstitutosPorCodigo(
 }
 
 /**
+ * Codigos que repetiriam uma materia ja cumprida: os substitutos (ver
+ * construirSubstitutosPorCodigo) de cada materia em `cumpridas`.
+ *
+ * E a direcao que expandirCumpridasComEquivalencias nao cobre. La, "cursou C e
+ * Y ≡ C" marca Y como cumprida; aqui, "X ja esta cumprida e R ≡ X" faz R inutil —
+ * cursar R nao conta de novo, a secretaria nao aproveita duas materias
+ * equivalentes. Mesma regra do Montador (frontend, `jaAproveitadas` em
+ * grade-pool.service.ts) e de docs/montador-de-grade.md.
+ */
+export function substitutosDeCumpridas(
+    substitutosPorCodigo: Map<string, string[]>,
+    cumpridas: Set<string>
+): Set<string> {
+    const out = new Set<string>();
+    for (const [origem, substitutos] of substitutosPorCodigo) {
+        if (!cumpridas.has(origem)) continue;
+        for (const s of substitutos) out.add(s);
+    }
+    return out;
+}
+
+/**
  * Expande o conjunto de codigos com oferta real: uma materia da matriz tambem conta
  * como ofertada quando algum codigo que a substitui tem turma no periodo.
  *

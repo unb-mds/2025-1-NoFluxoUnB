@@ -700,20 +700,17 @@ function createGradeStore() {
 
 		const materiasSolver: Array<MateriaTurmas<TurmaOferta>> = candidatas.map((m) => {
 			const docenteAlvo = docentesEfetivos[m.codigo];
-			// Turma lotada não entra na montagem automática: a grade sairia com uma
-			// turma em que o aluno não consegue se matricular. `null` = SIGAA não
-			// informou (ou fixture sem o campo), vale como "tem vaga". A turma real de quem já cursa é tratada
-			// abaixo, à parte — a vaga dela já é do aluno.
-			const comVaga = m.turmas.filter(
-				(t) => t.turma.vagas_sobrando == null || t.turma.vagas_sobrando > 0
-			);
-			turmasAntesDoFiltroDeTurno.set(m.codigo, comVaga);
-			turnosComOferta.set(m.codigo, turnosDaOferta(comVaga));
+			// Vaga NÃO filtra: turma lotada entra na montagem como qualquer outra. A
+			// lotação é retrato da matrícula de agora (vaga abre em ajuste, matrícula
+			// extraordinária, "seguir turma lotada"), e o aluno vê o status na turma.
+			// Antes a turma lotada saía, e a essencial virava "não tem turma com vaga".
+			turmasAntesDoFiltroDeTurno.set(m.codigo, m.turmas);
+			turnosComOferta.set(m.codigo, turnosDaOferta(m.turmas));
 
 			// Turno continua sendo filtro rígido (o aluno não quer ver grade fora do
 			// turno escolhido). Professor não: agora é bônus por cima da turma que já
 			// passou no turno, não mais um segundo filtro que podia esvaziar a matéria.
-			let turmasNoTurno = comVaga.filter((t) => turmaRespeitaTurnos(t.mask, turnosPermitidos));
+			let turmasNoTurno = m.turmas.filter((t) => turmaRespeitaTurnos(t.mask, turnosPermitidos));
 			// `turnosEssencial` é preferência POR DISCIPLINA (só a essencial), a mais
 			// da tela — interseção com o filtro global, nunca substitui.
 			const essencialAqui = essencialCodigo !== undefined && m.codigo === essencialCodigo;

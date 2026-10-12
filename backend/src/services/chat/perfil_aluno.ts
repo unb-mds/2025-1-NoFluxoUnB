@@ -19,6 +19,8 @@ import {
     parseFluxograma,
     isDesbloqueada,
     expandirCumpridasComEquivalencias,
+    construirSubstitutosPorCodigo,
+    substitutosDeCumpridas,
 } from "../plano_formatura.service";
 import {
     gerarPlanoDoContexto,
@@ -317,9 +319,13 @@ async function calcularPerfil(
     const emCursoSet = new Set(perfil.emCurso.map((m) => m.codigo));
     const aprovadas = expandirCumpridasComEquivalencias(ctx.materias, new Set(completed));
     const cumpridas = expandirCumpridasComEquivalencias(ctx.materias, new Set([...completed, ...emCursoSet]));
+    // Substituta de matéria já cumprida não é "próxima obrigatória": cursar não
+    // contaria de novo (mesma regra do montador, docs/montador-de-grade.md).
+    const repetiriam = substitutosDeCumpridas(construirSubstitutosPorCodigo(ctx.materias), cumpridas);
     perfil.pendentesDesbloqueadas = ctx.materias
         .filter((m) => m.obrigatoria)
         .filter((m) => !aprovadas.has(norm(m.codigo)) && !emCursoSet.has(norm(m.codigo)))
+        .filter((m) => !repetiriam.has(norm(m.codigo)))
         .filter((m) => isDesbloqueada(m, cumpridas))
         .sort((a, b) => (a.nivel || 99) - (b.nivel || 99) || a.codigo.localeCompare(b.codigo))
         .map((m) => ({ codigo: norm(m.codigo), nome: m.nome, nivel: m.nivel, creditos: m.creditos }));

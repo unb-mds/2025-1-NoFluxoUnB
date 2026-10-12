@@ -26,8 +26,10 @@ jobs:
     outputs:
       enabled: ${{ steps.check.outputs.enabled }}
       ano_periodo: ${{ steps.check.outputs.ano_periodo }}
+      # JSON com os períodos desta rodada: o vigente e, uma vez por mês, o próximo.
+      periodos: ${{ steps.check.outputs.periodos }}
     steps:
-      - name: Decidir se esta rodada scrapeia, e de qual período
+      - name: Decidir se esta rodada scrapeia, e de quais períodos
         id: check
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -46,13 +48,14 @@ jobs:
 
           # Fail-safe: sem resposta utilizável, o fallback é "diaria" — o gate
           # antigo caía em 'false' e zerava a coleta sempre que o curl falhava.
-          PARSED=$(echo "$RESPONSE" | python3 -c "import sys,json;d=json.load(sys.stdin);r=d[0] if isinstance(d,list) else d;print(r.get('periodo') or '',r.get('cadencia') or 'diaria',r.get('fase') or '?',r.get('modo') or '?',r.get('ativo_ate') or '-')" 2>/dev/null || echo " diaria ? ? -")
+          PARSED=$(echo "$RESPONSE" | python3 -c "import sys,json;d=json.load(sys.stdin);r=d[0] if isinstance(d,list) else d;print(r.get('periodo') or '',r.get('cadencia') or 'diaria',r.get('fase') or '?',r.get('modo') or '?',r.get('ativo_ate') or '-',r.get('data_fim') or '-')" 2>/dev/null || echo " diaria ? ? - -")
 
           ANO_PERIODO=$(echo "$PARSED" | cut -d' ' -f1)
           CADENCIA=$(echo "$PARSED" | cut -d' ' -f2)
           FASE=$(echo "$PARSED" | cut -d' ' -f3)
           MODO=$(echo "$PARSED" | cut -d' ' -f4)
           ATIVO_ATE=$(echo "$PARSED" | cut -d' ' -f5)
+          DATA_FIM=$(echo "$PARSED" | cut -d' ' -f6)
 
           # Último recurso: a RPC não respondeu e ninguém sabe o período.
           if [ -z "$ANO_PERIODO" ]; then
@@ -60,62 +63,96 @@ jobs:
             echo "::warning::RPC scraping_turmas_decisao indisponível — caindo na fórmula por mês ($ANO_PERIODO). O período pode estar errado no fim do semestre."
           fi
 
-          echo "periodo=$ANO_PERIODO | cadencia=$CADENCIA | fase=$FASE | modo=$MODO | ativo_ate=$ATIVO_ATE"
+          # ------------------------------------------------------------------
+          # 2. Próximo período: o primeiro do calendário que começa depois do fim
+          #    do vigente (assim um eventual período de verão não confunde). Sem
+          #    calendário, a fórmula: AAAA.1 -> AAAA.2 -> (AAAA+1).1.
+          # ------------------------------------------------------------------
+          PROXIMO=""
+          if [ "$DATA_FIM" != "-" ]; then
+            PROXIMO=$(curl -sf \
+              -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+              -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+              "$SUPABASE_URL/rest/v1/calendario_academico?select=periodo&data_inicio=gt.$DATA_FIM&order=data_inicio.asc&limit=1" \
+              | python3 -c "import sys,json;d=json.load(sys.stdin);print(d[0]['periodo'] if d else '')" 2>/dev/null || echo "")
+          fi
+          if [ -z "$PROXIMO" ]; then
+            PROXIMO=$(python3 -c "a,p='$ANO_PERIODO'.split('.');print(f'{a}.2' if p=='1' else f'{int(a)+1}.1')")
+            echo "Próximo período pela fórmula (calendário não o tinha): $PROXIMO"
+          fi
+
+          echo "periodo=$ANO_PERIODO | proximo=$PROXIMO | cadencia=$CADENCIA | fase=$FASE | modo=$MODO | ativo_ate=$ATIVO_ATE"
           echo "ano_periodo=$ANO_PERIODO" >> "$GITHUB_OUTPUT"
 
           # ------------------------------------------------------------------
-          # 2. A cadência só governa o cron. Disparo manual e a cadeia mensal
+          # 3. A cadência só governa o cron. Disparo manual e a cadeia mensal
           #    passam por cima dela — inclusive com modo=off, que é um botão de
           #    cadência, não um freio do pipeline inteiro.
+          #    O próximo período vai junto só na rodada mensal (cadeia do dia 1:
+          #    ementa -> equivalencias -> turmas) e no disparo manual — nunca no
+          #    cron. A oferta dele muda devagar e cada período é mais uma rodada
+          #    inteira de 207 departamentos no SIGAA. Quem precisar dela antes
+          #    (oferta acabou de sair) dispara o workflow à mão.
           # ------------------------------------------------------------------
+          ENABLED=false
+          COM_PROXIMO=false
+          HORA=$(date -u +%H)
+
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "Disparo manual — rodando incondicionalmente."
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            ENABLED=true
+            COM_PROXIMO=true
+          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
             if [ "${{ github.event.workflow_run.conclusion }}" = "success" ]; then
               echo "Rodada mensal de base (após Scrape Equivalencias) — rodando incondicionalmente."
-              echo "enabled=true" >> "$GITHUB_OUTPUT"
+              ENABLED=true
+              COM_PROXIMO=true
             else
               echo "Scrape Equivalencias não teve sucesso — pulando rodada de base."
-              echo "enabled=false" >> "$GITHUB_OUTPUT"
             fi
-            exit 0
+          else
+            # Cron: rapida = toda rodada; diaria = só às 03h UTC; nenhuma = nunca.
+            case "$CADENCIA" in
+              rapida)
+                echo "Cadência rápida (fase=$FASE, modo=$MODO) — rodando."
+                ENABLED=true
+                ;;
+              diaria)
+                if [ "$HORA" = "03" ]; then
+                  echo "Cadência diária (fase=$FASE) e são 03h UTC — rodando."
+                  ENABLED=true
+                else
+                  echo "Cadência diária (fase=$FASE) e são ${HORA}h UTC — pulando."
+                fi
+                ;;
+              *)
+                echo "Cadência '$CADENCIA' (fase=$FASE, modo=$MODO) — não roda no cron."
+                ;;
+            esac
           fi
 
-          # ------------------------------------------------------------------
-          # 3. Cron: rapida = toda rodada; diaria = só às 03h UTC; nenhuma = nunca.
-          # ------------------------------------------------------------------
-          case "$CADENCIA" in
-            rapida)
-              echo "Cadência rápida (fase=$FASE, modo=$MODO) — rodando."
-              echo "enabled=true" >> "$GITHUB_OUTPUT"
-              ;;
-            diaria)
-              HORA=$(date -u +%H)
-              if [ "$HORA" = "03" ]; then
-                echo "Cadência diária (fase=$FASE) e são 03h UTC — rodando."
-                echo "enabled=true" >> "$GITHUB_OUTPUT"
-              else
-                echo "Cadência diária (fase=$FASE) e são ${HORA}h UTC — pulando."
-                echo "enabled=false" >> "$GITHUB_OUTPUT"
-              fi
-              ;;
-            *)
-              echo "Cadência '$CADENCIA' (fase=$FASE, modo=$MODO) — não roda no cron."
-              echo "enabled=false" >> "$GITHUB_OUTPUT"
-              ;;
-          esac
+          echo "enabled=$ENABLED" >> "$GITHUB_OUTPUT"
+          if [ "$COM_PROXIMO" = "true" ] && [ "$PROXIMO" != "$ANO_PERIODO" ]; then
+            echo "Esta rodada coleta também o próximo período ($PROXIMO)."
+            echo "periodos=[\"$ANO_PERIODO\",\"$PROXIMO\"]" >> "$GITHUB_OUTPUT"
+          else
+            echo "periodos=[\"$ANO_PERIODO\"]" >> "$GITHUB_OUTPUT"
+          fi
 
   jobSyncTurmas:
     needs: jobDecisao
     if: needs.jobDecisao.outputs.enabled == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      # Um período por vez (anti-ban no SIGAA), e a falha de um não cancela o
+      # outro: o vigente é o que importa, o próximo é bônus.
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        ano_periodo: ${{ fromJSON(needs.jobDecisao.outputs.periodos) }}
     env:
       PYTHONUNBUFFERED: "1"
-      ANO_PERIODO: ${{ needs.jobDecisao.outputs.ano_periodo }}
+      ANO_PERIODO: ${{ matrix.ano_periodo }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
@@ -177,13 +214,15 @@ jobs:
           RUN_STARTED_AT: ${{ steps.vars.outputs.run_started_at }}
         run: |
           set -o pipefail
+          # Período sem nenhuma turma coletada nesta rodada (oferta do próximo
+          # semestre ainda não publicada) não é reconciliado — ver o script.
           python -u 04_reconciliar_turmas.py --ano-periodo "$ANO_PERIODO" 2>&1 | tee ../logs/04_reconciliar_turmas.log
 
       - name: Upload Logs (Para auditoria)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: logs-sync-turmas
+          name: logs-sync-turmas-${{ matrix.ano_periodo }}
           # Só o log do scraping (sem segredos); os logs dos scripts de banco
           # rodam com service_role e não devem virar artifact.
           path: DBA/logs/scraping_turmas.log

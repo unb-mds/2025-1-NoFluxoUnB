@@ -36,7 +36,9 @@
 </script>
 
 <script lang="ts">
-	import { gradeStore, type MateriaGrade } from '$lib/stores/grade.store.svelte';
+	import { gradeStore } from '$lib/stores/grade.store.svelte';
+	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
+	import { setHasCodeIgnoreCase } from '$lib/utils/subject-codes';
 	import { HORAS_POR_CREDITO } from '$lib/stores/unidade-carga.store.svelte';
 	import { LIMITE_CREDITOS_MAX, LIMITE_CREDITOS_MIN } from '$lib/types/plano-formatura';
 	import { Plus, Sparkles, X, Loader2 } from 'lucide-svelte';
@@ -49,7 +51,8 @@
 		limiteCreditosInicial,
 		gerando = false,
 		valorInicial = null,
-		onGerar
+		onGerar,
+		onIncluir
 	}: {
 		limiteCreditosInicial: number;
 		/** A geração está rodando (desabilita o botão, evita clique duplo). */
@@ -57,6 +60,8 @@
 		/** Reabrir o painel preserva o que já foi escolhido. */
 		valorInicial?: ParametrosMontagem | null;
 		onGerar: (params: ParametrosMontagem) => void;
+		/** Põe na lista a essencial escolhida da matriz que ainda não estava nela. */
+		onIncluir?: (codigo: string) => void;
 	} = $props();
 
 	let estrategia = $state(valorInicial?.estrategiaPreferida ?? 'Semana equilibrada');
@@ -73,25 +78,77 @@
 		['N', 'Noite']
 	];
 
+	/**
+	 * "Para qual semestre?" é o `incluirCursando` do store dito na língua do aluno.
+	 * Este semestre: a matrícula já feita entra na grade e o resto se encaixa em
+	 * volta (quem monta nas férias, antes das aulas). Próximo: o que ele cursa agora
+	 * conta como concluído — destrava pré-requisito e não ocupa carga nem horário.
+	 */
+	const SEMESTRES = [
+		{
+			valor: 'atual',
+			incluirCursando: true,
+			titulo: 'Este semestre',
+			descricao: 'Sua matrícula atual entra na grade'
+		},
+		{
+			valor: 'proximo',
+			incluirCursando: false,
+			titulo: 'Próximo semestre',
+			descricao: 'O que você cursa agora conta como feito'
+		}
+	] as const;
+
 	// Disciplina essencial: busca nas matérias da lista. Diferente da estrela —
 	// prioritária ainda pode ficar de fora se nada couber; essencial nunca fica.
 	let busca = $state('');
 	let essencialCodigo = $state<string | null>(valorInicial?.essencial ?? null);
 	let professor = $state<string | null>(valorInicial?.professorPreferidoEssencial ?? null);
 
+	type Opcao = { codigo: string; nome: string };
+
+	/** Planejando o próximo semestre, matéria em curso não é candidata a essencial. */
+	const essencialPossivel = (codigo: string) =>
+		gradeStore.incluirCursando ||
+		!setHasCodeIgnoreCase(fluxogramaStore.currentCodes ?? new Set<string>(), codigo);
+
+	/**
+	 * Onde a essencial é buscada: a lista do Montador mais o que falta da matriz,
+	 * como na busca "Manual". Só a lista não bastava: depois de "Limpar tudo", ou em
+	 * "Próximo semestre" (quando a lista era quase só matrícula), a busca voltava
+	 * vazia para qualquer termo.
+	 */
+	const opcoesEssencial = $derived.by((): Opcao[] => {
+		const vistos = new Set<string>();
+		const out: Opcao[] = [];
+		const add = (codigo: string, nome: string) => {
+			const c = codigo.trim().toUpperCase();
+			if (vistos.has(c) || !essencialPossivel(c)) return;
+			vistos.add(c);
+			out.push({ codigo: c, nome });
+		};
+		for (const m of gradeStore.pool) add(m.codigo, m.nome);
+		for (const m of fluxogramaStore.state.courseData?.materias ?? []) {
+			if (setHasCodeIgnoreCase(fluxogramaStore.completedCodes, m.codigoMateria)) continue;
+			add(m.codigoMateria, m.nomeMateria);
+		}
+		return out;
+	});
+
 	const resultados = $derived.by(() => {
 		const q = busca.trim().toUpperCase();
-		if (!q) return [];
-		return gradeStore.pool
-			.filter((m) => m.codigo.toUpperCase().includes(q) || m.nome.toUpperCase().includes(q))
+		if (q.length < 2) return [];
+		return opcoesEssencial
+			.filter((m) => m.codigo.includes(q) || m.nome.toUpperCase().includes(q))
 			.slice(0, 6);
 	});
 	const essencial = $derived(
-		essencialCodigo ? (gradeStore.pool.find((m) => m.codigo === essencialCodigo) ?? null) : null
+		essencialCodigo ? (opcoesEssencial.find((m) => m.codigo === essencialCodigo) ?? null) : null
 	);
 	const docentes = $derived(essencial ? gradeStore.docentesDe(essencial.codigo) : []);
 
-	function escolherEssencial(m: MateriaGrade): void {
+	function escolherEssencial(m: Opcao): void {
+		if (!gradeStore.hasMateria(m.codigo)) onIncluir?.(m.codigo);
 		essencialCodigo = m.codigo;
 		professor = null;
 		busca = '';
@@ -102,8 +159,8 @@
 		onGerar({
 			escopo: valorInicial?.escopo ?? 'periodo-atual',
 			limiteCreditos,
-			essencial: essencialCodigo,
-			professorPreferidoEssencial: essencialCodigo ? professor : null,
+			essencial: essencial?.codigo ?? null,
+			professorPreferidoEssencial: essencial ? professor : null,
 			turnosEssencial: [],
 			estrategias: ESTRATEGIAS.map((e) => e.nome),
 			estrategiaPreferida: estrategia
@@ -112,6 +169,31 @@
 </script>
 
 <div class="space-y-5 px-5 pb-5">
+	{#if gradeStore.temCursando}
+		<!--
+			Primeira pergunta, e não um interruptor no meio: é o que mais muda o
+			resultado. Com "Este semestre" (o padrão) a matrícula ocupa quase toda a
+			carga, e quem estava planejando o semestre seguinte via a grade "focar" no
+			que já cursa — a essencial entrava sozinha ao lado da matrícula.
+		-->
+		<fieldset>
+			<legend class="mg-eyebrow mb-2">Para qual semestre?</legend>
+			<div class="grid grid-cols-2 gap-2">
+				{#each SEMESTRES as s (s.valor)}
+					<button
+						type="button"
+						aria-pressed={gradeStore.incluirCursando === s.incluirCursando}
+						onclick={() => gradeStore.setIncluirCursando(s.incluirCursando)}
+						class="mg-choice flex min-h-16 flex-col items-start gap-1 p-2.5 text-left"
+					>
+						<span class="text-xs font-semibold text-foreground">{s.titulo}</span>
+						<span class="text-[10px] leading-tight">{s.descricao}</span>
+					</button>
+				{/each}
+			</div>
+		</fieldset>
+	{/if}
+
 	<fieldset>
 		<legend class="mg-eyebrow mb-2">Como prefere sua semana?</legend>
 		<div class="grid grid-cols-3 gap-2">
@@ -166,30 +248,6 @@
 			{/each}
 		</div>
 	</fieldset>
-
-	{#if gradeStore.temCursando}
-		<!--
-			Mora aqui, e não só nas preferências: é o que mais muda o resultado. Desligado
-			sem o aluno perceber, a montagem tirava tudo o que ele cursa e "não montava".
-		-->
-		<button
-			type="button"
-			role="switch"
-			aria-checked={gradeStore.incluirCursando}
-			onclick={() => gradeStore.setIncluirCursando(!gradeStore.incluirCursando)}
-			class="mg-sunken flex w-full touch-manipulation items-center justify-between gap-3 rounded-[10px] px-3 py-2.5 text-left"
-		>
-			<span>
-				<span class="block text-xs font-semibold text-foreground">Incluir matérias que já curso</span>
-				<span class="block text-[10px] text-muted-foreground">
-					{gradeStore.incluirCursando
-						? 'Sua matrícula atual entra na grade e não sai.'
-						: 'Desligado: monta só com o que você ainda vai pegar.'}
-				</span>
-			</span>
-			<span class="mg-switch" aria-checked={gradeStore.incluirCursando}></span>
-		</button>
-	{/if}
 
 	<div>
 		<label for="mg-essencial" class="mg-eyebrow mb-2">
@@ -258,9 +316,9 @@
 						</li>
 					{/each}
 				</ul>
-			{:else if busca.trim()}
+			{:else if busca.trim().length >= 2}
 				<p class="mt-1.5 px-1 text-[11px] text-muted-foreground">
-					Nenhuma matéria da sua lista com esse nome. Adicione-a antes em “Manual”.
+					Nenhuma matéria pendente da sua matriz com esse nome.
 				</p>
 			{/if}
 		{/if}

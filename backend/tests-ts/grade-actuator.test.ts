@@ -164,6 +164,41 @@ describe("recomendarPorHorarioLivre — filtro determinístico de horário", () 
         expect(candidatos.map((c) => c.codigo)).not.toContain("FGA0003");
     });
 
+    /**
+     * FGA0009 já foi aprovada e a tabela diz que FGA0002 a substitui sozinha:
+     * cursar FGA0002 não contaria de novo (docs/montador-de-grade.md).
+     */
+    it("não recomenda matéria que substitui sozinha uma já aprovada", async () => {
+        db.turmas.push({ id_materia: 1, ano_periodo: "2026.2", horario: "2M12" });
+        db.turmas.push({ id_materia: 2, ano_periodo: "2026.2", horario: "3T12" });
+        (montarDadosPlano as jest.Mock).mockResolvedValueOnce({
+            dados: {
+                idUser: "42",
+                idCurso: "1",
+                numeroPeriodo: 3,
+                preferencias: { limiteCreditos: 24, objetivo: "equilibrado", trabalha: false },
+                cargaHorariaIntegralizada: { total: 0, obrigatoria: 0, optativa: 0, complementar: 0 },
+                exigidaMatriz: { total: 0, obrigatoria: 0, optativa: 0, complementar: 0 },
+                fluxogramaAtual: JSON.stringify({ dados_fluxograma: [[{ codigo: "FGA0009", status: "APR" }]] }),
+                materiasMapeadas: [
+                    ...materiasMapeadasFake,
+                    {
+                        codigo: "FGA0009", nome: "Já aprovada", creditos: 4, nivel: 2, obrigatoria: true,
+                        tipo_natureza: 0, carga_horaria: 60,
+                        equivalencias: [{ operador: "OU", condicoes: ["FGA0002"] }],
+                    },
+                ],
+                codigosComOferta: new Set(["FGA0002"]),
+            },
+        });
+
+        const livreTotal = maskLivre(0n, ["M", "T", "N"]);
+        const resultado = await recomendarPorHorarioLivre("aluno@unb.br", "8117/-2 - 2018.2", livreTotal.toString(), "2026.2");
+
+        const candidatos = (resultado as any).candidatos as Array<{ codigo: string }>;
+        expect(candidatos.map((c) => c.codigo)).toEqual(["FGA0001"]);
+    });
+
     it("freeMask = 0n devolve lista vazia sem consultar turmas", async () => {
         const resultado = await recomendarPorHorarioLivre("aluno@unb.br", "8117/-2 - 2018.2", "0", "2026.2");
         expect((resultado as any).candidatos).toEqual([]);

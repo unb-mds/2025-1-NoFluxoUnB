@@ -234,7 +234,7 @@
 			if (n === 0) {
 				toast.warning(
 					gradeStore.temCursando && !gradeStore.incluirCursando
-						? 'A grade saiu vazia: sua lista só tem matérias que você já cursa, e elas estão fora da montagem. Ligue “Incluir matérias que já curso” ou adicione outras matérias.'
+						? 'A grade saiu vazia: sua lista só tem matérias que você já cursa, e elas estão fora da montagem. Escolha “Este semestre” em “Para qual semestre?” ou adicione outras matérias.'
 						: 'A grade saiu vazia: nenhuma matéria da lista tem turma que caiba na carga e nos turnos escolhidos.'
 				);
 				return;
@@ -248,6 +248,16 @@
 		} finally {
 			gerandoOpcoes = false;
 		}
+	}
+
+	/**
+	 * Tira uma opção gerada das abas. Só aparece com duas ou mais (o seletor some
+	 * com uma), então nunca apaga a última grade. Matéria da lista não é afetada:
+	 * só sai aquela combinação de turmas.
+	 */
+	function excluirOpcao(id: string, indice: number): void {
+		gradeStore.removerCenario(id);
+		toast.info(`Opção ${indice + 1} excluída.`);
 	}
 
 	/** Assinatura da seleção atual — para saber se a montagem mudou alguma coisa. */
@@ -407,8 +417,9 @@
 	function mensagemErro(erro: ErroMontagem): string {
 		const nome = nomeMateria(erro.chave);
 		switch (erro.tipo) {
+			// Vaga não filtra mais a montagem: "sem vaga" aqui é "sem turma nenhuma".
 			case 'ESSENCIAL_SEM_VAGA':
-				return `${nome} não tem turma com vaga neste período.`;
+				return `${nome} não tem turma neste período.`;
 			case 'ESSENCIAL_FORA_DO_TURNO': {
 				const turnos = erro.turnosComOferta.map((t) => TURNO_LABEL[t]).join(' ou ');
 				return turnos
@@ -552,16 +563,28 @@
 		>
 			{#each gradeStore.grades as g, i (g.id)}
 				{@const ativo = g.id === gradeStore.activeId}
-				<button
-					type="button"
-					role="tab"
-					aria-selected={ativo}
-					onclick={() => gradeStore.selecionarCenario(g.id)}
-					class="mg-choice flex min-w-24 flex-1 items-center justify-center gap-1 border-transparent bg-transparent px-2.5 py-2 text-[11px] whitespace-nowrap"
-				>
-					<span class="font-medium">Opção {i + 1}</span>
-					<small class="hidden text-[11px] opacity-80 sm:inline">· {g.nome}</small>
-				</button>
+				<!-- O "×" fica ao lado da aba, não dentro: botão dentro de botão é HTML inválido. -->
+				<div class="flex min-w-28 flex-1 items-center">
+					<button
+						type="button"
+						role="tab"
+						aria-selected={ativo}
+						onclick={() => gradeStore.selecionarCenario(g.id)}
+						class="mg-choice flex min-w-0 flex-1 items-center justify-center gap-1 border-transparent bg-transparent px-2.5 py-2 text-[11px] whitespace-nowrap"
+					>
+						<span class="font-medium">Opção {i + 1}</span>
+						<small class="hidden truncate text-[11px] opacity-80 sm:inline">· {g.nome}</small>
+					</button>
+					<button
+						type="button"
+						onclick={() => excluirOpcao(g.id, i)}
+						class="shrink-0 touch-manipulation rounded-md p-1.5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+						aria-label="Excluir opção {i + 1}"
+						title="Excluir esta opção"
+					>
+						<X class="h-3 w-3" />
+					</button>
+				</div>
 			{/each}
 		</div>
 	{/if}
@@ -860,9 +883,9 @@
 	<ResponsiveSheet
 		aberto={painel === 'materias'}
 		onClose={() => (painel = null)}
-		eyebrow="Curadoria"
+		eyebrow="Sua lista"
 		titulo="Suas matérias"
-		subtitulo="{gradeStore.pool.length} na lista · {gradeStore.selecao.size} na grade"
+		subtitulo="{gradeStore.selecao.size} na grade · {gradeStore.pool.length - gradeStore.selecao.size} fora"
 	>
 		<div class="px-5 pb-5">
 			<MateriasPanel
@@ -905,6 +928,7 @@
 		gerando={gerandoOpcoes}
 		valorInicial={parametrosAtuais}
 		onGerar={handleGerarOpcoes}
+		onIncluir={onAdd}
 	/>
 </ResponsiveSheet>
 
@@ -979,7 +1003,7 @@
 				<span>
 					Incluir matérias que já curso
 					<small class="block text-[11px] text-muted-foreground">
-						Desligado, a grade é montada sem elas, liberando horário e carga.
+						Desligue para planejar o próximo semestre: elas contam como feitas e liberam horário e carga.
 					</small>
 				</span>
 				<span class="mg-switch" aria-checked={gradeStore.incluirCursando}></span>

@@ -29,6 +29,7 @@ import {
     isDesbloqueada,
     expandirCumpridasComEquivalencias,
     construirSubstitutosPorCodigo,
+    substitutosDeCumpridas,
 } from "../../plano_formatura.service";
 import {
     getCodigosFromExpressaoLogica,
@@ -209,13 +210,18 @@ export async function recomendarPorHorarioLivre(
     const cumpridas = expandirCumpridasComEquivalencias(dados.materiasMapeadas, cumpridasBase);
 
     const naGrade = new Set(codigosNaGrade.map(norm));
+    // A direção inversa: X já cumprida e R substitui X sozinha → R não conta de novo.
+    const repetiriam = substitutosDeCumpridas(
+        construirSubstitutosPorCodigo(dados.materiasMapeadas),
+        cumpridas
+    );
 
     const elegiveis = dados.materiasMapeadas.filter((m) => {
         const cod = norm(m.codigo);
         // Já cursada/cursando, ou já alocada na grade em construção → não recomenda.
         // (Vale também para optativas: antes o ramo delas só olhava a oferta, então
         // uma optativa já aprovada voltava a ser sugerida.)
-        if (cumpridas.has(cod) || naGrade.has(cod)) return false;
+        if (cumpridas.has(cod) || naGrade.has(cod) || repetiriam.has(cod)) return false;
         // Pré-requisito é filtro DURO: sem ele o aluno não consegue se matricular,
         // então recomendar seria sugerir algo inviável.
         if (!isDesbloqueada(m, cumpridas)) return false;

@@ -35,8 +35,22 @@ manual, que mostra o motivo em vez de aceitar calada.
 - **Fora da matriz** só entra como módulo livre, por busca com tema — o plano de
   formatura não injeta matéria de fora da matriz.
 
-> **Limite conhecido:** só são carregadas as linhas de equivalência cuja origem
-> está na matriz do aluno. "X ≡ R" com X fora da matriz não é detectado.
+> **Limite conhecido (Montador):** só são carregadas as linhas de equivalência
+> cuja origem está na matriz do aluno. "X ≡ R" com X fora da matriz não é
+> detectado no Montador — já nas buscas de optativa e módulo livre da Darcy é,
+> porque elas consultam a tabela direto.
+
+### Na Darcy (backend)
+
+A Darcy segue as mesmas regras, com as mesmas funções de equivalência do backend
+(`expandirCumpridasComEquivalencias`, `construirSubstitutosPorCodigo` e
+`substitutosDeCumpridas` em `backend/src/services/plano_formatura.service.ts`):
+
+| Onde | Arquivo |
+|---|---|
+| Perfil no prompt ("próximas obrigatórias") | `backend/src/services/chat/perfil_aluno.ts` |
+| `montar_grade` / `recomendar_por_horario_livre` | `backend/src/services/chat/actuators/grade_actuator.ts` |
+| Busca de optativas e de módulo livre | `backend/src/services/chat/actuators/ja_cumpridas.ts` (compartilhado) |
 
 ## 2. Ordem da semeadura
 
@@ -55,12 +69,24 @@ A lista é preenchida até o **limite de créditos** escolhido, nesta ordem:
 Cada matéria só entra se cabe: tem turma num turno permitido, sem conflito com o
 que já foi escolhido, e não estoura o limite.
 
+### Para qual semestre?
+
+Primeira pergunta do painel "Gerar grade" (só aparece para quem tem matrícula em
+curso). É o `incluirCursando` do store; na gaveta de preferências continua o
+interruptor "Incluir matérias que já curso".
+
+- **Este semestre** (padrão): para quem monta nas férias, antes das aulas. A
+  matrícula já feita entra na grade e o resto se encaixa em volta.
+- **Próximo semestre**: para quem está no meio do semestre e planeja o seguinte. O
+  que ele cursa agora conta como concluído (destrava pré-requisito, não é
+  recomendado de novo) e não ocupa carga nem horário. Matéria em curso não aparece
+  na busca da essencial.
+
 ### Orçamento (o que já está ocupado)
 
-- Com **"Incluir matérias que já curso" ligado**, o crédito das matérias em curso
-  é descontado uma vez (pela semeadura) e o horário delas bloqueia.
-- **Desligado**, elas não ocupam crédito nem horário — exceto a disciplina
-  **essencial**, que entra de qualquer jeito.
+- Em **"Este semestre"**, o crédito das matérias em curso é descontado uma vez
+  (pela semeadura) e o horário delas bloqueia.
+- Em **"Próximo semestre"**, elas não ocupam crédito nem horário.
 - As demais matérias já selecionadas ocupam crédito e horário.
 
 ### Lixeira
@@ -87,13 +113,13 @@ Dentro do mesmo degrau, a matéria de semestre mais baixo vale até 50% a mais
 (`fatorAtraso`), sem nunca cruzar degrau.
 
 - **Essencial**: tem peso dominante e entra em todas as opções se houver turma
-  viável. Se não couber, o aviso diz o motivo real: sem turma com vaga, fora do
+  viável. Se não couber, o aviso diz o motivo real: sem turma no período, fora do
   turno, pré-requisito ou conflito com uma matéria específica.
 - **Turma real**: matéria em curso entra na turma em que o aluno está matriculado
   (histórico do SIGAA), e fica travada.
-- **Vagas**: turma sem vaga sobrando não entra na montagem automática
-  (`vagas_sobrando` desconhecido conta como disponível). A turma real de quem já
-  cursa vale mesmo lotada — a vaga já é dele.
+- **Vagas não filtram**: turma lotada entra na montagem como qualquer outra. A
+  lotação é retrato da matrícula de agora (vaga abre no ajuste, na matrícula
+  extraordinária etc.); o status de vagas aparece na turma para o aluno decidir.
 - **Turnos**: só turmas inteiramente dentro dos turnos permitidos.
 - **Turma travada**: a escolha manual é mantida.
 - **Limite de créditos**: ao baixar o limite, as matérias saem na ordem inversa
