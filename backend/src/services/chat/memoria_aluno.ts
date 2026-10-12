@@ -260,7 +260,7 @@ async function consolidarAgora(
 
     const { data, error } = await supabase
         .from("chat_items")
-        .select("id, item")
+        .select("id, item, conversa_id")
         .eq("session_id", sessionId)
         .gt("id", ate)
         .order("id", { ascending: true })
@@ -268,28 +268,33 @@ async function consolidarAgora(
     if (error) return;
     // Item que não decifra sai do resumo, mas o cursor ainda passa por ele (o id
     // vem de todas as linhas): senão a consolidação travaria nele para sempre.
-    const todas = (data ?? []) as Array<{ id: number; item: unknown }>;
+    const todas = (data ?? []) as Array<{ id: number; item: unknown; conversa_id?: string | null }>;
     const legiveis = new Map(decifrarLinhas(todas).map((l) => [l.id, l.item]));
-    const linhas = todas.map((l) => ({ id: l.id, item: legiveis.get(l.id) ?? null }));
+    const linhas = todas.map((l) => ({ id: l.id, item: legiveis.get(l.id) ?? null, ativa: l.conversa_id == null }));
 
     // O que ainda está na janela o modelo vê inteiro — resumir seria redundante.
-    const foraDaJanela = opts.tudo ? linhas : linhas.slice(0, Math.max(0, linhas.length - JANELA_PADRAO_ITENS));
+    // A janela são os últimos itens da conversa ATIVA: itens de conversa arquivada
+    // já não vão ao prompt, então podem ser resumidos. O cursor é um id, por isso
+    // o corte é um prefixo: tudo antes do primeiro item da janela.
+    const ativas = linhas.filter((l) => l.ativa);
+    const naJanela = new Set(ativas.slice(-JANELA_PADRAO_ITENS).map((l) => l.id));
+    const corte = linhas.findIndex((l) => naJanela.has(l.id));
+    const foraDaJanela = opts.tudo || corte === -1 ? linhas : linhas.slice(0, corte);
     if (foraDaJanela.length === 0) return;
 
     const mensagens = mensagensVisiveis(foraDaJanela.map((l) => l.item).filter((i) => i !== null));
     const minimo = opts.tudo ? 2 : MIN_MENSAGENS_PARA_CONSOLIDAR;
     if (mensagens.length < minimo) {
-        // Pouca coisa agora; no "Nova conversa" esse trecho vai embora de qualquer
-        // jeito, então só avança o cursor quando é ele.
+        // Pouca coisa agora; no `tudo` (conversa arquivada) ela não vai crescer,
+        // então só avança o cursor quando é ele.
         if (!opts.tudo) return;
     }
 
     let novaMemoria = memoriaAtual;
     if (mensagens.length >= minimo) {
         // Freio de custo (ver INTERVALO_MIN_CONSOLIDACAO_MS). Lido do banco, vale
-        // entre instâncias do backend. Fora do "Nova conversa" o trecho espera a
-        // próxima; no "Nova conversa" ele seria apagado — a conversa some sem virar
-        // memória, que é o preço de a rota não virar chamada grátis ao modelo.
+        // entre instâncias do backend. O trecho espera a próxima consolidação — a
+        // conversa arquivada continua no banco, então não se perde.
         const ultima = sessao.memoria_atualizada_em ? Date.parse(String(sessao.memoria_atualizada_em)) : 0;
         if (Date.now() - ultima < INTERVALO_MIN_CONSOLIDACAO_MS) return;
         const prompt = promptDeConsolidacao(memoriaAtual, trechoParaResumo(mensagens));

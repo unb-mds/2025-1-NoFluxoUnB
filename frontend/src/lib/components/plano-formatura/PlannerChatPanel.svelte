@@ -104,6 +104,7 @@
 	placeholder="Ex: Adie Física 1 para o próximo semestre..."
 	{onSend}
 	onNovaConversa={(o) => darcyStore.novaConversa(o)}
+	conversasAnteriores
 >
 	{#snippet emptyState()}
 		<div class="w-16 h-16 rounded-3xl bg-pink-500/10 border border-pink-500/50 flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(236,72,153,0.15)] backdrop-blur-md shrink-0">

@@ -52,6 +52,15 @@ export interface MensagemHistorico {
 	content: string;
 }
 
+/** Conversa arquivada ("Conversas anteriores"). */
+export interface ConversaAnterior {
+	id: string;
+	titulo: string;
+	mensagens: number;
+	inicio: string | null;
+	fim: string | null;
+}
+
 export class ChatService {
 	async enviarMensagem(
 		message: string,
@@ -82,13 +91,51 @@ export class ChatService {
 	}
 
 	/**
-	 * Apaga a conversa. O backend resume antes o que importa dela na memória da
-	 * Darcy; com `esquecer`, apaga a memória também.
+	 * Começa uma conversa nova: a atual vai para "Conversas anteriores" e o que
+	 * importa dela vira memória da Darcy. Com `esquecer`, apaga a conversa, as
+	 * anteriores e a memória.
 	 */
 	async novaConversa(esquecer = false): Promise<void> {
 		const rota = esquecer ? '/chat/esquecer' : '/chat/nova-conversa';
 		const { error, status } = await apiRequest<{ ok: boolean }>(rota, { method: 'POST' });
 		if (error) throw new Error(`Erro ${status} ao chamar ${rota}: ${error}`);
+	}
+
+	async conversas(): Promise<ConversaAnterior[]> {
+		const { data, error, status } = await apiRequest<{ conversas: ConversaAnterior[] }>(
+			'/chat/conversas'
+		);
+		if (error || !data) throw new Error(`Erro ${status} ao chamar /chat/conversas: ${error ?? ''}`);
+		return Array.isArray(data.conversas) ? data.conversas : [];
+	}
+
+	/** Mensagens de uma conversa anterior (só leitura). */
+	async conversa(id: string): Promise<MensagemHistorico[]> {
+		const { data, error, status } = await apiRequest<{ mensagens: MensagemHistorico[] }>(
+			`/chat/conversa?id=${encodeURIComponent(id)}`
+		);
+		if (error || !data) throw new Error(`Erro ${status} ao chamar /chat/conversa: ${error ?? ''}`);
+		return Array.isArray(data.mensagens) ? data.mensagens : [];
+	}
+
+	/** A conversa anterior volta a ser a atual; devolve as mensagens dela. */
+	async retomarConversa(id: string): Promise<MensagemHistorico[]> {
+		const { data, error, status } = await apiRequest<{ mensagens: MensagemHistorico[] }>(
+			'/chat/retomar-conversa',
+			{ method: 'POST', body: { id } }
+		);
+		if (error || !data) {
+			throw new Error(`Erro ${status} ao chamar /chat/retomar-conversa: ${error ?? ''}`);
+		}
+		return Array.isArray(data.mensagens) ? data.mensagens : [];
+	}
+
+	async apagarConversa(id: string): Promise<void> {
+		const { error, status } = await apiRequest<{ ok: boolean }>('/chat/apagar-conversa', {
+			method: 'POST',
+			body: { id }
+		});
+		if (error) throw new Error(`Erro ${status} ao chamar /chat/apagar-conversa: ${error}`);
 	}
 }
 

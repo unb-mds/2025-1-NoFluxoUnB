@@ -3,8 +3,13 @@
  *
  * POST /chat/send          — uma mensagem para a Darcy, de qualquer tela.
  * GET  /chat/historico     — a conversa visível (a mesma em todas as telas).
- * POST /chat/nova-conversa — zera a conversa do aluno (o que importava vira memória).
- * POST /chat/esquecer      — apaga a conversa E a memória (`memoria_aluno.ts`).
+ * POST /chat/nova-conversa — arquiva a conversa ativa (vai para "Conversas anteriores";
+ *                            o que importava dela vira memória).
+ * POST /chat/esquecer      — apaga a conversa, as arquivadas E a memória (`memoria_aluno.ts`).
+ * GET  /chat/conversas     — conversas arquivadas do aluno (título, data, tamanho).
+ * GET  /chat/conversa?id=  — mensagens de uma conversa arquivada (só leitura).
+ * POST /chat/retomar-conversa { id } — a arquivada volta a ser a ativa.
+ * POST /chat/apagar-conversa  { id } — apaga uma conversa arquivada.
  *
  * session_id = uuid do usuário autenticado (auth.users.id), extraído do token, não do
  * corpo da requisição — evita que um cliente forje o histórico de outro usuário. O
@@ -48,6 +53,13 @@ import { MARITACA_MODELS } from "../config/maritaca";
 import { AI_SEM_CREDITOS_BODY, isMaritacaSemCreditos } from "../config/maritaca_errors";
 
 type Autenticado = { authId: string; email: string };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Id de conversa vindo do cliente (query ou corpo) — só uuid chega ao banco. */
+function idDaConversa(valor: unknown): string | null {
+    return typeof valor === "string" && UUID.test(valor.trim()) ? valor.trim() : null;
+}
 
 /** Usuário do token Bearer, ou responde 401 e devolve `null`. */
 async function autenticar(req: Request, res: Response): Promise<Autenticado | null> {
@@ -215,7 +227,11 @@ export const ChatController: EndpointController = {
             try {
                 const usuario = await autenticar(req, res);
                 if (!usuario) return;
-                const mensagens = await new SupabaseSession(usuario.authId).listarMensagensVisiveis(50);
+                const session = new SupabaseSession(usuario.authId);
+                // Muito tempo sem falar com a Darcy: a tela abre numa conversa nova e a
+                // antiga vai para "Conversas anteriores" (o contexto segue pela memória).
+                if (await session.arquivarSeInativa()) void consolidarMemoria(usuario.authId, { tudo: true });
+                const mensagens = await session.listarMensagensVisiveis(50);
                 return res.status(200).json({ mensagens });
             } catch (error) {
                 const msg = error instanceof Error ? error.message : String(error);
@@ -229,18 +245,86 @@ export const ChatController: EndpointController = {
             try {
                 const usuario = await autenticar(req, res);
                 if (!usuario) return;
-                // Antes de apagar, o que importava da conversa vai para a memória — a
-                // Darcy começa do zero na tela, não no que sabe do aluno. Com teto de
-                // tempo: memória é extra, não pode prender o botão.
-                await Promise.race([
-                    consolidarMemoria(usuario.authId, { tudo: true }),
-                    new Promise((r) => setTimeout(r, 15_000)),
-                ]);
-                await new SupabaseSession(usuario.authId).clearSession();
+                // A conversa é arquivada, não apagada — por isso a memória pode ser
+                // consolidada em segundo plano: os itens continuam lá até ela terminar.
+                // A Darcy começa do zero na tela, não no que sabe do aluno.
+                await new SupabaseSession(usuario.authId).arquivarConversa();
+                void consolidarMemoria(usuario.authId, { tudo: true });
                 return res.status(200).json({ ok: true });
             } catch (error) {
                 const msg = error instanceof Error ? error.message : String(error);
                 logger.error(`Erro ao zerar conversa: ${msg}`);
+                return res.status(500).json({ error: `Erro interno no servidor: ${msg}` });
+            }
+        }),
+
+        conversas: new Pair(RequestType.GET, async (req: Request, res: Response) => {
+            const logger = createControllerLogger("ChatController", "conversas");
+            try {
+                const usuario = await autenticar(req, res);
+                if (!usuario) return;
+                const conversas = await new SupabaseSession(usuario.authId).listarConversas();
+                return res.status(200).json({ conversas });
+            } catch (error) {
+                const msg = error instanceof Error ? error.message : String(error);
+                logger.error(`Erro ao listar conversas: ${msg}`);
+                return res.status(500).json({ error: `Erro interno no servidor: ${msg}` });
+            }
+        }),
+
+        conversa: new Pair(RequestType.GET, async (req: Request, res: Response) => {
+            const logger = createControllerLogger("ChatController", "conversa");
+            try {
+                const usuario = await autenticar(req, res);
+                if (!usuario) return;
+                const id = idDaConversa(req.query.id);
+                if (!id) return res.status(400).json({ error: "Parâmetro 'id' inválido." });
+                const mensagens = await new SupabaseSession(usuario.authId).mensagensDaConversa(id);
+                if (!mensagens) return res.status(404).json({ error: "Conversa não encontrada." });
+                return res.status(200).json({ mensagens });
+            } catch (error) {
+                const msg = error instanceof Error ? error.message : String(error);
+                logger.error(`Erro ao ler conversa: ${msg}`);
+                return res.status(500).json({ error: `Erro interno no servidor: ${msg}` });
+            }
+        }),
+
+        "retomar-conversa": new Pair(RequestType.POST, async (req: Request, res: Response) => {
+            const logger = createControllerLogger("ChatController", "retomar-conversa");
+            try {
+                const usuario = await autenticar(req, res);
+                if (!usuario) return;
+                const id = idDaConversa(req.body?.id);
+                if (!id) return res.status(400).json({ error: "Campo 'id' inválido." });
+                const session = new SupabaseSession(usuario.authId);
+                if (!(await session.retomarConversa(id))) {
+                    return res.status(404).json({ error: "Conversa não encontrada." });
+                }
+                // A conversa que estava ativa foi arquivada: o que importava dela vira memória.
+                void consolidarMemoria(usuario.authId, { tudo: true });
+                const mensagens = await session.listarMensagensVisiveis(50);
+                return res.status(200).json({ mensagens });
+            } catch (error) {
+                const msg = error instanceof Error ? error.message : String(error);
+                logger.error(`Erro ao retomar conversa: ${msg}`);
+                return res.status(500).json({ error: `Erro interno no servidor: ${msg}` });
+            }
+        }),
+
+        "apagar-conversa": new Pair(RequestType.POST, async (req: Request, res: Response) => {
+            const logger = createControllerLogger("ChatController", "apagar-conversa");
+            try {
+                const usuario = await autenticar(req, res);
+                if (!usuario) return;
+                const id = idDaConversa(req.body?.id);
+                if (!id) return res.status(400).json({ error: "Campo 'id' inválido." });
+                if (!(await new SupabaseSession(usuario.authId).apagarConversa(id))) {
+                    return res.status(404).json({ error: "Conversa não encontrada." });
+                }
+                return res.status(200).json({ ok: true });
+            } catch (error) {
+                const msg = error instanceof Error ? error.message : String(error);
+                logger.error(`Erro ao apagar conversa: ${msg}`);
                 return res.status(500).json({ error: `Erro interno no servidor: ${msg}` });
             }
         }),

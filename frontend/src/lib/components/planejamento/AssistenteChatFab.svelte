@@ -253,6 +253,7 @@
 			{prefillText}
 			{prefillNonce}
 			onNovaConversa={(o) => darcyStore.novaConversa(o)}
+			conversasAnteriores
 		>
 			{#snippet emptyState()}
 				<div

@@ -6,6 +6,7 @@
 process.env.MARITACA_API_KEY = "test-key";
 
 import { run } from "@openai/agents";
+import { randomUUID } from "crypto";
 
 // ---------------------------------------------------------------------------
 // Fake Supabase genérico: select/eq/in/order/limit/maybeSingle + insert/update/
@@ -56,14 +57,27 @@ function tableFrom(nome: string) {
         select: () => builder,
         update: (valores: Row) => ((operacao = { tipo: "update", valores }), builder),
         delete: () => ((operacao = { tipo: "delete" }), builder),
-        insert: async (valores: Row | Row[]) => {
+        insert: (valores: Row | Row[]) => {
             const lista = Array.isArray(valores) ? valores : [valores];
-            // created_at crescente garante a ordem cronológica no fake.
-            for (const v of lista) tabela(nome).push({ id: proximoId, created_at: String(proximoId++).padStart(8, "0"), ...v });
-            return { data: null, error: null };
+            // created_at crescente garante a ordem cronológica no fake. Conversa
+            // arquivada tem id uuid, como no banco (o controller valida o formato).
+            const inseridas = lista.map((v) => {
+                const id = nome === "chat_conversas" ? randomUUID() : proximoId;
+                const row = { id, created_at: String(proximoId++).padStart(8, "0"), ...v };
+                tabela(nome).push(row);
+                return row;
+            });
+            // insert(...).select().single() devolve a linha criada.
+            const r: any = {
+                select: () => r,
+                single: async () => ({ data: inseridas[0] ?? null, error: null }),
+                then: (resolve: (v: any) => any) => resolve({ data: null, error: null }),
+            };
+            return r;
         },
         // eslint-disable-next-line eqeqeq
         eq: (col: string, val: any) => (filtros.push((r) => r[col] == val), builder),
+        is: (col: string, val: any) => (filtros.push((r) => (r[col] ?? null) === val), builder),
         in: (col: string, vals: any[]) => (filtros.push((r) => vals.some((v) => v == r[col])), builder),
         order: (col: string, opts: { ascending: boolean }) => ((ordenacao = { col, ascending: opts.ascending }), builder),
         limit: (n: number) => ((limite = n), builder),
@@ -109,7 +123,7 @@ jest.mock("openai", () => ({
 import { montarPerfilAluno, renderizarPerfil, limparCachePerfis, type PerfilAluno } from "../src/services/chat/perfil_aluno";
 import { createOrquestradorAgent, obterEfeitosDoOrquestrador } from "../src/services/chat/orquestrador_agent";
 import { parseCorpoChat } from "../src/services/chat/superficie";
-import { SupabaseSession, aparaInicioDaJanela, mensagensVisiveis } from "../src/services/chat/supabase_session";
+import { SupabaseSession, aparaInicioDaJanela, mensagensVisiveis, INATIVIDADE_ARQUIVAR_MS } from "../src/services/chat/supabase_session";
 import { ChatController } from "../src/controllers/chat_controller";
 
 // ---------------------------------------------------------------------------
@@ -195,6 +209,10 @@ beforeEach(() => {
     montarDadosPlanoMock.mockReset();
     consultarTurmasMock.mockReset();
     mockCreate.mockReset();
+    // Consolidação da memória roda em segundo plano depois de arquivar: sem rede.
+    global.fetch = jest.fn(async () => {
+        throw new Error("sem rede no teste");
+    }) as any;
 });
 
 // ---------------------------------------------------------------------------
@@ -411,13 +429,105 @@ describe("atalho /turmas e histórico", () => {
         ]);
     });
 
-    it("nova-conversa apaga o histórico", async () => {
+    it("nova-conversa limpa a tela e arquiva a conversa em Conversas anteriores", async () => {
         const session = new SupabaseSession("auth-uuid-1");
-        await session.addItems([{ role: "user", content: "oi" } as any]);
+        await session.addItems([{ role: "user", content: "quero formar em 2027" } as any]);
         const res = fakeRes();
         await ChatController.routes["nova-conversa"].value({ headers: { authorization: "Bearer token-valido" } } as any, res);
         expect(res.body).toEqual({ ok: true });
         expect(await session.listarMensagensVisiveis()).toEqual([]);
+
+        const lista = fakeRes();
+        await ChatController.routes.conversas.value({ headers: { authorization: "Bearer token-valido" } } as any, lista);
+        expect(lista.body.conversas).toHaveLength(1);
+        expect(lista.body.conversas[0]).toMatchObject({ titulo: "quero formar em 2027", mensagens: 1 });
+
+        const conversa = fakeRes();
+        await ChatController.routes.conversa.value(
+            { headers: { authorization: "Bearer token-valido" }, query: { id: lista.body.conversas[0].id } } as any,
+            conversa
+        );
+        expect(conversa.body.mensagens).toEqual([{ role: "user", content: "quero formar em 2027" }]);
+    });
+
+    it("nova-conversa sem nada na tela não cria conversa vazia", async () => {
+        const res = fakeRes();
+        await ChatController.routes["nova-conversa"].value({ headers: { authorization: "Bearer token-valido" } } as any, res);
+        const lista = fakeRes();
+        await ChatController.routes.conversas.value({ headers: { authorization: "Bearer token-valido" } } as any, lista);
+        expect(lista.body.conversas).toEqual([]);
+    });
+
+    it("retomar traz a conversa de volta e arquiva a que estava aberta", async () => {
+        const session = new SupabaseSession("auth-uuid-1");
+        await session.addItems([{ role: "user", content: "antiga" } as any]);
+        const idAntiga = await session.arquivarConversa();
+        await session.addItems([{ role: "user", content: "atual" } as any]);
+
+        const res = fakeRes();
+        await ChatController.routes["retomar-conversa"].value(
+            { headers: { authorization: "Bearer token-valido" }, body: { id: idAntiga } } as any,
+            res
+        );
+        expect(res.statusCode).toBe(200);
+        expect(res.body.mensagens).toEqual([{ role: "user", content: "antiga" }]);
+        const conversas = await session.listarConversas();
+        expect(conversas.map((c) => c.titulo)).toEqual(["atual"]);
+    });
+
+    it("conversa de outro aluno não é lida, retomada nem apagada", async () => {
+        const outro = new SupabaseSession("auth-uuid-2");
+        await outro.addItems([{ role: "user", content: "segredo do outro" } as any]);
+        const id = await outro.arquivarConversa();
+        const auth = { authorization: "Bearer token-valido" };
+
+        const ler = fakeRes();
+        await ChatController.routes.conversa.value({ headers: auth, query: { id } } as any, ler);
+        expect(ler.statusCode).toBe(404);
+        const retomar = fakeRes();
+        await ChatController.routes["retomar-conversa"].value({ headers: auth, body: { id } } as any, retomar);
+        expect(retomar.statusCode).toBe(404);
+        const apagar = fakeRes();
+        await ChatController.routes["apagar-conversa"].value({ headers: auth, body: { id } } as any, apagar);
+        expect(apagar.statusCode).toBe(404);
+        expect(await outro.listarConversas()).toHaveLength(1);
+
+        const invalido = fakeRes();
+        await ChatController.routes.conversa.value({ headers: auth, query: { id: "1 or 1=1" } } as any, invalido);
+        expect(invalido.statusCode).toBe(400);
+    });
+
+    it("apagar-conversa remove a conversa e as mensagens dela", async () => {
+        const session = new SupabaseSession("auth-uuid-1");
+        await session.addItems([{ role: "user", content: "apagar" } as any]);
+        const id = await session.arquivarConversa();
+        const res = fakeRes();
+        await ChatController.routes["apagar-conversa"].value(
+            { headers: { authorization: "Bearer token-valido" }, body: { id } } as any,
+            res
+        );
+        expect(res.body).toEqual({ ok: true });
+        expect(await session.listarConversas()).toEqual([]);
+    });
+
+    it("historico depois de horas sem falar abre numa conversa nova", async () => {
+        const session = new SupabaseSession("auth-uuid-1");
+        await session.addItems([{ role: "user", content: "ontem" } as any]);
+        const linha = db.chat_sessions.find((s) => s.session_id === "auth-uuid-1")!;
+        linha.updated_at = new Date(Date.now() - INATIVIDADE_ARQUIVAR_MS - 1000).toISOString();
+
+        const hist = fakeRes();
+        await ChatController.routes.historico.value({ headers: { authorization: "Bearer token-valido" } } as any, hist);
+        expect(hist.body.mensagens).toEqual([]);
+        expect((await session.listarConversas()).map((c) => c.titulo)).toEqual(["ontem"]);
+    });
+
+    it("historico com conversa recente não arquiva", async () => {
+        const session = new SupabaseSession("auth-uuid-1");
+        await session.addItems([{ role: "user", content: "agora" } as any]);
+        const hist = fakeRes();
+        await ChatController.routes.historico.value({ headers: { authorization: "Bearer token-valido" } } as any, hist);
+        expect(hist.body.mensagens).toEqual([{ role: "user", content: "agora" }]);
     });
 
     it("token inválido é 401", async () => {

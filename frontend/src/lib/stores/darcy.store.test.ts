@@ -9,7 +9,8 @@ vi.mock('$lib/services/chat.service', () => ({
 	chatService: {
 		enviarMensagem: vi.fn(),
 		historico: vi.fn(),
-		novaConversa: vi.fn()
+		novaConversa: vi.fn(),
+		retomarConversa: vi.fn()
 	}
 }));
 
@@ -171,7 +172,22 @@ describe('darcyStore', () => {
 		definirUsuario(7);
 	});
 
-	it('novaConversa apaga no servidor e na tela', async () => {
+	it('retomarConversa troca a tela pela conversa anterior e atualiza o cache', async () => {
+		enviar.mockResolvedValue({ reply: 'ok' });
+		await darcyStore.enviar('atual');
+		vi.mocked(chatService.retomarConversa).mockResolvedValue([
+			{ role: 'user', content: 'antiga' },
+			{ role: 'assistant', content: 'resposta antiga' }
+		]);
+
+		await darcyStore.retomarConversa('id-antiga');
+
+		expect(chatService.retomarConversa).toHaveBeenCalledWith('id-antiga');
+		expect(darcyStore.mensagens.map((m) => m.content)).toEqual(['antiga', 'resposta antiga']);
+		expect(JSON.parse(armazenado.get('darcy:conversa:7') ?? '[]')).toHaveLength(2);
+	});
+
+	it('novaConversa limpa a tela (o servidor guarda nas anteriores)', async () => {
 		enviar.mockResolvedValue({ reply: 'ok' });
 		await darcyStore.enviar('oi');
 

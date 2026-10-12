@@ -14,11 +14,7 @@
  */
 
 import { authStore } from '$lib/stores/auth';
-import {
-	chatService,
-	type EstadoSuperficie,
-	type Superficie
-} from '$lib/services/chat.service';
+import { chatService, type EstadoSuperficie, type Superficie } from '$lib/services/chat.service';
 import { darcyCotaStore } from '$lib/stores/darcy-cota.store.svelte';
 import { mensagemErroChat } from '$lib/utils/ai-errors';
 import type {
@@ -250,8 +246,9 @@ function createDarcyStore() {
 		},
 
 		/**
-		 * Apaga a conversa no servidor e na tela — vale para todas as telas. O que
-		 * importava dela fica na memória da Darcy, a não ser com `esquecer`.
+		 * Começa uma conversa nova — vale para todas as telas. A atual vai para
+		 * "Conversas anteriores" e o que importava dela fica na memória da Darcy;
+		 * com `esquecer`, apaga tudo (conversas e memória).
 		 */
 		async novaConversa(opcoes?: { esquecer?: boolean }): Promise<void> {
 			if (carregando) return;
@@ -264,6 +261,20 @@ function createDarcyStore() {
 			} catch (err) {
 				error = mensagemErroChat(err);
 			}
+		},
+
+		/**
+		 * Volta a uma conversa anterior: ela vira a atual (a atual é guardada nas
+		 * anteriores pelo servidor). Lança se falhar — quem chamou mostra o erro.
+		 */
+		async retomarConversa(id: string): Promise<void> {
+			if (carregando) return;
+			const dono = idUserAtual;
+			const doServidor = await chatService.retomarConversa(id);
+			if (dono !== idUserAtual) return;
+			mensagens = doServidor.map((m) => ({ role: m.role, content: m.content }));
+			gravarCache(dono, mensagens);
+			error = null;
 		},
 
 		/** Zera o estado local (testes / troca de conta). Não toca no servidor. */

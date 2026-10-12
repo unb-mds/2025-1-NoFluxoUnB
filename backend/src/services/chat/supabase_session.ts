@@ -6,6 +6,10 @@
  *     contínua por aluno — ver docs/chatbot-orquestrador.md)
  *   - chat_items: log append-only dos AgentInputItem da sessão, em ordem de created_at
  *
+ * Conversa ativa = itens com `conversa_id` nulo. "Nova conversa" (ou inatividade, ver
+ * `INATIVIDADE_ARQUIVAR_MS`) ARQUIVA esses itens numa linha de `chat_conversas` — o
+ * aluno reabre, retoma ou apaga depois; nada é apagado sem ele pedir.
+ *
  * Sem estado em memória entre instâncias — uma instância nova com o mesmo session_id
  * sempre reconstrói o histórico a partir do banco (é isso que faz a sessão sobreviver
  * a reinício do processo).
@@ -14,10 +18,27 @@
 import type { AgentInputItem } from "@openai/agents";
 import type { Session } from "@openai/agents";
 import { SupabaseWrapper } from "../../supabase_wrapper";
-import { cifrarItem, decifrarItem } from "../../utils/cripto_chat";
+import { cifrarItem, cifrarTexto, decifrarItem, decifrarTexto } from "../../utils/cripto_chat";
 
 /** Quantos itens da sessão entram em cada `run` (o perfil do aluno já cobre o que é estável). */
 export const JANELA_PADRAO_ITENS = 30;
+
+/**
+ * Sem falar com a Darcy por este tempo, a próxima abertura do chat começa uma
+ * conversa nova (a anterior vai para "Conversas anteriores"). Evita a conversa
+ * única que crescia por semanas; o contexto atravessa pela memória.
+ */
+export const INATIVIDADE_ARQUIVAR_MS = 6 * 60 * 60 * 1000;
+/** Tamanho do título da conversa arquivada (a primeira pergunta do aluno). */
+const TETO_TITULO = 80;
+
+export interface ConversaArquivada {
+    id: string;
+    titulo: string;
+    mensagens: number;
+    inicio: string | null;
+    fim: string | null;
+}
 
 export interface MensagemVisivel {
     role: "user" | "assistant";
@@ -96,6 +117,22 @@ export function mensagensVisiveis(itens: AgentInputItem[]): MensagemVisivel[] {
     return out;
 }
 
+export function tituloDaConversa(mensagens: MensagemVisivel[]): string {
+    const primeira = mensagens.find((m) => m.role === "user")?.content ?? "";
+    const limpa = primeira.replace(/\s+/g, " ").trim();
+    if (!limpa) return "Conversa";
+    return limpa.length > TETO_TITULO ? `${limpa.slice(0, TETO_TITULO - 1).trimEnd()}…` : limpa;
+}
+
+function lerTitulo(valor: unknown): string {
+    if (typeof valor !== "string" || !valor) return "Conversa";
+    try {
+        return decifrarTexto(valor) || "Conversa";
+    } catch {
+        return "Conversa";
+    }
+}
+
 export class SupabaseSession implements Session {
     constructor(
         private readonly sessionId: string,
@@ -152,6 +189,7 @@ export class SupabaseSession implements Session {
             .from("chat_items")
             .select("item, created_at")
             .eq("session_id", this.sessionId)
+            .is("conversa_id", null)
             .order("created_at", { ascending: !limit });
 
         if (limit) {
@@ -192,6 +230,7 @@ export class SupabaseSession implements Session {
             .from("chat_items")
             .select("id, item")
             .eq("session_id", this.sessionId)
+            .is("conversa_id", null)
             .order("created_at", { ascending: false })
             .limit(1);
 
@@ -218,6 +257,7 @@ export class SupabaseSession implements Session {
             .from("chat_items")
             .select("id, item")
             .eq("session_id", this.sessionId)
+            .is("conversa_id", null)
             .order("created_at", { ascending: false })
             .limit(20);
         if (error) {
@@ -241,7 +281,158 @@ export class SupabaseSession implements Session {
         return true;
     }
 
+    /** "Esquecer tudo": apaga a conversa ativa E as arquivadas. */
     async clearSession(): Promise<void> {
-        await SupabaseWrapper.get().from("chat_items").delete().eq("session_id", this.sessionId);
+        const supabase = SupabaseWrapper.get();
+        await supabase.from("chat_conversas").delete().eq("session_id", this.sessionId);
+        await supabase.from("chat_items").delete().eq("session_id", this.sessionId);
+    }
+
+    // -----------------------------------------------------------------------
+    // Conversas anteriores
+    // -----------------------------------------------------------------------
+
+    /**
+     * Arquiva a conversa ativa em `chat_conversas` e devolve o id dela — `null` se
+     * não havia o que arquivar. A tela fica limpa; a conversa continua listada.
+     */
+    async arquivarConversa(): Promise<string | null> {
+        const supabase = SupabaseWrapper.get();
+        const { data, error } = await supabase
+            .from("chat_items")
+            .select("item, created_at")
+            .eq("session_id", this.sessionId)
+            .is("conversa_id", null)
+            .order("created_at", { ascending: true })
+            .limit(2000);
+        if (error) throw new Error(`Falha ao ler a conversa da sessão ${this.sessionId}: ${error.message}`);
+        const linhas = decifrarLinhas((data ?? []) as Array<{ item: unknown; created_at: string }>);
+        if (linhas.length === 0) return null;
+
+        const visiveis = mensagensVisiveis(linhas.map((l) => l.item as AgentInputItem));
+        const { data: conversa, error: erroConversa } = await supabase
+            .from("chat_conversas")
+            .insert({
+                session_id: this.sessionId,
+                titulo: cifrarTexto(tituloDaConversa(visiveis)),
+                mensagens: visiveis.length,
+                inicio: linhas[0].created_at ?? null,
+                fim: linhas[linhas.length - 1].created_at ?? null,
+            })
+            .select("id")
+            .single();
+        if (erroConversa || !conversa?.id) {
+            throw new Error(
+                `Falha ao arquivar a conversa da sessão ${this.sessionId}: ${erroConversa?.message ?? "sem id"}`
+            );
+        }
+        const id = conversa.id as string;
+
+        const { error: erroMover } = await supabase
+            .from("chat_items")
+            .update({ conversa_id: id })
+            .eq("session_id", this.sessionId)
+            .is("conversa_id", null);
+        if (erroMover) throw new Error(`Falha ao arquivar os itens da sessão ${this.sessionId}: ${erroMover.message}`);
+        return id;
+    }
+
+    /**
+     * Arquiva a conversa ativa se o aluno não fala com a Darcy há `maxMs`.
+     * Devolve se arquivou. Nunca lança — no pior caso a conversa só continua.
+     */
+    async arquivarSeInativa(maxMs: number = INATIVIDADE_ARQUIVAR_MS): Promise<boolean> {
+        try {
+            const { data } = await SupabaseWrapper.get()
+                .from("chat_sessions")
+                .select("updated_at")
+                .eq("session_id", this.sessionId)
+                .maybeSingle();
+            const ultima = data?.updated_at ? Date.parse(String(data.updated_at)) : NaN;
+            if (!Number.isFinite(ultima) || Date.now() - ultima < maxMs) return false;
+            return (await this.arquivarConversa()) !== null;
+        } catch {
+            return false;
+        }
+    }
+
+    /** Conversas arquivadas, da mais recente para a mais antiga. */
+    async listarConversas(max: number = 30): Promise<ConversaArquivada[]> {
+        const { data, error } = await SupabaseWrapper.get()
+            .from("chat_conversas")
+            .select("id, titulo, mensagens, inicio, fim")
+            .eq("session_id", this.sessionId)
+            .order("fim", { ascending: false })
+            .limit(max);
+        if (error) throw new Error(`Falha ao listar conversas da sessão ${this.sessionId}: ${error.message}`);
+        return ((data ?? []) as Array<Record<string, unknown>>).map((c) => ({
+            id: String(c.id),
+            titulo: lerTitulo(c.titulo),
+            mensagens: Number(c.mensagens ?? 0),
+            inicio: (c.inicio as string | null) ?? null,
+            fim: (c.fim as string | null) ?? null,
+        }));
+    }
+
+    /** A conversa é deste aluno? (o id vem do cliente — nunca confiar nele sozinho) */
+    private async ehMinha(conversaId: string): Promise<boolean> {
+        const { data, error } = await SupabaseWrapper.get()
+            .from("chat_conversas")
+            .select("id")
+            .eq("id", conversaId)
+            .eq("session_id", this.sessionId)
+            .maybeSingle();
+        return !error && !!data;
+    }
+
+    /** Mensagens visíveis de uma conversa arquivada; `null` se não é deste aluno. */
+    async mensagensDaConversa(conversaId: string): Promise<MensagemVisivel[] | null> {
+        if (!(await this.ehMinha(conversaId))) return null;
+        const { data, error } = await SupabaseWrapper.get()
+            .from("chat_items")
+            .select("item, created_at")
+            .eq("session_id", this.sessionId)
+            .eq("conversa_id", conversaId)
+            .order("created_at", { ascending: true })
+            .limit(2000);
+        if (error) throw new Error(`Falha ao ler a conversa ${conversaId}: ${error.message}`);
+        const itens = decifrarLinhas((data ?? []) as Array<{ item: unknown }>).map((l) => l.item as AgentInputItem);
+        return mensagensVisiveis(itens);
+    }
+
+    /**
+     * Volta a conversa arquivada a ser a ativa (a ativa de agora é arquivada antes).
+     * Devolve `false` se a conversa não é deste aluno.
+     */
+    async retomarConversa(conversaId: string): Promise<boolean> {
+        if (!(await this.ehMinha(conversaId))) return false;
+        await this.arquivarConversa();
+        const supabase = SupabaseWrapper.get();
+        // Itens primeiro: apagar a linha da conversa antes levaria os itens junto (cascade).
+        const { error } = await supabase
+            .from("chat_items")
+            .update({ conversa_id: null })
+            .eq("session_id", this.sessionId)
+            .eq("conversa_id", conversaId);
+        if (error) throw new Error(`Falha ao retomar a conversa ${conversaId}: ${error.message}`);
+        await supabase.from("chat_conversas").delete().eq("id", conversaId).eq("session_id", this.sessionId);
+        // Retomar conta como atividade — senão a inatividade arquivaria de novo na hora.
+        await supabase
+            .from("chat_sessions")
+            .update({ updated_at: new Date().toISOString() })
+            .eq("session_id", this.sessionId);
+        return true;
+    }
+
+    /** Apaga uma conversa arquivada (e os itens dela, por cascade). */
+    async apagarConversa(conversaId: string): Promise<boolean> {
+        if (!(await this.ehMinha(conversaId))) return false;
+        const { error } = await SupabaseWrapper.get()
+            .from("chat_conversas")
+            .delete()
+            .eq("id", conversaId)
+            .eq("session_id", this.sessionId);
+        if (error) throw new Error(`Falha ao apagar a conversa ${conversaId}: ${error.message}`);
+        return true;
     }
 }

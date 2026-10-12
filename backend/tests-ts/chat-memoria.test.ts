@@ -119,6 +119,21 @@ describe("consolidarMemoria", () => {
         expect(chamar).toHaveBeenCalledTimes(1);
     });
 
+    it("conversa arquivada já saiu do prompt: entra no resumo mesmo sendo recente", async () => {
+        conversar(5, "arquivada");
+        db.items.forEach((i) => (i.conversa_id = "conv-1"));
+        conversar(3, "ativa");
+        const chamar = jest.fn(async (_p: string) => "- quer estágio no 6º semestre");
+
+        await consolidarMemoria(SID, { chamar });
+
+        expect(chamar).toHaveBeenCalledTimes(1);
+        const prompt = chamar.mock.calls[0][0];
+        expect(prompt).toContain("arquivada pergunta 0");
+        expect(prompt).not.toContain("ativa pergunta");
+        expect(db.sessions[0].memoria_ate).toBe(10);
+    });
+
     it("a memória anterior vai junto para o modelo atualizar, não para recomeçar", async () => {
         db.sessions[0].memoria = "- trabalha à tarde";
         conversar(5);

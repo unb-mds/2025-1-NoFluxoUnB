@@ -50,6 +50,7 @@ function tableFrom(nome: string) {
         },
         // eslint-disable-next-line eqeqeq
         eq: (c: string, v: any) => (filtros.push((r) => r[c] == v), b),
+        is: (c: string, v: any) => (filtros.push((r) => (r[c] ?? null) === v), b),
         order: (c: string, o: { ascending: boolean }) => ((ordem = { col: c, asc: o.ascending }), b),
         limit: (n: number) => ((limite = n), b),
         single: () => ((single = true), b),
