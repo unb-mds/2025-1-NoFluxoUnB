@@ -378,6 +378,14 @@ function renderEstado(superficie: Superficie, estado: EstadoSuperficie | undefin
             `- Grade aberta: ${lista(codigos, 15)} (${estado.creditos} créditos)`,
             `- Turnos permitidos: ${estado.turnos.length > 0 ? estado.turnos.join(", ") : "todos"}`,
             `- Matérias em curso na grade: ${estado.incluirCursando ? "incluídas" : "fora (aluno pediu sem elas)"}`,
+            ...(estado.pool?.length ? [`- Lista de candidatas no Montador: ${lista(estado.pool, 25)}`] : []),
+            ...(estado.prioritarias?.length ? [`- Prioritárias (estrela): ${lista(estado.prioritarias, 15)}`] : []),
+            ...(estado.naoAlocadas?.length
+                ? [`- Ficaram de fora na última montagem: ${lista(estado.naoAlocadas, 15)}`]
+                : []),
+            ...(estado.cenarios?.length
+                ? [`- Cenários salvos: ${estado.cenarios.map((c) => (c.ativo ? `${c.nome} (aberto)` : c.nome)).join(", ")}`]
+                : []),
         ].join("\n");
     }
     if (superficie === "plano") {

@@ -194,6 +194,8 @@ export const ChatController: EndpointController = {
                 return res.status(200).json({
                     reply,
                     opcaoGrade: efeitos.opcaoGrade ?? undefined,
+                    opcoesGrade: efeitos.opcoesGrade ?? undefined,
+                    acoesGrade: efeitos.acoesGrade ?? undefined,
                     plano: efeitos.plano ?? undefined,
                     restricoes: efeitos.restricoes ?? undefined,
                     cota: pergunta.cota,

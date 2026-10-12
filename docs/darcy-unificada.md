@@ -75,11 +75,17 @@ Auth: `Authorization: Bearer <token do Supabase>`. A sessão é o uuid do token.
   superficie: 'assistente' | 'plano' | 'montador',
   estado?:
     | { tipo: 'montador', grade: {codigo: string, idTurma: number}[], creditos: number,
-        turnos: ('M'|'T'|'N')[], incluirCursando: boolean, horarioLivre: string /* bigint */ }
+        turnos: ('M'|'T'|'N')[], incluirCursando: boolean, horarioLivre: string /* bigint */,
+        pool?: string[], prioritarias?: string[], naoAlocadas?: string[],
+        cenarios?: {nome: string, ativo: boolean}[] }
     | { tipo: 'plano', semestreFoco?: number }
     | { tipo: 'assistente' } }
 → { reply: string,
-    opcaoGrade?: { estrategia, selecao: {codigo, idTurma}[] },  // montar_grade rodou
+    opcaoGrade?: { estrategia, selecao: {codigo, idTurma}[],     // montar_grade rodou
+                   detalhes?: {codigo, turma, docente, horario}[],  // só p/ a mini-grade
+                   metricas?: {diasComAula, minutosDeLacuna, horasTotais} },
+    opcoesGrade?: OpcaoGrade[],                                  // todas as opções (comparador)
+    acoesGrade?: AcaoGrade[],                                    // propor_mudancas_grade (card de diff)
     plano?: PlanoFormaturav2,                                    // tool de plano alterou o plano
     restricoes?: { adiar, priorizar, adicionar, adicionarEm, limitesPersonalizados } }
 ```
@@ -131,6 +137,30 @@ Como o backend garante isso:
   na sessão o texto do modelo; o controller então troca essa última resposta pelo texto
   final (`SupabaseSession.substituirUltimaResposta`), para o `/chat/historico` e as
   próximas runs verem exatamente o que o aluno viu.
+
+### Grade no chat: mini-grade, comparador e mudanças pontuais
+
+- **Mini-grade** (`GradePreviewChat.svelte`): quando a mensagem tem `opcaoGrade.detalhes`
+  (resposta ao vivo ou cache local — o `/chat/historico` só guarda texto), o bloco
+  `[MONTAR_GRADE]` vira a semana desenhada (lista por dia no estreito, grade compacta a
+  partir de `@md` do contêiner), métricas e o botão de aplicar. Com `opcoesGrade` > 1,
+  abas comparam as opções e "Aplicar" aplica a aba aberta. Sem `detalhes`, cai no botão.
+- **Mudanças pontuais** (`AcaoGrade`, `services/chat/grade_acoes.ts`):
+  `adicionar {codigo, idTurma?}`, `remover {codigo}`, `trocarTurma {codigo, idTurma}`,
+  `priorizar {codigo}`, `turnos {turnos}`, `criarCenario {nome}`, `limpar`. A tool
+  `propor_mudancas_grade` (registrada em toda tela, mas só age com a grade aberta no Montador) valida cada uma contra a grade real (turma
+  existe, é da matéria, não colide; turnos não deixam matéria de fora) e só as aceitas
+  vão em `acoesGrade` (com `turma`/`horario` para exibir). O app mostra o card de diff
+  (`AcoesGradeCard.svelte`) com "Aplicar"/"Descartar" — **nada muda sem o clique** — e,
+  depois de aplicar, "Desfazer" (também no toast). Só a última resposta aplica.
+- **`analisar_turmas_na_grade {codigo}`** (idem: fora do Montador manda abri-lo): para cada turma da matéria,
+  `cabe`, `colideCom`, `foraDoTurno`, `lotada`; as que cabem trazem o `[TURMA]` pronto.
+- **Celular**: o painel é um sheet de `85dvh`; aplicar grade/turma/mudanças recolhe o
+  painel para o aluno ver a grade. Sugestões iniciais dependem da grade
+  (`utils/sugestoes-montador.ts`).
+- **Texto**: o chat desenha markdown leve (`chat-markers.ts`): parágrafos, `###`, listas,
+  tabela (vira cartões no estreito), `**negrito**`, `*itálico*`, `` `código` ``. O prompt
+  (bloco "Formatação") diz o que usar.
 
 ## Memória e custo
 

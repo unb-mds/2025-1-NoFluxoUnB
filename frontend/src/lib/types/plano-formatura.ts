@@ -31,8 +31,38 @@ export type PlannerChatRole = 'user' | 'assistant';
  */
 export interface OpcaoGradeChat {
 	estrategia: string;
+	/** O que a tela aplica: um par código→turma por matéria. */
 	selecao: Array<{ codigo: string; idTurma: number }>;
+	/** Só para exibir a mini-grade no chat (o backend manda quando montou a grade). */
+	detalhes?: Array<{
+		codigo: string;
+		turma: string;
+		docente: string | null;
+		horario: string | null;
+	}>;
+	/** Métricas reais da opção (card e comparador do chat). */
+	metricas?: { diasComAula: number; minutosDeLacuna: number; horasTotais: number };
 }
+
+/**
+ * Mudança pontual que a Darcy propôs na grade aberta, já validada pelo backend
+ * (turma existe, é da matéria, não colide). Só é aplicada no clique do aluno.
+ * `turma`/`horario` são só para o card mostrar o diff.
+ */
+export type AcaoGradeChat =
+	| { tipo: 'adicionar'; codigo: string; idTurma?: number; turma?: string; horario?: string | null }
+	| { tipo: 'remover'; codigo: string }
+	| {
+			tipo: 'trocarTurma';
+			codigo: string;
+			idTurma: number;
+			turma?: string;
+			horario?: string | null;
+	  }
+	| { tipo: 'priorizar'; codigo: string }
+	| { tipo: 'turnos'; turnos: Array<'M' | 'T' | 'N'> }
+	| { tipo: 'criarCenario'; nome: string }
+	| { tipo: 'limpar' };
 
 export interface PlannerChatMessage {
 	role: PlannerChatRole;
@@ -44,6 +74,10 @@ export interface PlannerChatMessage {
 	 * texto `[MONTAR_GRADE|...]`.
 	 */
 	opcaoGrade?: OpcaoGradeChat;
+	/** Todas as opções que o backend calculou (a escolhida inclusa) — comparador do chat. */
+	opcoesGrade?: OpcaoGradeChat[];
+	/** Mudanças pontuais propostas (card de diff com "Aplicar"). */
+	acoesGrade?: AcaoGradeChat[];
 }
 
 export interface PlannerChatResponse {

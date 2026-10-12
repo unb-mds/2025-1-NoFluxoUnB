@@ -4,42 +4,148 @@ import {
 	fatiaSegura,
 	indiceRespostaViva,
 	mensagemPerguntarSobre,
-	type BlocoChat
+	textoDaBolha,
+	type BlocoChat,
+	type LinhaBolha
 } from './chat-markers';
 
 const tipos = (b: BlocoChat[]) => b.map((x) => x.tipo);
 
+/** Linhas da única bolha de `texto`. */
+function linhas(texto: string): LinhaBolha[] {
+	const [b] = parseMensagemChat(texto);
+	if (b?.tipo !== 'bolha') throw new Error('esperava bolha');
+	return b.linhas;
+}
+
+/** Segmentos do primeiro parágrafo de `texto`. */
+function paragrafo(texto: string) {
+	const [l] = linhas(texto);
+	if (l.tipo !== 'paragrafo') throw new Error(`esperava parágrafo, veio ${l.tipo}`);
+	return l.segmentos;
+}
+
+/** Texto puro da bolha `i`. */
+function textoBolha(b: BlocoChat[], i = 0): string {
+	const bolha = b[i];
+	if (bolha?.tipo !== 'bolha') throw new Error('esperava bolha');
+	return textoDaBolha(bolha);
+}
+
 describe('parseMensagemChat — texto, negrito e códigos', () => {
-	it('texto simples vira uma bolha', () => {
+	it('texto simples vira uma bolha com um parágrafo', () => {
 		const b = parseMensagemChat('Olá, tudo bem?');
 		expect(b).toEqual([
-			{ tipo: 'bolha', segmentos: [{ tipo: 'texto', valor: 'Olá, tudo bem?', negrito: false }] }
+			{
+				tipo: 'bolha',
+				linhas: [
+					{
+						tipo: 'paragrafo',
+						segmentos: [{ tipo: 'texto', valor: 'Olá, tudo bem?', negrito: false }]
+					}
+				]
+			}
 		]);
 	});
 
 	it('códigos de matéria viram segmentos próprios', () => {
-		const [bolha] = parseMensagemChat('Pegue FGA0240 antes de MAT0026.');
-		expect(bolha.tipo).toBe('bolha');
-		if (bolha.tipo !== 'bolha') return;
-		expect(bolha.segmentos.filter((s) => s.tipo === 'codigo').map((s) => s.valor)).toEqual([
+		const segs = paragrafo('Pegue FGA0240 antes de MAT0026.');
+		expect(segs.filter((s) => s.tipo === 'codigo').map((s) => s.valor)).toEqual([
 			'FGA0240',
 			'MAT0026'
 		]);
 	});
 
 	it('código dentro de **negrito** continua sendo código, marcado como negrito', () => {
-		const [bolha] = parseMensagemChat('Recomendo **Cálculo 2 (MAT0026)** agora.');
-		if (bolha.tipo !== 'bolha') throw new Error('esperava bolha');
-		const codigo = bolha.segmentos.find((s) => s.tipo === 'codigo');
-		expect(codigo).toEqual({ tipo: 'codigo', valor: 'MAT0026', negrito: true });
-		expect(bolha.segmentos.some((s) => s.tipo === 'texto' && s.negrito)).toBe(true);
+		const segs = paragrafo('Recomendo **Cálculo 2 (MAT0026)** agora.');
+		expect(segs.find((s) => s.tipo === 'codigo')).toEqual({
+			tipo: 'codigo',
+			valor: 'MAT0026',
+			negrito: true
+		});
+		expect(segs.some((s) => s.tipo === 'texto' && s.negrito)).toBe(true);
 	});
 
-	it('normaliza bullets e linhas em branco em excesso', () => {
-		const [bolha] = parseMensagemChat('Itens:\n\n\n\n- um\n* dois');
-		if (bolha.tipo !== 'bolha') throw new Error('esperava bolha');
-		const texto = bolha.segmentos.map((s) => s.valor).join('');
-		expect(texto).toBe('Itens:\n\n•  um\n•  dois');
+	it('*itálico* e `código` inline', () => {
+		const segs = paragrafo('Use *com calma* o `freeMask` e `MAT0026`.');
+		expect(segs).toEqual([
+			{ tipo: 'texto', valor: 'Use ', negrito: false },
+			{ tipo: 'texto', valor: 'com calma', negrito: false, italico: true },
+			{ tipo: 'texto', valor: ' o ', negrito: false },
+			{ tipo: 'mono', valor: 'freeMask', negrito: false },
+			{ tipo: 'texto', valor: ' e ', negrito: false },
+			{ tipo: 'codigo', valor: 'MAT0026', negrito: false },
+			{ tipo: 'texto', valor: '.', negrito: false }
+		]);
+	});
+
+	it('asterisco solto (3 * 4) não vira itálico', () => {
+		expect(paragrafo('São 3 * 4 = 12 créditos').every((s) => !s.italico)).toBe(true);
+	});
+
+	it('linhas em branco separam parágrafos; quebra simples fica no parágrafo', () => {
+		const l = linhas('Um\ndois\n\n\n\nTrês');
+		expect(l.map((x) => x.tipo)).toEqual(['paragrafo', 'paragrafo']);
+		expect(textoBolha(parseMensagemChat('Um\ndois\n\n\n\nTrês'))).toBe('Um\ndois\n\nTrês');
+	});
+});
+
+describe('parseMensagemChat — listas, títulos e tabelas', () => {
+	it('itens com - * • viram uma lista não ordenada', () => {
+		const l = linhas('Itens:\n- um\n* dois\n• três');
+		expect(l.map((x) => x.tipo)).toEqual(['paragrafo', 'lista']);
+		const lista = l[1];
+		if (lista.tipo !== 'lista') return;
+		expect(lista.ordenada).toBe(false);
+		expect(lista.itens.map((i) => i.map((s) => s.valor).join(''))).toEqual(['um', 'dois', 'três']);
+	});
+
+	it('lista ordenada guarda o número inicial', () => {
+		const [lista] = linhas('3. três\n4) quatro');
+		expect(lista).toMatchObject({ tipo: 'lista', ordenada: true, inicio: 3 });
+		if (lista.tipo === 'lista') expect(lista.itens).toHaveLength(2);
+	});
+
+	it('item com negrito e código', () => {
+		const [lista] = linhas('- **MAT0026** — Cálculo 2');
+		if (lista.tipo !== 'lista') throw new Error('esperava lista');
+		expect(lista.itens[0][0]).toEqual({ tipo: 'codigo', valor: 'MAT0026', negrito: true });
+	});
+
+	it('linha recuada logo após um item continua o item', () => {
+		const [lista] = linhas('- primeiro\n  continua aqui\n- segundo');
+		if (lista.tipo !== 'lista') throw new Error('esperava lista');
+		expect(lista.itens).toHaveLength(2);
+		expect(lista.itens[0].map((s) => s.valor).join('')).toBe('primeiro\ncontinua aqui');
+	});
+
+	it('### título vira linha de título', () => {
+		const l = linhas('### Opção 1\nMenos dias.');
+		expect(l[0]).toEqual({
+			tipo: 'titulo',
+			segmentos: [{ tipo: 'texto', valor: 'Opção 1', negrito: false }]
+		});
+		expect(l[1].tipo).toBe('paragrafo');
+	});
+
+	it('tabela com separador vira cabeçalho + linhas', () => {
+		const [t] = linhas('| Opção | Dias |\n|---|:--:|\n| A | 3 |\n| B | 4 |');
+		if (t.tipo !== 'tabela') throw new Error('esperava tabela');
+		const txt = (c: { valor: string }[]) => c.map((s) => s.valor).join('');
+		expect(t.cabecalho.map(txt)).toEqual(['Opção', 'Dias']);
+		expect(t.linhas.map((l) => l.map(txt))).toEqual([
+			['A', '3'],
+			['B', '4']
+		]);
+	});
+
+	it('linha com | sem separador continua texto', () => {
+		expect(linhas('| só isso |').map((x) => x.tipo)).toEqual(['paragrafo']);
+	});
+
+	it('textoDaBolha achata lista e tabela', () => {
+		const b = parseMensagemChat('Veja:\n1. A\n2. B\n\n| x | y |\n|---|---|\n| 1 | 2 |');
+		expect(textoBolha(b)).toBe('Veja:\n\n1. A\n2. B\n\nx · y\n1 · 2');
 	});
 });
 
@@ -104,8 +210,7 @@ describe('parseMensagemChat — [MONTAR_GRADE]', () => {
 	it('sem código válido não gera bloco nem sobra texto cru', () => {
 		const b = parseMensagemChat('Pronto. [MONTAR_GRADE|M,T]');
 		expect(tipos(b)).toEqual(['bolha']);
-		if (b[0].tipo !== 'bolha') return;
-		expect(b[0].segmentos.map((s) => s.valor).join('')).not.toContain('MONTAR_GRADE');
+		expect(textoBolha(b)).not.toContain('MONTAR_GRADE');
 	});
 });
 
@@ -125,8 +230,7 @@ describe('parseMensagemChat — [BOTAO]', () => {
 	it('marcador sem fechar colchete continua como texto', () => {
 		const b = parseMensagemChat('Escolha [BOTAO|Sim');
 		expect(tipos(b)).toEqual(['bolha']);
-		if (b[0].tipo !== 'bolha') return;
-		expect(b[0].segmentos.map((s) => s.valor).join('')).toContain('[BOTAO|Sim');
+		expect(textoBolha(b)).toContain('[BOTAO|Sim');
 	});
 
 	it('texto entre botões separa os grupos', () => {
@@ -142,8 +246,10 @@ describe('fatiaSegura', () => {
 	it('não deixa negrito aberto', () => {
 		expect(fatiaSegura('Oi **forte** fim', 6)).toBe('Oi ');
 	});
+	it('não deixa `código` aberto', () => {
+		expect(fatiaSegura('Use `freeMask` aí', 8)).toBe('Use ');
+	});
 });
-
 
 describe('indiceRespostaViva — ações só na última resposta', () => {
 	const u = { role: 'user' as const };
@@ -165,7 +271,9 @@ describe('indiceRespostaViva — ações só na última resposta', () => {
 
 describe('mensagemPerguntarSobre', () => {
 	it('frase completa com nome e código, nunca o código cru', () => {
-		expect(mensagemPerguntarSobre('MAT0026', 'Cálculo 2')).toBe('Me conta sobre Cálculo 2 (MAT0026)');
+		expect(mensagemPerguntarSobre('MAT0026', 'Cálculo 2')).toBe(
+			'Me conta sobre Cálculo 2 (MAT0026)'
+		);
 		expect(mensagemPerguntarSobre('MAT0026')).toBe('Me conta sobre a matéria MAT0026');
 	});
 });

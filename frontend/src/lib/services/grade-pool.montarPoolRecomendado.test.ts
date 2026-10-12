@@ -85,6 +85,7 @@ describe('montarPoolRecomendado', () => {
 	beforeEach(() => {
 		curso.materias = [];
 		curso.preRequisitos = [];
+		curso.coRequisitos = [];
 		curso.equivalencias = [];
 		completed.clear();
 		current.clear();
@@ -109,7 +110,11 @@ describe('montarPoolRecomendado', () => {
 		expect(r.materias.map((m) => m.codigo)).toEqual(['MATR0001', 'OBR0001']);
 	});
 
-	it('as obrigatórias param no limite de créditos', async () => {
+	/**
+	 * Obrigatória não é cortada pelo limite na LISTA: quem corta é o solver, onde
+	 * ela pesa mais que optativa. A ordem continua dizendo quem cabe primeiro.
+	 */
+	it('obrigatória além do limite continua na lista, depois das que cabem', async () => {
 		curso.materias = [
 			materiaDaMatriz('OBR0001', 1, 0, 1),
 			materiaDaMatriz('OBR0002', 2, 0, 2),
@@ -121,8 +126,15 @@ describe('montarPoolRecomendado', () => {
 
 		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 12 });
 
-		// 4 créditos cada: cabem 3, e as mais atrasadas (nível baixo) vêm primeiro.
-		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0001', 'OBR0002', 'OBR0003']);
+		// 4 créditos cada: cabem 3, e as mais atrasadas (nível baixo) vêm primeiro;
+		// as outras duas vêm depois, para o solver poder trocá-las.
+		expect(r.materias.map((m) => m.codigo)).toEqual([
+			'OBR0001',
+			'OBR0002',
+			'OBR0003',
+			'OBR0004',
+			'OBR0005'
+		]);
 	});
 
 	/**
@@ -142,8 +154,14 @@ describe('montarPoolRecomendado', () => {
 
 		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 12 });
 
-		// 4 da MATR + 8 de recomendação = 12.
-		expect(r.materias.map((m) => m.codigo)).toEqual(['MATR0001', 'OBR0001', 'OBR0002']);
+		// 4 da MATR + 8 de recomendação = 12; OBR0003 não cabe, mas é obrigatória e
+		// fica na lista, por último.
+		expect(r.materias.map((m) => m.codigo)).toEqual([
+			'MATR0001',
+			'OBR0001',
+			'OBR0002',
+			'OBR0003'
+		]);
 	});
 
 	/**
@@ -201,6 +219,49 @@ describe('montarPoolRecomendado', () => {
 		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
 
 		expect(r.materias.map((m) => m.codigo)).toEqual(['OPT0003', 'OPT0001', 'OPT0002']);
+	});
+
+	/**
+	 * Caso real (Eng. de Software): TPPE é optativa, mas é pré-requisito de Eng. de
+	 * Produto de Software (obrigatória), e depende de matéria que o aluno cursa agora.
+	 * Ordenar primeiro por "pré-requisito em curso" a mandava para o fim das
+	 * optativas, e o limite acabava em Prática Desportiva e afins antes de chegar nela.
+	 */
+	it('optatória com pré-requisito em curso ainda vem antes da optativa comum', async () => {
+		curso.materias = [
+			materiaDaMatriz('MATR0001', 3, 0, 1),
+			materiaDaMatriz('OPT0001', 0, 1, 2),
+			materiaDaMatriz('OPT0003', 0, 1, 3)
+		];
+		curso.preRequisitos = [
+			{ idMateria: 3, idPreRequisito: 1, codigoMateriaRequisito: 'MATR0001', expressaoLogica: null }
+		];
+		todasComOferta();
+		current.add('MATR0001');
+		optatorias = new Map([['OPT0003', ['OBR0009']]]);
+
+		// Cabe a em curso e mais UMA optativa.
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 8 });
+
+		expect(r.materias.map((m) => m.codigo)).toEqual(['MATR0001', 'OPT0003']);
+	});
+
+	/**
+	 * Teoria e Prática de Eletrônica Digital são correquisito uma da outra: o
+	 * orçamento só tinha espaço para a Teoria, e a Prática ficava fora da lista —
+	 * a grade saía com uma matéria que o SIGAA não deixa matricular sozinha.
+	 */
+	it('traz o correquisito junto, mesmo além do orçamento', async () => {
+		curso.materias = [materiaDaMatriz('OPT0074', 0, 1, 1), materiaDaMatriz('OPT0072', 0, 1, 2, 2)];
+		curso.coRequisitos = [
+			{ idMateria: 1, codigoMateriaCoRequisito: 'OPT0072' },
+			{ idMateria: 2, codigoMateriaCoRequisito: 'OPT0074' }
+		];
+		todasComOferta();
+
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 4 });
+
+		expect(r.materias.map((m) => m.codigo).sort()).toEqual(['OPT0072', 'OPT0074']);
 	});
 
 	/**
@@ -333,8 +394,10 @@ describe('montarPoolRecomendado', () => {
 			['OPT0001', '4M12']
 		]);
 
+		// OBR0002 conflita com OBR0001 no encaixe guloso, mas é obrigatória: fica na
+		// lista, por último, e o solver decide qual das duas vale mais.
 		const periodo = await montarPoolRecomendado('2026.2', { limiteCreditos: 8 });
-		expect(periodo.materias.map((m) => m.codigo)).toEqual(['OBR0001', 'OBR0003']);
+		expect(periodo.materias.map((m) => m.codigo)).toEqual(['OBR0001', 'OBR0003', 'OBR0002']);
 
 		const todas = await montarPoolRecomendado('2026.2', {
 			limiteCreditos: 8,

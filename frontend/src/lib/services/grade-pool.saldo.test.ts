@@ -305,7 +305,7 @@ describe('orçamento das matérias em curso', () => {
 		expect(r.materias.map((m) => m.codigo)).toEqual(['MATR0001', 'OBR0001']);
 	});
 
-	it('estourado o teto pelas em curso, nada mais é recomendado', async () => {
+	it('estourado o teto pelas em curso, só a obrigatória continua na lista', async () => {
 		curso.materias = [
 			materiaDaMatriz('MATR0001', 1, 0, 1, 24),
 			materiaDaMatriz('OBR0001', 2, 0, 2, 4)
@@ -315,7 +315,9 @@ describe('orçamento das matérias em curso', () => {
 
 		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
 
-		expect(r.materias.map((m) => m.codigo)).toEqual(['MATR0001']);
+		// Não cabe na grade (o solver não a encaixa), mas aparece como sugestão: o
+		// aluno precisa saber que a obrigatória existe e tem turma.
+		expect(r.materias.map((m) => m.codigo)).toEqual(['MATR0001', 'OBR0001']);
 	});
 
 	/**

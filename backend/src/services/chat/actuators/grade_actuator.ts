@@ -511,7 +511,12 @@ function criarRevisorHorario(
 /** O que sobrevive do `OpcaoGrade` completo pro contrato `/chat/send` — Fase 3 do plano. */
 export interface OpcaoGradeResumo {
     estrategia: string;
+    /** O que a tela APLICA: um par código→turma por matéria. */
     selecao: Array<{ codigo: string; idTurma: number }>;
+    /** Só para exibir (mini-grade no chat): turma, docente e horário SIGAA de cada par. */
+    detalhes?: Array<{ codigo: string; turma: string; docente: string | null; horario: string | null }>;
+    /** Métricas reais da opção, para o card e o comparador do chat. */
+    metricas?: { diasComAula: number; minutosDeLacuna: number; horasTotais: number };
 }
 
 const ESTRATEGIA_PARA_NOME: Record<string, string> = {
@@ -520,13 +525,22 @@ const ESTRATEGIA_PARA_NOME: Record<string, string> = {
     semana_equilibrada: "Semana equilibrada",
 };
 
-function resumirOpcao(opcao: OpcaoGrade<TurmaOferta>): OpcaoGradeResumo {
+export function resumirOpcao(opcao: OpcaoGrade<TurmaOferta>): OpcaoGradeResumo {
+    const pares = [...opcao.resultado.selecao.entries()];
     return {
         estrategia: opcao.estrategia,
-        selecao: [...opcao.resultado.selecao.entries()].map(([codigo, t]) => ({
+        selecao: pares.map(([codigo, t]) => ({ codigo, idTurma: t.turma.id_turmas })),
+        detalhes: pares.map(([codigo, t]) => ({
             codigo,
-            idTurma: t.turma.id_turmas,
+            turma: t.turma.turma,
+            docente: t.turma.docente,
+            horario: t.turma.horario,
         })),
+        metricas: {
+            diasComAula: opcao.metricas.diasComAula,
+            minutosDeLacuna: opcao.metricas.minutosDeLacuna,
+            horasTotais: opcao.metricas.horasTotais,
+        },
     };
 }
 
@@ -580,6 +594,7 @@ export function createGradeAgent(
     let ultimosCandidatos: CandidatoGrade[] | null = null;
     let ultimasOpcoes: OpcaoGrade<TurmaOferta>[] | null = null;
     let ultimaOpcaoEscolhida: OpcaoGradeResumo | null = null;
+    let ultimasOpcoesResumo: OpcaoGradeResumo[] | null = null;
 
     const recomendarTool = tool({
         name: "recomendar_por_horario_livre",
@@ -640,6 +655,7 @@ export function createGradeAgent(
             } catch (err) {
                 ultimasOpcoes = null;
                 ultimaOpcaoEscolhida = null;
+                ultimasOpcoesResumo = null;
                 const msg = err instanceof Error ? err.message : String(err);
                 return JSON.stringify({ erro: msg });
             }
@@ -652,6 +668,7 @@ export function createGradeAgent(
                 resultado.opcoes[0] ||
                 null;
             ultimaOpcaoEscolhida = opcaoEscolhida ? resumirOpcao(opcaoEscolhida) : null;
+            ultimasOpcoesResumo = resultado.opcoes.map(resumirOpcao);
 
             return JSON.stringify({
                 opcoes: resultado.opcoes.map(formatarOpcaoParaLlm),
@@ -692,6 +709,7 @@ export function createGradeAgent(
     });
 
     (agent as AgentComOpcaoGrade).obterUltimaOpcaoGrade = () => ultimaOpcaoEscolhida;
+    (agent as AgentComOpcaoGrade).obterUltimasOpcoesGrade = () => ultimasOpcoesResumo;
     return agent;
 }
 
@@ -705,10 +723,16 @@ export function createGradeAgent(
  */
 export interface AgentComOpcaoGrade extends Agent {
     obterUltimaOpcaoGrade?: () => OpcaoGradeResumo | null;
+    /** Todas as opções da última `montar_grade` (comparador do chat). */
+    obterUltimasOpcoesGrade?: () => OpcaoGradeResumo[] | null;
 }
 
 export function obterOpcaoGradeDoAgente(agent: Agent): OpcaoGradeResumo | null {
     return (agent as AgentComOpcaoGrade).obterUltimaOpcaoGrade?.() ?? null;
+}
+
+export function obterOpcoesGradeDoAgente(agent: Agent): OpcaoGradeResumo[] | null {
+    return (agent as AgentComOpcaoGrade).obterUltimasOpcoesGrade?.() ?? null;
 }
 
 /**
@@ -729,6 +753,8 @@ function motivoDaReprovacaoGrade(erro: OutputGuardrailTripwireTriggered<any>): s
 export interface RespostaGradeComRevisao {
     reply: string;
     opcaoGrade?: OpcaoGradeResumo;
+    /** Todas as opções calculadas (a escolhida inclusa), mesmas regras de `opcaoGrade`. */
+    opcoesGrade?: OpcaoGradeResumo[];
 }
 
 /**
@@ -750,7 +776,11 @@ export async function runGradeComRevisao(
 ): Promise<RespostaGradeComRevisao> {
     try {
         const resultado = await runSubAgente(agent, input, pai);
-        return { reply: String(resultado.finalOutput ?? ""), opcaoGrade: obterOpcaoGradeDoAgente(agent) ?? undefined };
+        return {
+            reply: String(resultado.finalOutput ?? ""),
+            opcaoGrade: obterOpcaoGradeDoAgente(agent) ?? undefined,
+            opcoesGrade: obterOpcoesGradeDoAgente(agent) ?? undefined,
+        };
     } catch (erro) {
         if (!(erro instanceof OutputGuardrailTripwireTriggered)) throw erro;
 
@@ -765,6 +795,7 @@ export async function runGradeComRevisao(
             return {
                 reply: String(resultadoCorrigido.finalOutput ?? ""),
                 opcaoGrade: obterOpcaoGradeDoAgente(agent) ?? undefined,
+                opcoesGrade: obterOpcoesGradeDoAgente(agent) ?? undefined,
             };
         } catch (segundoErro) {
             if (!(segundoErro instanceof OutputGuardrailTripwireTriggered)) throw segundoErro;

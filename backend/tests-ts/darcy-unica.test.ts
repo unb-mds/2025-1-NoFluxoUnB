@@ -252,6 +252,28 @@ describe("perfil do aluno no contexto", () => {
         expect(texto).toContain("Tela atual: Montador de Grade");
     });
 
+    it("Montador: mostra candidatas, prioridades, o que ficou de fora e cenários", () => {
+        const texto = renderizarPerfil(null, "montador", {
+            tipo: "montador",
+            grade: [{ codigo: "IFD0171", idTurma: 21 }],
+            creditos: 4,
+            turnos: [],
+            incluirCursando: true,
+            horarioLivre: "0",
+            pool: ["IFD0171", "MAT0026"],
+            prioritarias: ["MAT0026"],
+            naoAlocadas: ["MAT0026"],
+            cenarios: [
+                { nome: "Plano A", ativo: true },
+                { nome: "Plano B", ativo: false },
+            ],
+        });
+        expect(texto).toContain("Lista de candidatas no Montador: IFD0171, MAT0026");
+        expect(texto).toContain("Prioritárias (estrela): MAT0026");
+        expect(texto).toContain("Ficaram de fora na última montagem: MAT0026");
+        expect(texto).toContain("Cenários salvos: Plano A (aberto), Plano B");
+    });
+
     it("respeita o teto de tamanho cortando listas com +N", () => {
         const perfil = {
             idUser: "1",
@@ -334,6 +356,86 @@ describe("canal lateral do plano", () => {
 });
 
 // ---------------------------------------------------------------------------
+describe("ações sobre a grade (Montador)", () => {
+    const estadoMontador = {
+        tipo: "montador" as const,
+        grade: [
+            { codigo: "MAT0026", idTurma: 1 },
+            { codigo: "IFD0171", idTurma: 2 },
+        ],
+        creditos: 8,
+        turnos: [],
+        incluirCursando: true,
+        horarioLivre: "0",
+    };
+
+    function semearTurmas() {
+        tabela("materias").push(
+            { id_materia: 26, codigo_materia: "MAT0026" },
+            { id_materia: 171, codigo_materia: "IFD0171" }
+        );
+        tabela("turmas").push(
+            { id_turmas: 1, id_materia: 26, turma: "01", horario: "24M12", ano_periodo: "2026.2", vagas_sobrando: 3 },
+            { id_turmas: 2, id_materia: 171, turma: "01", horario: "35T23", ano_periodo: "2026.2", vagas_sobrando: 3 },
+            { id_turmas: 3, id_materia: 26, turma: "02", horario: "24T23", ano_periodo: "2026.2", vagas_sobrando: 0 },
+            { id_turmas: 4, id_materia: 26, turma: "03", horario: "35T23", ano_periodo: "2026.2", vagas_sobrando: 3 }
+        );
+    }
+
+    const nomesDasTools = (agent: any) => (agent.tools ?? []).map((t: any) => t.name);
+
+    it("fora do Montador a tool existe, mas não age: manda abrir o Montador", async () => {
+        mockCreate
+            .mockResolvedValueOnce(respostaTool("propor_mudancas_grade", { acoes: [{ tipo: "limpar" }] }))
+            .mockResolvedValueOnce(respostaTexto("Abre o Montador."));
+        const agent = createOrquestradorAgent({ email: "a@unb.br", superficie: "plano" });
+        expect(nomesDasTools(agent)).toEqual(expect.arrayContaining(["propor_mudancas_grade", "analisar_turmas_na_grade"]));
+        await run(agent, "limpa minha grade");
+
+        const pedidoFinal = mockCreate.mock.calls[mockCreate.mock.calls.length - 1][0];
+        expect(pedidoFinal.messages.find((m: any) => m.role === "tool").content).toContain("grade aberta no Montador");
+        expect(obterEfeitosDoOrquestrador(agent).acoesGrade).toBeNull();
+    });
+
+    it("propor_mudancas_grade devolve só as ações válidas como efeito", async () => {
+        semearTurmas();
+        mockCreate
+            .mockResolvedValueOnce(
+                respostaTool("propor_mudancas_grade", {
+                    acoes: [
+                        { tipo: "trocarTurma", codigo: "MAT0026", idTurma: 3 },
+                        { tipo: "trocarTurma", codigo: "IFD0171", idTurma: 4 },
+                    ],
+                })
+            )
+            .mockResolvedValueOnce(respostaTexto("Troco Cálculo para a tarde."));
+
+        const agent = createOrquestradorAgent({ email: "a@unb.br", superficie: "montador", estado: estadoMontador });
+        await run(agent, "passa cálculo pra tarde");
+        expect(obterEfeitosDoOrquestrador(agent).acoesGrade).toEqual([
+            { tipo: "trocarTurma", codigo: "MAT0026", idTurma: 3, turma: "02", horario: "24T23" },
+        ]);
+    });
+
+    it("analisar_turmas_na_grade diz quem colide e marca lotada", async () => {
+        semearTurmas();
+        mockCreate
+            .mockResolvedValueOnce(respostaTool("analisar_turmas_na_grade", { codigo: "mat0026" }))
+            .mockResolvedValueOnce(respostaTexto("ok"));
+        const agent = createOrquestradorAgent({ email: "a@unb.br", superficie: "montador", estado: estadoMontador });
+        await run(agent, "tem outra turma de cálculo?");
+
+        const pedidoFinal = mockCreate.mock.calls[mockCreate.mock.calls.length - 1][0];
+        const saida = JSON.parse(pedidoFinal.messages.find((m: any) => m.role === "tool").content);
+        const porId = new Map(saida.turmas.map((t: any) => [t.idTurma, t]));
+        expect(porId.get(3)).toMatchObject({ cabe: true, lotada: true });
+        expect(porId.get(4)).toMatchObject({ cabe: false, colideCom: ["IFD0171"] });
+        expect((porId.get(3) as any).marcador).toContain("[TURMA|02|");
+        expect(obterEfeitosDoOrquestrador(agent).acoesGrade).toBeNull();
+    });
+});
+
+// ---------------------------------------------------------------------------
 describe("janela da sessão", () => {
     const user = (t: string) => ({ role: "user", content: t }) as any;
     const darcy = (t: string) => ({ type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text: t }] }) as any;
@@ -380,6 +482,28 @@ describe("body do /chat/send", () => {
             superficie: "montador",
             estado: { tipo: "montador", grade: [{ codigo: "FGA0001", idTurma: 3 }], creditos: 4, turnos: ["M"], incluirCursando: false, horarioLivre: "123" },
         });
+    });
+
+    it("Montador: pool, prioridades, não alocadas e cenários são saneados", () => {
+        const corpo = parseCorpoChat({
+            message: "oi",
+            superficie: "montador",
+            estado: {
+                tipo: "montador",
+                grade: [],
+                pool: ["fga0001", "FGA0001", 42, "<script>", "MAT0026"],
+                prioritarias: ["mat0026"],
+                naoAlocadas: "FGA0001",
+                cenarios: [{ nome: " Plano A ", ativo: true }, { nome: "" }, { nome: "B" }],
+            },
+        }) as any;
+        expect(corpo.estado.pool).toEqual(["FGA0001", "MAT0026"]);
+        expect(corpo.estado.prioritarias).toEqual(["MAT0026"]);
+        expect(corpo.estado.naoAlocadas).toBeUndefined();
+        expect(corpo.estado.cenarios).toEqual([
+            { nome: "Plano A", ativo: true },
+            { nome: "B", ativo: false },
+        ]);
     });
 
     it("formato antigo do Montador vira superfície montador; curriculoCompleto é ignorado", () => {

@@ -8,7 +8,12 @@
  * sessão do servidor, por isso `historico()` em vez de reenviar mensagens.
  */
 import { apiRequest } from '$lib/utils/api';
-import type { OpcaoGradeChat, PlanoFormaturav2, RestricoesPlano } from '$lib/types/plano-formatura';
+import type {
+	AcaoGradeChat,
+	OpcaoGradeChat,
+	PlanoFormaturav2,
+	RestricoesPlano
+} from '$lib/types/plano-formatura';
 import { ErroIA, type CotaIA } from '$lib/utils/darcy-cota';
 
 export type Superficie = 'assistente' | 'plano' | 'montador';
@@ -23,6 +28,14 @@ export interface EstadoMontador {
 	incluirCursando: boolean;
 	/** `gradeStore.freeMask.toString()` — slots livres nos turnos permitidos. */
 	horarioLivre: string;
+	/** Matérias na lista do Montador (candidatas), com ou sem turma escolhida. */
+	pool?: string[];
+	/** Marcadas com estrela (prioridade na montagem). */
+	prioritarias?: string[];
+	/** O que ficou de fora na última montagem automática. */
+	naoAlocadas?: string[];
+	/** Cenários salvos; `ativo` = o aberto. */
+	cenarios?: Array<{ nome: string; ativo: boolean }>;
 }
 
 export interface EstadoPlano {
@@ -40,6 +53,10 @@ export interface ChatSendResponse {
 	reply: string;
 	/** Seleção que o solver do backend já resolveu (aplicada pelo botão "Montar grade"). */
 	opcaoGrade?: OpcaoGradeChat;
+	/** Todas as opções do solver (a escolhida inclusa), para comparar no chat. */
+	opcoesGrade?: OpcaoGradeChat[];
+	/** Mudanças pontuais na grade aberta, validadas — aplicadas no clique do aluno. */
+	acoesGrade?: AcaoGradeChat[];
 	/** Plano atualizado quando uma tool de plano (adiar, mover, ajustar carga…) mudou algo. */
 	plano?: PlanoFormaturav2;
 	restricoes?: RestricoesPlano;

@@ -21,7 +21,7 @@ import { buscarSugestoesModuloLivre } from '$lib/services/modulo-livre.service';
 import { getOfertaComEquivalencia } from '$lib/services/oferta-turmas.service';
 import { satisfazPreRequisitos } from '$lib/types/curso';
 import { classificarNatureza, isOptativa } from '$lib/types/materia';
-import { setHasCodeIgnoreCase, filtrarNaoCursados } from '$lib/utils/subject-codes';
+import { setHasCodeIgnoreCase, filtrarNaoCursados, normalizarCodigo } from '$lib/utils/subject-codes';
 import { hasConflict, turmaRespeitaTurnos, type Turno } from '$lib/utils/horario-slots';
 import { horasParaCreditos } from '$lib/types/matriz';
 import {
@@ -428,9 +428,13 @@ async function candidatosClassificados(
 		});
 	}
 
+	// Optatória ANTES do critério de pré-requisito: ela é obrigatória disfarçada, e
+	// uma em curso no pré-requisito ia para o fim das optativas — o limite de
+	// créditos acabava em optativa comum antes de chegar nela (TPPE → EPS, na ES).
+	// Entre obrigatórias `optatoria` é sempre falso, então a ordem delas não muda.
 	const porUtilidade = (a: CandidatoMatriz, b: CandidatoMatriz): number =>
-		a.requisitoPendente - b.requisitoPendente ||
 		Number(b.optatoria) - Number(a.optatoria) ||
+		a.requisitoPendente - b.requisitoPendente ||
 		a.ordemPlano - b.ordemPlano ||
 		a.nivel - b.nivel ||
 		a.materia.codigo.localeCompare(b.materia.codigo);
@@ -712,14 +716,21 @@ export async function montarPoolRecomendado(
 		);
 
 	const orcamentoBase = { ...base, creditos: base.creditos + creditosEmCurso };
+
+	// Núcleo = o que trava a formatura: obrigatória e optatória. Entra SEMPRE na
+	// lista quando tem turma num turno aceito, mesmo passando do limite — quem corta
+	// pelo limite é o solver, onde ela pesa `PESO_OBRIGATORIA` e desloca a optativa
+	// comum. Cortar aqui, pela ordem, deixava a obrigatória de fora em dois casos:
+	// a lista que o aluno já tinha ocupava o orçamento (a semeadura só complementa),
+	// e o encaixe guloso escolhia uma turma que conflitava com a próxima obrigatória.
+	const ehNucleo = (m: MateriaGrade) => m.natureza === 'obrigatoria' || m.optatoria === true;
+	const nucleo = candidatas.filter(
+		(m) => ehNucleo(m) && m.turmas.some((t) => turmaRespeitaTurnos(t.mask, base.turnos))
+	);
+
 	let recomendadas: MateriaGrade[];
 	if (opts.escopo === 'todas-pendentes') {
-		// Tudo que conta para a formatura e tem turma num turno aceito entra; o
-		// solver corta pelo limite depois. O resto (optativa comum) pelo orçamento.
-		const ehNucleo = (m: MateriaGrade) => m.natureza === 'obrigatoria' || m.optatoria === true;
-		const nucleo = candidatas.filter(
-			(m) => ehNucleo(m) && m.turmas.some((t) => turmaRespeitaTurnos(t.mask, base.turnos))
-		);
+		// O resto (optativa comum) pelo orçamento.
 		const resto = escolherComOrcamento(
 			candidatas.filter((m) => !ehNucleo(m)),
 			opts.limiteCreditos,
@@ -746,7 +757,30 @@ export async function montarPoolRecomendado(
 			opts.limiteCreditos,
 			principal.ocupado
 		);
-		recomendadas = [...principal.escolhidas, ...complemento];
+		// O núcleo que não coube no encaixe vem por último: na lista, para o solver
+		// poder trocá-lo por optativa comum; fora do prefixo, para não mudar a ordem
+		// de quem já cabia.
+		const listadas = new Set([...principal.escolhidas, ...complemento].map((m) => m.codigo));
+		recomendadas = [
+			...principal.escolhidas,
+			...complemento,
+			...nucleo.filter((m) => !listadas.has(m.codigo))
+		];
+	}
+
+	// Correquisito vem junto: sem o par, o solver tira a matéria da montagem
+	// (`utils/correquisitos`). Só entra se for elegível — par fora da matriz, sem
+	// turma ou na lixeira deixa a matéria na lista, mas ela não vai para a grade.
+	const listadas = new Set([...materiasEmCurso, ...recomendadas].map((m) => m.codigo));
+	const elegivelPorCodigo = new Map(elegiveis.map((m) => [m.codigo, m]));
+	for (const m of [...recomendadas]) {
+		for (const c of m.coRequisitos ?? []) {
+			const par = elegivelPorCodigo.get(normalizarCodigo(c));
+			if (par && !listadas.has(par.codigo)) {
+				recomendadas.push(par);
+				listadas.add(par.codigo);
+			}
+		}
 	}
 
 	return {

@@ -17,7 +17,7 @@
 		type MensagemHistorico
 	} from '$lib/services/chat.service';
 	import { darcyStore } from '$lib/stores/darcy.store.svelte';
-	import { parseMensagemChat } from '$lib/utils/chat-markers';
+	import { parseMensagemChat, textoDaBolha } from '$lib/utils/chat-markers';
 
 	let { onFechar }: { onFechar: () => void } = $props();
 
@@ -117,7 +117,7 @@
 	function textoDe(conteudo: string): string {
 		return parseMensagemChat(conteudo)
 			.map((bloco) => {
-				if (bloco.tipo === 'bolha') return bloco.segmentos.map((s) => s.valor).join('');
+				if (bloco.tipo === 'bolha') return textoDaBolha(bloco);
 				if (bloco.tipo === 'turma')
 					return `Turma ${bloco.turma.turma}${bloco.turma.codigo ? ` · ${bloco.turma.codigo}` : ''}`;
 				if (bloco.tipo === 'grade') return `Grade: ${bloco.codigos.join(', ')}`;

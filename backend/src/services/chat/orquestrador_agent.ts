@@ -19,6 +19,7 @@ import { createMaritacaModel } from "./model_provider";
 import { createIntegralizacaoAgent, runIntegralizacaoComRevisao } from "./actuators/integralizacao_actuator";
 import { createOptativasAgent } from "./actuators/optativas_actuator";
 import { createGradeAgent, runGradeComRevisao, type OpcaoGradeResumo } from "./actuators/grade_actuator";
+import { criarToolsAcoesGrade, type AcaoGrade } from "./grade_acoes";
 import { createModuloLivreAgent } from "./actuators/modulo_livre_actuator";
 import { defaultRegistry } from "../agente/tools";
 import { criarContextoLeve, type AgenteContexto } from "../agente/context";
@@ -42,6 +43,10 @@ export interface RestricoesDevolvidas {
 export interface EfeitosDaConversa {
     /** Seleção que `montar_grade` calculou nesta run. */
     opcaoGrade: OpcaoGradeResumo | null;
+    /** Todas as opções que `montar_grade` calculou nesta run (comparador do chat). */
+    opcoesGrade: OpcaoGradeResumo[] | null;
+    /** Mudanças pontuais na grade aberta, já validadas — o app aplica no clique do aluno. */
+    acoesGrade: AcaoGrade[] | null;
     /** Plano regenerado por uma tool de plano nesta run. */
     plano: PlanoFormaturav2 | null;
     /** Restrições do plano quando alguma tool as alterou nesta run. */
@@ -59,7 +64,7 @@ export interface AgentComEfeitos extends Agent {
 
 export function obterEfeitosDoOrquestrador(agent: Agent): EfeitosDaConversa {
     return (
-        (agent as AgentComEfeitos).obterEfeitos?.() ?? { opcaoGrade: null, plano: null, restricoes: null }
+        (agent as AgentComEfeitos).obterEfeitos?.() ?? { opcaoGrade: null, opcoesGrade: null, acoesGrade: null, plano: null, restricoes: null }
     );
 }
 
@@ -88,6 +93,13 @@ const INSTRUCOES = `Você é a Darcy, assistente de planejamento acadêmico do N
 - Grade horária: "montar_grade" (montar/rearranjar a grade inteira) e "recomendar_por_horario_livre" (o que cabe num horário livre).
 
 Responda em português brasileiro, de forma direta e concisa.
+
+## Formatação (o chat desenha markdown leve)
+- Funciona: **negrito**, *itálico*, listas com "- " ou "1. ", títulos curtos com "### ", tabela pequena (linha de cabeçalho "| A | B |" + "|---|---|") e os marcadores abaixo. Não use links, imagens, citações (>), blocos de código nem HTML — aparecem como texto cru.
+- Estrutura: comece com UMA frase que responde direto. Depois, se precisar, até 5 itens de lista curtos (uma ideia por item). Negrito só no que o aluno precisa ver de relance (código/nome da matéria escolhida, número de créditos, o problema).
+- Tabela só para COMPARAR 2+ opções lado a lado (ex.: grade A × B: dias com aula, furos, créditos), com no máximo 4 colunas e 6 linhas. No celular ela vira cartões, então mantenha as células curtas.
+- Tamanho: até ~120 palavras fora dos cards/marcadores. Não repita em texto o que um card de turma ou de grade já mostra (horário, professor, local).
+- Sem saudação, sem "Claro!", sem resumir a pergunta de volta, sem emoji.
 
 ## Elementos interativos (o app desenha a partir do seu texto)
 - Código de matéria: escreva SEMPRE no formato ABC1234 (ex.: FGA0242), sem espaço nem hífen — o app vira um chip clicável com o nome dela.
@@ -119,6 +131,10 @@ O aluno está montando uma GRADE HORÁRIA nesta tela, com as turmas realmente of
 - Só recomende matérias que TENHAM turma ofertada neste período (a tool buscar_optativas já filtra por isso).
 - Se o aluno disser que tem um horário livre / buraco na grade e pedir recomendação (ex: "tenho segunda de manhã livre, me recomenda algo"), delegue para a tool "recomendar_por_horario_livre" em vez de buscar_optativas — ela já sabe o que cabe no horário e o que é parecido com o histórico do aluno.
 - MONTAR/REARRANJAR A GRADE INTEIRA: quando o aluno pedir para montar ou rearranjar a grade garantindo/priorizando uma matéria ESSENCIAL, restringindo TURNOS e/ou pedindo um PROFESSOR específico, delegue para a tool "montar_grade" — passe o pedido do aluno como texto (código da essencial, turnos, nome do professor, se é pra incluir ou não as matérias que ele já está cursando, qual estratégia — menos dias, menos furos, semana equilibrada). Essa tool RESOLVE o conflito de horário de verdade no backend (branch-and-bound, sem re-solve no app depois): o resultado é GARANTIDAMENTE ótimo, nunca uma prévia sujeita a mudar — não prometa "vou tentar encaixar". As matérias em curso entram SEMPRE na turma real da matrícula. Repasse a resposta citando MÉTRICAS REAIS da opção (dias com aula, minutos de furo entre aulas, se o professor pedido foi atendido). A matéria ESSENCIAL NUNCA fica de fora só por causa de professor — isso mudou: professor é só preferência de desempate (a tool tenta atender, mas se nenhuma turma daquele professor coube, a essencial ainda entra do mesmo jeito, só sem o professor pedido — avise isso citando a métrica de professor atendido, não como "pode ficar de fora"). Se a tool voltar com erro de essencial (sem turma ofertada, fora do turno pedido, pré-requisito pendente ou conflito de horário com outra matéria), explique o motivo REAL ao aluno em vez de dizer genericamente que não coube.
+- MUDANÇA PONTUAL na grade aberta (tirar/pôr uma matéria, trocar a turma de uma, priorizar, mudar turnos, salvar como cenário, limpar): use "propor_mudancas_grade". Ela valida tudo contra a grade real e o app mostra um card com "Aplicar"/"Descartar" — você NUNCA diz que já mudou: diga o que vai mudar se ele aplicar. Mudou a grade? Sempre por essa tool (ou montar_grade), nunca só em texto. Precisa de um idTurma? Pegue de "analisar_turmas_na_grade" ou "consultar_turmas_materia", nunca invente.
+- "Por que X não coube?", "tem outra turma de X?", "quero X de manhã": use "analisar_turmas_na_grade" — ela diz quais turmas cabem e, das que não cabem, com quem colidem ou se estão fora do turno. Se o problema for pré-requisito, use "consultar_status_materia".
+- "Se eu não pegar X agora, atrasa?": use "simular_cenario" (adiar X) e cite o antes/depois da formatura.
+- O bloco "Tela atual" traz a lista de candidatas, as prioritárias, o que ficou de fora na última montagem e os cenários — use isso antes de perguntar ao aluno.
 - MÓDULO LIVRE: se o aluno pedir sugestão de módulo livre (matéria fora da matriz do curso, nem obrigatória nem optativa) e a área de interesse ainda não apareceu na conversa, pergunte em UMA frase curta ANTES de delegar — sem chamar tool ainda (ex: "Qual área te interessa pra módulo livre? Ex: economia, música, gestão..."). Use sempre o histórico da conversa: se a área já foi dita antes (nesse turno ou em qualquer mensagem anterior), não pergunte de novo — delegue direto pra tool "buscar_modulo_livre" com o tema/área como input.`;
 
 const PROTOCOLO_PLANO = `
@@ -238,7 +254,7 @@ export function createOrquestradorAgent(opts: OpcoesOrquestrador | string): Agen
     const periodoAtivo = opcoes.periodoAtivo ?? perfil?.periodoAtivo ?? "";
     const noMontador = superficie === "montador";
 
-    const efeitos: EfeitosDaConversa = { opcaoGrade: null, plano: null, restricoes: null };
+    const efeitos: EfeitosDaConversa = { opcaoGrade: null, opcoesGrade: null, acoesGrade: null, plano: null, restricoes: null };
 
     // Tools de plano mutam o contexto (ex.: mover_materia): cópia por run, nunca o do cache.
     const ctx: AgenteContexto = perfil?.ctx ? clonarContexto(perfil.ctx) : criarContextoLeve(perfil?.idUser ?? "");
@@ -276,7 +292,10 @@ export function createOrquestradorAgent(opts: OpcoesOrquestrador | string): Agen
             return "O aluno ainda não enviou o histórico — sem a matriz dele não dá para montar a grade. Oriente a enviar o histórico.";
         }
         const resultado = await runGradeComRevisao(grade, input, contexto);
-        if (resultado.opcaoGrade) efeitos.opcaoGrade = resultado.opcaoGrade;
+        if (resultado.opcaoGrade) {
+            efeitos.opcaoGrade = resultado.opcaoGrade;
+            efeitos.opcoesGrade = resultado.opcoesGrade ?? null;
+        }
         return resultado.reply;
     };
 
@@ -318,6 +337,14 @@ export function createOrquestradorAgent(opts: OpcoesOrquestrador | string): Agen
         const adaptada = adaptarToolDoRegistry(nome, ctx, capturarPlano);
         if (adaptada) tools.push(adaptada);
     }
+
+    // Ações pontuais sobre a grade: registradas em toda tela (mesmo conjunto de
+    // tools), mas só agem com a grade aberta no Montador.
+    tools.push(
+        ...criarToolsAcoesGrade(noMontador ? estadoMontador : null, periodoAtivo, (acoes) => {
+            efeitos.acoesGrade = acoes.length > 0 ? acoes : null;
+        })
+    );
 
     const agent = new Agent({
         name: "DarcyOrquestrador",

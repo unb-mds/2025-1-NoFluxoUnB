@@ -45,7 +45,13 @@
 		encontrarTurmaReal
 	} from '$lib/utils/turmas-reais';
 	import { ROUTES } from '$lib/config/routes';
-	import type { SemestrePlano, ItemSemestre, MateriaPlano } from '$lib/types/plano-formatura';
+	import type {
+		AcaoGradeChat,
+		SemestrePlano,
+		ItemSemestre,
+		MateriaPlano
+	} from '$lib/types/plano-formatura';
+	import type { ResultadoAcoesChat } from '$lib/utils/chat-acoes';
 	import { CalendarDays, Loader2 } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 
@@ -471,7 +477,10 @@
 	 * `[MONTAR_GRADE|...]`, que continua sendo o fallback).
 	 * Espelha `ChatService.OrquestradorChatResponse['opcaoGrade']`.
 	 */
-	type OpcaoGradeDoChat = { estrategia: string; selecao: Array<{ codigo: string; idTurma: number }> };
+	type OpcaoGradeDoChat = {
+		estrategia: string;
+		selecao: Array<{ codigo: string; idTurma: number }>;
+	};
 
 	/**
 	 * Ação vinda do chat ([MONTAR_GRADE|...]): garante as matérias no pool, marca-as
@@ -596,6 +605,88 @@
 	}
 
 	/**
+	 * Card de mudanças pontuais da Darcy (`acoesGrade`, já validadas no backend).
+	 * Aplica na ordem e devolve o "Desfazer": volta seleção, turnos, estrelas,
+	 * matérias tiradas da lista e o cenário que estava aberto. O que falhar (a
+	 * grade mudou desde a proposta) vira aviso, sem derrubar o resto.
+	 */
+	async function aplicarAcoesDoChat(acoes: AcaoGradeChat[]): Promise<ResultadoAcoesChat> {
+		const antes = {
+			selecao: gradeStore.snapshotSelecao(),
+			turnos: [...gradeStore.turnosPermitidos],
+			cenario: gradeStore.activeId
+		};
+		const tiradas: string[] = [];
+		const estreladas: string[] = [];
+		const falhas: string[] = [];
+
+		for (const a of acoes) {
+			if (a.tipo === 'adicionar' || a.tipo === 'trocarTurma') {
+				const c = a.codigo;
+				if (!gradeStore.hasMateria(c)) await adicionarAoPool(c);
+				if (!gradeStore.hasMateria(c)) {
+					falhas.push(avisoAdd ?? `${c} não entrou na lista`);
+					continue;
+				}
+				if (a.idTurma) {
+					const r = gradeStore.selecionarTurma(c, a.idTurma);
+					if (!r.ok) {
+						falhas.push(
+							r.conflitaCom
+								? `${c} bate horário com ${r.conflitaCom}`
+								: `turma de ${c} saiu da oferta`
+						);
+					}
+				}
+			} else if (a.tipo === 'remover') {
+				if (gradeStore.hasMateria(a.codigo)) {
+					gradeStore.removerMateriaDoPool(a.codigo);
+					tiradas.push(a.codigo);
+				}
+			} else if (a.tipo === 'priorizar') {
+				if (!gradeStore.isPrioritaria(a.codigo)) {
+					gradeStore.togglePrioridade(a.codigo);
+					estreladas.push(a.codigo);
+				}
+			} else if (a.tipo === 'turnos') {
+				gradeStore.setTurnos(a.turnos);
+			} else if (a.tipo === 'criarCenario') {
+				// "Salvar como cenário": o novo nasce com a grade de agora.
+				const atual = gradeStore.snapshotSelecao();
+				gradeStore.criarCenario(a.nome);
+				gradeStore.aplicarSelecao(atual);
+			} else if (a.tipo === 'limpar') {
+				gradeStore.limpar();
+			}
+		}
+
+		const aplicadas = acoes.length - falhas.length;
+		if (aplicadas > 0) {
+			toast.success(
+				aplicadas === 1 ? 'Mudança aplicada na grade.' : `${aplicadas} mudanças aplicadas.`,
+				{
+					action: { label: 'Desfazer', onClick: () => void desfazer() }
+				}
+			);
+		}
+
+		let desfeito = false;
+		async function desfazer() {
+			if (desfeito) return;
+			desfeito = true;
+			if (gradeStore.activeId !== antes.cenario && antes.cenario) {
+				gradeStore.selecionarCenario(antes.cenario);
+			}
+			for (const c of tiradas) await adicionarAoPool(c);
+			for (const c of estreladas) if (gradeStore.isPrioritaria(c)) gradeStore.togglePrioridade(c);
+			gradeStore.setTurnos(antes.turnos);
+			gradeStore.restaurarSelecao(antes.selecao);
+		}
+
+		return { falhas, desfazer };
+	}
+
+	/**
 	 * Resposta do aluno sobre módulo livre.
 	 *
 	 * Persiste porque a pergunta não deve voltar a cada visita — nem para quem
@@ -681,13 +772,13 @@
 <PageBackground />
 
 {#if status === 'loading'}
-	<div class="relative z-10 flex items-center justify-center gap-2 py-20 text-muted-foreground">
+	<div class="text-muted-foreground relative z-10 flex items-center justify-center gap-2 py-20">
 		<Loader2 class="h-5 w-5 animate-spin" /> Carregando matérias e turmas...
 	</div>
 {:else if status === 'error'}
 	<div class="relative z-10 mx-auto w-full max-w-2xl px-4 py-20">
 		<div
-			class="rounded-2xl border border-red-300 bg-red-50 dark:border-red-300/30 dark:bg-red-500/10 px-4 py-6 text-center text-sm text-red-800 dark:text-red-200"
+			class="rounded-2xl border border-red-300 bg-red-50 px-4 py-6 text-center text-sm text-red-800 dark:border-red-300/30 dark:bg-red-500/10 dark:text-red-200"
 		>
 			{erro}
 		</div>
@@ -721,6 +812,7 @@
 		onAddToGrade={adicionarComAviso}
 		onUsarTurma={usarTurmaDoChat}
 		onAplicarGrade={aplicarGradeDoChat}
+		onAplicarAcoes={aplicarAcoesDoChat}
 	/>
 
 	<PreRequisitoConfirmDialog

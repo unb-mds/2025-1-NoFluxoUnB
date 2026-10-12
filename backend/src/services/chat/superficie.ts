@@ -18,6 +18,14 @@ export interface EstadoMontador {
     incluirCursando: boolean;
     /** freeMask (bigint de 96 bits) serializado em string decimal. */
     horarioLivre: string;
+    /** Matérias na lista do Montador (candidatas da montagem), com ou sem turma. */
+    pool?: string[];
+    /** Matérias marcadas com estrela (prioridade na montagem). */
+    prioritarias?: string[];
+    /** O que ficou de fora na última montagem automática. */
+    naoAlocadas?: string[];
+    /** Cenários (grades salvas) do aluno; `ativo` = o que está aberto. */
+    cenarios?: Array<{ nome: string; ativo: boolean }>;
 }
 
 export interface EstadoPlano {
@@ -52,6 +60,28 @@ function horarioLivreValido(v: unknown): string | null {
     return v.trim();
 }
 
+/** Lista de códigos de matéria vinda do cliente: só strings, maiúsculas, sem repetir, com teto. */
+function codigosValidos(v: unknown, teto = 60): string[] | undefined {
+    if (!Array.isArray(v)) return undefined;
+    const out = new Set<string>();
+    for (const c of v) {
+        if (typeof c !== "string") continue;
+        const codigo = c.trim().toUpperCase();
+        if (/^[A-Z]{2,5}\d{3,5}$/.test(codigo)) out.add(codigo);
+        if (out.size >= teto) break;
+    }
+    return [...out];
+}
+
+function cenariosValidos(v: unknown): Array<{ nome: string; ativo: boolean }> | undefined {
+    if (!Array.isArray(v)) return undefined;
+    return v
+        .filter(ehObjeto)
+        .filter((c) => typeof c.nome === "string" && c.nome.trim() !== "")
+        .slice(0, 10)
+        .map((c) => ({ nome: String(c.nome).trim().slice(0, 40), ativo: c.ativo === true }));
+}
+
 function parseEstadoMontador(raw: Record<string, unknown>): EstadoMontador {
     const grade = Array.isArray(raw.grade)
         ? raw.grade
@@ -69,6 +99,10 @@ function parseEstadoMontador(raw: Record<string, unknown>): EstadoMontador {
         turnos,
         incluirCursando: raw.incluirCursando !== false,
         horarioLivre: horarioLivreValido(raw.horarioLivre) ?? MASCARA_SEMANA_LIVRE,
+        ...(codigosValidos(raw.pool) ? { pool: codigosValidos(raw.pool) } : {}),
+        ...(codigosValidos(raw.prioritarias) ? { prioritarias: codigosValidos(raw.prioritarias) } : {}),
+        ...(codigosValidos(raw.naoAlocadas) ? { naoAlocadas: codigosValidos(raw.naoAlocadas) } : {}),
+        ...(cenariosValidos(raw.cenarios) ? { cenarios: cenariosValidos(raw.cenarios) } : {}),
     };
 }
 

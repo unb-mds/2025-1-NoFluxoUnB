@@ -219,6 +219,10 @@ describe("/chat/send grava o texto final na sessão", () => {
         });
         efeitosMock.mockReturnValue({
             opcaoGrade: { estrategia: "menos_dias", selecao: [{ codigo: "FGA0242", idTurma: 11 }] },
+            opcoesGrade: [
+                { estrategia: "menos_dias", selecao: [{ codigo: "FGA0242", idTurma: 11 }] },
+                { estrategia: "menos_furos", selecao: [{ codigo: "FGA0242", idTurma: 12 }] },
+            ],
             plano: null,
             restricoes: null,
         });
@@ -231,6 +235,10 @@ describe("/chat/send grava o texto final na sessão", () => {
         expect(res.statusCode).toBe(200);
         expect(res.body.reply).toBe("Pronto, ficou em 3 dias.\n\n[MONTAR_GRADE|FGA0242:11]");
         expect(res.body.opcaoGrade.selecao).toEqual([{ codigo: "FGA0242", idTurma: 11 }]);
+        expect(res.body.opcoesGrade.map((o: { estrategia: string }) => o.estrategia)).toEqual([
+            "menos_dias",
+            "menos_furos",
+        ]);
 
         const hist = fakeRes();
         await ChatController.routes.historico.value({ headers: { authorization: "Bearer token-valido" } } as any, hist);

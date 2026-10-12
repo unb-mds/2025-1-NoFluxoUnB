@@ -23,6 +23,7 @@ import {
 	type ErroMontagem,
 	type Turno
 } from '$lib/utils/horario-slots';
+import { fundirCorrequisitos, type CorrequisitosFundidos } from '$lib/utils/correquisitos';
 import type { TurmaOferta } from '$lib/services/turmas.service';
 import { saturada, type SituacaoAcademica } from '$lib/services/situacao-academica.service';
 import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
@@ -638,7 +639,12 @@ function createGradeStore() {
 	 * cada turma recebe por cima.
 	 */
 	function construirEntradaSolver(opts?: MontarOpts): {
+		/** Entrada do solver, com os pares de correquisito fundidos. */
 		materiasSolver: Array<MateriaTurmas<TurmaOferta>>;
+		/** Uma por matéria, sem fusão — o que o diagnóstico da essencial entende. */
+		materiasOriginais: Array<MateriaTurmas<TurmaOferta>>;
+		/** Separa o resultado do solver de volta em matérias. */
+		correquisitos: CorrequisitosFundidos<TurmaOferta>;
 		mascaraTravada: bigint;
 		orcamento: number | undefined;
 		candidatasCount: number;
@@ -766,8 +772,19 @@ function createGradeStore() {
 			};
 		});
 
-		return {
+		// Correquisito: o par entra junto ou nenhuma entra (`utils/correquisitos`).
+		// Travada já na grade atende o correquisito; matrícula real não passa pela regra.
+		const correquisitos = fundirCorrequisitos(
 			materiasSolver,
+			new Map(candidatas.map((m) => [m.codigo, m.coRequisitos ?? []])),
+			new Set([...travadasAtivas].filter((c) => selecaoAtiva.has(c))),
+			cursandoAtivo
+		);
+
+		return {
+			materiasSolver: correquisitos.materias,
+			materiasOriginais: materiasSolver,
+			correquisitos,
 			mascaraTravada,
 			orcamento,
 			candidatasCount: candidatas.length,
@@ -1303,10 +1320,8 @@ function createGradeStore() {
 		 */
 		montarAutomatico(opts?: MontarOpts): MontagemResultado {
 			const entrada = construirEntradaSolver(opts);
-			const r = autoMontarGradeCompacta(
-				entrada.materiasSolver,
-				entrada.mascaraTravada,
-				entrada.orcamento
+			const r = entrada.correquisitos.separar(
+				autoMontarGradeCompacta(entrada.materiasSolver, entrada.mascaraTravada, entrada.orcamento)
 			);
 
 			let erros: ErroMontagem[] | undefined;
@@ -1317,7 +1332,7 @@ function createGradeStore() {
 					const pendencias = pendenciasPreRequisitoDe(materiaEssencial.idMateria);
 					if (pendencias.length > 0) pendenciasPreRequisito.set(entrada.essencialCodigo, pendencias);
 				}
-				erros = diagnosticarEssenciais(entrada.materiasSolver, r.naoAlocadas, {
+				erros = diagnosticarEssenciais(entrada.materiasOriginais, r.naoAlocadas, {
 					turmasAntesDoFiltroDeTurno: entrada.turmasAntesDoFiltroDeTurno,
 					turnosComOferta: entrada.turnosComOferta,
 					pendenciasPreRequisito,
@@ -1380,7 +1395,7 @@ function createGradeStore() {
 				estrategias.length > 0 ? estrategias : padrao,
 				opts?.maxOpcoes,
 				(turma) => turma.id_turmas
-			);
+			).map(entrada.correquisitos.separarOpcao);
 		},
 
 		/**
@@ -1402,7 +1417,7 @@ function createGradeStore() {
 				const pendencias = pendenciasPreRequisitoDe(materiaEssencial.idMateria);
 				if (pendencias.length > 0) pendenciasPreRequisito.set(entrada.essencialCodigo, pendencias);
 			}
-			return diagnosticarEssenciais(entrada.materiasSolver, naoAlocadas, {
+			return diagnosticarEssenciais(entrada.materiasOriginais, naoAlocadas, {
 				turmasAntesDoFiltroDeTurno: entrada.turmasAntesDoFiltroDeTurno,
 				turnosComOferta: entrada.turnosComOferta,
 				pendenciasPreRequisito,

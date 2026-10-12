@@ -217,7 +217,13 @@ function createDarcyStore() {
 				// a seleção exata que o backend resolveu, em vez de recomputar pela tag.
 				mensagens = [
 					...mensagens,
-					{ role: 'assistant', content: resposta.reply, opcaoGrade: resposta.opcaoGrade }
+					{
+						role: 'assistant',
+						content: resposta.reply,
+						opcaoGrade: resposta.opcaoGrade,
+						opcoesGrade: resposta.opcoesGrade,
+						acoesGrade: resposta.acoesGrade
+					}
 				];
 				gravarCache(idUserAtual, mensagens);
 				if (resposta.cota) {

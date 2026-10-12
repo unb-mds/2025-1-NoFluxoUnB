@@ -8,8 +8,10 @@
 	import { Bot, X, RefreshCw } from 'lucide-svelte';
 	import { scale } from 'svelte/transition';
 	import { backOut, cubicOut } from 'svelte/easing';
-	import type { OpcaoGradeChat } from '$lib/types/plano-formatura';
-	import type { AcoesChat } from '$lib/utils/chat-acoes';
+	import type { AcaoGradeChat, OpcaoGradeChat } from '$lib/types/plano-formatura';
+	import type { AcoesChat, ResultadoAcoesChat } from '$lib/utils/chat-acoes';
+	import { montarSemanaPreview } from '$lib/utils/grade-preview';
+	import { sugestoesDoMontador } from '$lib/utils/sugestoes-montador';
 
 	// Botão flutuante do chatbot (mesmo padrão do Plano de Formatura), embutindo a
 	// Darcy na superfície 'montador'. As ações do chat aqui agem direto na grade
@@ -19,19 +21,46 @@
 	let {
 		onAddToGrade,
 		onUsarTurma,
-		onAplicarGrade
+		onAplicarGrade,
+		onAplicarAcoes
 	}: {
 		onAddToGrade: (codigo: string) => void;
 		onUsarTurma: (codigo: string, idTurma: number) => void;
 		/** Seleção pronta em `opcaoGrade`; sem ela, `codigos` são a sugestão a montar. */
 		onAplicarGrade: (codigos: string[], opcaoGrade?: OpcaoGradeChat) => void;
+		/** Card de mudanças pontuais da Darcy; devolve o "Desfazer". */
+		onAplicarAcoes?: (acoes: AcaoGradeChat[]) => Promise<ResultadoAcoesChat>;
 	} = $props();
+
+	/**
+	 * No celular o chat cobre a grade inteira: depois de mudar a grade, o painel
+	 * fecha para o aluno ver o resultado (o toast traz o "Desfazer").
+	 */
+	function recolherNoCelular() {
+		if (isMobile) isChatOpen = false;
+	}
 
 	const acoes: AcoesChat = $derived({
 		verTurmas: false,
 		adicionarAGrade: onAddToGrade,
-		usarTurma: onUsarTurma,
-		grade: { modo: 'aplicar', executar: onAplicarGrade }
+		usarTurma: (codigo, idTurma) => {
+			onUsarTurma(codigo, idTurma);
+			recolherNoCelular();
+		},
+		grade: {
+			modo: 'aplicar',
+			executar: (codigos, opcaoGrade) => {
+				onAplicarGrade(codigos, opcaoGrade);
+				recolherNoCelular();
+			}
+		},
+		aplicarAcoes: onAplicarAcoes
+			? async (lista: AcaoGradeChat[]) => {
+					const r = await onAplicarAcoes(lista);
+					recolherNoCelular();
+					return r;
+				}
+			: undefined
 	});
 
 	let isChatOpen = $state(false);
@@ -67,7 +96,8 @@
 	});
 
 	/**
-	 * O que a Darcy precisa saber da tela: a grade aberta. O resto do aluno
+	 * O que a Darcy precisa saber da tela: a grade aberta, a lista de candidatas,
+	 * as prioridades, o que não coube e os cenários. O resto do aluno
 	 * (concluídas, plano, preferências) o backend lê do banco. `opcaoGrade` não tem
 	 * handler aqui de propósito — quem aplica é o botão "Aplicar esta grade" da
 	 * mensagem, no clique do aluno (`onAplicarGrade`).
@@ -82,7 +112,16 @@
 			creditos: gradeStore.creditosSelecionados,
 			turnos: [...gradeStore.turnosPermitidos],
 			incluirCursando: gradeStore.incluirCursando,
-			horarioLivre: gradeStore.freeMask.toString()
+			horarioLivre: gradeStore.freeMask.toString(),
+			pool: gradeStore.pool.map((m) => m.codigo),
+			prioritarias: gradeStore.pool
+				.filter((m) => gradeStore.isPrioritaria(m.codigo))
+				.map((m) => m.codigo),
+			naoAlocadas: gradeStore.ultimaMontagem?.naoAlocadas ?? [],
+			cenarios: gradeStore.grades.map((g) => ({
+				nome: g.nome,
+				ativo: g.id === gradeStore.activeId
+			}))
 		};
 	}
 
@@ -161,7 +200,7 @@
 		};
 	}
 
-	const promptStarters = [
+	const startersFixos = [
 		// populateOnly: o badge é uma variável (tema/matéria) que o aluno precisa
 		// completar — clicar só preenche e foca o campo, não envia um exemplo fixo
 		// (ex.: "inteligência artificial") como se fosse a escolha dele.
@@ -199,6 +238,20 @@
 		}
 	];
 
+	/** Sugestões que dependem da grade de agora vêm antes das fixas (até 6 no total). */
+	const sugestoesContexto = $derived.by(() => {
+		const semana = montarSemanaPreview(
+			[...gradeStore.selecao].map(([codigo, t]) => ({ codigo, horario: t.turma.horario }))
+		);
+		return sugestoesDoMontador({
+			naGrade: gradeStore.selecao.size,
+			naoAlocadas: gradeStore.ultimaMontagem?.naoAlocadas ?? [],
+			diasComAula: semana.dias.filter((d) => d.blocos.length > 0).map((d) => d.label),
+			cenarios: gradeStore.grades.length
+		});
+	});
+	const promptStarters = $derived([...sugestoesContexto, ...startersFixos].slice(0, 6));
+
 	function onSend(msg: string) {
 		darcyStore.enviar(msg);
 	}
@@ -207,9 +260,9 @@
 <!-- Painel flutuante -->
 {#if isChatOpen}
 	<div
-		class="fixed z-[100] flex flex-col overflow-hidden border border-border bg-card/95 shadow-nofluxoLg backdrop-blur-3xl sm:bg-card/90 dark:bg-[#090c12]/90 dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] dark:sm:bg-[#090c12]/60
+		class="border-border bg-card/95 shadow-nofluxoLg sm:bg-card/90 fixed z-[100] flex flex-col overflow-hidden border backdrop-blur-3xl dark:bg-[#090c12]/90 dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] dark:sm:bg-[#090c12]/60
 			{isMobile
-			? 'right-0 bottom-0 left-0 h-[85vh] w-full rounded-t-3xl'
+			? 'right-0 bottom-0 left-0 h-[85dvh] w-full rounded-t-3xl pb-[env(safe-area-inset-bottom)]'
 			: 'origin-bottom-right rounded-2xl'}"
 		style={isMobile
 			? ''
@@ -223,7 +276,7 @@
 				<button
 					type="button"
 					onclick={resetChat}
-					class="rounded-md p-1 text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground/80"
+					class="text-muted-foreground hover:bg-foreground/5 hover:text-foreground/80 rounded-md p-1 transition-colors"
 					aria-label="Restaurar tamanho e posição"
 					title="Restaurar tamanho e posição"
 				>
@@ -233,7 +286,7 @@
 			<button
 				type="button"
 				onclick={() => (isChatOpen = false)}
-				class="rounded-md p-1 text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground/80"
+				class="text-muted-foreground hover:bg-foreground/5 hover:text-foreground/80 rounded-md p-1 transition-colors"
 				aria-label="Fechar chat"
 			>
 				<X class="h-4 w-4" />
@@ -257,13 +310,15 @@
 		>
 			{#snippet emptyState()}
 				<div
-					class="mb-4 flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border border-ai/40 bg-ai-soft backdrop-blur-md dark:border-pink-500/50 dark:bg-pink-500/10 dark:shadow-[0_0_30px_rgba(236,72,153,0.15)]"
+					class="border-ai/40 bg-ai-soft mb-4 flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border backdrop-blur-md dark:border-pink-500/50 dark:bg-pink-500/10 dark:shadow-[0_0_30px_rgba(236,72,153,0.15)]"
 				>
-					<Bot class="h-8 w-8 text-ai dark:text-pink-400" />
+					<Bot class="text-ai h-8 w-8 dark:text-pink-400" />
 				</div>
-				<h3 class="text-xl font-semibold tracking-tight text-foreground">Recomende e monte</h3>
-				<p class="mt-2 max-w-[280px] text-[12px] leading-relaxed text-muted-foreground">
-					Peça optativas por tema, ou <span class="font-bold text-emerald-800 dark:text-emerald-200">módulo livre</span>
+				<h3 class="text-foreground text-xl font-semibold tracking-tight">Recomende e monte</h3>
+				<p class="text-muted-foreground mt-2 max-w-[280px] text-[12px] leading-relaxed">
+					Peça optativas por tema, ou <span class="font-bold text-emerald-800 dark:text-emerald-200"
+						>módulo livre</span
+					>
 					por área de interesse — mostro só o que
 					<span class="font-bold text-emerald-800 dark:text-emerald-200">tem turma</span>
 					neste semestre. Toque numa matéria da resposta pra
@@ -279,7 +334,7 @@
 	<button
 		type="button"
 		onclick={abrirChat}
-		class="fixed z-[90] flex items-center justify-center border border-ai/40 bg-card/90 shadow-nofluxoLg backdrop-blur-md transition-all duration-300 hover:scale-105 hover:border-ai hover:bg-accent dark:border-pink-500/50 dark:bg-[#1e1e24]/80 dark:shadow-[0_8px_30px_rgba(236,72,153,0.3)] dark:hover:border-pink-400 dark:hover:bg-[#2a2a32] active:scale-95
+		class="border-ai/40 bg-card/90 shadow-nofluxoLg hover:border-ai hover:bg-accent fixed z-[90] flex items-center justify-center border backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95 dark:border-pink-500/50 dark:bg-[#1e1e24]/80 dark:shadow-[0_8px_30px_rgba(236,72,153,0.3)] dark:hover:border-pink-400 dark:hover:bg-[#2a2a32]
 			{isMobile ? 'right-4 bottom-4 h-14 w-14 rounded-full' : 'right-6 bottom-6 h-12 w-12 rounded-xl'}"
 		aria-label="Abrir assistente IA"
 		data-tour="assistente-ia"

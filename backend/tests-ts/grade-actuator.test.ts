@@ -995,11 +995,19 @@ describe("AtuadorGrade — tool montar_grade (Fase 3)", () => {
 
         const freeMaskTotal = (1n << 96n) - 1n;
         const agente = createGradeAgent("aluno@unb.br", "8117/-2 - 2018.2", freeMaskTotal.toString(), "2026.2");
-        const { reply, opcaoGrade } = await runGradeComRevisao(agente, "monta minha grade priorizando FGA0001");
+        const { reply, opcaoGrade, opcoesGrade } = await runGradeComRevisao(agente, "monta minha grade priorizando FGA0001");
 
         expect(reply).toContain("[MONTAR_GRADE|FGA0001:55]");
         expect(opcaoGrade).toBeDefined();
         expect(opcaoGrade?.selecao).toEqual(expect.arrayContaining([{ codigo: "FGA0001", idTurma: 55 }]));
+        // Mini-grade do chat: horário de cada par + métricas reais da opção.
+        expect(opcaoGrade?.detalhes).toEqual(
+            expect.arrayContaining([expect.objectContaining({ codigo: "FGA0001", horario: "2M12" })])
+        );
+        expect(opcaoGrade?.metricas?.diasComAula).toBe(1);
+        // Comparador: todas as opções, a escolhida entre elas.
+        expect(opcoesGrade?.length).toBeGreaterThanOrEqual(1);
+        expect(opcoesGrade?.map((o) => o.estrategia)).toContain(opcaoGrade?.estrategia);
     });
 
     it("reprova e reexecuta quando o marcador cita um idTurma que NÃO está em nenhuma opção retornada — runGradeComRevisao corrige", async () => {

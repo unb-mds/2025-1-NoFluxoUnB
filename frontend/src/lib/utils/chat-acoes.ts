@@ -7,7 +7,15 @@
 import { goto } from '$app/navigation';
 import { ROUTES } from '$lib/config/routes';
 import { darcyStore } from '$lib/stores/darcy.store.svelte';
-import type { OpcaoGradeChat } from '$lib/types/plano-formatura';
+import type { AcaoGradeChat, OpcaoGradeChat } from '$lib/types/plano-formatura';
+
+/** O que sobrou depois de aplicar as ações da Darcy. */
+export interface ResultadoAcoesChat {
+	/** Frases curtas do que não deu para aplicar (a grade mudou desde a proposta). */
+	falhas: string[];
+	/** Volta a grade para antes das ações. */
+	desfazer: () => void | Promise<void>;
+}
 
 export interface AcoesChat {
 	/** Item "Ver turmas" no menu do chip de matéria (envia `/turmas COD`). */
@@ -24,6 +32,8 @@ export interface AcoesChat {
 		modo: 'aplicar' | 'abrir';
 		executar: (codigos: string[], opcaoGrade?: OpcaoGradeChat) => void;
 	};
+	/** Card de mudanças pontuais (`acoesGrade`) — só no Montador. */
+	aplicarAcoes?: (acoes: AcaoGradeChat[]) => Promise<ResultadoAcoesChat>;
 }
 
 /** Plano de Formatura e `/assistente`: "Ver turmas" no chip e "Abrir no Montador". */

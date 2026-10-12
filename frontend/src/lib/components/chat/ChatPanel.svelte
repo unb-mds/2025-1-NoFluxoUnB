@@ -21,6 +21,8 @@
 	import ChatBubble from '$lib/components/chat/ChatBubble.svelte';
 	import ChatLoader from '$lib/components/chat/ChatLoader.svelte';
 	import DarcyConversasAnteriores from '$lib/components/chat/DarcyConversasAnteriores.svelte';
+	import GradePreviewChat from '$lib/components/chat/GradePreviewChat.svelte';
+	import AcoesGradeCard from '$lib/components/chat/AcoesGradeCard.svelte';
 	import MarqueeText from '$lib/components/ui/MarqueeText.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
@@ -28,11 +30,12 @@
 		parseMensagemChat,
 		fatiaSegura,
 		indiceRespostaViva,
-		mensagemPerguntarSobre
+		mensagemPerguntarSobre,
+		type SegmentoTexto
 	} from '$lib/utils/chat-markers';
 	import { acoesForaDoMontador, type AcoesChat } from '$lib/utils/chat-acoes';
 	import type { Snippet } from 'svelte';
-	import type { OpcaoGradeChat } from '$lib/types/plano-formatura';
+	import type { AcaoGradeChat, OpcaoGradeChat } from '$lib/types/plano-formatura';
 
 	interface Starter {
 		prefix: string;
@@ -52,6 +55,10 @@
 		content: string;
 		/** Ver `PlannerChatMessage.opcaoGrade` — só usado pelo botão "Montar grade". */
 		opcaoGrade?: OpcaoGradeChat;
+		/** Todas as opções do solver — abas do comparador na mini-grade. */
+		opcoesGrade?: OpcaoGradeChat[];
+		/** Mudanças pontuais propostas — card de diff com "Aplicar". */
+		acoesGrade?: AcaoGradeChat[];
 	}
 
 	let {
@@ -172,6 +179,26 @@
 		return selecao.length > 0 ? { estrategia: 'Darcy', selecao } : undefined;
 	}
 
+	/**
+	 * Opções que dá para desenhar como mini-grade (têm horário). Vêm do backend
+	 * só na resposta ao vivo e no cache local — o histórico do servidor guarda o
+	 * texto, e aí o bloco cai no botão simples.
+	 */
+	function opcoesComHorario(
+		msg: ChatMsg,
+		opcao: OpcaoGradeChat | undefined
+	): { lista: OpcaoGradeChat[]; inicial: number } {
+		const lista = (msg.opcoesGrade ?? []).filter((o) => (o.detalhes?.length ?? 0) > 0);
+		if (lista.length === 0) return { lista: opcao?.detalhes?.length ? [opcao] : [], inicial: 0 };
+		return {
+			lista,
+			inicial: Math.max(
+				0,
+				lista.findIndex((o) => o.estrategia === opcao?.estrategia)
+			)
+		};
+	}
+
 	function rotuloGrade(pronta: boolean, codigos: string[]): string {
 		if (acoesEfetivas.grade.modo === 'abrir') return 'Abrir no Montador';
 		if (pronta) return 'Aplicar esta grade';
@@ -261,6 +288,79 @@
 	});
 </script>
 
+{#snippet inline(segs: SegmentoTexto[], role: 'user' | 'assistant')}
+	{#each segs as segment}
+		{#if segment.tipo === 'codigo'}
+			{@const nomeChip = nomeDe(segment.valor)}
+			{@const rotulo = nomeChip ?? segment.valor}
+			{#if role === 'assistant'}
+				<!-- Chip de matéria: o clique abre as ações desta tela (catálogo em
+		     docs/darcy-unificada.md). O ::after aumenta a área de toque para
+		     ~32px sem mexer na altura da linha do texto. -->
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger
+						title={nomeChip ? `${nomeChip} (${segment.valor})` : segment.valor}
+						class="chip-materia relative mx-0.5 inline-flex max-w-full cursor-pointer items-center rounded-md border border-indigo-400/50 bg-indigo-500/15 px-1.5 py-px text-left align-baseline text-[12.5px] leading-snug font-semibold text-indigo-800 transition-colors after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] hover:border-indigo-500 hover:bg-indigo-500/25 focus-visible:ring-2 focus-visible:ring-indigo-300/60 focus-visible:outline-none dark:bg-indigo-500/20 dark:text-white dark:hover:border-indigo-300 dark:hover:bg-indigo-500/35 {nomeChip
+							? ''
+							: 'font-mono'}"
+					>
+						<span class="line-clamp-2 [overflow-wrap:anywhere]">{rotulo}</span>
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content
+						align="start"
+						class="bg-popover text-popover-foreground z-[200] min-w-48 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/95 dark:text-white"
+					>
+						<DropdownMenu.Label
+							class="text-muted-foreground max-w-64 truncate text-[11px] dark:text-white/50"
+						>
+							{segment.valor}{nomeChip ? ` · ${nomeChip}` : ''}
+						</DropdownMenu.Label>
+						<DropdownMenu.Item
+							class="min-h-9 cursor-pointer max-sm:min-h-11"
+							disabled={loading}
+							onclick={() => enviarTexto(mensagemPerguntarSobre(segment.valor, nomeChip))}
+						>
+							<MessageCircleQuestion class="h-4 w-4" /> Perguntar sobre
+						</DropdownMenu.Item>
+						{#if acoesEfetivas.verTurmas}
+							<DropdownMenu.Item
+								class="min-h-9 cursor-pointer max-sm:min-h-11"
+								disabled={loading}
+								onclick={() => enviarTexto(`/turmas ${segment.valor}`)}
+							>
+								<CalendarSearch class="h-4 w-4" /> Ver turmas
+							</DropdownMenu.Item>
+						{/if}
+						{#if acoesEfetivas.adicionarAGrade}
+							<DropdownMenu.Item
+								class="min-h-9 cursor-pointer max-sm:min-h-11"
+								onclick={() => acoesEfetivas.adicionarAGrade?.(segment.valor)}
+							>
+								<Plus class="h-4 w-4" /> Adicionar à grade
+							</DropdownMenu.Item>
+						{/if}
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+			{:else}
+				<span class="font-mono font-semibold {segment.negrito ? 'font-bold' : ''}"
+					>{segment.valor}</span
+				>
+			{/if}
+		{:else if segment.tipo === 'mono'}
+			<code
+				class="bg-foreground/10 rounded px-1 py-px font-mono text-[12.5px] [overflow-wrap:anywhere] dark:bg-white/10"
+				>{segment.valor}</code
+			>
+		{:else if segment.negrito}
+			<strong class="font-bold whitespace-pre-wrap dark:text-white">{segment.valor}</strong>
+		{:else if segment.italico}
+			<em class="whitespace-pre-wrap italic">{segment.valor}</em>
+		{:else}
+			<span class="whitespace-pre-wrap">{segment.valor}</span>
+		{/if}
+	{/each}
+{/snippet}
+
 <ChatWrapper>
 	<!-- Header -->
 	<div
@@ -287,8 +387,8 @@
 						type="button"
 						onclick={() => (vendoConversas = !vendoConversas)}
 						aria-pressed={vendoConversas}
-						class="flex h-8 items-center gap-1 rounded-full px-2 text-[11px] text-white/50 transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:outline-none {vendoConversas
-							? 'bg-white/10 text-white'
+						class="text-muted-foreground hover:bg-foreground/10 hover:text-foreground focus-visible:ring-ring flex h-8 items-center gap-1 rounded-full px-2 text-[11px] transition-colors focus-visible:ring-2 focus-visible:outline-none dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white dark:focus-visible:ring-white/40 {vendoConversas
+							? 'bg-foreground/10 text-foreground dark:bg-white/10 dark:text-white'
 							: ''}"
 						title="Conversas anteriores"
 						aria-label="Conversas anteriores"
@@ -301,7 +401,7 @@
 						type="button"
 						onclick={() => onNovaConversa?.()}
 						disabled={loading}
-						class="flex h-8 items-center gap-1 rounded-full px-2 text-[11px] text-white/50 transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:outline-none disabled:opacity-40"
+						class="text-muted-foreground hover:bg-foreground/10 hover:text-foreground focus-visible:ring-ring flex h-8 items-center gap-1 rounded-full px-2 text-[11px] transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40 dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white dark:focus-visible:ring-white/40"
 						title="Começar uma conversa nova — esta fica em Conversas anteriores e a Darcy lembra do que importa"
 						aria-label="Nova conversa"
 					>
@@ -386,70 +486,92 @@
 									role={msg.role}
 									name={i === 0 ? (msg.role === 'user' ? 'Você' : assistantName) : undefined}
 								>
-									{#each block.segmentos as segment}
-										{#if segment.tipo === 'codigo'}
-											{@const nomeChip = nomeDe(segment.valor)}
-											{@const rotulo = nomeChip ?? segment.valor}
-											{#if msg.role === 'assistant'}
-												<!-- Chip de matéria: o clique abre as ações desta tela (catálogo em
-											     docs/darcy-unificada.md). O ::after aumenta a área de toque para
-											     ~32px sem mexer na altura da linha do texto. -->
-												<DropdownMenu.Root>
-													<DropdownMenu.Trigger
-														title={nomeChip ? `${nomeChip} (${segment.valor})` : segment.valor}
-														class="chip-materia relative mx-0.5 inline-flex max-w-full cursor-pointer items-center rounded-md border border-indigo-400/50 bg-indigo-500/20 px-1.5 py-px text-left align-baseline text-[12.5px] leading-snug font-semibold text-white transition-colors after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] hover:border-indigo-300 hover:bg-indigo-500/35 focus-visible:ring-2 focus-visible:ring-indigo-300/60 focus-visible:outline-none {nomeChip
-															? ''
-															: 'font-mono'}"
-													>
-														<span class="line-clamp-2 [overflow-wrap:anywhere]">{rotulo}</span>
-													</DropdownMenu.Trigger>
-													<DropdownMenu.Content
-														align="start"
-														class="z-[200] min-w-48 border-white/10 bg-zinc-900/95 text-white backdrop-blur-xl"
-													>
-														<DropdownMenu.Label class="max-w-64 truncate text-[11px] text-white/50">
-															{segment.valor}{nomeChip ? ` · ${nomeChip}` : ''}
-														</DropdownMenu.Label>
-														<DropdownMenu.Item
-															class="min-h-9 cursor-pointer"
-															disabled={loading}
-															onclick={() =>
-																enviarTexto(mensagemPerguntarSobre(segment.valor, nomeChip))}
-														>
-															<MessageCircleQuestion class="h-4 w-4" /> Perguntar sobre
-														</DropdownMenu.Item>
-														{#if acoesEfetivas.verTurmas}
-															<DropdownMenu.Item
-																class="min-h-9 cursor-pointer"
-																disabled={loading}
-																onclick={() => enviarTexto(`/turmas ${segment.valor}`)}
-															>
-																<CalendarSearch class="h-4 w-4" /> Ver turmas
-															</DropdownMenu.Item>
-														{/if}
-														{#if acoesEfetivas.adicionarAGrade}
-															<DropdownMenu.Item
-																class="min-h-9 cursor-pointer"
-																onclick={() => acoesEfetivas.adicionarAGrade?.(segment.valor)}
-															>
-																<Plus class="h-4 w-4" /> Adicionar à grade
-															</DropdownMenu.Item>
-														{/if}
-													</DropdownMenu.Content>
-												</DropdownMenu.Root>
-											{:else}
-												<span class="font-mono font-semibold {segment.negrito ? 'text-white' : ''}"
-													>{segment.valor}</span
+									<div class="@container space-y-2.5">
+										{#each block.linhas as linha}
+											{#if linha.tipo === 'paragrafo'}
+												<p class="whitespace-pre-wrap">
+													{@render inline(linha.segmentos, msg.role)}
+												</p>
+											{:else if linha.tipo === 'titulo'}
+												<p
+													class="text-foreground pt-1 text-[14.5px] leading-snug font-semibold dark:text-white"
 												>
+													{@render inline(linha.segmentos, msg.role)}
+												</p>
+											{:else if linha.tipo === 'lista'}
+												{#if linha.ordenada}
+													<ol
+														start={linha.inicio}
+														class="marker:text-muted-foreground list-decimal space-y-1 pl-5 marker:font-semibold dark:marker:text-white/50"
+													>
+														{#each linha.itens as item}
+															<li class="pl-0.5 whitespace-pre-wrap">
+																{@render inline(item, msg.role)}
+															</li>
+														{/each}
+													</ol>
+												{:else}
+													<ul
+														class="marker:text-muted-foreground list-disc space-y-1 pl-5 dark:marker:text-white/50"
+													>
+														{#each linha.itens as item}
+															<li class="pl-0.5 whitespace-pre-wrap">
+																{@render inline(item, msg.role)}
+															</li>
+														{/each}
+													</ul>
+												{/if}
+											{:else if linha.tipo === 'tabela'}
+												<!-- Estreito (celular, painel flutuante): uma linha = um card
+												     rótulo:valor. Largo: tabela de verdade. -->
+												<div class="space-y-2 @md:hidden">
+													{#each linha.linhas as row}
+														<dl
+															class="border-border bg-card/70 rounded-xl border px-3 py-2 text-[13px] dark:border-white/10 dark:bg-white/5"
+														>
+															{#each row as celula, ci}
+																<div class="flex gap-2 py-0.5">
+																	<dt
+																		class="text-muted-foreground max-w-[45%] shrink-0 font-semibold dark:text-white/55"
+																	>
+																		{@render inline(linha.cabecalho[ci] ?? [], msg.role)}
+																	</dt>
+																	<dd class="min-w-0">{@render inline(celula, msg.role)}</dd>
+																</div>
+															{/each}
+														</dl>
+													{/each}
+												</div>
+												<div class="hidden overflow-x-auto @md:block">
+													<table class="w-full border-collapse text-left text-[13px]">
+														<thead>
+															<tr class="border-border border-b dark:border-white/15">
+																{#each linha.cabecalho as celula}
+																	<th
+																		class="text-muted-foreground px-2 py-1.5 font-semibold dark:text-white/60"
+																		>{@render inline(celula, msg.role)}</th
+																	>
+																{/each}
+															</tr>
+														</thead>
+														<tbody>
+															{#each linha.linhas as row}
+																<tr
+																	class="border-border/60 border-b last:border-0 dark:border-white/10"
+																>
+																	{#each row as celula}
+																		<td class="px-2 py-1.5 align-top"
+																			>{@render inline(celula, msg.role)}</td
+																		>
+																	{/each}
+																</tr>
+															{/each}
+														</tbody>
+													</table>
+												</div>
 											{/if}
-										{:else if segment.negrito}
-											<strong class="font-bold whitespace-pre-wrap text-white"
-												>{segment.valor}</strong
-											>
-										{:else}
-											<span class="whitespace-pre-wrap">{segment.valor}</span>
-										{/if}
-									{/each}
+										{/each}
+									</div>
 								</ChatBubble>
 							{:else if block.tipo === 'turma'}
 								{@const t = block.turma}
@@ -570,9 +692,11 @@
 									{/if}
 								</div>
 							{:else if block.tipo === 'botoes'}
-								<!-- Respostas rápidas: pílulas que quebram linha; só a última resposta
+								<!-- Respostas rápidas: pílulas que quebram linha (no celular, faixa rolável); só a última resposta
 							     responde (as antigas ficam só para leitura). -->
-								<div class="mb-4 flex max-w-[88%] flex-wrap gap-2">
+								<div
+									class="mb-4 flex max-w-[88%] flex-wrap gap-2 max-sm:-mx-1 max-sm:max-w-none max-sm:snap-x max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:px-1 max-sm:pb-1"
+								>
 									{#each block.botoes as btn}
 										{@const r = btn.rotulo.trim().toLowerCase()}
 										<button
@@ -580,7 +704,7 @@
 											disabled={!viva}
 											onclick={() => enviarTexto(btn.mensagem)}
 											title={btn.mensagem !== btn.rotulo ? btn.mensagem : undefined}
-											class="min-h-9 max-w-full cursor-pointer rounded-full border px-4 py-1.5 text-left text-[13px] font-medium break-words whitespace-normal transition-colors active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40
+											class="min-h-9 max-w-full cursor-pointer rounded-full border px-4 py-1.5 text-left text-[13px] font-medium break-words whitespace-normal transition-colors active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 max-sm:min-h-11 max-sm:shrink-0 max-sm:snap-start max-sm:whitespace-nowrap
 											{r === 'sim'
 												? 'border-emerald-600/60 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-600/25 dark:text-emerald-50 dark:hover:bg-emerald-600/45'
 												: r === 'não' || r === 'nao'
@@ -594,35 +718,64 @@
 							{:else if block.tipo === 'grade'}
 								{@const opcao = opcaoDoBloco(msg, block.selecao)}
 								{@const abrir = acoesEfetivas.grade.modo === 'abrir'}
+								{@const preview = opcoesComHorario(msg, opcao)}
 								<!-- Aplicar/abrir uma grade sugerida antes continua valendo, por isso
 							     este bloco não depende de ser a última resposta. -->
-								<div class="mb-4 max-w-[88%]">
-									<button
-										type="button"
-										onclick={() => acoesEfetivas.grade.executar(block.codigos, opcao)}
-										class="flex w-full min-w-0 items-start gap-2.5 rounded-2xl border border-emerald-600/60 bg-emerald-50 px-4 py-2.5 text-left text-emerald-800 shadow-sm transition-colors hover:bg-emerald-100 active:scale-[0.99] dark:border-emerald-500/40 dark:bg-emerald-600/20 dark:text-emerald-50 dark:hover:bg-emerald-600/40"
-									>
-										{#if abrir}
-											<ArrowUpRight class="mt-0.5 h-4 w-4 shrink-0" />
-										{:else}
-											<CalendarPlus class="mt-0.5 h-4 w-4 shrink-0" />
-										{/if}
-										<span class="min-w-0">
-											<span class="block text-sm font-semibold break-words"
-												>{rotuloGrade(!!opcao, block.codigos)}</span
-											>
-											{#if abrir || opcao}
-												<span
-													class="mt-0.5 block text-[12px] break-words text-emerald-900/70 dark:text-emerald-100/70"
-												>
-													{block.codigos.map((c) => nomeDe(c) ?? c).join(' · ')}
-												</span>
+								{#if preview.lista.length > 0}
+									<GradePreviewChat
+										opcoes={preview.lista}
+										inicial={preview.inicial}
+										modo={acoesEfetivas.grade.modo}
+										{nomeDe}
+										rotulo={(o) =>
+											rotuloGrade(
+												true,
+												o.selecao.map((s) => s.codigo)
+											)}
+										onAplicar={(o) =>
+											acoesEfetivas.grade.executar(
+												o.selecao.map((s) => s.codigo),
+												o
+											)}
+									/>
+								{:else}
+									<div class="mb-4 max-w-[88%]">
+										<button
+											type="button"
+											onclick={() => acoesEfetivas.grade.executar(block.codigos, opcao)}
+											class="flex w-full min-w-0 items-start gap-2.5 rounded-2xl border border-emerald-600/60 bg-emerald-50 px-4 py-2.5 text-left text-emerald-800 shadow-sm transition-colors hover:bg-emerald-100 active:scale-[0.99] dark:border-emerald-500/40 dark:bg-emerald-600/20 dark:text-emerald-50 dark:hover:bg-emerald-600/40"
+										>
+											{#if abrir}
+												<ArrowUpRight class="mt-0.5 h-4 w-4 shrink-0" />
+											{:else}
+												<CalendarPlus class="mt-0.5 h-4 w-4 shrink-0" />
 											{/if}
-										</span>
-									</button>
-								</div>
+											<span class="min-w-0">
+												<span class="block text-sm font-semibold break-words"
+													>{rotuloGrade(!!opcao, block.codigos)}</span
+												>
+												{#if abrir || opcao}
+													<span
+														class="mt-0.5 block text-[12px] break-words text-emerald-900/70 dark:text-emerald-100/70"
+													>
+														{block.codigos.map((c) => nomeDe(c) ?? c).join(' · ')}
+													</span>
+												{/if}
+											</span>
+										</button>
+									</div>
+								{/if}
 							{/if}
 						{/each}
+						{#if msg.acoesGrade?.length && acoesEfetivas.aplicarAcoes && conteudo === msg.content}
+							<!-- Mudanças pontuais propostas: entra depois do texto terminar de digitar. -->
+							<AcoesGradeCard
+								acoes={msg.acoesGrade}
+								{viva}
+								{nomeDe}
+								aplicar={acoesEfetivas.aplicarAcoes}
+							/>
+						{/if}
 					{/each}
 
 					{#if loading}
