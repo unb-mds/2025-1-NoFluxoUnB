@@ -51,6 +51,8 @@
 		limiteCreditosInicial,
 		gerando = false,
 		valorInicial = null,
+		periodoAtual = null,
+		ofertaProximo = null,
 		onGerar,
 		onIncluir
 	}: {
@@ -59,6 +61,9 @@
 		gerando?: boolean;
 		/** Reabrir o painel preserva o que já foi escolhido. */
 		valorInicial?: ParametrosMontagem | null;
+		/** Período vigente e o seguinte — para dizer qual oferta cada opção usa. */
+		periodoAtual?: string | null;
+		ofertaProximo?: { periodo: string; temOferta: boolean } | null;
 		onGerar: (params: ParametrosMontagem) => void;
 		/** Põe na lista a essencial escolhida da matriz que ainda não estava nela. */
 		onIncluir?: (codigo: string) => void;
@@ -104,6 +109,17 @@
 	let busca = $state('');
 	let essencialCodigo = $state<string | null>(valorInicial?.essencial ?? null);
 	let professor = $state<string | null>(valorInicial?.professorPreferidoEssencial ?? null);
+
+	/**
+	 * De qual semestre são as turmas usadas — principalmente para dizer quando o
+	 * "Próximo semestre" ainda é estimativa (oferta dele não publicada no SIGAA).
+	 */
+	const fonteOferta = $derived.by(() => {
+		if (gradeStore.incluirCursando) return periodoAtual ? `Turmas de ${periodoAtual}.` : null;
+		if (!ofertaProximo) return null;
+		if (ofertaProximo.temOferta) return `Turmas de ${ofertaProximo.periodo}, o próximo semestre.`;
+		return `A oferta de ${ofertaProximo.periodo} ainda não saiu no SIGAA. Até lá, os horários são uma estimativa com as turmas de ${periodoAtual ?? 'agora'}.`;
+	});
 
 	type Opcao = { codigo: string; nome: string };
 
@@ -191,6 +207,9 @@
 					</button>
 				{/each}
 			</div>
+			{#if fonteOferta}
+				<p class="mt-1.5 text-[11px] leading-snug text-muted-foreground">{fonteOferta}</p>
+			{/if}
 		</fieldset>
 	{/if}
 

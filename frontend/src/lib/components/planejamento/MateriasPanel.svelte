@@ -62,8 +62,31 @@
 			else if (m.turmas.length === 0) semTurma.push(m);
 			else sugestoes.push(m);
 		}
+		// Obrigatória primeiro: é o que o aluno procura ao olhar a grade.
+		const peso = (m: MateriaGrade) => (m.natureza === 'obrigatoria' ? 0 : m.optatoria ? 1 : 2);
+		naGrade.sort((a, b) => peso(a) - peso(b));
+		sugestoes.sort((a, b) => peso(a) - peso(b));
 		return { naGrade, sugestoes, jaCursa, semTurma };
 	});
+
+	/** Etiqueta curta da natureza no chip — sem ela, obrigatória e optativa eram iguais. */
+	function rotuloNatureza(m: MateriaGrade): { texto: string; classe: string } | null {
+		if (m.natureza === 'obrigatoria')
+			return {
+				texto: 'Obrigatória',
+				classe: 'bg-primary/10 text-primary dark:bg-purple-500/15 dark:text-purple-200'
+			};
+		if (m.optatoria)
+			return {
+				texto: 'Optativa · destrava obrigatória',
+				classe: 'bg-foreground/5 text-foreground/70'
+			};
+		if (m.natureza === 'optativa')
+			return { texto: 'Optativa', classe: 'bg-foreground/5 text-muted-foreground' };
+		if (m.natureza === 'modulo_livre')
+			return { texto: 'Módulo livre', classe: 'bg-foreground/5 text-muted-foreground' };
+		return null;
+	}
 
 	const creditosNaGrade = $derived(grupos.naGrade.reduce((acc, m) => acc + m.creditos, 0));
 </script>
@@ -72,6 +95,7 @@
 	{@const cor = gradeStore.corDaMateria(m.codigo)}
 	{@const sel = gradeStore.turmaSelecionada(m.codigo)}
 	{@const prioritaria = gradeStore.isPrioritaria(m.codigo)}
+	{@const rotulo = rotuloNatureza(m)}
 	{@const alerta = !!m.avisoPreRequisito || (sel && gradeStore.coReqsFaltando(m.codigo).length > 0)}
 	<li
 		data-codigo={m.codigo}
@@ -89,6 +113,11 @@
 		>
 			<span class="flex items-center gap-1.5">
 				<span class="text-foreground font-mono text-xs font-semibold">{m.codigo}</span>
+				{#if rotulo}
+					<span class="rounded px-1.5 py-px text-[9px] font-semibold {rotulo.classe}"
+						>{rotulo.texto}</span
+					>
+				{/if}
 				{#if gradeStore.isTravada(m.codigo)}
 					<Lock class="text-muted-foreground h-3 w-3" aria-label="Turma travada" />
 				{/if}

@@ -57,20 +57,26 @@ export async function getTurmasPorMaterias(
 }
 
 /**
- * Quais destas matérias já tiveram turma em algum período. A que nunca teve é
- * atividade sem turma com horário (TCC, estágio): a matrícula é pela coordenação,
- * então "não tem turma neste semestre" não é notícia para ela.
+ * Período letivo seguinte ao informado: AAAA.1 → AAAA.2 → (AAAA+1).1. Mesma regra
+ * de reserva do `scrape_turmas_lite.yml`, que coleta esse período uma vez por mês.
  */
-export async function materiasComTurmaEmAlgumPeriodo(idMaterias: number[]): Promise<Set<number>> {
-	if (idMaterias.length === 0) return new Set();
+export function proximoPeriodo(periodo: string): string {
+	const [ano, sem] = periodo.split('.');
+	return sem === '1' ? `${ano}.2` : `${Number(ano) + 1}.1`;
+}
 
-	const { data, error } = await supabase
+/**
+ * Já existe alguma turma coletada para o período? A oferta do próximo semestre só
+ * aparece quando o SIGAA a publica (e a coleta mensal a traz) — antes disso o
+ * Montador planeja com a oferta do semestre atual, como estimativa.
+ */
+export async function temOfertaNoPeriodo(periodo: string): Promise<boolean> {
+	const { count, error } = await supabase
 		.from('turmas')
-		.select('id_materia')
-		.in('id_materia', idMaterias);
-
+		.select('id_turmas', { count: 'exact', head: true })
+		.eq('ano_periodo', periodo);
 	if (error) throw new Error(error.message);
-	return new Set(((data as Array<{ id_materia: number }> | null) ?? []).map((t) => Number(t.id_materia)));
+	return (count ?? 0) > 0;
 }
 
 /** Turma da busca global, já com a matéria a que pertence. */

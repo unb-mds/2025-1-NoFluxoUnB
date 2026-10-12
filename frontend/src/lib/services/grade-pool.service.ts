@@ -15,7 +15,7 @@ import {
 	slotMaskFromHorario,
 	type MateriaGrade
 } from '$lib/stores/grade.store.svelte';
-import { getPeriodoAtivo, materiasComTurmaEmAlgumPeriodo } from '$lib/services/turmas.service';
+import { getPeriodoAtivo } from '$lib/services/turmas.service';
 import { getMateriasByCodigos, searchMaterias } from '$lib/services/materias.service';
 import { buscarSugestoesModuloLivre } from '$lib/services/modulo-livre.service';
 import { getOfertaComEquivalencia } from '$lib/services/oferta-turmas.service';
@@ -438,25 +438,23 @@ async function candidatosClassificados(
 	obrigatorias.sort(porUtilidade);
 	optativas.sort(porUtilidade);
 
-	const obrigatoriasSemOferta = (await semAtividadesSemTurma(semOferta)).map((m) => m.codigo);
+	const obrigatoriasSemOferta = semOferta.filter((m) => !ehAtividadeSemTurma(m)).map((m) => m.codigo);
 	return { obrigatorias, optativas, obrigatoriasSemOferta, pendentesSemOferta };
 }
 
 /**
- * Tira do aviso de "sem turma" a obrigatória que nunca teve turma em período
- * nenhum — TCC 1/2 e estágio, cuja matrícula é pela coordenação. Sem isto, todo
- * aluno no fim do curso via "suas obrigatórias não têm turma" a cada montagem,
- * e o aviso de verdade (obrigatória com aula que não abriu agora) se perdia.
- * Se a consulta falhar, o aviso sai inteiro, como antes.
+ * TCC e estágio: atividade sem turma com horário, matrícula pela coordenação.
+ * Saem do aviso de "obrigatória sem turma" — senão todo aluno no fim do curso o
+ * via a cada montagem, e o aviso de verdade se perdia no meio.
+ *
+ * Pelo nome, e não por "nunca teve turma": o banco só guarda oferta desde
+ * 2026.1, e por esse critério obrigatória que abre só em semestre alternado
+ * (Gerência de Configuração, Projeto Integrador 2) sumia do aviso também.
  */
-async function semAtividadesSemTurma(materias: MateriaGrade[]): Promise<MateriaGrade[]> {
-	if (materias.length === 0) return materias;
-	try {
-		const jaOfertadas = await materiasComTurmaEmAlgumPeriodo(materias.map((m) => m.idMateria));
-		return materias.filter((m) => jaOfertadas.has(m.idMateria));
-	} catch {
-		return materias;
-	}
+const ATIVIDADE_SEM_TURMA = /TRABALHO DE CONCLUS[AÃ]O|EST[AÁ]GIO SUPERVISIONADO/i;
+
+function ehAtividadeSemTurma(m: MateriaGrade): boolean {
+	return ATIVIDADE_SEM_TURMA.test(m.nome);
 }
 
 /**

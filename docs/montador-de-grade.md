@@ -81,6 +81,12 @@ interruptor "Incluir matérias que já curso".
   que ele cursa agora conta como concluído (destrava pré-requisito, não é
   recomendado de novo) e não ocupa carga nem horário. Matéria em curso não aparece
   na busca da essencial.
+  - **Oferta usada:** a do semestre seguinte (`proximoPeriodo`), quando já há
+    turma dele no banco — a coleta mensal (`scrape_turmas_lite.yml`) a traz assim
+    que o SIGAA publica. Antes disso, a do semestre vigente, e o painel avisa que
+    os horários são estimativa.
+  - Cada semestre tem a própria lista e os próprios cenários salvos; trocar de
+    opção recarrega a lista (`carregarLista` na rota) sem apagar a do outro.
 
 ### Orçamento (o que já está ocupado)
 

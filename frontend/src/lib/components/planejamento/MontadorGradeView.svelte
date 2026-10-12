@@ -52,6 +52,8 @@
 	 */
 	let {
 		periodo,
+		periodoAtual = null,
+		ofertaProximo = null,
 		limiteCreditos,
 		onAdd,
 		onSemear,
@@ -71,6 +73,10 @@
 		onLimiteCreditos
 	}: {
 		periodo: string | null;
+		/** Período vigente; `periodo` pode ser o próximo, em "Próximo semestre". */
+		periodoAtual?: string | null;
+		/** O semestre seguinte e se a oferta dele já foi coletada. */
+		ofertaProximo?: { periodo: string; temOferta: boolean } | null;
 		limiteCreditos: number;
 		onAdd: (codigo: string) => void;
 		/**
@@ -927,6 +933,8 @@
 		limiteCreditosInicial={limiteSessao}
 		gerando={gerandoOpcoes}
 		valorInicial={parametrosAtuais}
+		{periodoAtual}
+		{ofertaProximo}
 		onGerar={handleGerarOpcoes}
 		onIncluir={onAdd}
 	/>

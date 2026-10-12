@@ -32,7 +32,11 @@
 	import PreRequisitoConfirmDialog from '$lib/components/planejamento/PreRequisitoConfirmDialog.svelte';
 	import { vagaAssinaturasStore } from '$lib/stores/vaga-assinaturas.store.svelte';
 	import { darcyStore } from '$lib/stores/darcy.store.svelte';
-	import { getPeriodoAtivo } from '$lib/services/turmas.service';
+	import {
+		getPeriodoAtivo,
+		proximoPeriodo,
+		temOfertaNoPeriodo
+	} from '$lib/services/turmas.service';
 	import { preferenciasGradeService } from '$lib/services/preferencias-grade.service';
 	import { filtrarNaoCursados } from '$lib/utils/subject-codes';
 	import {
@@ -47,7 +51,17 @@
 
 	let status = $state<'loading' | 'ready' | 'error'>('loading');
 	let erro = $state<string | null>(null);
+	/** Período cuja oferta está carregada na lista (o vigente ou o próximo). */
 	let periodo = $state<string | null>(null);
+	/** Período letivo vigente (RPC `periodo_letivo_atual`). */
+	let periodoAtual = $state<string | null>(null);
+	/**
+	 * O semestre seguinte e se a oferta dele já foi coletada. "Próximo semestre"
+	 * usa essa oferta quando ela existe; antes disso, a do vigente como estimativa.
+	 */
+	let proximo = $state<{ periodo: string; temOferta: boolean } | null>(null);
+	/** Recarga de período em andamento — a semeadura espera por ela. */
+	let trocandoPeriodo: Promise<void> | null = null;
 	let avisoAdd = $state<string | null>(null);
 	/** Obrigatórias que faltam ao aluno e não são ofertadas neste período. */
 	let semOferta = $state<string[]>([]);
@@ -166,6 +180,8 @@
 	 * coisa a trazer; quando ela é tudo o que sobrou, vale o pedido explícito.
 	 */
 	async function semear(opcoes?: OpcoesSemeadura): Promise<SemeaduraResultado> {
+		// Trocou "Para qual semestre?" e já mandou gerar: semeia na lista nova.
+		if (trocandoPeriodo) await trocandoPeriodo;
 		if (!periodo) return { adicionadas: [], obrigatoriasSemOferta: [] };
 
 		const naLista = gradeStore.pool.map((m) => m.codigo);
@@ -220,6 +236,86 @@
 		};
 	}
 
+	/** Qual oferta a lista deve usar, dado o modo "Para qual semestre?". */
+	function periodoAlvo(): string {
+		const usarProximo = !gradeStore.incluirCursando && proximo?.temOferta;
+		return usarProximo ? proximo!.periodo : periodoAtual!;
+	}
+
+	/**
+	 * (Re)monta a lista com a oferta de `alvo`. Cada período tem a própria lista e
+	 * os próprios cenários salvos, então ir e voltar entre "Este semestre" e
+	 * "Próximo semestre" não apaga a grade do outro.
+	 */
+	async function carregarLista(alvo: string): Promise<void> {
+		// O modo vem de quem chamou, não do storage do período novo (o `init` o
+		// restauraria de lá, e trocar de semestre desfaria a escolha do aluno).
+		const incluirCursando = periodo === null ? null : gradeStore.incluirCursando;
+		const idUser = authStore.getUser()?.idUser ?? null;
+		const salvos = lerPoolSalvo(idUser, alvo);
+		const removidas = new Set(lerRemovidasSalvo(idUser, alvo));
+
+		// O que o aluno já tinha na lista da visita anterior. O filtro de já-cursadas
+		// vale também aqui: matéria concluída depois de ter entrado no pool some
+		// sozinha no próximo carregamento, sem ele ter que remover na mão.
+		const salvosVivos = filtrarNaoCursados(
+			salvos.filter((c) => !removidas.has(c)),
+			fluxogramaStore.completedCodes,
+			fluxogramaStore.currentCodes ?? new Set<string>()
+		);
+		const doStorage = await construirMateriasGrade(salvosVivos, alvo);
+
+		// Matérias em curso NÃO são filtradas por `removidas`: matrícula é fato
+		// consumado. Antes elas eram, e um "Limpar tudo" fazia o aluno recarregar a
+		// página sem as matérias em que ele está de fato matriculado.
+		const cursandoCodigos = [...(fluxogramaStore.currentCodes ?? new Set<string>())];
+
+		const { materias: recomendadas, obrigatoriasSemOferta } = await montarPoolRecomendado(alvo, {
+			limiteCreditos,
+			ordemDoPlano: codigosRecomendados(),
+			excluir: semExcluirCursando([...removidas, ...salvosVivos]),
+			situacao: situacao ?? undefined,
+			cursandoOcupaOrcamento: incluirCursando ?? undefined
+		});
+		semOferta = obrigatoriasSemOferta;
+
+		const vistos = new Set<string>();
+		const pool = [...doStorage, ...recomendadas].filter((m) =>
+			vistos.has(m.codigo) ? false : (vistos.add(m.codigo), true)
+		);
+		periodo = alvo;
+		gradeStore.init(pool, { idUser, periodo: alvo });
+		if (incluirCursando !== null) gradeStore.setIncluirCursando(incluirCursando);
+		gradeStore.definirCursandoAtual(cursandoCodigos);
+		// A turma real da matrícula só existe na oferta do semestre vigente.
+		if (alvo === periodoAtual) preencherTurmasReais();
+	}
+
+	// Trocar "Para qual semestre?" troca a oferta da lista, quando a do próximo
+	// semestre já foi coletada. Sem ela, nada a recarregar: a lista segue com a do
+	// vigente e a tela avisa que é estimativa.
+	$effect(() => {
+		void gradeStore.incluirCursando;
+		if (status !== 'ready' || !periodoAtual || trocandoPeriodo) return;
+		const alvo = periodoAlvo();
+		if (alvo === periodo) return;
+		trocandoPeriodo = carregarLista(alvo)
+			.then(() => {
+				invalidarContextoGrade();
+				toast.info(
+					alvo === periodoAtual
+						? `Voltando para a oferta de ${alvo}.`
+						: `Usando a oferta de ${alvo}, o próximo semestre.`
+				);
+			})
+			.catch(() => {
+				toast.error('Não consegui carregar a oferta desse semestre. Tente de novo.');
+			})
+			.finally(() => {
+				trocandoPeriodo = null;
+			});
+	});
+
 	async function montar(): Promise<void> {
 		status = 'loading';
 		erro = null;
@@ -244,44 +340,17 @@
 					: 'Seu plano de formatura não indicou matérias para montar. "Montar grade" vai puxar da sua matriz.';
 			}
 
-			const idUser = authStore.getUser()?.idUser ?? null;
-			periodo = await getPeriodoAtivo();
-			const salvos = lerPoolSalvo(idUser, periodo);
-			const removidas = new Set(lerRemovidasSalvo(idUser, periodo));
+			periodoAtual = await getPeriodoAtivo();
+			const seguinte = proximoPeriodo(periodoAtual);
+			// Sem saber se há oferta, o modo "Próximo semestre" só usa a estimativa.
+			const temOferta = await temOfertaNoPeriodo(seguinte).catch(() => false);
+			proximo = { periodo: seguinte, temOferta };
 
-			// O que o aluno já tinha na lista da visita anterior. O filtro de já-cursadas
-			// vale também aqui: matéria concluída depois de ter entrado no pool some
-			// sozinha no próximo carregamento, sem ele ter que remover na mão.
-			const salvosVivos = filtrarNaoCursados(
-				salvos.filter((c) => !removidas.has(c)),
-				fluxogramaStore.completedCodes,
-				fluxogramaStore.currentCodes ?? new Set<string>()
-			);
-			const doStorage = await construirMateriasGrade(salvosVivos, periodo);
-
-			// Matérias em curso NÃO são filtradas por `removidas`: matrícula é fato
-			// consumado. Antes elas eram, e um "Limpar tudo" fazia o aluno recarregar a
-			// página sem as matérias em que ele está de fato matriculado.
-			const cursandoCodigos = [...(fluxogramaStore.currentCodes ?? new Set<string>())];
-
-			const { materias: recomendadas, obrigatoriasSemOferta } = await montarPoolRecomendado(
-				periodo,
-				{
-					limiteCreditos,
-					ordemDoPlano: codigosRecomendados(),
-					excluir: semExcluirCursando([...removidas, ...salvosVivos]),
-					situacao: situacao ?? undefined
-				}
-			);
-			semOferta = obrigatoriasSemOferta;
-
-			const vistos = new Set<string>();
-			const pool = [...doStorage, ...recomendadas].filter((m) =>
-				vistos.has(m.codigo) ? false : (vistos.add(m.codigo), true)
-			);
-			gradeStore.init(pool, { idUser, periodo });
-			gradeStore.definirCursandoAtual(cursandoCodigos);
-			preencherTurmasReais();
+			await carregarLista(periodoAtual);
+			// O aluno estava planejando o próximo semestre na última visita (o modo fica
+			// salvo com os cenários): abre direto na oferta dele.
+			const alvo = periodoAlvo();
+			if (alvo !== periodo) await carregarLista(alvo);
 			invalidarContextoGrade();
 			status = 'ready';
 			// Grade que a Darcy montou em outra tela ("Abrir no Montador"): aplica agora
@@ -440,20 +509,19 @@
 		await aplicarMontagemDoChat(todosCodigos, docentes, opcaoGrade);
 	}
 
-	/** Prioriza o que o chat pediu e monta — já com o lote garantido no pool. */
+	/**
+	 * Monta o que o chat pediu — já com o lote garantido no pool.
+	 *
+	 * As matérias do chat são priorizadas SÓ durante esta montagem. Antes a estrela
+	 * ficava: cada grade da Darcy deixava suas optativas estreladas para sempre, e
+	 * como a estrela pesa mais que obrigatória, toda montagem seguinte punha essas
+	 * optativas no lugar das obrigatórias (chamado: FGA0211 fora com o horário livre).
+	 */
 	async function aplicarMontagemDoChat(
 		todosCodigos: string[],
 		docentes?: Record<string, string>,
 		opcaoGrade?: OpcaoGradeDoChat
 	): Promise<void> {
-		for (const raw of todosCodigos) {
-			const c = raw.trim().toUpperCase();
-			if (!c) continue;
-			if (gradeStore.hasMateria(c) && !gradeStore.isPrioritaria(c)) {
-				gradeStore.togglePrioridade(c);
-			}
-		}
-
 		// O backend já pode ter resolvido a montagem no orquestrador — nesse caso o
 		// frontend só aplica a seleção exata (caminho único de `aplicarSelecao`),
 		// sem re-resolver com o solver local. A tag de texto [MONTAR_GRADE|...] (que
@@ -475,15 +543,28 @@
 			return;
 		}
 
-		if (docentes && Object.keys(docentes).length > 0) {
-			const snapshot = gradeStore.snapshotSelecao();
-			gradeStore.montarAutomatico({ docentesObrigatorios: docentes, limiteCreditos });
-			const resumo = Object.entries(docentes)
-				.map(([c, nome]) => `${c} com ${nome}`)
-				.join(', ');
-			confirmacaoProfessor = { resumo, snapshot, docentes };
-		} else {
-			gradeStore.montarAutomatico({ limiteCreditos });
+		const promovidas: string[] = [];
+		for (const raw of todosCodigos) {
+			const c = raw.trim().toUpperCase();
+			if (c && gradeStore.hasMateria(c) && !gradeStore.isPrioritaria(c)) {
+				gradeStore.togglePrioridade(c);
+				promovidas.push(c);
+			}
+		}
+		try {
+			if (docentes && Object.keys(docentes).length > 0) {
+				const snapshot = gradeStore.snapshotSelecao();
+				gradeStore.montarAutomatico({ docentesObrigatorios: docentes, limiteCreditos });
+				const resumo = Object.entries(docentes)
+					.map(([c, nome]) => `${c} com ${nome}`)
+					.join(', ');
+				confirmacaoProfessor = { resumo, snapshot, docentes };
+			} else {
+				gradeStore.montarAutomatico({ limiteCreditos });
+			}
+		} finally {
+			// Devolve as estrelas ao que o aluno tinha marcado.
+			for (const c of promovidas) if (gradeStore.isPrioritaria(c)) gradeStore.togglePrioridade(c);
 		}
 	}
 
@@ -614,6 +695,8 @@
 {:else}
 	<MontadorGradeView
 		{periodo}
+		{periodoAtual}
+		ofertaProximo={proximo}
 		{limiteCreditos}
 		onAdd={adicionarAoPool}
 		onSemear={semear}
