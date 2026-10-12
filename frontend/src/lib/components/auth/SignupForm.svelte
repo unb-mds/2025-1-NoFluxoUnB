@@ -280,7 +280,7 @@
 			/>
 			<span>
 				Li e aceito os
-				<a href="/termos" class="auth-link" target="_blank" rel="noopener">Termos de Serviço</a>
+				<a href="/termos" class="auth-link" target="_blank" rel="noopener">Termos de Uso</a>
 				e a
 				<a href="/privacidade" class="auth-link" target="_blank" rel="noopener">Política de Privacidade</a>
 			</span>
@@ -327,6 +327,12 @@
 			<GoogleIcon />
 			Cadastrar com Google
 		</button>
+		<p class="mt-4 text-center text-xs leading-relaxed text-muted-foreground">
+			Ao cadastrar com o Google, você concorda com os
+			<a href="/termos" class="auth-link" target="_blank" rel="noopener">Termos de uso</a>
+			e a
+			<a href="/privacidade" class="auth-link" target="_blank" rel="noopener">Política de privacidade</a>.
+		</p>
 
 		<!-- Link to login -->
 		<p class="mt-6 text-center text-sm text-muted-foreground">

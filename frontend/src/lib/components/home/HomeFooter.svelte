@@ -10,6 +10,11 @@
 		{ label: 'Sobre', href: '/#sobre-nos' }
 	];
 
+	const legalLinks = [
+		{ label: 'Termos de uso', href: '/termos' },
+		{ label: 'Política de privacidade', href: '/privacidade' }
+	];
+
 	const socialLinks = [
 		{
 			icon: Github,
@@ -25,7 +30,6 @@
 			<p class="footer-logo">
 				<span class="text-foreground">NOFLX</span><span class="text-primary"> UNB</span>
 			</p>
-			<p class="footer-copyright">© {currentYear} NoFluxo UNB — todos os direitos reservados</p>
 			<a class="footer-crianex" href="https://crianex.com" target="_blank" rel="noopener noreferrer">
 				Um produto <CrianexWordmark />
 			</a>
@@ -55,6 +59,15 @@
 				</a>
 			{/each}
 		</div>
+	</div>
+
+	<div class="footer-bottom">
+		<p class="footer-copyright">© {currentYear} NoFluxo UNB — todos os direitos reservados</p>
+		<nav class="footer-legal" aria-label="Documentos legais">
+			{#each legalLinks as link}
+				<a href={link.href} class="footer-link footer-link--legal">{link.label}</a>
+			{/each}
+		</nav>
 	</div>
 </footer>
 
@@ -113,8 +126,40 @@
 		margin-bottom: 0.25rem;
 	}
 
+	.footer-bottom {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 1rem 1rem 1.5rem;
+		border-top: 1px solid hsl(var(--border));
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.75rem;
+		text-align: center;
+	}
+
+	@media (min-width: 768px) {
+		.footer-bottom {
+			flex-direction: row;
+			justify-content: space-between;
+			padding: 1rem 2rem 1.5rem;
+			text-align: left;
+		}
+	}
+
 	.footer-copyright {
 		color: hsl(var(--muted-foreground));
+		font-size: 0.8125rem;
+	}
+
+	.footer-legal {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 0.5rem 1.25rem;
+	}
+
+	.footer-link--legal {
 		font-size: 0.8125rem;
 	}
 
