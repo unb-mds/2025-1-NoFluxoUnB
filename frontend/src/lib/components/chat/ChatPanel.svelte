@@ -142,7 +142,10 @@
 	// vez de chamar a IA (o texto digitado fica no campo).
 	const precisaLogin = $derived(controleDeUso && !($authStore.isAuthenticated && $authStore.user));
 	const bloqueio = $derived(controleDeUso ? darcyCotaStore.bloqueio : null);
-	const cotaAtual = $derived(controleDeUso ? darcyCotaStore.cota : null);
+	// Admin (cota ilimitada) não tem rodinha: não há limite a mostrar.
+	const cotaAtual = $derived(
+		controleDeUso && !darcyCotaStore.cota?.ilimitado ? darcyCotaStore.cota : null
+	);
 	const PLACEHOLDER_BLOQUEADO = 'Volta amanhã às 00h';
 
 	onMount(() => {
@@ -380,8 +383,13 @@
 				>Powered by Maritaca AI</span
 			>
 		</div>
-		{#if (onNovaConversa && messages.length > 0 && !vendoConversas) || (conversasAnteriores && !precisaLogin)}
+		{#if cotaAtual || (onNovaConversa && messages.length > 0 && !vendoConversas) || (conversasAnteriores && !precisaLogin)}
 			<div class="ml-auto flex shrink-0 items-center gap-1 pl-2">
+				{#if cotaAtual}
+					<!-- Uso diário no cabeçalho: dentro do campo de texto ela cobria o que
+					     o aluno digitava. -->
+					<DarcyUsoRing cota={cotaAtual} tooltip="baixo" />
+				{/if}
 				{#if conversasAnteriores && !precisaLogin}
 					<button
 						type="button"
@@ -486,7 +494,7 @@
 									role={msg.role}
 									name={i === 0 ? (msg.role === 'user' ? 'Você' : assistantName) : undefined}
 								>
-									<div class="@container space-y-2.5">
+									<div class="space-y-2.5">
 										{#each block.linhas as linha}
 											{#if linha.tipo === 'paragrafo'}
 												<p class="whitespace-pre-wrap">
@@ -522,9 +530,10 @@
 													</ul>
 												{/if}
 											{:else if linha.tipo === 'tabela'}
-												<!-- Estreito (celular, painel flutuante): uma linha = um card
-												     rótulo:valor. Largo: tabela de verdade. -->
-												<div class="space-y-2 @md:hidden">
+												<!-- Celular: uma linha = um card rótulo:valor; tela larga: tabela.
+												     Pela largura da TELA, não do contêiner: a bolha se ajusta ao
+												     texto, e container query zera a largura dela (uma letra por linha). -->
+												<div class="space-y-2 md:hidden">
 													{#each linha.linhas as row}
 														<dl
 															class="border-border bg-card/70 rounded-xl border px-3 py-2 text-[13px] dark:border-white/10 dark:bg-white/5"
@@ -542,7 +551,7 @@
 														</dl>
 													{/each}
 												</div>
-												<div class="hidden overflow-x-auto @md:block">
+												<div class="hidden overflow-x-auto md:block">
 													<table class="w-full border-collapse text-left text-[13px]">
 														<thead>
 															<tr class="border-border border-b dark:border-white/15">
@@ -799,11 +808,6 @@
 						onkeydown={handleKeydown}
 						class="border-border-strong bg-card text-foreground placeholder:text-muted-foreground focus:border-ring w-full rounded-full border py-3.5 pr-12 pl-5 text-[14.5px] shadow-sm backdrop-blur-2xl transition-all focus:outline-none disabled:opacity-50 dark:border-white/20 dark:bg-white/10 dark:shadow-inner dark:focus:border-white/30 dark:focus:bg-white/15"
 					/>
-					{#if cotaAtual}
-						<span class="absolute right-12 flex items-center">
-							<DarcyUsoRing cota={cotaAtual} />
-						</span>
-					{/if}
 					<button
 						type="button"
 						onclick={enviar}

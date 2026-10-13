@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
 	classificarErroIA,
+	cotaEsgotada,
 	cotaRenovou,
 	ErroIA,
 	estadoRodinha,
@@ -33,27 +34,43 @@ describe('estadoRodinha', () => {
 	});
 
 	it('limite aumentado por concessão passa do padrão sem estourar o anel', () => {
-		expect(estadoRodinha({ usadas: 31, limite: 60 })).toMatchObject({ cor: 'azul', percentual: 52 });
+		expect(estadoRodinha({ usadas: 31, limite: 60 })).toMatchObject({
+			cor: 'azul',
+			percentual: 52
+		});
 		expect(estadoRodinha({ usadas: 70, limite: 60 })).toMatchObject({ fracao: 1, cor: 'vermelho' });
 	});
 
 	it('limite 0 conta como esgotado', () => {
-		expect(estadoRodinha({ usadas: 0, limite: 0 })).toMatchObject({ cor: 'vermelho', esgotada: true });
+		expect(estadoRodinha({ usadas: 0, limite: 0 })).toMatchObject({
+			cor: 'vermelho',
+			esgotada: true
+		});
 	});
 
 	it('singular com limite 1', () => {
-		expect(estadoRodinha({ usadas: 0, limite: 1 }).rotulo).toBe('0 de 1 pergunta hoje. Renova à meia-noite.');
+		expect(estadoRodinha({ usadas: 0, limite: 1 }).rotulo).toBe(
+			'0 de 1 pergunta hoje. Renova à meia-noite.'
+		);
 	});
 });
 
 describe('classificarErroIA', () => {
 	it('401 LOGIN_NECESSARIO → login', () => {
-		const e = new ErroIA(401, '{"codigo":"LOGIN_NECESSARIO","error":"Faça login"}', '/assistente/chat');
+		const e = new ErroIA(
+			401,
+			'{"codigo":"LOGIN_NECESSARIO","error":"Faça login"}',
+			'/assistente/chat'
+		);
 		expect(classificarErroIA(e)).toEqual({ tipo: 'login' });
 	});
 
 	it('401 sem código (sessão inválida no /planejamento/chat) → login', () => {
-		expect(classificarErroIA(new Error('Erro 401 ao chamar chat agente: {"error":"Usuário não autorizado"}'))).toEqual({
+		expect(
+			classificarErroIA(
+				new Error('Erro 401 ao chamar chat agente: {"error":"Usuário não autorizado"}')
+			)
+		).toEqual({
 			tipo: 'login'
 		});
 	});
@@ -83,7 +100,9 @@ describe('classificarErroIA', () => {
 		const semCreditos = new ErroIA(503, '{"error":"...","code":"ai_sem_creditos"}', '/chat/send');
 		expect(classificarErroIA(semCreditos)).toEqual({ tipo: 'outro' });
 		expect(isAiSemCreditos(semCreditos)).toBe(true); // mensagem no formato antigo
-		expect(classificarErroIA(new Error('Erro 500 ao chamar /chat/send: timeout'))).toEqual({ tipo: 'outro' });
+		expect(classificarErroIA(new Error('Erro 500 ao chamar /chat/send: timeout'))).toEqual({
+			tipo: 'outro'
+		});
 		expect(classificarErroIA(new TypeError('Failed to fetch'))).toEqual({ tipo: 'outro' });
 	});
 });
@@ -98,7 +117,10 @@ describe('cotaRenovou', () => {
 
 describe('montarPedidoMaisPerguntas', () => {
 	it('monta o ticket com título identificável e usadas/limite no corpo', () => {
-		const p = montarPedidoMaisPerguntas('  Semana de provas, preciso revisar  ', 'semana', { usadas: 30, limite: 30 });
+		const p = montarPedidoMaisPerguntas('  Semana de provas, preciso revisar  ', 'semana', {
+			usadas: 30,
+			limite: 30
+		});
 		expect(p.title).toBe('Mais perguntas no Darcy');
 		expect(p.description).toContain('Pedido: Esta semana');
 		expect(p.description).toContain('30 de 30 perguntas usadas hoje');
@@ -110,5 +132,16 @@ describe('montarPedidoMaisPerguntas', () => {
 			usadas: 30,
 			limite: 30
 		});
+	});
+});
+
+describe('cotaEsgotada', () => {
+	it('esgota quando usadas chega ao limite', () => {
+		expect(cotaEsgotada({ usadas: 29, limite: 30 })).toBe(false);
+		expect(cotaEsgotada({ usadas: 30, limite: 30 })).toBe(true);
+	});
+
+	it('cota ilimitada (admin) nunca esgota, mesmo com 0/0', () => {
+		expect(cotaEsgotada({ usadas: 0, limite: 0, ilimitado: true })).toBe(false);
 	});
 });

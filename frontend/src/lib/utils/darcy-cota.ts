@@ -13,6 +13,13 @@ export interface CotaIA {
 	restantes: number;
 	/** ISO 8601 da próxima meia-noite de Brasília. */
 	renova_em: string;
+	/** Admin do sistema: sem limite diário — sem rodinha e sem bloqueio. */
+	ilimitado?: boolean;
+}
+
+/** A cota esgotou? Cota ilimitada (admin) nunca esgota. */
+export function cotaEsgotada(cota: Pick<CotaIA, 'usadas' | 'limite' | 'ilimitado'>): boolean {
+	return !cota.ilimitado && cota.usadas >= cota.limite;
 }
 
 export type CorRodinha = 'azul' | 'ambar' | 'vermelho';
