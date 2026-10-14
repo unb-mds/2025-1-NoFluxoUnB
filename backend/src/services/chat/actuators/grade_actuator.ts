@@ -632,12 +632,16 @@ export function createGradeAgent(
                 .boolean()
                 .optional()
                 .describe("false = monta como se o aluno não estivesse cursando nada agora (libera horário/créditos das matrículas atuais). Padrão: true."),
+            apenasObrigatorias: z
+                .boolean()
+                .optional()
+                .describe("true = só obrigatórias (e optativas que destravam obrigatória); nenhuma optativa comum entra. Use quando o aluno pedir grade só com obrigatórias — depois ofereça optativas pro horário que sobrou com recomendar_por_horario_livre. Padrão: false."),
             estrategia: z
                 .enum(["menos_dias", "menos_furos", "semana_equilibrada"])
                 .optional()
                 .describe("Qual das opções retornadas destacar como a escolhida. Padrão: a 1ª opção devolvida."),
         }),
-        execute: async ({ escopo, turnos, essencial, docente, incluirCursando, estrategia }) => {
+        execute: async ({ escopo, turnos, essencial, docente, incluirCursando, apenasObrigatorias, estrategia }) => {
             const params: ParametrosMontador = {
                 email,
                 curriculoCompleto,
@@ -647,6 +651,7 @@ export function createGradeAgent(
                 essencial: essencial || undefined,
                 professorPreferidoEssencial: docente || undefined,
                 incluirCursando: incluirCursando ?? undefined,
+                apenasObrigatorias: apenasObrigatorias ?? undefined,
             };
 
             let resultado: Awaited<ReturnType<typeof montarGrade>>;

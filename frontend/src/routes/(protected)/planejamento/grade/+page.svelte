@@ -197,6 +197,7 @@
 				// semear 24 créditos para quem pediu 30 deixa o solver sem o que encaixar.
 				limiteCreditos: opcoes?.limiteCreditos ?? limiteCreditos,
 				escopo: opcoes?.escopo,
+				apenasObrigatorias: opcoes?.apenasObrigatorias,
 				ordemDoPlano: codigosRecomendados(),
 				// A lixeira não vale para matrícula em curso: quem quer a MATR fora da grade
 				// usa o botão "matérias em curso", que a esconde sem perder a informação.

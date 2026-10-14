@@ -247,7 +247,8 @@
 			naGrade: gradeStore.selecao.size,
 			naoAlocadas: gradeStore.ultimaMontagem?.naoAlocadas ?? [],
 			diasComAula: semana.dias.filter((d) => d.blocos.length > 0).map((d) => d.label),
-			cenarios: gradeStore.grades.length
+			cenarios: gradeStore.grades.length,
+				soObrigatorias: gradeStore.montagemSoObrigatorias
 		});
 	});
 	const promptStarters = $derived([...sugestoesContexto, ...startersFixos].slice(0, 6));

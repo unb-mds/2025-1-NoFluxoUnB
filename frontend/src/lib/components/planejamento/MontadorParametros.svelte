@@ -32,6 +32,8 @@
 		/** Nomes das estratégias de ranking que o solver deve testar (nunca vazio). */
 		estrategias: string[];
 		estrategiaPreferida: string;
+		/** Só obrigatórias (e optatórias): a Darcy sugere as optativas depois. */
+		apenasObrigatorias: boolean;
 	}
 </script>
 
@@ -70,6 +72,7 @@
 	} = $props();
 
 	let estrategia = $state(valorInicial?.estrategiaPreferida ?? 'Semana equilibrada');
+	let apenasObrigatorias = $state(valorInicial?.apenasObrigatorias ?? false);
 	let limiteCreditos = $state(
 		Math.min(
 			LIMITE_CREDITOS_MAX,
@@ -179,7 +182,8 @@
 			professorPreferidoEssencial: essencial ? professor : null,
 			turnosEssencial: [],
 			estrategias: ESTRATEGIAS.map((e) => e.nome),
-			estrategiaPreferida: estrategia
+			estrategiaPreferida: estrategia,
+			apenasObrigatorias
 		});
 	}
 </script>
@@ -248,6 +252,23 @@
 			class="mt-3 h-1 w-full cursor-pointer touch-manipulation accent-primary"
 		/>
 	</div>
+
+	<fieldset>
+		<legend class="mg-eyebrow mb-2">O que entra na grade?</legend>
+		<div class="grid grid-cols-2 gap-2">
+			{#each [{ valor: false, titulo: 'Tudo', descricao: 'Obrigatórias e optativas' }, { valor: true, titulo: 'Só obrigatórias', descricao: 'A Darcy sugere optativas depois' }] as o (o.titulo)}
+				<button
+					type="button"
+					aria-pressed={apenasObrigatorias === o.valor}
+					onclick={() => (apenasObrigatorias = o.valor)}
+					class="mg-choice flex min-h-16 flex-col items-start gap-1 p-2.5 text-left"
+				>
+					<span class="text-xs font-semibold text-foreground">{o.titulo}</span>
+					<span class="text-[10px] leading-tight">{o.descricao}</span>
+				</button>
+			{/each}
+		</div>
+	</fieldset>
 
 	<fieldset>
 		<legend class="mg-eyebrow mb-2">Turnos permitidos</legend>

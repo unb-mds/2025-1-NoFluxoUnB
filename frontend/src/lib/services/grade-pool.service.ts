@@ -297,6 +297,8 @@ export interface OpcoesSemeadura {
 	escopo?: 'periodo-atual' | 'todas-pendentes';
 	/** Essencial da montagem: entra mesmo em curso com o modo "sem as cursando". */
 	essencial?: string | null;
+	/** Só o núcleo (obrigatória e optatória) — nenhuma optativa comum é semeada. */
+	apenasObrigatorias?: boolean;
 }
 
 /**
@@ -664,6 +666,12 @@ export async function montarPoolRecomendado(
 		 * comuns continuam pelo orçamento — semear dezenas delas só enche a lista.
 		 */
 		escopo?: 'periodo-atual' | 'todas-pendentes';
+		/**
+		 * Só o núcleo (obrigatória e optatória): nenhuma optativa comum nem
+		 * complemento por orçamento. O horário que sobrar fica livre para o aluno
+		 * (ou a Darcy) escolher optativa depois.
+		 */
+		apenasObrigatorias?: boolean;
 	}
 ): Promise<PoolRecomendado> {
 	const base = opts.base ?? { mask: 0n, creditos: 0, turnos: TODOS_OS_TURNOS };
@@ -729,7 +737,9 @@ export async function montarPoolRecomendado(
 	);
 
 	let recomendadas: MateriaGrade[];
-	if (opts.escopo === 'todas-pendentes') {
+	if (opts.apenasObrigatorias) {
+		recomendadas = nucleo;
+	} else if (opts.escopo === 'todas-pendentes') {
 		// O resto (optativa comum) pelo orçamento.
 		const resto = escolherComOrcamento(
 			candidatas.filter((m) => !ehNucleo(m)),

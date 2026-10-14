@@ -203,7 +203,8 @@
 			await onSemear?.({
 				limiteCreditos: params.limiteCreditos,
 				escopo: params.escopo,
-				essencial: params.essencial
+				essencial: params.essencial,
+				apenasObrigatorias: params.apenasObrigatorias
 			});
 
 			if (params.essencial && params.professorPreferidoEssencial) {
@@ -217,8 +218,10 @@
 				limiteCreditos: params.limiteCreditos,
 				essencial: params.essencial ?? undefined,
 				professorPreferidoEssencial: params.professorPreferidoEssencial ?? undefined,
-				turnosEssencial: params.turnosEssencial
+				turnosEssencial: params.turnosEssencial,
+				apenasObrigatorias: params.apenasObrigatorias
 			};
+			gradeStore.setMontagemSoObrigatorias(params.apenasObrigatorias);
 			const opcoes = gradeStore.montarOpcoes({ ...opts, estrategias: params.estrategias });
 
 			// Travada com turma (a matrícula real) não passa pelo solver — vira horário

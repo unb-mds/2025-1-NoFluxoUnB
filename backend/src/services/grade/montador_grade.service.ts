@@ -72,6 +72,8 @@ export interface ParametrosMontador {
     essencial?: string;
     professorPreferidoEssencial?: string;
     incluirCursando?: boolean;
+    /** Só obrigatória/optatória (espelha `apenasObrigatorias` de `grade.store.svelte.ts`); optativa comum fica de fora. */
+    apenasObrigatorias?: boolean;
 }
 
 export interface ResultadoMontador {
@@ -348,6 +350,8 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
         return true;
     });
 
+    const optatoriasVivas = calcularOptatoriasVivas(dados.materiasMapeadas, aprovadasExpandido);
+
     // "Período atual": nível atual/atrasado + toda optativa (nivel 0, sempre
     // disponível). "Todas pendentes": sem esse corte. Decisão de escopo documentada
     // aqui — não há precedente idêntico no frontend ainda (a Fase 2 de tela, que
@@ -364,6 +368,9 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
         // atual" nunca geraria diagnóstico nenhum, só silêncio.
         if (cod === essencialNorm) return true;
         if (!dentroDoEscopo(m)) return false;
+        if (params.apenasObrigatorias && !m.obrigatoria && !optatoriasVivas.has(cod) && !cursandoNorm.has(cod)) {
+            return false;
+        }
         return m.obrigatoria || dados.codigosComOferta.has(cod);
     });
 
@@ -401,8 +408,6 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
 
     const turnosPermitidosSet = new Set<Turno>(params.turnosPermitidos ?? []);
     const situacao = montarSituacao(dados.cargaHorariaIntegralizada, dados.exigidaMatriz);
-    const optatoriasVivas = calcularOptatoriasVivas(dados.materiasMapeadas, aprovadasExpandido);
-
     const turmasAntesDoFiltroDeTurno = new Map<string, TurmaOferta[]>();
     const turnosComOferta = new Map<string, Turno[]>();
     const pendenciasPreRequisitoMap = new Map<string, string[]>();

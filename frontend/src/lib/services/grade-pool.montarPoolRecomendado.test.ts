@@ -111,6 +111,30 @@ describe('montarPoolRecomendado', () => {
 	});
 
 	/**
+	 * "Só obrigatórias": nenhuma optativa comum é semeada, nem como complemento do
+	 * crédito que sobra — o horário livre é para o aluno/Darcy escolher depois. A
+	 * optatória (que destrava obrigatória) é núcleo e continua entrando.
+	 */
+	it('apenasObrigatorias semeia o núcleo e nenhuma optativa comum', async () => {
+		curso.materias = [
+			materiaDaMatriz('OBR0001', 1, 0, 1),
+			materiaDaMatriz('OPT0001', 0, 1, 2),
+			materiaDaMatriz('OPT0002', 0, 1, 3)
+		];
+		todasComOferta();
+		optatorias = new Map([['OPT0002', ['OBR0001']]]);
+
+		const completa = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
+		const soObrigatorias = await montarPoolRecomendado('2026.2', {
+			limiteCreditos: 24,
+			apenasObrigatorias: true
+		});
+
+		expect(completa.materias.map((m) => m.codigo)).toContain('OPT0001');
+		expect(soObrigatorias.materias.map((m) => m.codigo).sort()).toEqual(['OBR0001', 'OPT0002']);
+	});
+
+	/**
 	 * Obrigatória não é cortada pelo limite na LISTA: quem corta é o solver, onde
 	 * ela pesa mais que optativa. A ordem continua dizendo quem cabe primeiro.
 	 */

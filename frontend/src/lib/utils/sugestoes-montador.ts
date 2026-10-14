@@ -21,6 +21,8 @@ export interface SituacaoMontador {
 	/** Dias com aula (rótulos "Seg"…"Sáb"). */
 	diasComAula: string[];
 	cenarios: number;
+	/** A grade foi gerada só com obrigatórias — o que sobrou de horário é para optativa. */
+	soObrigatorias?: boolean;
 }
 
 /** Até 3 sugestões que dependem da grade de agora, mais úteis primeiro. */
@@ -41,6 +43,16 @@ export function sugestoesDoMontador(
 	if (s.naGrade === 0) {
 		out.push({ prefix: 'Monta minha', badge: 'grade', message: 'Monte minha grade' });
 		return out;
+	}
+	if (s.soObrigatorias) {
+		// Cai em `recomendar_por_horario_livre`: já lista optativas que cabem no
+		// horário que sobrou, com pré-requisito cumprido e por afinidade com o histórico.
+		out.push({
+			prefix: 'Sugerir',
+			badge: 'optativas',
+			suffix: 'pro horário livre',
+			message: 'Que optativas cabem nos horários livres da minha grade?'
+		});
 	}
 	if (s.diasComAula.includes('Sex')) {
 		out.push({

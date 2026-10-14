@@ -480,6 +480,13 @@ function createGradeStore() {
 	let incluirCursando = $state(true);
 
 	/**
+	 * A última montagem foi só com obrigatórias? Só em memória, de propósito: é o
+	 * contexto da conversa com a Darcy ("sobrou horário, quer optativa?"), não uma
+	 * preferência do aluno — cada "Gerar opções" decide de novo.
+	 */
+	let montagemSoObrigatorias = $state(false);
+
+	/**
 	 * Matérias em curso que valem para esta montagem. Desligado o modo, o conjunto é
 	 * vazio: elas não pontuam, não gastam crédito e não ocupam horário — mas
 	 * `cursandoAtual` continua intacto, então religar devolve tudo sem recarregar.
@@ -629,6 +636,12 @@ function createGradeStore() {
 		 * tem efeito próprio.
 		 */
 		escopo?: 'periodo-atual' | 'todas-pendentes';
+		/**
+		 * Só obrigatória e optatória entram no solver; optativa comum (mesmo a que o
+		 * aluno pôs na lista na mão) fica de fora. Matrícula real e a `essencial`
+		 * continuam valendo — foram pedidas/são fato consumado.
+		 */
+		apenasObrigatorias?: boolean;
 	}
 
 	/**
@@ -693,6 +706,16 @@ function createGradeStore() {
 			.filter(
 				(m) =>
 					m.nivelPreRequisito !== 'pendente' ||
+					m.codigo === essencialCodigo ||
+					cursandoAtivo.has(m.codigo)
+			)
+			// Mesmo núcleo que `montarPoolRecomendado` semeia (`ehNucleo`). Natureza
+			// ausente conta como optativa, como em `pesoDaNatureza`.
+			.filter(
+				(m) =>
+					!(opts?.apenasObrigatorias ?? montagemSoObrigatorias) ||
+					m.natureza === 'obrigatoria' ||
+					m.optatoria === true ||
 					m.codigo === essencialCodigo ||
 					cursandoAtivo.has(m.codigo)
 			);
@@ -1020,6 +1043,14 @@ function createGradeStore() {
 
 		get incluirCursando() {
 			return incluirCursando;
+		},
+
+		get montagemSoObrigatorias() {
+			return montagemSoObrigatorias;
+		},
+
+		setMontagemSoObrigatorias(valor: boolean): void {
+			montagemSoObrigatorias = valor;
 		},
 
 		/**

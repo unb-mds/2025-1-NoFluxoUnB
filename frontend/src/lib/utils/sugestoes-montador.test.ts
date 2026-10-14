@@ -18,6 +18,13 @@ describe('sugestoesDoMontador', () => {
 		expect(s.map((x) => x.badge)).toContain('sem sexta');
 	});
 
+	it('grade só com obrigatórias oferece optativas para o horário que sobrou', () => {
+		const s = sugestoesDoMontador({ ...base, soObrigatorias: true });
+		expect(s[0].badge).toBe('optativas');
+		expect(s[0].message).toContain('optativas');
+		expect(sugestoesDoMontador(base).map((x) => x.badge)).not.toContain('optativas');
+	});
+
 	it('mais de um cenário sugere comparar; no máximo 3', () => {
 		const s = sugestoesDoMontador({
 			...base,
