@@ -135,6 +135,8 @@ describe("R11 — RLS no catálogo", () => {
         expect(linhas("service_role_insere_matriz")).toHaveLength(1);
     });
 
+    // Estado logo após esta migration; 20261014_rls_vetorizadas_preferencias.sql fecha o
+    // pendente (ver rls-vetorizadas-preferencias.pglite.test.ts).
     it("só materias_vetorizadas fica sem RLS (pendente: jobs do mcp_agent sem service_role garantida)", () => {
         expect(linhas("tabelas_sem_rls")).toEqual([{ relname: "materias_vetorizadas" }]);
     });

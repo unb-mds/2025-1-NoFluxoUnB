@@ -8,16 +8,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
-# Tenta pegar a SERVICE_ROLE_KEY primeiro, senao pega a comum (para poder fazer upsert)
-SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get(
-    "SUPABASE_KEY"
-)
+# Só a service_role escreve em materias_vetorizadas: a tabela tem RLS desde
+# supabase/migrations/20261014_rls_vetorizadas_preferencias.sql, sem policy de
+# escrita. Sem fallback para SUPABASE_KEY: se fosse a anon/publishable key, o
+# upsert falharia com 42501.
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise SystemExit(
-        "ERRO: defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY (ou SUPABASE_KEY) "
+        "ERRO: defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY "
         "no .env do mcp_agent. Nunca use chaves hardcoded."
+    )
+if SUPABASE_KEY.startswith("sb_publishable_"):
+    raise SystemExit(
+        "ERRO: SUPABASE_SERVICE_ROLE_KEY recebeu a chave PUBLICÁVEL "
+        "(sb_publishable_…). materias_vetorizadas tem RLS e só a secret "
+        "(sb_secret_…) consegue gravar."
     )
 if not GOOGLE_API_KEY:
     raise SystemExit("ERRO: defina GOOGLE_API_KEY no .env do mcp_agent.")

@@ -102,7 +102,7 @@ Nos caminhos `/recomendar(-stream)`, `_buscar_materias_logando` usa termos norma
 | `ALLOWED_ORIGINS` | CORS, lista separada por vírgulas; padrão `http://localhost:5173,http://localhost:3000` |
 | `GIT_SHA` | Commit retornado no health; presença depende da configuração de deploy |
 | `SABIA_API_URL` | Variável do backend, padrão `http://localhost:8000`; não é lida pelo serviço Python |
-| `SUPABASE_KEY` | Fallback apenas no job Gemini; chave usada pelo job legado |
+| `SUPABASE_KEY` | Não é mais lida: os dois jobs de `jobs/` exigem `SUPABASE_SERVICE_ROLE_KEY` (e recusam `sb_publishable_`) desde a RLS em `materias_vetorizadas`, migration `20261014_rls_vetorizadas_preferencias.sql` |
 
 `load_dotenv()` carrega configuração no módulo da API e no job Gemini. O startup imprime somente presença/ausência das variáveis, sem valores de chaves. Contudo, o código também imprime termos, matriz curricular, códigos/nome de disciplina e, no endpoint não streaming, texto completo da resposta. `ai_usage_log` inclui trecho da busca e identificadores; logs e telemetria não devem ser tratados como anônimos só porque as chaves não são impressas.
 

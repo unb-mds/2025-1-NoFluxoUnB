@@ -9,13 +9,22 @@ warnings.filterwarnings("ignore")
 # Configurações
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+# Só a service_role escreve em materias_vetorizadas: a tabela tem RLS desde
+# supabase/migrations/20261014_rls_vetorizadas_preferencias.sql, sem policy de
+# escrita. Com a anon/publishable key o upsert falharia com 42501.
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 NOME_TABELA = "materias_vetorizadas"  # Apontando para a tabela
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise SystemExit(
-        "ERRO: defina SUPABASE_URL e SUPABASE_KEY no ambiente. "
+        "ERRO: defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY no ambiente. "
         "Nunca use chaves hardcoded."
+    )
+if SUPABASE_KEY.startswith("sb_publishable_"):
+    raise SystemExit(
+        "ERRO: SUPABASE_SERVICE_ROLE_KEY recebeu a chave PUBLICÁVEL "
+        "(sb_publishable_…). materias_vetorizadas tem RLS e só a secret "
+        "(sb_secret_…) consegue gravar."
     )
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
