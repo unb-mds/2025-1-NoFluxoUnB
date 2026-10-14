@@ -87,6 +87,7 @@
 		{
 			name: 'Otavio Maya',
 			githubUsername: 'knz13',
+			photo: '/team/otavio-maya.webp',
 			funcao: 'Infraestrutura, integração e Dockerização',
 			specialties: ['Fullstack', 'Integração', 'Dockerização'],
 			linkedin: 'https://www.linkedin.com/in/otávio-maya-8416931a5/',
@@ -116,13 +117,17 @@
 		'Vitor-Trancoso': {
 			role: 'CEO · Crianex',
 			funcao: 'Dev e mantenedor: fullstack e arquitetura'
+		},
+		knz13: {
+			role: 'CTO · Crianex',
+			funcao: 'Dev e mantenedor: infraestrutura e integração'
 		}
 	};
 
 	const maintainers = [
 		...founders
 			.filter((member) =>
-				['Vitor-Trancoso', 'darkymeubem', 'staann', 'hisarxt'].includes(member.githubUsername ?? '')
+				['Vitor-Trancoso', 'knz13', 'darkymeubem', 'staann', 'hisarxt'].includes(member.githubUsername ?? '')
 			)
 			.map((member) => ({ ...member, ...cargoNoTimeAtual[member.githubUsername ?? ''] })),
 		...crianexTeam
