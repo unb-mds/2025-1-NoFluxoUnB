@@ -232,7 +232,7 @@
 		gradeStore.resetarParaInicio(materias);
 		gradeStore.definirCursandoAtual(cursandoCodigos);
 		preencherTurmasReais();
-		toast.success('Grade de volta ao estado inicial.');
+		toast.success('Recomecei do zero. Se não era isso, use o botão Desfazer.');
 	}
 
 	/**

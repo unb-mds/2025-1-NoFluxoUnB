@@ -1568,7 +1568,7 @@ function createGradeStore() {
 		/**
 		 * Esvazia tudo — lista de matérias e grade — e marca cada código como
 		 * removido, para o recarregamento da página não re-semear o que o aluno
-		 * acabou de apagar. "Voltar ao início" é o caminho de volta: ele zera as
+		 * acabou de apagar. "Recomeçar do zero" (menu da grade) é o caminho de volta: ele zera as
 		 * `removidas` e refaz o preenchimento automático.
 		 */
 		limparTudo(): void {

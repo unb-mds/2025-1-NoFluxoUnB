@@ -398,9 +398,11 @@
 	async function voltarAoInicio(): Promise<void> {
 		if (!onVoltarInicio || voltando) return;
 		voltando = true;
+		const ponto = desfazerStore.registrar('Recomeçar do zero');
 		try {
 			await onVoltarInicio();
 		} finally {
+			desfazerStore.descartarSeNadaMudou(ponto);
 			voltando = false;
 		}
 	}
@@ -409,13 +411,6 @@
 		const ponto = desfazerStore.registrar('Limpar a grade');
 		gradeStore.limpar();
 		desfazerStore.descartarSeNadaMudou(ponto);
-	}
-
-	function limparTudo(): void {
-		const ponto = desfazerStore.registrar('Limpar tudo');
-		gradeStore.limparTudo();
-		desfazerStore.descartarSeNadaMudou(ponto);
-		toast.info('Tudo limpo. "Voltar ao início" refaz o preenchimento automático.');
 	}
 
 	let exportando = $state(false);
@@ -779,20 +774,26 @@
 					Como funciona
 				</DropdownMenu.Item>
 				<DropdownMenu.Separator />
+				<DropdownMenu.Item onclick={limparGrade} class="items-start">
+					<Trash2 class="mt-0.5 mr-2 h-4 w-4 shrink-0" />
+					<span class="grid">
+						<span>Limpar a grade</span>
+						<span class="text-xs font-normal text-muted-foreground"
+							>Tira as turmas escolhidas. A lista de matérias fica.</span
+						>
+					</span>
+				</DropdownMenu.Item>
 				{#if onVoltarInicio}
-					<DropdownMenu.Item onclick={voltarAoInicio} disabled={voltando}>
-						<Undo2 class="mr-2 h-4 w-4" />
-						Voltar ao início
+					<DropdownMenu.Item onclick={voltarAoInicio} disabled={voltando} class="items-start">
+						<Undo2 class="mt-0.5 mr-2 h-4 w-4 shrink-0" />
+						<span class="grid">
+							<span>Recomeçar do zero</span>
+							<span class="text-xs font-normal text-muted-foreground"
+								>Refaz a lista recomendada e zera estrelas, turnos e travas.</span
+							>
+						</span>
 					</DropdownMenu.Item>
 				{/if}
-				<DropdownMenu.Item onclick={limparGrade}>
-					<Trash2 class="mr-2 h-4 w-4" />
-					Limpar a grade
-				</DropdownMenu.Item>
-				<DropdownMenu.Item onclick={limparTudo}>
-					<Trash2 class="mr-2 h-4 w-4 text-destructive dark:text-red-300" />
-					Limpar tudo
-				</DropdownMenu.Item>
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
 	</header>
