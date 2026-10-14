@@ -46,6 +46,35 @@ describe('desfazerStore — botão Desfazer/Refazer', () => {
 		expect(gradeStore.grades).toHaveLength(antes + 1);
 	});
 
+	it('mudança que não mudou nada não deixa botão (ponto descartado)', () => {
+		const id = desfazerStore.registrar('Montar grade');
+		expect(desfazerStore.ultimo?.id).toBe(id);
+		desfazerStore.descartarSeNadaMudou(id);
+		expect(desfazerStore.ultimo).toBeNull();
+	});
+
+	it('mudança de verdade mantém o ponto', () => {
+		const id = desfazerStore.registrar('Montar grade');
+		gradeStore.criarCenario('Nova');
+		desfazerStore.descartarSeNadaMudou(id);
+		expect(desfazerStore.ultimo?.id).toBe(id);
+	});
+
+	it('pontos de visitas anteriores continuam guardados mas não acendem o botão', () => {
+		// Gravado "antes" desta sessão (como se viesse de uma visita anterior).
+		const chave = `nofluxo:grade:5:2026.2:desfazer`;
+		const antigo = {
+			id: 'velho',
+			rotulo: 'Darcy: algo de ontem',
+			quando: new Date(Date.now() - 86_400_000).toISOString(),
+			snapshot: gradeStore.snapshotCompleto()
+		};
+		localStorage.setItem(chave, JSON.stringify([antigo]));
+		desfazerStore.sincronizar();
+		expect(desfazerStore.pontos.map((p) => p.id)).toEqual(['velho']);
+		expect(desfazerStore.ultimo).toBeNull();
+	});
+
 	it('restaurar ponto inexistente não quebra', async () => {
 		expect(await desfazerStore.restaurar('nao-existe')).toBeNull();
 	});

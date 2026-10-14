@@ -25,6 +25,8 @@
 		Download,
 		Share2,
 		Eye,
+		Mail,
+		MessageCircle,
 		FileText,
 		MoreHorizontal,
 		Loader2,
@@ -51,6 +53,8 @@
 		podeCompartilharArquivo,
 		type MateriaPdf
 	} from '$lib/utils/grade-pdf';
+	import { gerarGradePng, nomeArquivoGradePng } from '$lib/utils/grade-imagem';
+	import { resumoTextoGrade, urlEmail, urlWhatsapp } from '$lib/utils/grade-compartilhar';
 
 	/**
 	 * Corpo do Montador de Grade — tudo que aparece depois que o pool carregou.
@@ -199,7 +203,7 @@
 	async function handleGerarOpcoes(params: ParametrosMontagem): Promise<void> {
 		if (gerandoOpcoes) return;
 		gerandoOpcoes = true;
-		desfazerStore.registrar('Montar grade');
+		const pontoMontar = desfazerStore.registrar('Montar grade');
 		parametrosAtuais = params;
 		try {
 			await onSemear?.({
@@ -269,6 +273,7 @@
 		} catch {
 			toast.error('Não consegui gerar as opções agora. Tente de novo.');
 		} finally {
+			desfazerStore.descartarSeNadaMudou(pontoMontar);
 			gerandoOpcoes = false;
 		}
 	}
@@ -302,7 +307,7 @@
 	async function remontar(): Promise<void> {
 		if (remontando) return;
 		remontando = true;
-		desfazerStore.registrar('Remontar a grade');
+		const pontoRemontar = desfazerStore.registrar('Remontar a grade');
 		try {
 			const semeadas = (await onSemear?.({ limiteCreditos: limiteSessao })) ?? {
 				adicionadas: [],
@@ -341,6 +346,7 @@
 		} catch {
 			toast.error('Não consegui montar a grade agora. Tente de novo.');
 		} finally {
+			desfazerStore.descartarSeNadaMudou(pontoRemontar);
 			remontando = false;
 		}
 	}
@@ -400,13 +406,15 @@
 	}
 
 	function limparGrade(): void {
-		desfazerStore.registrar('Limpar a grade');
+		const ponto = desfazerStore.registrar('Limpar a grade');
 		gradeStore.limpar();
+		desfazerStore.descartarSeNadaMudou(ponto);
 	}
 
 	function limparTudo(): void {
-		desfazerStore.registrar('Limpar tudo');
+		const ponto = desfazerStore.registrar('Limpar tudo');
 		gradeStore.limparTudo();
+		desfazerStore.descartarSeNadaMudou(ponto);
 		toast.info('Tudo limpo. "Voltar ao início" refaz o preenchimento automático.');
 	}
 
@@ -430,56 +438,84 @@
 		return montarModeloGradePdf({ titulo: tituloSemana, periodo: periodo ?? null, materias });
 	}
 
-	/** Desktop: PDF da grade (`$lib/utils/grade-pdf`) direto para download. */
-	async function exportarGrade(): Promise<void> {
-		if (exportando || semTurmaEscolhida) return;
+	/**
+	 * Exportar (desktop e celular): abre a folha "Exportar grade" e já gera o arquivo no
+	 * formato escolhido — PDF completo (semana + tabela de turmas) ou PNG compacto (só a
+	 * semana). Gerar ANTES do toque em "Compartilhar" é o que faz a folha do sistema
+	 * abrir no Safari, que só a aceita logo após um toque.
+	 */
+	type FormatoExport = 'pdf' | 'png';
+	let formato = $state<FormatoExport>('pdf');
+	let arquivoPronto = $state<File | null>(null);
+	let exportFalhou = $state(false);
+	/** Evita que uma geração lenta antiga sobrescreva a do formato atual. */
+	let geracao = 0;
+
+	async function gerarArquivo(f: FormatoExport): Promise<void> {
+		const minha = ++geracao;
+		arquivoPronto = null;
+		exportFalhou = false;
 		exportando = true;
 		try {
-			baixarArquivo(await gerarGradePdf(modeloPdfAtual()));
+			const modelo = modeloPdfAtual();
+			const arquivo =
+				f === 'png'
+					? await gerarGradePng(modelo, nomeArquivoGradePng(periodo ?? null, tituloSemana))
+					: await gerarGradePdf(modelo);
+			if (minha === geracao) arquivoPronto = arquivo;
 		} catch {
-			toast.error('Não consegui gerar o PDF. Tente de novo.');
+			if (minha === geracao) exportFalhou = true;
 		} finally {
-			exportando = false;
+			if (minha === geracao) exportando = false;
 		}
+	}
+
+	async function abrirExportacao(): Promise<void> {
+		if (semTurmaEscolhida) return;
+		painel = 'pdf';
+		await gerarArquivo(formato);
+	}
+
+	async function trocarFormato(f: FormatoExport): Promise<void> {
+		if (f === formato && (arquivoPronto || exportando)) return;
+		formato = f;
+		await gerarArquivo(f);
+	}
+
+	const rotuloFormato = $derived(formato === 'png' ? 'imagem' : 'PDF');
+	const podeCompartilharArq = $derived(
+		arquivoPronto !== null && podeCompartilharArquivo(arquivoPronto)
+	);
+
+	async function compartilharArq(): Promise<void> {
+		if (!arquivoPronto) return;
+		const r = await compartilharArquivo(arquivoPronto, tituloSemana);
+		if (r === 'ok') painel = null;
+		else if (r !== 'cancelado')
+			toast.error(`Não consegui abrir o compartilhamento. Use "Baixar ${rotuloFormato}".`);
+	}
+	function baixarArq(): void {
+		if (!arquivoPronto) return;
+		baixarArquivo(arquivoPronto);
+		painel = null;
+	}
+	function visualizarArq(): void {
+		if (!arquivoPronto) return;
+		if (!abrirArquivo(arquivoPronto)) baixarArquivo(arquivoPronto);
+		painel = null;
 	}
 
 	/**
-	 * Celular: abre a folha "PDF da grade" e já gera o arquivo, para o aluno escolher
-	 * como receber. Gerar ANTES da escolha é o que faz o compartilhamento funcionar no
-	 * Safari, que só abre a folha do sistema logo após um toque.
+	 * Desktop (sem folha de compartilhamento): baixa o arquivo e abre o e-mail/WhatsApp com
+	 * o resumo em texto. Anexar é com o aluno — nenhum navegador anexa sozinho.
 	 */
-	let pdfPronto = $state<File | null>(null);
-	let pdfFalhou = $state(false);
-	async function abrirOpcoesPdf(): Promise<void> {
-		if (semTurmaEscolhida) return;
-		painel = 'pdf';
-		pdfPronto = null;
-		pdfFalhou = false;
-		exportando = true;
-		try {
-			pdfPronto = await gerarGradePdf(modeloPdfAtual());
-		} catch {
-			pdfFalhou = true;
-		} finally {
-			exportando = false;
-		}
-	}
-	const podeCompartilharPdf = $derived(pdfPronto !== null && podeCompartilharArquivo(pdfPronto));
-
-	async function compartilharPdf(): Promise<void> {
-		if (!pdfPronto) return;
-		const r = await compartilharArquivo(pdfPronto, tituloSemana);
-		if (r === 'ok') painel = null;
-		else if (r !== 'cancelado') toast.error('Não consegui abrir o compartilhamento. Use "Baixar PDF".');
-	}
-	function baixarPdf(): void {
-		if (!pdfPronto) return;
-		baixarArquivo(pdfPronto);
-		painel = null;
-	}
-	function visualizarPdf(): void {
-		if (!pdfPronto) return;
-		if (!abrirArquivo(pdfPronto)) baixarArquivo(pdfPronto);
+	function enviarPor(canal: 'email' | 'whatsapp'): void {
+		if (!arquivoPronto) return;
+		const resumo = resumoTextoGrade(modeloPdfAtual());
+		baixarArquivo(arquivoPronto);
+		const url = canal === 'email' ? urlEmail(tituloSemana, resumo) : urlWhatsapp(resumo);
+		window.open(url, canal === 'email' ? '_self' : '_blank', 'noopener');
+		toast.info(`Baixei ${arquivoPronto.name}. Anexe-o na mensagem que abriu.`);
 		painel = null;
 	}
 
@@ -693,12 +729,12 @@
 						<!-- No celular a barra de ações não comporta mais um botão com texto. -->
 						<button
 							type="button"
-							onclick={abrirOpcoesPdf}
+							onclick={abrirExportacao}
 							class="mg-btn mg-btn-secondary min-h-8 px-2.5 text-xs"
-							aria-label="PDF da grade: compartilhar, baixar ou visualizar"
+							aria-label="Exportar a grade: PDF ou imagem, compartilhar ou baixar"
 						>
 							<FileText class="h-3.5 w-3.5" />
-							PDF
+							Exportar
 						</button>
 					{/if}
 				</div>
@@ -868,13 +904,13 @@
 			{#if !compacto}
 				<button
 					type="button"
-					onclick={exportarGrade}
+					onclick={abrirExportacao}
 					disabled={exportando || semTurmaEscolhida}
 					data-tour="exportar"
 					class="mg-btn mg-btn-secondary"
 				>
 					{#if exportando}<Loader2 class="h-4 w-4 animate-spin" />{:else}<Download class="h-4 w-4" />{/if}
-					Exportar PDF
+					Exportar
 				</button>
 			{/if}
 		</div>
@@ -1022,17 +1058,42 @@
 	aberto={painel === 'pdf'}
 	onClose={() => (painel = null)}
 	eyebrow="Exportar"
-	titulo="PDF da grade"
-	subtitulo={pdfPronto?.name ?? (pdfFalhou ? 'Não foi possível gerar' : 'Gerando PDF…')}
+	titulo="Exportar grade"
+	subtitulo={arquivoPronto?.name ?? (exportFalhou ? 'Não foi possível gerar' : 'Gerando…')}
 >
-	<div class="space-y-2 px-5 pb-5">
-		{#if pdfFalhou}
-			<p class="text-sm text-muted-foreground">Não consegui gerar o PDF desta grade.</p>
-			<button type="button" onclick={abrirOpcoesPdf} class="mg-btn mg-btn-primary w-full">
+	<div class="space-y-3 px-5 pb-5">
+		<div
+			class="grid grid-cols-2 gap-1 rounded-xl border border-border p-1"
+			role="radiogroup"
+			aria-label="Formato do arquivo"
+		>
+			{#each [{ id: 'pdf', rotulo: 'PDF completo', detalhe: 'Semana + tabela de turmas' }, { id: 'png', rotulo: 'Imagem (PNG)', detalhe: 'Só a semana, compacta' }] as op (op.id)}
+				<button
+					type="button"
+					role="radio"
+					aria-checked={formato === op.id}
+					onclick={() => void trocarFormato(op.id as FormatoExport)}
+					class="touch-manipulation rounded-lg px-3 py-2 text-left transition-colors {formato === op.id
+						? 'bg-primary/10 ring-1 ring-primary/40 dark:bg-purple-500/15 dark:ring-purple-400/40'
+						: 'hover:bg-foreground/5'}"
+				>
+					<span class="block text-sm font-semibold text-foreground">{op.rotulo}</span>
+					<span class="block text-[11px] text-muted-foreground">{op.detalhe}</span>
+				</button>
+			{/each}
+		</div>
+
+		{#if exportFalhou}
+			<p class="text-sm text-muted-foreground">Não consegui gerar o arquivo desta grade.</p>
+			<button
+				type="button"
+				onclick={() => void gerarArquivo(formato)}
+				class="mg-btn mg-btn-primary w-full"
+			>
 				Tentar de novo
 			</button>
 		{:else}
-			{#snippet opcaoPdf(
+			{#snippet opcaoExport(
 				Icone: typeof Share2,
 				rotulo: string,
 				detalhe: string,
@@ -1042,13 +1103,17 @@
 				<button
 					type="button"
 					{onclick}
-					disabled={!pdfPronto}
+					disabled={!arquivoPronto}
 					class="flex w-full touch-manipulation items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors disabled:opacity-60 {principal
 						? 'border-primary/30 bg-primary/5 hover:bg-primary/10 dark:border-purple-400/30 dark:bg-purple-500/10'
 						: 'border-border hover:bg-foreground/5'}"
 				>
-					{#if pdfPronto}
-						<Icone class="h-5 w-5 shrink-0 {principal ? 'text-primary dark:text-purple-300' : 'text-muted-foreground'}" />
+					{#if arquivoPronto}
+						<Icone
+							class="h-5 w-5 shrink-0 {principal
+								? 'text-primary dark:text-purple-300'
+								: 'text-muted-foreground'}"
+						/>
 					{:else}
 						<Loader2 class="h-5 w-5 shrink-0 animate-spin text-muted-foreground" />
 					{/if}
@@ -1058,11 +1123,37 @@
 					</span>
 				</button>
 			{/snippet}
-			{#if podeCompartilharPdf || !pdfPronto}
-				{@render opcaoPdf(Share2, 'Compartilhar', 'WhatsApp, salvar em Arquivos, imprimir…', compartilharPdf, true)}
+			{#if podeCompartilharArq || !arquivoPronto}
+				{@render opcaoExport(
+					Share2,
+					'Compartilhar',
+					'WhatsApp, e-mail, Arquivos, imprimir…',
+					compartilharArq,
+					true
+				)}
 			{/if}
-			{@render opcaoPdf(Download, 'Baixar PDF', 'Salva o arquivo no aparelho', baixarPdf, !podeCompartilharPdf && !!pdfPronto)}
-			{@render opcaoPdf(Eye, 'Visualizar', 'Abre o PDF no navegador', visualizarPdf)}
+			{@render opcaoExport(
+				Download,
+				`Baixar ${rotuloFormato}`,
+				'Salva o arquivo no aparelho',
+				baixarArq,
+				!podeCompartilharArq && !!arquivoPronto
+			)}
+			{@render opcaoExport(Eye, 'Visualizar', 'Abre o arquivo no navegador', visualizarArq)}
+			{#if !podeCompartilharArq && arquivoPronto}
+				{@render opcaoExport(
+					Mail,
+					'Enviar por e-mail',
+					'Baixa o arquivo e abre o e-mail com o resumo',
+					() => enviarPor('email')
+				)}
+				{@render opcaoExport(
+					MessageCircle,
+					'Enviar no WhatsApp',
+					'Baixa o arquivo e abre o WhatsApp com o resumo',
+					() => enviarPor('whatsapp')
+				)}
+			{/if}
 		{/if}
 	</div>
 </ResponsiveSheet>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resumoPontos } from '$lib/utils/grade-desfazer';
+	import { camadasStore } from '$lib/stores/camadas.store.svelte';
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
 	import { darcyStore } from '$lib/stores/darcy.store.svelte';
 	import { darcyCotaStore } from '$lib/stores/darcy-cota.store.svelte';
@@ -264,7 +265,7 @@
 <!-- Painel flutuante -->
 {#if isChatOpen}
 	<div
-		class="border-border bg-card/95 shadow-nofluxoLg sm:bg-card/90 fixed z-[100] flex flex-col overflow-hidden border backdrop-blur-3xl dark:bg-[#090c12]/90 dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] dark:sm:bg-[#090c12]/60
+		class="border-border bg-card/95 shadow-nofluxoLg sm:bg-card/90 fixed z-[var(--z-chat)] flex flex-col overflow-hidden border backdrop-blur-3xl dark:bg-[#090c12]/90 dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] dark:sm:bg-[#090c12]/60
 			{isMobile
 			? 'right-0 bottom-0 left-0 h-[85dvh] w-full rounded-t-3xl pb-[env(safe-area-inset-bottom)]'
 			: 'origin-bottom-right rounded-2xl'}"
@@ -272,6 +273,7 @@
 			? ''
 			: `left: ${chatX}px; top: ${chatY}px; width: ${chatW}px; height: ${chatH}px; resize: both;`}
 		use:draggable
+		inert={camadasStore.temModal}
 		in:scale={{ start: 0.6, duration: 400, easing: backOut }}
 		out:scale={{ start: 0.8, duration: 200, easing: cubicOut }}
 	>
@@ -338,7 +340,7 @@
 	<button
 		type="button"
 		onclick={abrirChat}
-		class="border-ai/40 bg-card/90 shadow-nofluxoLg hover:border-ai hover:bg-accent fixed z-[90] flex items-center justify-center border backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95 dark:border-pink-500/50 dark:bg-[#1e1e24]/80 dark:shadow-[0_8px_30px_rgba(236,72,153,0.3)] dark:hover:border-pink-400 dark:hover:bg-[#2a2a32]
+		class="border-ai/40 bg-card/90 shadow-nofluxoLg hover:border-ai hover:bg-accent fixed z-[var(--z-fab)] flex items-center justify-center border backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95 dark:border-pink-500/50 dark:bg-[#1e1e24]/80 dark:shadow-[0_8px_30px_rgba(236,72,153,0.3)] dark:hover:border-pink-400 dark:hover:bg-[#2a2a32]
 			{isMobile ? 'right-4 bottom-4 h-14 w-14 rounded-full' : 'right-6 bottom-6 h-12 w-12 rounded-xl'}"
 		aria-label="Abrir assistente IA"
 		data-tour="assistente-ia"

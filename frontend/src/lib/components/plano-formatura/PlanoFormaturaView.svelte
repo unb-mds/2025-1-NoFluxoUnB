@@ -598,7 +598,7 @@
 	<!-- Chat panel (floating fixed) -->
 	{#if isChatOpen}
 		<div 
-			class="fixed z-[100] flex flex-col bg-background/95 sm:bg-background/80 backdrop-blur-3xl overflow-hidden border border-border shadow-nofluxoLg origin-bottom-right dark:bg-[#090c12]/90 dark:sm:bg-[#090c12]/60 dark:border-foreground/10 dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)]
+			class="fixed z-[var(--z-chat)] flex flex-col bg-background/95 sm:bg-background/80 backdrop-blur-3xl overflow-hidden border border-border shadow-nofluxoLg origin-bottom-right dark:bg-[#090c12]/90 dark:sm:bg-[#090c12]/60 dark:border-foreground/10 dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)]
 				{isMobile ? 'bottom-0 left-0 right-0 w-full h-[85vh] rounded-t-3xl rounded-b-none' : 'rounded-2xl'}" 
 			style={isMobile
 				? ''
@@ -657,7 +657,7 @@
 		<button
 			type="button"
 			onclick={() => isChatOpen = true}
-			class="fixed z-[90] flex items-center justify-center bg-card/90 backdrop-blur-md shadow-nofluxoLg transition-all duration-300 hover:bg-muted hover:scale-105 active:scale-95 cursor-pointer border border-pink-500/50 hover:border-pink-600 dark:bg-[#1e1e24]/80 dark:shadow-[0_8px_30px_rgba(236,72,153,0.3)] dark:hover:bg-[#2a2a32] dark:hover:border-pink-400
+			class="fixed z-[var(--z-fab)] flex items-center justify-center bg-card/90 backdrop-blur-md shadow-nofluxoLg transition-all duration-300 hover:bg-muted hover:scale-105 active:scale-95 cursor-pointer border border-pink-500/50 hover:border-pink-600 dark:bg-[#1e1e24]/80 dark:shadow-[0_8px_30px_rgba(236,72,153,0.3)] dark:hover:bg-[#2a2a32] dark:hover:border-pink-400
 				{isMobile ? 'bottom-4 right-4 h-14 w-14 rounded-full' : 'bottom-6 right-6 h-12 w-12 rounded-xl'}"
 			aria-label="Toggle IA"
 			in:scale={{ start: 0.5, duration: 400, easing: backOut, delay: 100 }}

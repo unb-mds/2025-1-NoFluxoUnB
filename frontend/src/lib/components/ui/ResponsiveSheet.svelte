@@ -5,6 +5,7 @@
 	// gaveta lateral (`direita`, a de preferências).
 	import type { Snippet } from 'svelte';
 	import { X } from 'lucide-svelte';
+	import { camadasStore } from '$lib/stores/camadas.store.svelte';
 
 	let {
 		aberto,
@@ -41,6 +42,12 @@
 		return () => anterior?.focus?.();
 	});
 
+	// Avisa o resto da tela (chat da Darcy fica `inert` atrás do modal).
+	$effect(() => {
+		if (!aberto) return;
+		return camadasStore.abrir();
+	});
+
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') onClose();
 	}
@@ -50,7 +57,7 @@
 
 {#if aberto}
 	<div
-		class="fixed inset-0 z-[95] flex items-end justify-center {lado === 'direita'
+		class="fixed inset-0 z-[var(--z-overlay)] flex items-end justify-center {lado === 'direita'
 			? 'sm:items-stretch sm:justify-end'
 			: 'sm:items-center'}"
 		role="dialog"

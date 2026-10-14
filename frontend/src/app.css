@@ -11,6 +11,15 @@
  */
 @layer base {
 	:root {
+		/*
+		 * Camadas (z-index) — ordem única: botão do chat < painel do chat < overlays
+		 * (sheet/gaveta, diálogos, menus, tooltips). Overlay SEMPRE acima do chat: um
+		 * menu ou modal aberto pelo aluno nunca pode ficar escondido atrás da Darcy.
+		 * Acima disso ficam só tour (120+), toasts e menu mobile do site.
+		 */
+		--z-fab: 90;
+		--z-chat: 100;
+		--z-overlay: 110;
 		color-scheme: light;
 		--background: 255 71% 99%;
 		--foreground: 260 24% 10%;
