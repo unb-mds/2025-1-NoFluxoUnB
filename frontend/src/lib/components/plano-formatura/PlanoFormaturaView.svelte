@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { MateriaModel } from '$lib/types/materia';
 	import { LIMITE_CREDITOS_MAX, LIMITE_CREDITOS_MIN } from '$lib/types/plano-formatura';
+	import { criarCreditosSlider } from './creditos-slider.svelte';
 	import { planoFormaturaStore } from '$lib/stores/plano-formatura.store.svelte';
 	import { unidadeCargaStore } from '$lib/stores/unidade-carga.store.svelte';
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
@@ -29,7 +30,6 @@
 	} from 'lucide-svelte';
 	import html2canvas from 'html2canvas-pro';
 
-	let isChangingCredits = $state(false);
 	// Preferência compartilhada com o montador de grade e persistida no navegador.
 	let displayUnit = $derived(unidadeCargaStore.unidade);
 	let hoveredCode = $state<string | null>(null);
@@ -175,22 +175,13 @@
 		};
 	}
 
-	// Debounce para o slider de créditos — evita chamar API a cada tick
-	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-	function debouncedLimiteChange(value: number) {
-		if (debounceTimer) clearTimeout(debounceTimer);
-		debounceTimer = setTimeout(() => handleCreditChange(value), 400);
-	}
-
-	async function handleCreditChange(limite: number) {
-		if (isChangingCredits) return;
-		isChangingCredits = true;
-		try {
-			await planoFormaturaStore.setLimiteCreditos(limite);
-		} finally {
-			isChangingCredits = false;
-		}
-	}
+	// Slider de créditos: mostra o valor na hora e recalcula o plano com debounce.
+	const creditosSlider = criarCreditosSlider({
+		atual: () => planoFormaturaStore.preferencias.limiteCreditos,
+		aplicar: (valor) => planoFormaturaStore.setLimiteCreditos(valor),
+		min: LIMITE_CREDITOS_MIN,
+		max: LIMITE_CREDITOS_MAX
+	});
 
 	function handleRefresh() {
 		planoFormaturaStore.gerar();
@@ -421,24 +412,33 @@
 				min={LIMITE_CREDITOS_MIN}
 				max={LIMITE_CREDITOS_MAX}
 				step={1}
-				disabled={isChangingCredits}
-				value={planoFormaturaStore.preferencias.limiteCreditos}
-				oninput={(e) => debouncedLimiteChange(Number((e.target as HTMLInputElement).value))}
+				value={creditosSlider.exibido}
+				aria-label="Créditos por semestre"
+				aria-valuetext={`${creditosSlider.exibido} créditos (${creditosSlider.exibido * 15} horas)`}
+				oninput={(e) => creditosSlider.alterar(Number((e.target as HTMLInputElement).value))}
 				class="min-w-0 flex-1 accent-blue-500 disabled:opacity-40 sm:w-36 sm:flex-none"
 			/>
 			<div class="flex items-center gap-1">
 				<input
 					type="number"
-					min={8}
-					max={40}
-					disabled={isChangingCredits}
-					value={planoFormaturaStore.preferencias.limiteCreditos}
-					onchange={(e) => debouncedLimiteChange(Number((e.target as HTMLInputElement).value))}
+					min={LIMITE_CREDITOS_MIN}
+					max={LIMITE_CREDITOS_MAX}
+					value={creditosSlider.exibido}
+					aria-label="Créditos por semestre"
+					onchange={(e) => {
+						// caixa apagada não vira 0 (que seria limitado a 8 e recalcularia o plano)
+						const texto = (e.target as HTMLInputElement).value.trim();
+						if (texto !== '') creditosSlider.alterar(Number(texto));
+					}}
 					class="w-12 bg-card border border-border-strong rounded px-1.5 py-0.5 text-xs font-semibold text-foreground/90 dark:bg-[#161625] dark:border-foreground/10 text-right focus:outline-none focus:ring-1 focus:ring-blue-500/50 disabled:opacity-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 				/>
 				<span class="text-xs font-semibold tabular-nums text-foreground/70">
-					cr <span class="text-muted-foreground">({planoFormaturaStore.preferencias.limiteCreditos * 15}h)</span>
+					cr <span class="text-muted-foreground">({creditosSlider.exibido * 15}h)</span>
 				</span>
+				{#if creditosSlider.ocupado}
+					<Loader2 class="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden="true" />
+					<span class="sr-only" role="status">Recalculando o plano</span>
+				{/if}
 			</div>
 		</div>
 
