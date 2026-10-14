@@ -33,6 +33,7 @@ import {
 } from "../../utils/expressao_logica";
 import {
     slotMaskFromHorario,
+    hasConflict,
     turmaRespeitaTurnos,
     maskDosTurnos,
     maskDosDias,
@@ -74,6 +75,12 @@ export interface ParametrosMontador {
     diasSemAula?: string[];
     /** Grade aberta no Montador (código→turma). Base da comparação de impacto de `diasSemAula`. */
     gradeAberta?: Array<{ codigo: string; idTurma: number }>;
+    /**
+     * Matérias com estrela na tela: degrau acima da obrigatória, abaixo de "cursando"
+     * (mesma escada do frontend). Preferência forte, NÃO garantia — quem nunca fica de
+     * fora é a `essencial`.
+     */
+    prioritarias?: string[];
     essencial?: string;
     professorPreferidoEssencial?: string;
     incluirCursando?: boolean;
@@ -95,9 +102,19 @@ export interface ImpactoDias {
     entram: string[];
 }
 
+/** O que aconteceu com uma matéria que o aluno marcou com estrela. */
+export interface ResultadoPrioritaria {
+    codigo: string;
+    entrou: boolean;
+    /** Só quando não entrou: motivo real, em português, pronto para narrar. */
+    motivo?: string;
+}
+
 export interface ResultadoMontador {
     opcoes: OpcaoGrade<TurmaOferta>[];
     erros: ErroMontagem[];
+    /** Uma linha por estrela (só quando há prioritárias). */
+    prioritarias?: ResultadoPrioritaria[];
     /** Só presente quando `diasSemAula` foi pedido. */
     impactoDias?: ImpactoDias;
 }
@@ -192,6 +209,7 @@ export function turmaRealDaMatricula(
 // equivalente aqui. Os valores numéricos dos degraus usados são os MESMOS do
 // frontend, para preservar a mesma garantia de dominância entre eles.
 const PESO_CURSANDO = 1_000_000_000_000;
+const PESO_PRIORITARIA = 1_000_000_000;
 const PESO_OBRIGATORIA = 1_000_000;
 const PESO_NECESSARIA = 1_000;
 const PESO_SATURADO = 1;
@@ -311,7 +329,7 @@ const ESTRATEGIAS_RANKING: RankingStrategy<TurmaOferta>[] = [
     },
 ];
 
-interface EntradaBase {
+export interface EntradaBase {
     chave: string;
     turmas: Array<TurmaCandidata<TurmaOferta>>;
     peso: number;
@@ -383,8 +401,10 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
     // disponível). "Todas pendentes": sem esse corte. Decisão de escopo documentada
     // aqui — não há precedente idêntico no frontend ainda (a Fase 2 de tela, que
     // introduziria esse conceito na UI, não foi implementada nesta sessão).
+    const prioritariasNorm = new Set((params.prioritarias ?? []).map(norm));
     const dentroDoEscopo = (m: MateriaInput): boolean => {
         if (params.escopo === "todas_pendentes") return true;
+        if (prioritariasNorm.has(norm(m.codigo))) return true; // estrela vale mesmo fora do "período atual"
         return m.nivel === 0 || m.nivel <= dados.numeroPeriodo;
     };
 
@@ -395,7 +415,13 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
         // atual" nunca geraria diagnóstico nenhum, só silêncio.
         if (cod === essencialNorm) return true;
         if (!dentroDoEscopo(m)) return false;
-        if (params.apenasObrigatorias && !m.obrigatoria && !optatoriasVivas.has(cod) && !cursandoNorm.has(cod)) {
+        if (
+            params.apenasObrigatorias &&
+            !m.obrigatoria &&
+            !optatoriasVivas.has(cod) &&
+            !cursandoNorm.has(cod) &&
+            !prioritariasNorm.has(cod)
+        ) {
             return false;
         }
         return m.obrigatoria || dados.codigosComOferta.has(cod);
@@ -483,7 +509,9 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
         const ehOptatoriaFlag = optatoriasVivas.has(cod);
         const peso = matriculaReal
             ? PESO_CURSANDO
-            : pesoDaNatureza(m.obrigatoria ? "obrigatoria" : "optativa", situacao, ehOptatoriaFlag);
+            : prioritariasNorm.has(cod)
+              ? PESO_PRIORITARIA
+              : pesoDaNatureza(m.obrigatoria ? "obrigatoria" : "optativa", situacao, ehOptatoriaFlag);
 
         pendenciasPreRequisitoMap.set(cod, pendenciasPreRequisito(m, cumpridasExpandido));
 
@@ -625,5 +653,45 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
         }
     }
 
-    return { opcoes, erros, impactoDias };
+    const prioritarias = prioritariasNorm.size
+        ? [...prioritariasNorm].map((cod) =>
+              resultadoDaPrioritaria(cod, materiasBase, opcoes[0], turmasAntesDoFiltroDeTurno, pendenciasPreRequisitoMap)
+          )
+        : undefined;
+
+    return { opcoes, erros, impactoDias, prioritarias };
+}
+
+/** Por que uma matéria com estrela entrou (ou não) na grade — pura, para testar sem banco. */
+export function resultadoDaPrioritaria(
+    cod: string,
+    entradas: EntradaBase[],
+    escolhida: OpcaoGrade<TurmaOferta> | undefined,
+    turmasReaisPorCodigo: Map<string, TurmaOferta[]>,
+    pendenciasPorCodigo: Map<string, string[]>
+): ResultadoPrioritaria {
+    if (escolhida?.resultado.selecao.has(cod)) return { codigo: cod, entrou: true };
+    const fora = (motivo: string): ResultadoPrioritaria => ({ codigo: cod, entrou: false, motivo });
+
+    const e = entradas.find((x) => x.chave === cod);
+    if (!e) return fora("não está entre as matérias que ainda faltam para você neste período");
+    if (!e.desbloqueada) {
+        const pend = pendenciasPorCodigo.get(cod) ?? [];
+        return fora(`pré-requisito pendente${pend.length ? `: ${pend.join(", ")}` : ""}`);
+    }
+    if ((turmasReaisPorCodigo.get(cod) ?? []).length === 0) return fora("não tem turma ofertada neste período");
+    if (e.turmas.length === 0) return fora("todas as turmas dela caem fora dos turnos ou dias que você pediu");
+    if (!escolhida) return fora("nenhuma combinação coube");
+
+    // Colisão: a turma que menos atrapalha, e com quem ela bate.
+    let melhor: string[] | null = null;
+    for (const cand of e.turmas) {
+        const bate: string[] = [];
+        for (const [outro, t] of escolhida.resultado.selecao) {
+            if (outro !== cod && hasConflict(cand.mask, t.mask)) bate.push(outro);
+        }
+        if (melhor === null || bate.length < melhor.length) melhor = bate;
+    }
+    if (melhor && melhor.length > 0) return fora(`o horário bate com ${melhor.join(", ")}`);
+    return fora("passaria do limite de créditos");
 }

@@ -30,7 +30,7 @@
 		type SituacaoAcademica
 	} from '$lib/services/situacao-academica.service';
 	import PreRequisitoConfirmDialog from '$lib/components/planejamento/PreRequisitoConfirmDialog.svelte';
-	import { consumirPonto, registrarPonto } from '$lib/utils/grade-desfazer';
+	import { desfazerStore } from '$lib/stores/grade-desfazer.store.svelte';
 	import { descreverAcao } from '$lib/utils/acoes-grade';
 	import PeriodosAntigosDialog from '$lib/components/planejamento/PeriodosAntigosDialog.svelte';
 	import {
@@ -368,6 +368,7 @@
 		);
 		periodo = alvo;
 		gradeStore.init(pool, { idUser, periodo: alvo });
+		desfazerStore.sincronizar();
 		if (incluirCursando !== null) gradeStore.setIncluirCursando(incluirCursando);
 		gradeStore.definirCursandoAtual(cursandoCodigos);
 		// A turma real da matrícula só existe na oferta do semestre vigente.
@@ -473,6 +474,9 @@
 
 	const limiteCreditos = $derived(planoFormaturaStore.preferencias?.limiteCreditos ?? 24);
 
+	// O botão "Desfazer" da barra e a Darcy recolocam matérias na lista por aqui.
+	desfazerStore.configurar({ adicionarAoPool });
+
 	async function adicionarAoPool(codigo: string): Promise<void> {
 		avisoAdd = null;
 		const c = codigo.trim().toUpperCase();
@@ -546,40 +550,9 @@
 		await adicionarAoPool(codigo);
 	}
 
-	/**
-	 * Guarda o estado de ANTES de uma mudança vinda da Darcy (só no navegador). É o que
-	 * permite "desfazer" depois, pelo toast, pelo card ou pedindo à Darcy.
-	 */
-	function guardarPontoDesfazer(rotulo: string): string | null {
-		return (
-			registrarPonto(
-				gradeStore.idUser,
-				gradeStore.periodo,
-				rotulo,
-				gradeStore.snapshotCompleto()
-			)?.id ?? null
-		);
-	}
-
-	/**
-	 * Restaura um ponto (e descarta os mais novos). Devolve o id do ponto "refazer"
-	 * (o estado de antes de restaurar), ou `null` se o ponto já não existe.
-	 */
-	async function restaurarPontoDesfazer(id: string): Promise<string | null> {
-		const ponto = consumirPonto(gradeStore.idUser, gradeStore.periodo, id);
-		if (!ponto) return null;
-		// Quem pode refazer: o estado de agora vira um ponto novo.
-		const refazerId = guardarPontoDesfazer(`Antes de desfazer "${ponto.rotulo}"`);
-		for (const c of gradeStore.faltantesNoPool(ponto.snapshot)) await adicionarAoPool(c);
-		const { descartadas } = gradeStore.restaurarCompleto(ponto.snapshot);
-		toast.success(`Voltei para antes de "${ponto.rotulo}".`);
-		if (descartadas.length > 0) {
-			toast.info(
-				`Não consegui recolocar ${descartadas.join(', ')}: a turma saiu da oferta ou passou a conflitar.`
-			);
-		}
-		return refazerId ?? '';
-	}
+	/** Guarda o estado de ANTES de uma mudança vinda da Darcy (só no navegador). */
+	const guardarPontoDesfazer = (rotulo: string) => desfazerStore.registrar(rotulo);
+	const restaurarPontoDesfazer = (id: string) => desfazerStore.restaurar(id);
 
 	function rotuloDasAcoes(acoes: AcaoGradeChat[]): string {
 		if (acoes.length === 1) return `Darcy: ${descreverAcao(acoes[0], (c) => c).texto}`;

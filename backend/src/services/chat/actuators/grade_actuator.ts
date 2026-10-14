@@ -616,7 +616,9 @@ export function createGradeAgent(
     /** Grade aberta no Montador (código + turma) — base do impacto de "sem aula na sexta". */
     gradeAberta: Array<{ codigo: string; idTurma: number }> = [],
     /** Todas as grades do aluno no período (a ativa inclusive). */
-    cenarios: CenarioNaConversa[] = []
+    cenarios: CenarioNaConversa[] = [],
+    /** Matérias com estrela na tela — a montagem as prioriza (não é garantia). */
+    prioritarias: string[] = []
 ): Agent {
     let ultimosCandidatos: CandidatoGrade[] | null = null;
     let ultimasOpcoes: OpcaoGrade<TurmaOferta>[] | null = null;
@@ -701,6 +703,7 @@ export function createGradeAgent(
                 turnosPermitidos: turnos && turnos.length > 0 ? turnos : undefined,
                 diasSemAula: diasSemAula && diasSemAula.length > 0 ? diasSemAula.map((d) => DIA_PARA_COD[d]) : undefined,
                 gradeAberta: gradeBase.length > 0 ? gradeBase : undefined,
+                prioritarias: prioritarias.length > 0 ? prioritarias : undefined,
                 essencial: essencial || undefined,
                 professorPreferidoEssencial: docente || undefined,
                 incluirCursando: incluirCursando ?? undefined,
@@ -733,6 +736,7 @@ export function createGradeAgent(
                 escolhida: opcaoEscolhida?.estrategia ?? null,
                 errosEssencial: resultado.erros.map(formatarErroEssencial),
                 ...(resultado.impactoDias ? { impacto: resultado.impactoDias } : {}),
+                ...(resultado.prioritarias ? { prioritarias: resultado.prioritarias } : {}),
                 baseadaEm: base ? { nome: base.nome, estaSendoVista: base.ativo } : null,
             });
         },
@@ -754,6 +758,8 @@ export function createGradeAgent(
             "Se o aluno topar montar/priorizar, confirme em uma frase curta e inclua no final [MONTAR_GRADE|CODIGOS] com os códigos escolhidos. " +
             "\n\nPra MONTAR/REARRANJAR A GRADE INTEIRA (matéria essencial, turno, dia sem aula, professor, ou só 'monta minha grade'): use a tool montar_grade — " +
             "pedido tipo 'sem aula na sexta' / 'liberar a quarta' é SUPORTADO: passe diasSemAula (['sex'], ['qua']…); nunca diga que não é possível sem ter chamado a tool. " +
+            "ESTRELAS: se 'prioritarias' vier, a tela marcou essas matérias com estrela e a montagem as priorizou acima das obrigatórias — mas estrela NÃO é garantia. " +
+            "Diga, para cada uma, se entrou; as que não entraram, cite o 'motivo' real. Para garantir uma matéria, sugira marcá-la como 'disciplina essencial'. " +
             "COM diasSemAula a tool devolve 'impacto' COMPARADO À GRADE ABERTA do aluno: perdem (saem), trocam (mudam de turma), entram, e antes→depois de dias/créditos. " +
             "ANTES de qualquer outra coisa explique esse impacto em linguagem simples (cite as matérias pelo nome/código, quantos créditos e dias mudam) e diga claramente que NADA muda na grade dele até ele clicar em 'Aplicar esta grade' — " +
             "o clique é a confirmação. Diga SEMPRE em qual grade se baseou ('baseadaEm.nome'; se 'estaSendoVista', 'na grade que você está vendo'). Se 'perdem' não for vazio, destaque isso primeiro. Nunca diga que já aplicou. Só cite o que veio em 'impacto'; não invente números. " +

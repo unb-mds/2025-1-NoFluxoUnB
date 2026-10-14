@@ -88,6 +88,12 @@
 		return null;
 	}
 
+	/** Matérias com estrela que não estão na grade, com o motivo. */
+	const estrelasFora = $derived(
+		[...gradeStore.motivosPrioritarias].map(([codigo, motivo]) => ({ codigo, motivo }))
+	);
+	const temEstrelas = $derived(gradeStore.temPrioritarias);
+
 	const creditosNaGrade = $derived(grupos.naGrade.reduce((acc, m) => acc + m.creditos, 0));
 </script>
 
@@ -149,7 +155,9 @@
 				aria-label={prioritaria
 					? `Tirar prioridade de ${m.codigo}`
 					: `Priorizar ${m.codigo} ao montar`}
-				title={prioritaria ? 'Prioritária ao montar' : 'Priorizar ao montar'}
+				title={prioritaria
+					? 'Com estrela: entra antes das obrigatórias na próxima montagem. Não é garantia — se nada couber, fica de fora.'
+					: 'Dar estrela: prioriza esta matéria na próxima montagem, antes das obrigatórias. Não é garantia.'}
 				class="hover:bg-foreground/10 touch-manipulation rounded-md p-1.5 transition-colors {prioritaria
 					? 'text-amber-600 dark:text-amber-300'
 					: 'text-muted-foreground/60'}"
@@ -237,6 +245,34 @@
 				</p>
 			{/if}
 		</div>
+
+		{#if temEstrelas}
+			<div
+				class="mt-3 rounded-[10px] border border-amber-300 bg-amber-50 p-2.5 text-[11px] leading-relaxed dark:border-amber-400/20 dark:bg-amber-400/5"
+			>
+				<p class="flex items-center gap-1.5 font-semibold text-amber-800 dark:text-amber-200">
+					<Star class="h-3 w-3 fill-current" /> Matérias com estrela
+				</p>
+				<p class="text-foreground/70 mt-1">
+					Entram antes das obrigatórias na próxima montagem, mas não é garantia. Para garantir uma,
+					use “Disciplina essencial” em Filtros e preferências.
+				</p>
+				{#if estrelasFora.length > 0}
+					<ul class="mt-1.5 space-y-1">
+						{#each estrelasFora as e (e.codigo)}
+							<li class="text-foreground/85">
+								<span class="font-mono font-semibold">{e.codigo}</span>
+								{gradeStore.ultimaMontagem ? 'ficou de fora' : 'ainda não está na grade'}: {e.motivo}
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="mt-1.5 font-medium text-emerald-700 dark:text-emerald-300">
+						Todas as estrelas estão na grade.
+					</p>
+				{/if}
+			</div>
+		{/if}
 
 		{@render grupo(
 			'Sugestões fora da grade',

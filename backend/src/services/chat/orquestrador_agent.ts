@@ -318,7 +318,8 @@ export function createOrquestradorAgent(opts: OpcoesOrquestrador | string): Agen
         estadoMontador?.grade.map((g) => g.codigo) ?? [],
         perfil?.semestreAtual,
         estadoMontador?.grade ?? [],
-        cenariosDaConversa(opcoes.cenariosSalvos, estadoMontador)
+        cenariosDaConversa(opcoes.cenariosSalvos, estadoMontador),
+        estadoMontador?.prioritarias ?? []
     );
     const executarGrade = async (input: string, contexto?: RunContext<unknown>) => {
         if (!curriculoCompleto) {

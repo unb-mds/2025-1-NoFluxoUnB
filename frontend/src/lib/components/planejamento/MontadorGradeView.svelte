@@ -10,6 +10,7 @@
 	import ResponsiveSheet from '$lib/components/ui/ResponsiveSheet.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { gradeStore } from '$lib/stores/grade.store.svelte';
+	import { desfazerStore } from '$lib/stores/grade-desfazer.store.svelte';
 	import { unidadeCargaStore, HORAS_POR_CREDITO } from '$lib/stores/unidade-carga.store.svelte';
 	import { preferenciasGradeService } from '$lib/services/preferencias-grade.service';
 	import type { OpcoesSemeadura, SemeaduraResultado } from '$lib/services/grade-pool.service';
@@ -198,6 +199,7 @@
 	async function handleGerarOpcoes(params: ParametrosMontagem): Promise<void> {
 		if (gerandoOpcoes) return;
 		gerandoOpcoes = true;
+		desfazerStore.registrar('Montar grade');
 		parametrosAtuais = params;
 		try {
 			await onSemear?.({
@@ -300,6 +302,7 @@
 	async function remontar(): Promise<void> {
 		if (remontando) return;
 		remontando = true;
+		desfazerStore.registrar('Remontar a grade');
 		try {
 			const semeadas = (await onSemear?.({ limiteCreditos: limiteSessao })) ?? {
 				adicionadas: [],
@@ -396,7 +399,13 @@
 		}
 	}
 
+	function limparGrade(): void {
+		desfazerStore.registrar('Limpar a grade');
+		gradeStore.limpar();
+	}
+
 	function limparTudo(): void {
+		desfazerStore.registrar('Limpar tudo');
 		gradeStore.limparTudo();
 		toast.info('Tudo limpo. "Voltar ao início" refaz o preenchimento automático.');
 	}
@@ -552,7 +561,7 @@
 			side: 'bottom',
 			title: '1. Deixe a gente montar',
 			description:
-				'Escolha como prefere a semana, a carga e os turnos: geramos três opções sem conflito e aplicamos a que você preferir. As matérias com estrela entram primeiro.'
+				'Escolha como prefere a semana, a carga e os turnos: geramos três opções sem conflito e aplicamos a que você preferir. As matérias com estrela entram antes das obrigatórias, quando couberem.'
 		},
 		{
 			target: 'manual',
@@ -566,7 +575,7 @@
 			side: 'right',
 			title: '3. Suas matérias',
 			description:
-				'Toque numa matéria para escolher ou trocar a turma — com professor, horário e vagas. A estrela prioriza; o X tira da lista.'
+				'Toque numa matéria para escolher ou trocar a turma — com professor, horário e vagas. A estrela prioriza na próxima montagem (sem garantia); o X tira da lista.'
 		},
 		{
 			target: 'calendario',
@@ -740,7 +749,7 @@
 						Voltar ao início
 					</DropdownMenu.Item>
 				{/if}
-				<DropdownMenu.Item onclick={() => gradeStore.limpar()}>
+				<DropdownMenu.Item onclick={limparGrade}>
 					<Trash2 class="mr-2 h-4 w-4" />
 					Limpar a grade
 				</DropdownMenu.Item>
@@ -758,6 +767,23 @@
 		aria-label="Ações da grade"
 	>
 		<div class="flex min-w-0 gap-2">
+			{#if desfazerStore.ultimo}
+				{@const rotulo = desfazerStore.ultimo.rotulo}
+				<button
+					type="button"
+					onclick={() => void desfazerStore.desfazerUltimo()}
+					disabled={desfazerStore.ocupado}
+					data-tour="desfazer"
+					class="mg-btn mg-btn-secondary order-first h-10 w-10 shrink-0 touch-manipulation px-0 md:w-auto md:px-3.5"
+					aria-label={desfazerStore.ehRefazer ? `Refazer: ${rotulo}` : `Desfazer: ${rotulo}`}
+					title={desfazerStore.ehRefazer
+						? `Refazer — volta ao que estava antes de desfazer`
+						: `Desfazer — volta para antes de "${rotulo}"`}
+				>
+					<Undo2 class="h-4 w-4 {desfazerStore.ehRefazer ? '-scale-x-100' : ''}" />
+					<span class="hidden md:inline">{desfazerStore.ehRefazer ? 'Refazer' : 'Desfazer'}</span>
+				</button>
+			{/if}
 			<button
 				type="button"
 				onclick={() => (painel = 'gerar')}

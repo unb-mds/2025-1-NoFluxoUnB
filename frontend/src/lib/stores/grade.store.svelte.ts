@@ -877,6 +877,52 @@ function createGradeStore() {
 		get ultimaMontagem() {
 			return ultimaMontagem;
 		},
+
+		/**
+		 * Por que cada matéria com estrela AINDA NÃO está na grade (só as que não estão).
+		 * Estrela é preferência forte, não garantia — sem isto o aluno não tem como saber
+		 * se a estrela "pegou". Texto pronto para mostrar.
+		 */
+		get motivosPrioritarias(): Map<string, string> {
+			const out = new Map<string, string>();
+			for (const codigo of prioritarias) {
+				if (selecaoAtiva.has(codigo)) continue;
+				const m = pool.find((x) => x.codigo === codigo);
+				if (!m) {
+					out.set(codigo, 'ela não está mais na sua lista');
+					continue;
+				}
+				if (cursandoAtivo.has(codigo) && !incluirCursando) {
+					out.set(codigo, 'você já cursa e escolheu montar sem as matérias em curso');
+					continue;
+				}
+				if (m.turmas.length === 0) {
+					out.set(codigo, 'não tem turma ofertada neste período');
+					continue;
+				}
+				const noTurno = m.turmas.filter((t) => turmaRespeitaTurnos(t.mask, turnosPermitidos));
+				if (noTurno.length === 0) {
+					out.set(codigo, 'todas as turmas dela estão fora dos turnos que você permitiu');
+					continue;
+				}
+				// A turma que menos atrapalha, e com quem ela bate na grade de agora.
+				let melhor: string[] | null = null;
+				for (const t of noTurno) {
+					const bate: string[] = [];
+					for (const [c, sel] of selecaoAtiva) if (hasConflict(t.mask, sel.mask)) bate.push(c);
+					if (melhor === null || bate.length < melhor.length) melhor = bate;
+				}
+				out.set(
+					codigo,
+					melhor && melhor.length > 0
+						? `o horário bate com ${melhor.join(', ')}`
+						: ultimaMontagem
+							? 'não coube no limite de créditos ou tem pré-requisito pendente'
+							: 'cabe, mas ainda não foi encaixada — vale na próxima montagem'
+				);
+			}
+			return out;
+		},
 		get hoverCodigo() {
 			return hoverCodigo;
 		},
