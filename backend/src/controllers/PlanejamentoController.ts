@@ -37,6 +37,15 @@ import {
 import { PlanejadorAgenteService, ehComandoDireto, type MensagemChat, type AgenteContexto } from "../services/planejador_agente.service";
 import { AI_SEM_CREDITOS_BODY, isMaritacaSemCreditos } from "../config/maritaca_errors";
 import { sugerirModuloLivre } from "../services/chat/actuators/modulo_livre_actuator";
+import {
+    apagarPeriodoGrade,
+    lerEstadoGrade,
+    listarPeriodosGrade,
+    periodosParaApagar,
+    periodoValido,
+    salvarEstadoGrade,
+    validarEstadoGrade,
+} from "../services/grade/grade_estado.service";
 import { DificuldadeAgenteService } from "../services/dificuldade_agente.service";
 import type {
     MateriaInput,
@@ -968,6 +977,96 @@ export const PlanejamentoController: EndpointController = {
                 } catch (err: any) {
                     logger.error(`Erro ao buscar módulo livre: ${err?.message || String(err)}`);
                     return res.status(500).json({ error: err?.message || "Erro ao buscar módulo livre" });
+                }
+            }
+        ),
+        "grade-estado": new Pair(
+            RequestType.GET,
+            async (req: Request, res: Response) => {
+                const logger = createControllerLogger("PlanejamentoController", "grade-estado");
+                try {
+                    if (!await Utils.checkAuthorization(req as Request)) {
+                        return res.status(401).json({ error: "Usuário não autorizado" });
+                    }
+                    const id_user = req.headers["user-id"] || req.headers["User-ID"];
+                    if (!id_user) return res.status(401).json({ error: "User-ID não informado" });
+
+                    const periodo = req.query.periodo;
+                    if (!periodoValido(periodo)) return res.status(400).json({ error: "periodo inválido" });
+
+                    const atual = await lerEstadoGrade(id_user as string, periodo);
+                    const periodos = await listarPeriodosGrade(id_user as string);
+                    const vencidos = new Set(periodosParaApagar(periodos.map((p) => p.periodo), periodo));
+                    return res.status(200).json({
+                        estado: atual?.estado ?? null,
+                        versao: atual?.versao ?? 0,
+                        // Outros semestres salvos; `vencido` = além de "atual + anterior".
+                        outrosPeriodos: periodos
+                            .filter((p) => p.periodo !== periodo)
+                            .map((p) => ({ ...p, vencido: vencidos.has(p.periodo) })),
+                    });
+                } catch (err: any) {
+                    logger.error(`Erro ao ler grade: ${err?.message || String(err)}`);
+                    return res.status(500).json({ error: err?.message || "Erro ao ler grade" });
+                }
+            }
+        ),
+        "grade-estado-salvar": new Pair(
+            RequestType.POST,
+            async (req: Request, res: Response) => {
+                const logger = createControllerLogger("PlanejamentoController", "grade-estado-salvar");
+                try {
+                    if (!await Utils.checkAuthorization(req as Request)) {
+                        return res.status(401).json({ error: "Usuário não autorizado" });
+                    }
+                    const id_user = req.headers["user-id"] || req.headers["User-ID"];
+                    if (!id_user) return res.status(401).json({ error: "User-ID não informado" });
+
+                    const body = req.body;
+                    if (!isObject(body) || !periodoValido(body.periodo)) {
+                        return res.status(400).json({ error: "periodo inválido" });
+                    }
+                    const versaoBase = Number(body.versaoBase ?? 0);
+                    if (!Number.isInteger(versaoBase) || versaoBase < 0) {
+                        return res.status(400).json({ error: "versaoBase inválida" });
+                    }
+                    const v = validarEstadoGrade(body.estado);
+                    if (!v.ok) return res.status(v.status).json({ error: v.erro });
+
+                    const r = await salvarEstadoGrade(id_user as string, body.periodo, v.estado, versaoBase);
+                    if (r.ok) {
+                        invalidarPerfilAluno(id_user as string);
+                        return res.status(200).json({ versao: r.versao });
+                    }
+                    if (r.conflito) return res.status(409).json({ estado: r.estado, versao: r.versao });
+                    return res.status(r.status).json({ error: r.erro });
+                } catch (err: any) {
+                    logger.error(`Erro ao salvar grade: ${err?.message || String(err)}`);
+                    return res.status(500).json({ error: err?.message || "Erro ao salvar grade" });
+                }
+            }
+        ),
+        "grade-estado-apagar": new Pair(
+            RequestType.POST,
+            async (req: Request, res: Response) => {
+                const logger = createControllerLogger("PlanejamentoController", "grade-estado-apagar");
+                try {
+                    if (!await Utils.checkAuthorization(req as Request)) {
+                        return res.status(401).json({ error: "Usuário não autorizado" });
+                    }
+                    const id_user = req.headers["user-id"] || req.headers["User-ID"];
+                    if (!id_user) return res.status(401).json({ error: "User-ID não informado" });
+
+                    const body = req.body;
+                    if (!isObject(body) || !periodoValido(body.periodo)) {
+                        return res.status(400).json({ error: "periodo inválido" });
+                    }
+                    await apagarPeriodoGrade(id_user as string, body.periodo);
+                    invalidarPerfilAluno(id_user as string);
+                    return res.status(200).json({ ok: true });
+                } catch (err: any) {
+                    logger.error(`Erro ao apagar grade: ${err?.message || String(err)}`);
+                    return res.status(500).json({ error: err?.message || "Erro ao apagar grade" });
                 }
             }
         ),

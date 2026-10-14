@@ -62,7 +62,9 @@ export type AcaoGradeChat =
 	| { tipo: 'priorizar'; codigo: string }
 	| { tipo: 'turnos'; turnos: Array<'M' | 'T' | 'N'> }
 	| { tipo: 'criarCenario'; nome: string }
-	| { tipo: 'limpar' };
+	| { tipo: 'limpar' }
+	/** Volta ao estado guardado no navegador antes de uma alteração anterior da Darcy. */
+	| { tipo: 'desfazer'; pontoId: string; rotulo?: string };
 
 export interface PlannerChatMessage {
 	role: PlannerChatRole;

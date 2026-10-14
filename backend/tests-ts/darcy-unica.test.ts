@@ -271,7 +271,7 @@ describe("perfil do aluno no contexto", () => {
         expect(texto).toContain("Lista de candidatas no Montador: IFD0171, MAT0026");
         expect(texto).toContain("Prioritárias (estrela): MAT0026");
         expect(texto).toContain("Ficaram de fora na última montagem: MAT0026");
-        expect(texto).toContain("Cenários salvos: Plano A (aberto), Plano B");
+        expect(texto).toContain('"Plano A" (a que ele está VENDO agora), "Plano B"');
     });
 
     it("respeita o teto de tamanho cortando listas com +N", () => {

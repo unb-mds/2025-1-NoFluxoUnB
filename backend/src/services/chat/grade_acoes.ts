@@ -35,7 +35,9 @@ export type AcaoGrade =
     | { tipo: "priorizar"; codigo: string }
     | { tipo: "turnos"; turnos: Turno[] }
     | { tipo: "criarCenario"; nome: string }
-    | { tipo: "limpar" };
+    | { tipo: "limpar" }
+    /** Volta ao estado guardado no navegador antes de uma alteração anterior da Darcy. */
+    | { tipo: "desfazer"; pontoId: string; rotulo: string };
 
 /** Turma com o que a validação e o card precisam. */
 export interface TurmaInfo {
@@ -170,6 +172,7 @@ export function simularAcoes(
                 aceitas.push(acao);
                 break;
             case "criarCenario":
+            case "desfazer":
                 aceitas.push(acao);
                 break;
         }
@@ -200,6 +203,8 @@ export function normalizarAcao(a: AcaoGrade): AcaoGrade | null {
         }
         case "limpar":
             return { tipo: "limpar" };
+        case "desfazer":
+            return typeof a.pontoId === "string" && a.pontoId ? a : null;
         default:
             return null;
     }
@@ -405,5 +410,38 @@ export function criarToolsAcoesGrade(
         },
     });
 
-    return [propor, analisar];
+    const desfazer = tool({
+        name: "desfazer_alteracao_grade",
+        description:
+            "Desfaz uma alteração que a Darcy fez antes na grade (o app guarda o estado anterior no navegador). " +
+            "Use quando o aluno pedir para desfazer, voltar atrás ou 'como estava antes'. Sem pontoId desfaz a MAIS RECENTE. " +
+            "Vira um card com 'Aplicar' — nada muda sem o clique do aluno. Os pontos disponíveis estão no estado da tela.",
+        parameters: z.object({
+            pontoId: z.string().optional().describe("Id do ponto a restaurar; omitido = o mais recente."),
+        }),
+        execute: async ({ pontoId }) => {
+            if (!estado) return SEM_GRADE_ABERTA;
+            const pontos = estado.desfazer ?? [];
+            if (pontos.length === 0) {
+                return JSON.stringify({
+                    erro: "Não há nenhuma alteração guardada para desfazer neste navegador (elas ficam só neste aparelho e somem ao sair da conta).",
+                });
+            }
+            const alvo = pontoId ? pontos.find((p) => p.id === pontoId) : pontos[0];
+            if (!alvo) {
+                return JSON.stringify({
+                    erro: `Ponto "${pontoId}" não existe. Disponíveis: ${pontos.map((p) => `${p.id} (${p.rotulo})`).join("; ")}.`,
+                });
+            }
+            registrar([{ tipo: "desfazer", pontoId: alvo.id, rotulo: alvo.rotulo }]);
+            return JSON.stringify({
+                aceitas: [{ tipo: "desfazer", rotulo: alvo.rotulo }],
+                instrucao_llm:
+                    `O app mostra um card com 'Aplicar'. Diga em 1-2 frases que vai voltar ao estado de antes de "${alvo.rotulo}" ` +
+                    "e que as mudanças feitas depois dele (na grade, abas, turnos e prioridades) serão revertidas. Não diga que já desfez.",
+            });
+        },
+    });
+
+    return [propor, analisar, desfazer];
 }

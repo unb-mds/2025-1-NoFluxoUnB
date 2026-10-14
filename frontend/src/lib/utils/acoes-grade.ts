@@ -5,7 +5,7 @@
 import type { AcaoGradeChat } from '$lib/types/plano-formatura';
 import { horarioLegivel } from './sigaa';
 
-export type SinalAcao = 'mais' | 'menos' | 'troca' | 'estrela' | 'turno' | 'cenario' | 'limpar';
+export type SinalAcao = 'mais' | 'menos' | 'troca' | 'estrela' | 'turno' | 'cenario' | 'limpar' | 'desfazer';
 
 export interface LinhaAcao {
 	sinal: SinalAcao;
@@ -57,5 +57,14 @@ export function descreverAcao(
 			return { sinal: 'cenario', texto: `Salvar como cenário "${acao.nome}"` };
 		case 'limpar':
 			return { sinal: 'limpar', texto: 'Limpar a grade', destrutiva: true };
+		case 'desfazer':
+			return {
+				sinal: 'desfazer',
+				texto: acao.rotulo
+					? `Voltar para antes de "${acao.rotulo}"`
+					: 'Voltar ao estado anterior da grade',
+				detalhe: 'Reverte também o que mudou depois disso (abas, turnos, prioridades).',
+				destrutiva: true
+			};
 	}
 }

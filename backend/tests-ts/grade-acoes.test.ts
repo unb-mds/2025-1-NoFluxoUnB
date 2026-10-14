@@ -106,3 +106,69 @@ describe("normalizarAcao", () => {
         expect(normalizarAcao({ tipo: "criarCenario", nome: "  " })).toBeNull();
     });
 });
+
+describe("desfazer", () => {
+    it("ação 'desfazer' passa pela simulação sem mexer na grade", () => {
+        const r = simular([{ tipo: "desfazer", pontoId: "p1", rotulo: "Darcy · Sem sexta" }]);
+        expect(r.aceitas).toEqual([{ tipo: "desfazer", pontoId: "p1", rotulo: "Darcy · Sem sexta" }]);
+        expect(r.gradeFinal.map((t) => t.codigo)).toEqual(["MAT0026", "IFD0171"]);
+    });
+
+    it("sem pontoId a ação é malformada", () => {
+        expect(normalizarAcao({ tipo: "desfazer", pontoId: "", rotulo: "x" })).toBeNull();
+    });
+});
+
+describe("tool desfazer_alteracao_grade", () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { RunContext } = require("@openai/agents");
+    const { criarToolsAcoesGrade } = require("../src/services/chat/grade_acoes");
+
+    const estado = (desfazer?: Array<{ id: string; rotulo: string; quando: string }>) => ({
+        tipo: "montador",
+        grade: [],
+        creditos: 0,
+        turnos: ["M", "T", "N"],
+        incluirCursando: true,
+        horarioLivre: "0",
+        ...(desfazer ? { desfazer } : {}),
+    });
+
+    async function chamar(est: ReturnType<typeof estado> | null, args: Record<string, unknown>) {
+        const registradas: AcaoGrade[][] = [];
+        const tools = criarToolsAcoesGrade(est, "2026.2", (a: AcaoGrade[]) => registradas.push(a));
+        const t = tools.find((x: { name: string }) => x.name === "desfazer_alteracao_grade");
+        const saida = await t.invoke(new RunContext(), JSON.stringify(args));
+        return { saida: JSON.parse(String(saida)), registradas };
+    }
+
+    const PONTOS = [
+        { id: "novo", rotulo: "Darcy · Sem sexta", quando: "2026-10-14T20:00:00Z" },
+        { id: "velho", rotulo: "Trocou turma de MAT0026", quando: "2026-10-14T19:00:00Z" },
+    ];
+
+    it("sem pontoId desfaz o mais recente", async () => {
+        const { registradas } = await chamar(estado(PONTOS), {});
+        expect(registradas).toEqual([[{ tipo: "desfazer", pontoId: "novo", rotulo: "Darcy · Sem sexta" }]]);
+    });
+
+    it("com pontoId escolhe aquele", async () => {
+        const { registradas } = await chamar(estado(PONTOS), { pontoId: "velho" });
+        expect(registradas[0][0]).toMatchObject({ pontoId: "velho" });
+    });
+
+    it("id inexistente ou nada guardado: erro e nada registrado", async () => {
+        const a = await chamar(estado(PONTOS), { pontoId: "fantasma" });
+        expect(a.saida.erro).toMatch(/não existe/);
+        expect(a.registradas).toEqual([]);
+
+        const b = await chamar(estado([]), {});
+        expect(b.saida.erro).toMatch(/Não há nenhuma alteração/);
+        expect(b.registradas).toEqual([]);
+    });
+
+    it("fora do Montador responde que precisa da grade aberta", async () => {
+        const r = await chamar(null, {});
+        expect(r.saida.erro).toMatch(/grade aberta/);
+    });
+});

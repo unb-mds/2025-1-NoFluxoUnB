@@ -45,7 +45,8 @@
 		estrela: Star,
 		turno: Sun,
 		cenario: Bookmark,
-		limpar: Eraser
+		limpar: Eraser,
+		desfazer: Undo2
 	};
 	const COR: Record<SinalAcao, string> = {
 		mais: 'text-emerald-700 dark:text-emerald-300',
@@ -54,7 +55,8 @@
 		estrela: 'text-amber-700 dark:text-amber-300',
 		turno: 'text-indigo-700 dark:text-indigo-300',
 		cenario: 'text-indigo-700 dark:text-indigo-300',
-		limpar: 'text-rose-700 dark:text-rose-300'
+		limpar: 'text-rose-700 dark:text-rose-300',
+		desfazer: 'text-sky-700 dark:text-sky-300'
 	};
 
 	async function onAplicar() {

@@ -34,8 +34,12 @@ export interface EstadoMontador {
 	prioritarias?: string[];
 	/** O que ficou de fora na última montagem automática. */
 	naoAlocadas?: string[];
-	/** Cenários salvos; `ativo` = o aberto. */
-	cenarios?: Array<{ nome: string; ativo: boolean }>;
+	/** Cenários salvos; `ativo` = o aberto. O `id` é estável (nomes podem repetir). */
+	cenarios?: Array<{ id?: string; nome: string; ativo: boolean }>;
+	/** Pontos de desfazer guardados neste navegador (do mais novo ao mais antigo). */
+	desfazer?: Array<{ id: string; rotulo: string; quando: string }>;
+	/** Grade que o aluno está VENDO — alvo padrão de qualquer pedido de grade. */
+	cenarioAtivoId?: string;
 }
 
 export interface EstadoPlano {

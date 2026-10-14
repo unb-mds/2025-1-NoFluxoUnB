@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resumoPontos } from '$lib/utils/grade-desfazer';
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
 	import { darcyStore } from '$lib/stores/darcy.store.svelte';
 	import { darcyCotaStore } from '$lib/stores/darcy-cota.store.svelte';
@@ -118,10 +119,12 @@
 				.filter((m) => gradeStore.isPrioritaria(m.codigo))
 				.map((m) => m.codigo),
 			naoAlocadas: gradeStore.ultimaMontagem?.naoAlocadas ?? [],
-			cenarios: gradeStore.grades.map((g) => ({
-				nome: g.nome,
-				ativo: g.id === gradeStore.activeId
-			}))
+			cenarioAtivoId: gradeStore.activeId,
+				cenarios: gradeStore.grades.map((g) => ({
+					id: g.id,
+					nome: g.nome,
+					ativo: g.id === gradeStore.activeId
+				}))
 		};
 	}
 

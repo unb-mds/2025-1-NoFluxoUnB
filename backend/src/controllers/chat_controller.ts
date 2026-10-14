@@ -44,6 +44,7 @@ import {
 } from "../services/chat/orquestrador_agent";
 import { isMaritacaConfigured } from "../services/chat/model_provider";
 import { montarPerfilAluno, type PerfilAluno } from "../services/chat/perfil_aluno";
+import { lerEstadoGrade, type CenarioPersistido } from "../services/grade/grade_estado.service";
 import { invalidarPerfilAluno } from "../services/chat/perfil_cache";
 import { apagarMemoria, consolidarMemoria, lerMemoria } from "../services/chat/memoria_aluno";
 import { parseCorpoChat } from "../services/chat/superficie";
@@ -143,12 +144,23 @@ export const ChatController: EndpointController = {
                 }
                 const memoria = await memoriaPromise;
 
+                // No Montador a Darcy enxerga TODAS as grades salvas do aluno (não só a aberta).
+                let cenariosSalvos: CenarioPersistido[] | undefined;
+                if (corpo.superficie === "montador" && perfil?.idUser && perfil.periodoAtivo) {
+                    try {
+                        cenariosSalvos = (await lerEstadoGrade(perfil.idUser, perfil.periodoAtivo))?.estado.grades;
+                    } catch (err) {
+                        logger.error(`Falha ao ler grades salvas: ${err instanceof Error ? err.message : String(err)}`);
+                    }
+                }
+
                 const orquestrador = createOrquestradorAgent({
                     email: usuario.email ?? "",
                     perfil,
                     superficie: corpo.superficie,
                     estado: corpo.estado,
                     memoria,
+                    cenariosSalvos,
                 });
                 const resultado = await executarComContextoIA(ctxIA, () =>
                     run(orquestrador, corpo.message, { session, context: contextoRun })

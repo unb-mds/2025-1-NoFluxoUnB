@@ -383,8 +383,20 @@ function renderEstado(superficie: Superficie, estado: EstadoSuperficie | undefin
             ...(estado.naoAlocadas?.length
                 ? [`- Ficaram de fora na última montagem: ${lista(estado.naoAlocadas, 15)}`]
                 : []),
+            ...(estado.desfazer?.length
+                ? [
+                      `- Alterações da Darcy que podem ser desfeitas (mais recente primeiro): ${estado.desfazer
+                          .map((d) => `"${d.rotulo}"`)
+                          .join("; ")}. Se o aluno pedir para desfazer/voltar, use desfazer_alteracao_grade.`,
+                  ]
+                : []),
             ...(estado.cenarios?.length
-                ? [`- Cenários salvos: ${estado.cenarios.map((c) => (c.ativo ? `${c.nome} (aberto)` : c.nome)).join(", ")}`]
+                ? [
+                      `- Grades (cenários) do aluno: ${estado.cenarios
+                          .map((c) => (c.ativo ? `"${c.nome}" (a que ele está VENDO agora)` : `"${c.nome}"`))
+                          .join(", ")}`,
+                      "- Pedido de grade sem outra indicação vale para a grade que ele está vendo; cite o nome dela na resposta.",
+                  ]
                 : []),
         ].join("\n");
     }

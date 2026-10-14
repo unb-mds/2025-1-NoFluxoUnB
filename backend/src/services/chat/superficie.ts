@@ -24,8 +24,12 @@ export interface EstadoMontador {
     prioritarias?: string[];
     /** O que ficou de fora na última montagem automática. */
     naoAlocadas?: string[];
-    /** Cenários (grades salvas) do aluno; `ativo` = o que está aberto. */
-    cenarios?: Array<{ nome: string; ativo: boolean }>;
+    /** Cenários (grades salvas) do aluno; `ativo` = o que está aberto. `id` é estável (o nome pode repetir). */
+    cenarios?: Array<{ id?: string; nome: string; ativo: boolean }>;
+    /** Pontos de desfazer guardados no navegador (do mais novo ao mais antigo): o que a Darcy pode reverter. */
+    desfazer?: Array<{ id: string; rotulo: string; quando: string }>;
+    /** Id do cenário que o aluno está VENDO agora — alvo padrão de qualquer pedido de grade. */
+    cenarioAtivoId?: string;
 }
 
 export interface EstadoPlano {
@@ -73,13 +77,30 @@ function codigosValidos(v: unknown, teto = 60): string[] | undefined {
     return [...out];
 }
 
-function cenariosValidos(v: unknown): Array<{ nome: string; ativo: boolean }> | undefined {
+function cenariosValidos(v: unknown): Array<{ id?: string; nome: string; ativo: boolean }> | undefined {
     if (!Array.isArray(v)) return undefined;
     return v
         .filter(ehObjeto)
         .filter((c) => typeof c.nome === "string" && c.nome.trim() !== "")
         .slice(0, 10)
-        .map((c) => ({ nome: String(c.nome).trim().slice(0, 40), ativo: c.ativo === true }));
+        .map((c) => ({
+            ...(typeof c.id === "string" && c.id.length > 0 && c.id.length <= 64 ? { id: c.id } : {}),
+            nome: String(c.nome).trim().slice(0, 40),
+            ativo: c.ativo === true,
+        }));
+}
+
+function desfazerValido(v: unknown): Array<{ id: string; rotulo: string; quando: string }> | undefined {
+    if (!Array.isArray(v)) return undefined;
+    return v
+        .filter(ehObjeto)
+        .filter((p) => typeof p.id === "string" && p.id.length > 0 && p.id.length <= 64)
+        .slice(0, 5)
+        .map((p) => ({
+            id: String(p.id),
+            rotulo: String(p.rotulo ?? "alteração").trim().slice(0, 80) || "alteração",
+            quando: String(p.quando ?? "").slice(0, 40),
+        }));
 }
 
 function parseEstadoMontador(raw: Record<string, unknown>): EstadoMontador {
@@ -103,6 +124,10 @@ function parseEstadoMontador(raw: Record<string, unknown>): EstadoMontador {
         ...(codigosValidos(raw.prioritarias) ? { prioritarias: codigosValidos(raw.prioritarias) } : {}),
         ...(codigosValidos(raw.naoAlocadas) ? { naoAlocadas: codigosValidos(raw.naoAlocadas) } : {}),
         ...(cenariosValidos(raw.cenarios) ? { cenarios: cenariosValidos(raw.cenarios) } : {}),
+        ...(desfazerValido(raw.desfazer) ? { desfazer: desfazerValido(raw.desfazer) } : {}),
+        ...(typeof raw.cenarioAtivoId === "string" && raw.cenarioAtivoId.length <= 64
+            ? { cenarioAtivoId: raw.cenarioAtivoId }
+            : {}),
     };
 }
 

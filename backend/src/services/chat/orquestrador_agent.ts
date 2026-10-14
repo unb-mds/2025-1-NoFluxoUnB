@@ -18,7 +18,7 @@ import { Agent, tool, type FunctionTool, type RunContext } from "@openai/agents"
 import { createMaritacaModel } from "./model_provider";
 import { createIntegralizacaoAgent, runIntegralizacaoComRevisao } from "./actuators/integralizacao_actuator";
 import { createOptativasAgent } from "./actuators/optativas_actuator";
-import { createGradeAgent, runGradeComRevisao, type OpcaoGradeResumo } from "./actuators/grade_actuator";
+import { createGradeAgent, runGradeComRevisao, type CenarioNaConversa, type OpcaoGradeResumo } from "./actuators/grade_actuator";
 import { criarToolsAcoesGrade, type AcaoGrade } from "./grade_acoes";
 import { createModuloLivreAgent } from "./actuators/modulo_livre_actuator";
 import { defaultRegistry } from "../agente/tools";
@@ -26,7 +26,8 @@ import { criarContextoLeve, type AgenteContexto } from "../agente/context";
 import type { PlanoFormaturav2 } from "../../types/planejamento";
 import { clonarContexto, renderizarPerfil, type PerfilAluno } from "./perfil_aluno";
 import { renderizarMemoria } from "./memoria_aluno";
-import { MASCARA_SEMANA_LIVRE, type EstadoSuperficie, type Superficie } from "./superficie";
+import type { CenarioPersistido } from "../grade/grade_estado.service";
+import { MASCARA_SEMANA_LIVRE, type EstadoMontador as EstadoMontadorTipo, type EstadoSuperficie, type Superficie } from "./superficie";
 
 // =========================================================
 // Canal lateral: efeitos que a resposta devolve além do texto
@@ -90,7 +91,7 @@ const INSTRUCOES = `Você é a Darcy, assistente de planejamento acadêmico do N
 - Buscar/sugerir optativas por tema: "buscar_optativas". Módulo livre (fora da matriz) por área de interesse: "buscar_modulo_livre".
 - Turmas de uma matéria: "consultar_turmas_materia". Ementa/dados: "consultar_informacoes_materia". Opiniões: "consultar_opinioes_disciplina". Status de uma matéria: "consultar_status_materia". Matérias por local: "buscar_materias_por_local".
 - Plano de formatura: "consultar_plano" (detalhe), "simular_cenario" (e se...? sem alterar), "mover_materia" (adiar/priorizar), "ajustar_carga", "ajustar_carga_semestre", "adicionar_optativa". Só altere o plano quando o aluno pedir ou confirmar.
-- Grade horária: "montar_grade" (montar/rearranjar a grade inteira) e "recomendar_por_horario_livre" (o que cabe num horário livre).
+- Grade horária: "montar_grade" (montar/rearranjar a grade inteira, inclusive por turno ou "sem aula na sexta/outro dia") e "recomendar_por_horario_livre" (o que cabe num horário livre).
 
 Responda em português brasileiro, de forma direta e concisa.
 
@@ -131,7 +132,7 @@ O aluno está montando uma GRADE HORÁRIA nesta tela, com as turmas realmente of
 - Só recomende matérias que TENHAM turma ofertada neste período (a tool buscar_optativas já filtra por isso).
 - Se o aluno disser que tem um horário livre / buraco na grade e pedir recomendação (ex: "tenho segunda de manhã livre, me recomenda algo"), delegue para a tool "recomendar_por_horario_livre" em vez de buscar_optativas — ela já sabe o que cabe no horário e o que é parecido com o histórico do aluno.
 - MONTAR/REARRANJAR A GRADE INTEIRA: quando o aluno pedir para montar ou rearranjar a grade garantindo/priorizando uma matéria ESSENCIAL, restringindo TURNOS e/ou pedindo um PROFESSOR específico, delegue para a tool "montar_grade" — passe o pedido do aluno como texto (código da essencial, turnos, nome do professor, se é pra incluir ou não as matérias que ele já está cursando, qual estratégia — menos dias, menos furos, semana equilibrada). Essa tool RESOLVE o conflito de horário de verdade no backend (branch-and-bound, sem re-solve no app depois): o resultado é GARANTIDAMENTE ótimo, nunca uma prévia sujeita a mudar — não prometa "vou tentar encaixar". As matérias em curso entram SEMPRE na turma real da matrícula. Repasse a resposta citando MÉTRICAS REAIS da opção (dias com aula, minutos de furo entre aulas, se o professor pedido foi atendido). A matéria ESSENCIAL NUNCA fica de fora só por causa de professor — isso mudou: professor é só preferência de desempate (a tool tenta atender, mas se nenhuma turma daquele professor coube, a essencial ainda entra do mesmo jeito, só sem o professor pedido — avise isso citando a métrica de professor atendido, não como "pode ficar de fora"). Se a tool voltar com erro de essencial (sem turma ofertada, fora do turno pedido, pré-requisito pendente ou conflito de horário com outra matéria), explique o motivo REAL ao aluno em vez de dizer genericamente que não coube.
-- MUDANÇA PONTUAL na grade aberta (tirar/pôr uma matéria, trocar a turma de uma, priorizar, mudar turnos, salvar como cenário, limpar): use "propor_mudancas_grade". Ela valida tudo contra a grade real e o app mostra um card com "Aplicar"/"Descartar" — você NUNCA diz que já mudou: diga o que vai mudar se ele aplicar. Mudou a grade? Sempre por essa tool (ou montar_grade), nunca só em texto. Precisa de um idTurma? Pegue de "analisar_turmas_na_grade" ou "consultar_turmas_materia", nunca invente.
+- MUDANÇA PONTUAL na grade aberta (tirar/pôr uma matéria, trocar a turma de uma, priorizar, mudar turnos, salvar como cenário, limpar): use "propor_mudancas_grade". Ela valida tudo contra a grade real e o app mostra um card com "Aplicar"/"Descartar" — você NUNCA diz que já mudou: diga o que vai mudar se ele aplicar. Mudou a grade? Sempre por essa tool (ou montar_grade), nunca só em texto. Aluno quer voltar atrás / desfazer o que a Darcy fez: "desfazer_alteracao_grade" (restaura o estado guardado no navegador; vira card com "Aplicar"). Precisa de um idTurma? Pegue de "analisar_turmas_na_grade" ou "consultar_turmas_materia", nunca invente.
 - "Por que X não coube?", "tem outra turma de X?", "quero X de manhã": use "analisar_turmas_na_grade" — ela diz quais turmas cabem e, das que não cabem, com quem colidem ou se estão fora do turno. Se o problema for pré-requisito, use "consultar_status_materia".
 - "Se eu não pegar X agora, atrasa?": use "simular_cenario" (adiar X) e cite o antes/depois da formatura.
 - O bloco "Tela atual" traz a lista de candidatas, as prioritárias, o que ficou de fora na última montagem e os cenários — use isso antes de perguntar ao aluno.
@@ -227,6 +228,34 @@ function assinaturaRestricoes(ctx: AgenteContexto): string {
     return JSON.stringify([r.adiar, r.priorizar, r.adicionar, r.adicionarEm, r.limitesPersonalizados]);
 }
 
+/**
+ * Junta o que o banco guarda com o que a tela mostra agora. O cenário ABERTO usa a seleção
+ * do cliente (pode estar à frente do debounce de gravação); os demais, a do banco.
+ */
+export function cenariosDaConversa(
+    salvos: CenarioPersistido[] | undefined,
+    estado: EstadoMontadorTipo | null
+): CenarioNaConversa[] {
+    if (!estado) return [];
+    const doBanco = salvos ?? [];
+    const idAtivo =
+        estado.cenarioAtivoId ??
+        estado.cenarios?.find((c) => c.ativo)?.id ??
+        doBanco.find((c) => c.nome === estado.cenarios?.find((x) => x.ativo)?.nome)?.id;
+    const selecaoAberta: Record<string, number> = Object.fromEntries(estado.grade.map((g) => [g.codigo, g.idTurma]));
+    const lista: CenarioNaConversa[] = doBanco.map((c) => ({
+        id: c.id,
+        nome: c.nome,
+        ativo: c.id === idAtivo,
+        selecao: c.id === idAtivo ? selecaoAberta : c.selecao,
+    }));
+    if (idAtivo && !lista.some((c) => c.id === idAtivo)) {
+        const nome = estado.cenarios?.find((c) => c.id === idAtivo)?.nome ?? "Grade aberta";
+        lista.push({ id: idAtivo, nome, ativo: true, selecao: selecaoAberta });
+    }
+    return lista;
+}
+
 // =========================================================
 // Fábrica
 // =========================================================
@@ -242,6 +271,8 @@ export interface OpcoesOrquestrador {
     periodoAtivo?: string;
     /** Resumo de conversas anteriores (`memoria_aluno.ts`). */
     memoria?: string | null;
+    /** Grades salvas do aluno no período (tabela `grade_montador`) — só no Montador. */
+    cenariosSalvos?: CenarioPersistido[];
 }
 
 export function createOrquestradorAgent(opts: OpcoesOrquestrador | string): Agent {
@@ -285,7 +316,9 @@ export function createOrquestradorAgent(opts: OpcoesOrquestrador | string): Agen
         estadoMontador?.horarioLivre ?? MASCARA_SEMANA_LIVRE,
         periodoAtivo,
         estadoMontador?.grade.map((g) => g.codigo) ?? [],
-        perfil?.semestreAtual
+        perfil?.semestreAtual,
+        estadoMontador?.grade ?? [],
+        cenariosDaConversa(opcoes.cenariosSalvos, estadoMontador)
     );
     const executarGrade = async (input: string, contexto?: RunContext<unknown>) => {
         if (!curriculoCompleto) {
@@ -327,7 +360,7 @@ export function createOrquestradorAgent(opts: OpcoesOrquestrador | string): Agen
         tool({
             name: "montar_grade",
             description:
-                "Delega para o atuador que MONTA/REARRANJA a grade horária inteira (matéria essencial, turnos, professor preferido, estratégia), com o solver determinístico do backend — resultado garantidamente ótimo, não uma prévia. Matérias em curso ficam sempre na turma real.",
+                "Delega para o atuador que MONTA/REARRANJA a grade horária inteira (matéria essencial, turnos, professor preferido, estratégia), com o solver determinístico do backend — resultado garantidamente ótimo, não uma prévia. Matérias em curso ficam na turma real, exceto quando o aluno pede um dia sem aula que ela ocupa (aí o impacto é mostrado antes). Diga no input o dia pedido (ex.: 'sem aula na sexta').",
             parameters: z.object({ input: z.string() }),
             execute: async ({ input }, contexto) => executarGrade(input, contexto),
         }),

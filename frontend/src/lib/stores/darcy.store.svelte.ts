@@ -13,6 +13,7 @@
  * a mensagem vai como superfície `assistente`.
  */
 
+import { limparCacheGrade } from '$lib/services/grade-estado.service';
 import { authStore } from '$lib/stores/auth';
 import { chatService, type EstadoSuperficie, type Superficie } from '$lib/services/chat.service';
 import { darcyCotaStore } from '$lib/stores/darcy-cota.store.svelte';
@@ -100,7 +101,10 @@ function createDarcyStore() {
 		const id = estado.user?.idUser ?? null;
 		if (id === idUserAtual) return;
 		// Logout: a conversa não fica no navegador para o próximo que usar a máquina.
-		if (id === null && idUserAtual !== null) gravarCache(idUserAtual, []);
+		if (id === null && idUserAtual !== null) {
+			gravarCache(idUserAtual, []);
+			limparCacheGrade();
+		}
 		idUserAtual = id;
 		// Troca de usuário (login/logout): a conversa do anterior não pode vazar.
 		mensagens = id === null ? [] : lerCache(id);

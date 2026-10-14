@@ -6,6 +6,13 @@
  *  - bloqueio de conflito de horário, montagem automática e persistência em
  *    localStorage por usuário + período.
  */
+import type { SnapshotGrade } from '$lib/utils/grade-desfazer';
+import {
+	agendarEnvio,
+	cenariosKey,
+	MAX_CENARIOS,
+	poolKey
+} from '$lib/services/grade-estado.service';
 import {
 	hasConflict,
 	autoMontarGradeCompacta,
@@ -89,7 +96,7 @@ interface Cenario {
 	 * diferenciar visualmente (implementação de outro agente). Cenários salvos antes
 	 * deste campo existir voltam como `usuario` (ver `init`).
 	 */
-	origem: 'opcao-solver' | 'usuario';
+	origem: 'opcao-solver' | 'usuario' | 'darcy';
 }
 
 export interface SelecaoResultado {
@@ -379,13 +386,6 @@ function novoId(): string {
 	return `g-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function poolKey(idUser: number | null, periodo: string | null): string | null {
-	return idUser != null && periodo ? `nofluxo:grade:${idUser}:${periodo}:pool` : null;
-}
-function cenariosKey(idUser: number | null, periodo: string | null): string | null {
-	return idUser != null && periodo ? `nofluxo:grade:${idUser}:${periodo}:cenarios` : null;
-}
-
 /** Lê (fora do store) os códigos do pool salvo — a página usa p/ rehidratar turmas. */
 export function lerPoolSalvo(idUser: number | null, periodo: string): string[] {
 	const key = poolKey(idUser, periodo);
@@ -554,6 +554,7 @@ function createGradeStore() {
 		const key = poolKey(idUser, periodo);
 		if (!key || typeof localStorage === 'undefined') return;
 		localStorage.setItem(key, JSON.stringify(pool.map((m) => m.codigo)));
+		agendarEnvio(idUser, periodo);
 	}
 	function persistCenarios(): void {
 		const key = cenariosKey(idUser, periodo);
@@ -569,6 +570,7 @@ function createGradeStore() {
 				incluirCursando
 			})
 		);
+		agendarEnvio(idUser, periodo);
 	}
 
 	/** Remove seleções cuja turma sumiu do pool ou que passaram a conflitar. */
@@ -943,6 +945,51 @@ function createGradeStore() {
 		},
 
 		/**
+		 * Foto de TUDO que uma mudança da Darcy pode alterar (abas, ativa, lista,
+		 * estrelas, turnos, removidas, "incluir cursando") — o ponto de desfazer.
+		 */
+		snapshotCompleto(): SnapshotGrade {
+			return {
+				grades: grades.map((g) => ({ ...g, selecao: { ...g.selecao } })),
+				activeId,
+				pool: pool.map((m) => m.codigo),
+				prioritarias: [...prioritarias],
+				turnos: [...turnosPermitidos],
+				removidas: [...removidas],
+				incluirCursando
+			};
+		},
+
+		/** Códigos do snapshot que não estão mais na lista (a tela os re-adiciona antes de restaurar). */
+		faltantesNoPool(s: SnapshotGrade): string[] {
+			const tem = new Set(pool.map((m) => m.codigo));
+			return s.pool.filter((c) => !tem.has(c));
+		},
+
+		/**
+		 * Volta ao estado de `snapshotCompleto`. As seleções passam por `reconciliar`:
+		 * turma que saiu da oferta nesse meio-tempo não volta (devolve quais caíram).
+		 */
+		restaurarCompleto(s: SnapshotGrade): { descartadas: string[] } {
+			prioritarias = new Set(s.prioritarias);
+			turnosPermitidos = new Set<Turno>(s.turnos.length > 0 ? s.turnos : ['M', 'T', 'N']);
+			removidas = new Set(s.removidas);
+			incluirCursando = s.incluirCursando;
+			const descartadas: string[] = [];
+			const restauradas = s.grades.map((g) => {
+				const selecao = reconciliar(g.selecao);
+				for (const c of Object.keys(g.selecao)) if (!(c in selecao)) descartadas.push(c);
+				return { id: g.id, nome: g.nome, origem: g.origem, selecao };
+			});
+			grades = restauradas.length > 0 ? restauradas : grades;
+			activeId = grades.some((g) => g.id === s.activeId) ? s.activeId : grades[0].id;
+			ultimaMontagem = null;
+			persistPool();
+			persistCenarios();
+			return { descartadas: [...new Set(descartadas)] };
+		},
+
+		/**
 		 * Caminho ÚNICO para aplicar uma seleção pronta (código → id_turmas) no
 		 * cenário ativo — usado tanto pelo clique numa `OpcaoGrade` já montada na tela
 		 * quanto pelo handler do chat quando a Darcy manda `opcaoGrade` pronta (em vez
@@ -987,7 +1034,10 @@ function createGradeStore() {
 				const tg = selecaoAtiva.get(codigo);
 				if (tg) selecaoTravadas[codigo] = tg.turma.id_turmas;
 			}
-			const novos: Cenario[] = opcoes.map((opcao) => ({
+			// Teto de grades por semestre (o servidor também recusa acima disso): as opções do
+			// solver anteriores já foram removidas pela tela; aqui só cabem as que sobram.
+			const vagas = Math.max(0, MAX_CENARIOS - grades.length);
+			const novos: Cenario[] = opcoes.slice(0, vagas).map((opcao) => ({
 				id: novoId(),
 				nome: opcao.estrategia,
 				selecao: {
@@ -1146,7 +1196,8 @@ function createGradeStore() {
 					id: g.id,
 					nome: g.nome,
 					selecao: reconciliar(g.selecao ?? {}),
-					origem: g.origem === 'opcao-solver' ? 'opcao-solver' : 'usuario'
+					origem:
+						g.origem === 'opcao-solver' || g.origem === 'darcy' ? g.origem : 'usuario'
 				}));
 				activeId = grades.some((g) => g.id === restaurado!.activeId)
 					? restaurado.activeId
@@ -1584,15 +1635,30 @@ function createGradeStore() {
 		},
 
 		// ─── Cenários ────────────────────────────────────────────────────────────
-		criarCenario(nome?: string): void {
+		/** `false` quando já há MAX_CENARIOS grades neste semestre (nada é criado). */
+		criarCenario(nome?: string, origem: Cenario['origem'] = 'usuario'): boolean {
+			if (grades.length >= MAX_CENARIOS) return false;
 			const id = novoId();
 			grades = [
 				...grades,
-				{ id, nome: nome?.trim() || `Grade ${grades.length + 1}`, selecao: {}, origem: 'usuario' }
+				{ id, nome: nome?.trim() || `Grade ${grades.length + 1}`, selecao: {}, origem }
 			];
 			activeId = id;
 			ultimaMontagem = null;
 			persistCenarios();
+			return true;
+		},
+
+		/** Usuário e semestre do estado carregado (chave dos pontos de desfazer). */
+		get idUser() {
+			return idUser;
+		},
+		get periodo() {
+			return periodo;
+		},
+
+		get limiteCenarios() {
+			return MAX_CENARIOS;
 		},
 
 		renomearCenario(id: string, nome: string): void {

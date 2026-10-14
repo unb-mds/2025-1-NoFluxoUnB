@@ -69,6 +69,17 @@ export function maskDosTurnos(turnos: Iterable<Turno>): bigint {
     return mask;
 }
 
+/** Máscara de todos os módulos dos dias dados (cód. SIGAA "2".."7"; segunda=2, sexta=6). */
+export function maskDosDias(diasCod: Iterable<string>): bigint {
+    let mask = 0n;
+    for (const cod of diasCod) {
+        const dia = DIA_INDEX[cod];
+        if (dia === undefined) continue;
+        mask |= 0xffffn << BigInt(dia * 16);
+    }
+    return mask;
+}
+
 /** Máscara livre = universo dos turnos permitidos menos o que já está ocupado. */
 export function maskLivre(ocupada: bigint, turnosPermitidos: Iterable<Turno>): bigint {
     const universo = maskDosTurnos(turnosPermitidos);

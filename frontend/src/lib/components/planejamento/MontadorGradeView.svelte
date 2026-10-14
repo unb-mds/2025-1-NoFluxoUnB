@@ -277,8 +277,9 @@
 	 * só sai aquela combinação de turmas.
 	 */
 	function excluirOpcao(id: string, indice: number): void {
+		const nome = gradeStore.grades.find((g) => g.id === id)?.nome ?? `Grade ${indice + 1}`;
 		gradeStore.removerCenario(id);
-		toast.info(`Opção ${indice + 1} excluída.`);
+		toast.info(`"${nome}" excluída.`);
 	}
 
 	/** Assinatura da seleção atual — para saber se a montagem mudou alguma coisa. */
@@ -640,14 +641,13 @@
 						onclick={() => gradeStore.selecionarCenario(g.id)}
 						class="mg-choice flex min-w-0 flex-1 items-center justify-center gap-1 border-transparent bg-transparent px-2.5 py-2 text-[11px] whitespace-nowrap"
 					>
-						<span class="font-medium">Opção {i + 1}</span>
-						<small class="hidden truncate text-[11px] opacity-80 sm:inline">· {g.nome}</small>
+						<span class="truncate font-medium">{g.nome}</span>
 					</button>
 					<button
 						type="button"
 						onclick={() => excluirOpcao(g.id, i)}
 						class="shrink-0 touch-manipulation rounded-md p-1.5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
-						aria-label="Excluir opção {i + 1}"
+						aria-label="Excluir {g.nome}"
 						title="Excluir esta opção"
 					>
 						<X class="h-3 w-3" />

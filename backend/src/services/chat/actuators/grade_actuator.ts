@@ -519,6 +519,16 @@ export interface OpcaoGradeResumo {
     metricas?: { diasComAula: number; minutosDeLacuna: number; horasTotais: number };
 }
 
+/** Dia da semana → código SIGAA usado nas máscaras de horário. */
+const DIA_PARA_COD: Record<"seg" | "ter" | "qua" | "qui" | "sex" | "sab", string> = {
+    seg: "2",
+    ter: "3",
+    qua: "4",
+    qui: "5",
+    sex: "6",
+    sab: "7",
+};
+
 const ESTRATEGIA_PARA_NOME: Record<string, string> = {
     menos_dias: "Menos dias com aula",
     menos_furos: "Menos furos entre aulas",
@@ -582,6 +592,19 @@ function formatarOpcaoParaLlm(opcao: OpcaoGrade<TurmaOferta>) {
     };
 }
 
+/** Grade (aba) do aluno visível pra Darcy: a aberta + as salvas no banco. */
+export interface CenarioNaConversa {
+    id: string;
+    nome: string;
+    /** É a grade que o aluno está vendo — alvo padrão. */
+    ativo: boolean;
+    selecao: Record<string, number>;
+}
+
+function normNomeCenario(n: string): string {
+    return n.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
 export function createGradeAgent(
     email: string,
     curriculoCompleto: string,
@@ -589,7 +612,11 @@ export function createGradeAgent(
     periodoAtivo: string,
     codigosNaGrade: string[] = [],
     /** Semestre do aluno (do perfil) — corte do escopo "período atual" do montar_grade. */
-    numeroPeriodo?: number
+    numeroPeriodo?: number,
+    /** Grade aberta no Montador (código + turma) — base do impacto de "sem aula na sexta". */
+    gradeAberta: Array<{ codigo: string; idTurma: number }> = [],
+    /** Todas as grades do aluno no período (a ativa inclusive). */
+    cenarios: CenarioNaConversa[] = []
 ): Agent {
     let ultimosCandidatos: CandidatoGrade[] | null = null;
     let ultimasOpcoes: OpcaoGrade<TurmaOferta>[] | null = null;
@@ -620,6 +647,14 @@ export function createGradeAgent(
                 .array(z.enum(["M", "T", "N"]))
                 .optional()
                 .describe("Turnos permitidos (M=manhã, T=tarde, N=noite). Omitido/vazio = sem restrição."),
+            cenario: z
+                .string()
+                .optional()
+                .describe("NOME da grade (aba) do aluno a usar como base, só quando ele citar outra que não a aberta (ex.: 'Grade 2'). Omitido = a grade que ele está vendo."),
+            diasSemAula: z
+                .array(z.enum(["seg", "ter", "qua", "qui", "sex", "sab"]))
+                .optional()
+                .describe("Dias da semana SEM aula (ex.: ['sex'] para 'grade sem sexta'). Turmas com horário nesses dias não entram. Matéria que o aluno já cursa e tem aula nesse dia continua na grade — avise isso."),
             essencial: z
                 .string()
                 .optional()
@@ -641,13 +676,31 @@ export function createGradeAgent(
                 .optional()
                 .describe("Qual das opções retornadas destacar como a escolhida. Padrão: a 1ª opção devolvida."),
         }),
-        execute: async ({ escopo, turnos, essencial, docente, incluirCursando, apenasObrigatorias, estrategia }) => {
+        execute: async ({ escopo, turnos, cenario, diasSemAula, essencial, docente, incluirCursando, apenasObrigatorias, estrategia }) => {
+            // Base da comparação: a grade que o aluno está vendo, ou a que ele nomeou.
+            const aberta = cenarios.find((c) => c.ativo);
+            let base: CenarioNaConversa | undefined = aberta;
+            if (cenario && cenario.trim()) {
+                const alvo = normNomeCenario(cenario);
+                base = cenarios.find((c) => normNomeCenario(c.nome) === alvo);
+                if (!base) {
+                    return JSON.stringify({
+                        erro: `Não achei a grade "${cenario}". Grades do aluno: ${cenarios.map((c) => `"${c.nome}"`).join(", ") || "nenhuma salva"}.`,
+                    });
+                }
+            }
+            const gradeBase = base
+                ? Object.entries(base.selecao).map(([codigo, idTurma]) => ({ codigo, idTurma }))
+                : gradeAberta;
+
             const params: ParametrosMontador = {
                 email,
                 curriculoCompleto,
                 numeroPeriodo,
                 escopo: escopo ?? "periodo_atual",
                 turnosPermitidos: turnos && turnos.length > 0 ? turnos : undefined,
+                diasSemAula: diasSemAula && diasSemAula.length > 0 ? diasSemAula.map((d) => DIA_PARA_COD[d]) : undefined,
+                gradeAberta: gradeBase.length > 0 ? gradeBase : undefined,
                 essencial: essencial || undefined,
                 professorPreferidoEssencial: docente || undefined,
                 incluirCursando: incluirCursando ?? undefined,
@@ -679,6 +732,8 @@ export function createGradeAgent(
                 opcoes: resultado.opcoes.map(formatarOpcaoParaLlm),
                 escolhida: opcaoEscolhida?.estrategia ?? null,
                 errosEssencial: resultado.erros.map(formatarErroEssencial),
+                ...(resultado.impactoDias ? { impacto: resultado.impactoDias } : {}),
+                baseadaEm: base ? { nome: base.nome, estaSendoVista: base.ativo } : null,
             });
         },
     });
@@ -697,7 +752,11 @@ export function createGradeAgent(
             "avise numa frase (ex: 'CIC0151 hoje é ofertada como FGA0158, é nesse código que você se matricula'). " +
             "No marcador [MONTAR_GRADE|...] deste caminho use SEMPRE o campo 'codigo' solto (sem ':'), nunca o 'codigoOfertado'. " +
             "Se o aluno topar montar/priorizar, confirme em uma frase curta e inclua no final [MONTAR_GRADE|CODIGOS] com os códigos escolhidos. " +
-            "\n\nPra MONTAR/REARRANJAR A GRADE INTEIRA (matéria essencial, turno, professor, ou só 'monta minha grade'): use a tool montar_grade — " +
+            "\n\nPra MONTAR/REARRANJAR A GRADE INTEIRA (matéria essencial, turno, dia sem aula, professor, ou só 'monta minha grade'): use a tool montar_grade — " +
+            "pedido tipo 'sem aula na sexta' / 'liberar a quarta' é SUPORTADO: passe diasSemAula (['sex'], ['qua']…); nunca diga que não é possível sem ter chamado a tool. " +
+            "COM diasSemAula a tool devolve 'impacto' COMPARADO À GRADE ABERTA do aluno: perdem (saem), trocam (mudam de turma), entram, e antes→depois de dias/créditos. " +
+            "ANTES de qualquer outra coisa explique esse impacto em linguagem simples (cite as matérias pelo nome/código, quantos créditos e dias mudam) e diga claramente que NADA muda na grade dele até ele clicar em 'Aplicar esta grade' — " +
+            "o clique é a confirmação. Diga SEMPRE em qual grade se baseou ('baseadaEm.nome'; se 'estaSendoVista', 'na grade que você está vendo'). Se 'perdem' não for vazio, destaque isso primeiro. Nunca diga que já aplicou. Só cite o que veio em 'impacto'; não invente números. " +
             "ela já resolve o conflito de horário de verdade, o resultado é GARANTIDAMENTE ótimo (nunca uma prévia). " +
             "Se 'errosEssencial' vier não-vazio, explique o motivo real ao aluno (ex.: 'FGA0060 não tem turma ofertada' ou 'colide com FGA0010') " +
             "em vez de dizer genericamente que não coube. Ao narrar uma opção, cite MÉTRICAS REAIS dela — dias com aula, quantos minutos de furo, " +

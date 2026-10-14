@@ -1,4 +1,4 @@
-import { slotMaskFromHorario, hasConflict, maskDosTurnos, maskLivre } from "../src/utils/horario_slots";
+import { slotMaskFromHorario, hasConflict, maskDosTurnos, maskLivre, maskDosDias } from "../src/utils/horario_slots";
 
 describe("horario_slots (backend) — porto de horario-slots.ts do frontend", () => {
     it("slotMaskFromHorario: mesmo horário SIGAA gera a mesma máscara duas vezes (determinístico)", () => {
@@ -37,5 +37,18 @@ describe("horario_slots (backend) — porto de horario-slots.ts do frontend", ()
         const livreSoManha = maskLivre(0n, ["M"]);
         const tardeQualquer = slotMaskFromHorario("2T1");
         expect(hasConflict(livreSoManha, tardeQualquer)).toBe(false);
+    });
+});
+
+describe("maskDosDias — filtro 'grade sem sexta'", () => {
+    it("pega turma com aula na sexta (6) e ignora as demais", () => {
+        const semSexta = maskDosDias(["6"]);
+        expect(hasConflict(slotMaskFromHorario("246M12"), semSexta)).toBe(true);
+        expect(hasConflict(slotMaskFromHorario("35T34"), semSexta)).toBe(false);
+    });
+
+    it("sem dias ou código inválido = máscara vazia (não filtra nada)", () => {
+        expect(maskDosDias([])).toBe(0n);
+        expect(maskDosDias(["9"])).toBe(0n);
     });
 });

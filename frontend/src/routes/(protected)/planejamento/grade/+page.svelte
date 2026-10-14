@@ -30,6 +30,15 @@
 		type SituacaoAcademica
 	} from '$lib/services/situacao-academica.service';
 	import PreRequisitoConfirmDialog from '$lib/components/planejamento/PreRequisitoConfirmDialog.svelte';
+	import { consumirPonto, registrarPonto } from '$lib/utils/grade-desfazer';
+	import { descreverAcao } from '$lib/utils/acoes-grade';
+	import PeriodosAntigosDialog from '$lib/components/planejamento/PeriodosAntigosDialog.svelte';
+	import {
+		apagarPeriodoSalvo,
+		exportarPeriodo,
+		sincronizarCacheComServidor,
+		type PeriodoSalvo
+	} from '$lib/services/grade-estado.service';
 	import { vagaAssinaturasStore } from '$lib/stores/vaga-assinaturas.store.svelte';
 	import { darcyStore } from '$lib/stores/darcy.store.svelte';
 	import {
@@ -54,6 +63,60 @@
 	import type { ResultadoAcoesChat } from '$lib/utils/chat-acoes';
 	import { CalendarDays, Loader2 } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
+
+	/** Semestres anteriores com grades salvas no servidor (diálogo de troca de semestre). */
+	let periodosAntigos = $state<PeriodoSalvo[]>([]);
+	let periodoOcupado = $state<string | null>(null);
+
+	function chaveDialogoPeriodos(idUser: number, atual: string): string {
+		return `nofluxo:grade:dialogo:${idUser}:${atual}`;
+	}
+
+	function manterPeriodosAntigos(): void {
+		const idUser = authStore.getUser()?.idUser;
+		if (idUser != null && periodoAtual) {
+			try {
+				localStorage.setItem(chaveDialogoPeriodos(idUser, periodoAtual), '1');
+			} catch {
+				/* sem storage: o diálogo volta na próxima visita, sem dano */
+			}
+		}
+		periodosAntigos = [];
+	}
+
+	async function baixarPeriodoAntigo(p: string): Promise<void> {
+		periodoOcupado = p;
+		try {
+			const json = await exportarPeriodo(p);
+			if (!json) {
+				toast.error('Não consegui baixar essas grades agora. Tente de novo.');
+				return;
+			}
+			const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `grades-${p}.json`;
+			a.click();
+			URL.revokeObjectURL(url);
+		} finally {
+			periodoOcupado = null;
+		}
+	}
+
+	async function apagarPeriodoAntigo(p: string): Promise<void> {
+		periodoOcupado = p;
+		try {
+			const ok = await apagarPeriodoSalvo(p, authStore.getUser()?.idUser ?? null);
+			if (!ok) {
+				toast.error('Não consegui apagar agora. Tente de novo.');
+				return;
+			}
+			periodosAntigos = periodosAntigos.filter((x) => x.periodo !== p);
+			toast.success(`Grades de ${p} apagadas.`);
+		} finally {
+			periodoOcupado = null;
+		}
+	}
 
 	let status = $state<'loading' | 'ready' | 'error'>('loading');
 	let erro = $state<string | null>(null);
@@ -259,6 +322,19 @@
 		// restauraria de lá, e trocar de semestre desfaria a escolha do aluno).
 		const incluirCursando = periodo === null ? null : gradeStore.incluirCursando;
 		const idUser = authStore.getUser()?.idUser ?? null;
+		// O banco manda: deixa o cache local igual ao servidor ANTES de ler a lista salva.
+		// Sem rede, segue com o cache (nunca bloqueia a tela).
+		const { outrosPeriodos } = await sincronizarCacheComServidor(idUser, alvo);
+		if (alvo === periodoAtual && idUser != null) {
+			let jaViu = false;
+			try {
+				jaViu = localStorage.getItem(chaveDialogoPeriodos(idUser, alvo)) === '1';
+			} catch {
+				/* ignora */
+			}
+			const anteriores = outrosPeriodos.filter((p) => p.periodo < alvo && p.cenarios > 0);
+			if (!jaViu && anteriores.length > 0) periodosAntigos = anteriores;
+		}
 		const salvos = lerPoolSalvo(idUser, alvo);
 		const removidas = new Set(lerRemovidasSalvo(idUser, alvo));
 
@@ -471,6 +547,46 @@
 	}
 
 	/**
+	 * Guarda o estado de ANTES de uma mudança vinda da Darcy (só no navegador). É o que
+	 * permite "desfazer" depois, pelo toast, pelo card ou pedindo à Darcy.
+	 */
+	function guardarPontoDesfazer(rotulo: string): string | null {
+		return (
+			registrarPonto(
+				gradeStore.idUser,
+				gradeStore.periodo,
+				rotulo,
+				gradeStore.snapshotCompleto()
+			)?.id ?? null
+		);
+	}
+
+	/**
+	 * Restaura um ponto (e descarta os mais novos). Devolve o id do ponto "refazer"
+	 * (o estado de antes de restaurar), ou `null` se o ponto já não existe.
+	 */
+	async function restaurarPontoDesfazer(id: string): Promise<string | null> {
+		const ponto = consumirPonto(gradeStore.idUser, gradeStore.periodo, id);
+		if (!ponto) return null;
+		// Quem pode refazer: o estado de agora vira um ponto novo.
+		const refazerId = guardarPontoDesfazer(`Antes de desfazer "${ponto.rotulo}"`);
+		for (const c of gradeStore.faltantesNoPool(ponto.snapshot)) await adicionarAoPool(c);
+		const { descartadas } = gradeStore.restaurarCompleto(ponto.snapshot);
+		toast.success(`Voltei para antes de "${ponto.rotulo}".`);
+		if (descartadas.length > 0) {
+			toast.info(
+				`Não consegui recolocar ${descartadas.join(', ')}: a turma saiu da oferta ou passou a conflitar.`
+			);
+		}
+		return refazerId ?? '';
+	}
+
+	function rotuloDasAcoes(acoes: AcaoGradeChat[]): string {
+		if (acoes.length === 1) return `Darcy: ${descreverAcao(acoes[0], (c) => c).texto}`;
+		return `Darcy: ${acoes.length} mudanças na grade`;
+	}
+
+	/**
 	 * Seleção exata que o backend já resolveu no orquestrador (`opcaoGrade` da
 	 * resposta de `/chat/send`) — quando vem, o frontend só aplica via
 	 * `gradeStore.aplicarSelecao`, sem rodar `montarAutomatico` de novo. `undefined`
@@ -543,7 +659,25 @@
 			for (const { codigo, idTurma } of opcaoGrade.selecao) {
 				selecao[codigo.trim().toUpperCase()] = idTurma;
 			}
-			gradeStore.aplicarSelecao(selecao);
+			// Não destrói a grade que o aluno tem: a proposta vira uma aba nova. Só quando o
+			// semestre já está no limite de grades ela entra na aberta, com "Desfazer".
+			const nome = `Darcy · ${opcaoGrade.estrategia}`.slice(0, 40);
+			const pontoId = guardarPontoDesfazer(nome);
+			const desfazerPonto = pontoId
+				? { label: 'Desfazer', onClick: () => void restaurarPontoDesfazer(pontoId) }
+				: { label: 'Desfazer', onClick: () => gradeStore.restaurarSelecao(snapshot) };
+			if (gradeStore.criarCenario(nome, 'darcy')) {
+				gradeStore.aplicarSelecao(selecao);
+				toast.success(`Grade aplicada na nova aba "${nome}". Sua grade anterior continua salva.`, {
+					action: desfazerPonto
+				});
+			} else {
+				gradeStore.aplicarSelecao(selecao);
+				toast.info(
+					`Você já tem ${gradeStore.limiteCenarios} grades neste semestre, então apliquei na que estava aberta.`,
+					{ action: desfazerPonto }
+				);
+			}
 			if (docentes && Object.keys(docentes).length > 0) {
 				const resumo = Object.entries(docentes)
 					.map(([c, nome]) => `${c} com ${nome}`)
@@ -553,6 +687,7 @@
 			return;
 		}
 
+		guardarPontoDesfazer('Darcy montou a grade');
 		const promovidas: string[] = [];
 		for (const raw of todosCodigos) {
 			const c = raw.trim().toUpperCase();
@@ -621,6 +756,25 @@
 		const estreladas: string[] = [];
 		const falhas: string[] = [];
 
+		// "Desfazer" pedido à Darcy: restaura o ponto guardado, sem aplicar mais nada.
+		const pedidoDesfazer = acoes.find((a) => a.tipo === 'desfazer');
+		if (pedidoDesfazer && pedidoDesfazer.tipo === 'desfazer') {
+			const refazerId = await restaurarPontoDesfazer(pedidoDesfazer.pontoId);
+			if (refazerId === null) {
+				falhas.push('esse ponto de desfazer não existe mais neste navegador');
+				toast.error('Não encontrei mais o estado anterior — ele só fica guardado neste aparelho.');
+			}
+			// "Desfazer" do próprio desfazer = voltar ao estado de antes de restaurar.
+			return {
+				falhas,
+				desfazer: async () => {
+					if (refazerId) await restaurarPontoDesfazer(refazerId);
+				}
+			};
+		}
+
+		const pontoId = guardarPontoDesfazer(rotuloDasAcoes(acoes));
+
 		for (const a of acoes) {
 			if (a.tipo === 'adicionar' || a.tipo === 'trocarTurma') {
 				const c = a.codigo;
@@ -654,8 +808,11 @@
 			} else if (a.tipo === 'criarCenario') {
 				// "Salvar como cenário": o novo nasce com a grade de agora.
 				const atual = gradeStore.snapshotSelecao();
-				gradeStore.criarCenario(a.nome);
-				gradeStore.aplicarSelecao(atual);
+				if (gradeStore.criarCenario(a.nome)) {
+					gradeStore.aplicarSelecao(atual);
+				} else {
+					falhas.push(`limite de ${gradeStore.limiteCenarios} grades por semestre`);
+				}
 			} else if (a.tipo === 'limpar') {
 				gradeStore.limpar();
 			}
@@ -675,6 +832,8 @@
 		async function desfazer() {
 			if (desfeito) return;
 			desfeito = true;
+			// Caminho principal: o ponto completo guardado antes (abas, lista, turnos, estrelas).
+			if (pontoId && (await restaurarPontoDesfazer(pontoId)) !== null) return;
 			if (gradeStore.activeId !== antes.cenario && antes.cenario) {
 				gradeStore.selecionarCenario(antes.cenario);
 			}
@@ -814,6 +973,14 @@
 		onUsarTurma={usarTurmaDoChat}
 		onAplicarGrade={aplicarGradeDoChat}
 		onAplicarAcoes={aplicarAcoesDoChat}
+	/>
+
+	<PeriodosAntigosDialog
+		periodos={periodosAntigos}
+		ocupado={periodoOcupado}
+		onBaixar={baixarPeriodoAntigo}
+		onApagar={apagarPeriodoAntigo}
+		onManter={manterPeriodosAntigos}
 	/>
 
 	<PreRequisitoConfirmDialog

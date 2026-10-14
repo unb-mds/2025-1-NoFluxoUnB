@@ -35,6 +35,7 @@ import {
     slotMaskFromHorario,
     turmaRespeitaTurnos,
     maskDosTurnos,
+    maskDosDias,
     autoMontarGradeOpcoes,
     diagnosticarEssenciais,
     type MateriaTurmas,
@@ -69,6 +70,10 @@ export interface ParametrosMontador {
     escopo: "periodo_atual" | "todas_pendentes";
     limiteCreditos?: number;
     turnosPermitidos?: Array<"M" | "T" | "N">;
+    /** Dias sem aula (cód. SIGAA: "2"=seg … "7"=sáb). Turma com módulo num desses dias não entra. */
+    diasSemAula?: string[];
+    /** Grade aberta no Montador (código→turma). Base da comparação de impacto de `diasSemAula`. */
+    gradeAberta?: Array<{ codigo: string; idTurma: number }>;
     essencial?: string;
     professorPreferidoEssencial?: string;
     incluirCursando?: boolean;
@@ -76,9 +81,31 @@ export interface ParametrosMontador {
     apenasObrigatorias?: boolean;
 }
 
+/** Comparação da grade ABERTA do aluno com a nova (filtro de dia) — base da confirmação. */
+export interface ImpactoDias {
+    dias: string[];
+    /** Grade que o aluno tem aberta agora. Lacuna não é medida aqui (só dias e créditos). */
+    antes: { diasComAula: number; creditos: number; materias: number } | null;
+    depois: { diasComAula: number; minutosDeLacuna: number; creditos: number; materias: number } | null;
+    /** Estão na grade aberta e NÃO estão na nova. */
+    perdem: Array<{ codigo: string; turmaAnterior: string }>;
+    /** Continuam, em outra turma. */
+    trocam: Array<{ codigo: string; de: string; para: string }>;
+    /** Entram na nova grade e não estavam na aberta. */
+    entram: string[];
+}
+
 export interface ResultadoMontador {
     opcoes: OpcaoGrade<TurmaOferta>[];
     erros: ErroMontagem[];
+    /** Só presente quando `diasSemAula` foi pedido. */
+    impactoDias?: ImpactoDias;
+}
+
+function diasComAulaDaMask(mask: bigint): number {
+    let n = 0;
+    for (let d = 0; d < 6; d++) if (((mask >> BigInt(d * 16)) & 0xffffn) !== 0n) n++;
+    return n;
 }
 
 const PLANO_INPUT_PADRAO: Omit<PlanoInput, "curriculoCompleto"> = {
@@ -407,12 +434,13 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
     }
 
     const turnosPermitidosSet = new Set<Turno>(params.turnosPermitidos ?? []);
+    const maskDiasProibidos = maskDosDias(params.diasSemAula ?? []);
     const situacao = montarSituacao(dados.cargaHorariaIntegralizada, dados.exigidaMatriz);
     const turmasAntesDoFiltroDeTurno = new Map<string, TurmaOferta[]>();
     const turnosComOferta = new Map<string, Turno[]>();
     const pendenciasPreRequisitoMap = new Map<string, string[]>();
 
-    function construirEntrada(m: MateriaInput): EntradaBase {
+    function construirEntrada(m: MateriaInput, maskDias: bigint = maskDiasProibidos): EntradaBase {
         const cod = norm(m.codigo);
         const turmasReais = turmasPorCodigo.get(cod) ?? [];
         turmasAntesDoFiltroDeTurno.set(cod, turmasReais);
@@ -428,9 +456,19 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
         // fora de qualquer filtro de turno — a matrícula já aconteceu.
         const matricula = cursandoNorm.has(cod) ? matriculaPorCodigo.get(cod) : undefined;
         const turmaDaMatricula = matricula ? turmaRealDaMatricula(turmasReais, matricula) : null;
-        const turmasFiltradas = turmaDaMatricula
-            ? [turmaDaMatricula]
-            : turmasReais.filter((t) => turmaRespeitaTurnos(slotMaskFromHorario(t.horario), turnosPermitidosSet));
+        // Exceção: o aluno pediu dia sem aula e a turma real cai nele — aí a matrícula
+        // deixa de ser intocável e a matéria busca outra turma (a prévia de impacto
+        // avisa o aluno antes; sem alternativa, ela sai da grade).
+        const matriculaBateDia = turmaDaMatricula
+            ? (slotMaskFromHorario(turmaDaMatricula.horario) & maskDias) !== 0n
+            : false;
+        const turmasFiltradas =
+            turmaDaMatricula && !matriculaBateDia
+                ? [turmaDaMatricula]
+                : turmasReais.filter((t) => {
+                      const mask = slotMaskFromHorario(t.horario);
+                      return turmaRespeitaTurnos(mask, turnosPermitidosSet) && (mask & maskDias) === 0n;
+                  });
 
         const candidatas: Array<TurmaCandidata<TurmaOferta>> = turmasFiltradas.map((t) => {
             const mask = slotMaskFromHorario(t.horario);
@@ -454,13 +492,13 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
             turmas: candidatas,
             peso,
             creditos: m.creditos,
-            obrigatoria: matriculaReal || ehEssencial,
+            obrigatoria: (matriculaReal && candidatas.length > 0) || ehEssencial,
             essencial: ehEssencial,
             desbloqueada: matriculaReal || isDesbloqueada(m, cumpridasExpandido),
         };
     }
 
-    const materiasBase: EntradaBase[] = elegiveis.map(construirEntrada);
+    const materiasBase: EntradaBase[] = elegiveis.map((m) => construirEntrada(m));
 
     // Essencial pedida mas fora de `elegiveis` (nem pendente na matriz do aluno) —
     // entrada sintética sem turma nenhuma, só pra o diagnóstico classificar certo
@@ -496,26 +534,72 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
     // (`isDesbloqueada`), não pela lista de códigos de `pendenciasPreRequisito` —
     // essa lista conta toda alternativa de um "OU" como pendente. Matrícula real
     // nunca sai (já está desbloqueada por construção).
-    const materiasParaSolver: Array<MateriaTurmas<TurmaOferta>> = materiasBase
-        .filter((e) => !(e.essencial && essencialBloqueadaPorPreRequisito))
-        .filter((e) => e.essencial || e.desbloqueada)
-        .map((e) => ({
-            chave: e.chave,
-            turmas: e.turmas,
-            peso: e.peso,
-            creditos: e.creditos,
-            obrigatoria: e.obrigatoria,
-            essencial: e.essencial,
-        }));
+    const paraSolver = (entradas: EntradaBase[]): Array<MateriaTurmas<TurmaOferta>> =>
+        entradas
+            .filter((e) => !(e.essencial && essencialBloqueadaPorPreRequisito))
+            .filter((e) => e.essencial || e.desbloqueada)
+            .map((e) => ({
+                chave: e.chave,
+                turmas: e.turmas,
+                peso: e.peso,
+                creditos: e.creditos,
+                obrigatoria: e.obrigatoria,
+                essencial: e.essencial,
+            }));
+    const resolver = (pool: Array<MateriaTurmas<TurmaOferta>>) =>
+        autoMontarGradeOpcoes(pool, 0n, params.limiteCreditos, ESTRATEGIAS_RANKING, 6, (turma) => turma.id_turmas);
 
-    const opcoes = autoMontarGradeOpcoes(
-        materiasParaSolver,
-        0n,
-        params.limiteCreditos,
-        ESTRATEGIAS_RANKING,
-        6,
-        (turma) => turma.id_turmas
-    );
+    const materiasParaSolver = paraSolver(materiasBase);
+    const opcoes = resolver(materiasParaSolver);
+
+    // Impacto do filtro de dia contra a grade que o aluno TEM aberta (não contra
+    // uma montagem do zero, que o aluno nunca viu).
+    let impactoDias: ImpactoDias | undefined;
+    if (maskDiasProibidos !== 0n) {
+        const aberta = params.gradeAberta ?? [];
+        const idsAbertos = aberta.map((g) => g.idTurma).filter((id) => Number.isFinite(id) && id > 0);
+        const { data: abertasRows } = idsAbertos.length
+            ? await supabase.from("turmas").select("id_turmas, turma, horario").in("id_turmas", idsAbertos)
+            : { data: [] as any[] };
+        const turmaAberta = new Map<number, { turma: string; mask: bigint }>(
+            ((abertasRows ?? []) as any[]).map((r) => [
+                Number(r.id_turmas),
+                { turma: String(r.turma ?? ""), mask: slotMaskFromHorario(r.horario) },
+            ])
+        );
+        const creditosPorCodigo = new Map(dados.materiasMapeadas.map((m) => [norm(m.codigo), m.creditos ?? 0]));
+        const soma = (codigos: Iterable<string>) => [...codigos].reduce((a, c) => a + (creditosPorCodigo.get(norm(c)) ?? 0), 0);
+        const nova = opcoes[0]?.resultado.selecao;
+        const antesCodigos = aberta.map((g) => norm(g.codigo));
+        const antesMask = aberta.reduce((m, g) => m | (turmaAberta.get(g.idTurma)?.mask ?? 0n), 0n);
+        const perdem: ImpactoDias["perdem"] = [];
+        const trocam: ImpactoDias["trocam"] = [];
+        for (const g of aberta) {
+            const cod = norm(g.codigo);
+            const velha = turmaAberta.get(g.idTurma)?.turma ?? "?";
+            const nv = nova?.get(cod);
+            if (!nv) perdem.push({ codigo: cod, turmaAnterior: velha });
+            else if (nv.turma.id_turmas !== g.idTurma) trocam.push({ codigo: cod, de: velha, para: nv.turma.turma });
+        }
+        const entram = nova ? [...nova.keys()].filter((c) => !antesCodigos.includes(c)) : [];
+        impactoDias = {
+            dias: params.diasSemAula ?? [],
+            antes: aberta.length
+                ? { diasComAula: diasComAulaDaMask(antesMask), creditos: soma(antesCodigos), materias: aberta.length }
+                : null,
+            depois: opcoes[0]
+                ? {
+                      diasComAula: opcoes[0].metricas.diasComAula,
+                      minutosDeLacuna: opcoes[0].metricas.minutosDeLacuna,
+                      creditos: soma(nova!.keys()),
+                      materias: nova!.size,
+                  }
+                : null,
+            perdem,
+            trocam,
+            entram,
+        };
+    }
 
     let erros: ErroMontagem[] = [];
     if (essencialNorm) {
@@ -541,5 +625,5 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
         }
     }
 
-    return { opcoes, erros };
+    return { opcoes, erros, impactoDias };
 }
