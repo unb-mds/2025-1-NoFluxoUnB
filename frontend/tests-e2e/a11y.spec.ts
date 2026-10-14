@@ -11,7 +11,10 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag22aa'];
 for (const tema of ['light', 'dark'] as const) {
 	test.describe(`tema ${tema}`, () => {
 		test.use({
-			storageState: undefined
+			storageState: undefined,
+			// animações (ex.: wordmark da Crianex no rodapé) pegas no meio do ciclo, com
+			// opacidade parcial, reprovam o contraste de forma intermitente
+			reducedMotion: 'reduce'
 		});
 
 		for (const rota of ROTAS) {

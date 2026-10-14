@@ -246,8 +246,8 @@
 
 	<p class="mt-4 text-center text-xs leading-relaxed text-muted-foreground">
 		Ao continuar, você concorda com os
-		<a href="/termos" class="auth-link" target="_blank" rel="noopener">Termos de uso</a>
+		<a href="/termos" class="auth-link auth-link--inline" target="_blank" rel="noopener">Termos de uso</a>
 		e a
-		<a href="/privacidade" class="auth-link" target="_blank" rel="noopener">Política de privacidade</a>.
+		<a href="/privacidade" class="auth-link auth-link--inline" target="_blank" rel="noopener">Política de privacidade</a>.
 	</p>
 </form>

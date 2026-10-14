@@ -695,6 +695,12 @@ body[data-fluxograma-focus-mode='true'] .navbar-glass {
 	text-decoration: underline;
 }
 
+/* Link no meio de texto: sublinhado sempre, para não depender só da cor (axe link-in-text-block). */
+.auth-link--inline {
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
 /* Divisor "ou" dos forms de login/cadastro (dentro do .auth-card). */
 .auth-divider {
 	display: flex;
