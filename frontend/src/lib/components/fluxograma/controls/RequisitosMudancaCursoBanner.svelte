@@ -1,7 +1,5 @@
 <script lang="ts">
-	import { Loader2, BookOpenCheck, Scale, ShieldAlert,
-			Clock, Percent, AlertTriangle, Check, X
-	 } from 'lucide-svelte';
+	import { Loader2, Scale, Check, X, Minus, AlertTriangle } from 'lucide-svelte';
 	import type { DadosFluxogramaUser } from '$lib/types/user';
 	import type { IntegralizacaoResult } from '$lib/types/matriz';
 	import {
@@ -18,15 +16,23 @@
 	let { dadosFluxograma, integralizacao, 
 		integralizacaoOrigem, integralizacaoLoading = false }: Props = $props();
 
+	type Status = 'ok' | 'fail' | 'unknown' | 'manual';
+	type Requisito = {
+		id: String;
+		grupo: 'origem' | 'destino' | 'edital';
+		titulo: string;
+		detalhe: string;
+		valor?: string;
+		status: Status;
+	};	
+	
 	let avaliacao = $state<AvaliacaoMudancaCurso | null>(null);
 	let avaliacaoRodando = $state(false);
-
 	let seq = 0;
 
 	$effect(() => {
 		const id = ++seq;
-
-		async function run() {
+		(async () => {
 			if (!integralizacao || integralizacaoLoading) {
 				avaliacao = null;
 				if (id === seq) avaliacaoRodando = false;
@@ -38,15 +44,125 @@
 			if (id !== seq) return;
 			avaliacao = r;
 			avaliacaoRodando = false;
-		}
-		void run();
+		})();
 	});
 
-	let isApto = $derived(
-		Boolean(avaliacao?.origem.atendeIntegralizacaoOrigem && avaliacao?.destino.atendeCargaDestino)
+	const impeditivo = (v: boolean | null): Status => (v === null ? 'unknown' : v ? 'fail' : 'ok');
+
+let requisitos = $derived.by<Requisito[]>(() => {
+		if (!avaliacao) return [];
+		const { origem: o, destino: d } = avaliacao;
+		const faltam = o.codigosPendentes.length;
+
+		const lista: Requisito[] = [
+			{
+				id: 'obrig12',
+				grupo: 'origem',
+				titulo: 'Obrigatórias dos 1º e 2º períodos',
+				valor: `${o.obrigatoriosConcluidos}/${o.obrigatoriosPeriodos12Total}`,
+				status: !o.podeAvaliar ? 'unknown' : faltam === 0 ? 'ok' : 'fail',
+				detalhe: !o.podeAvaliar
+					? 'Não foi possível carregar a grade do curso de origem.'
+					: faltam === 0
+						? 'Todas as obrigatórias dos dois primeiros períodos foram integralizadas.'
+						: `Faltam ${faltam}: ${o.codigosPendentes.slice(0, 5).join(', ')}${faltam > 5 ? '…' : ''}`
+			},
+			{
+				id: 'ch75',
+				grupo: 'origem',
+				titulo: 'Carga horária concluída abaixo de 75%',
+				valor: o.percentualCargaConcluida !== null ? `${o.percentualCargaConcluida}%` : undefined,
+				status: impeditivo(o.ultrapassou75PorcentoCarga),
+				detalhe:
+					o.ultrapassou75PorcentoCarga === null
+						? 'Não foi possível calcular o percentual de carga concluída.'
+						: o.ultrapassou75PorcentoCarga
+							? 'Impeditivo: você já concluiu 75% ou mais da carga do curso de origem.'
+							: 'Dentro do limite permitido.'
+			},
+			{
+				id: 'tempo50',
+				grupo: 'origem',
+				titulo: 'Tempo de permanência abaixo de 50% do prazo',
+				status: impeditivo(o.ultrapassou50PorcentoTempo),
+				detalhe:
+					o.ultrapassou50PorcentoTempo === null
+						? 'Prazo máximo de permanência não verificado.'
+						: o.ultrapassou50PorcentoTempo
+							? 'Impeditivo: você atingiu 50% ou mais do prazo máximo.'
+							: 'Dentro do limite permitido.'
+			},
+			{
+				id: 'chDestino',
+				grupo: 'destino',
+				titulo: `Mínimo de ${d.minimoHorasInstitucional} h no curso pretendido`,
+				valor: `${d.horasObrigatoriasEOptativas.toLocaleString('pt-BR')} h`,
+				status: d.atendeCargaDestino ? 'ok' : 'fail',
+				detalhe: d.atendeCargaDestino
+					? 'Carga horária mínima atingida (obrigatórias + optativas).'
+					: `Faltam ${Math.max(0, d.minimoHorasInstitucional - d.horasObrigatoriasEOptativas).toLocaleString('pt-BR')} h.`
+			},
+			{
+				id: 'vaga',
+				grupo: 'edital',
+				titulo: 'Vaga remanescente no curso pretendido',
+				status: 'manual',
+				detalhe: 'Depende da oferta do edital vigente.'
+			},
+			{
+				id: 'unica',
+				grupo: 'edital',
+				titulo: 'Mudança de curso feita apenas uma vez',
+				status: 'manual',
+				detalhe: 'Não consta no histórico carregado. Confirme que você ainda não usou essa autorização.'
+			}
+		];
+
+		if (d.requerHabilidadeEspecifica) {
+			lista.push({
+				id: 'phe',
+				grupo: 'edital',
+				titulo: 'Certificação na Prova de Habilidade Específica (PHE)',
+				status: 'manual',
+				detalhe: 'Exigida para Música (licenciatura e bacharelado), dentro do prazo de validade.'
+			});
+		}
+		return lista;
+	});
+
+	let verificaveis = $derived(requisitos.filter((r) => r.status !== 'manual'));
+	let cumpridos = $derived(verificaveis.filter((r) => r.status === 'ok').length);
+	let pct = $derived(verificaveis.length ? (cumpridos / verificaveis.length) * 100 : 0);
+	let veredito = $derived<'apto' | 'nao-apto' | 'incompleto'>(
+		verificaveis.some((r) => r.status === 'fail')
+			? 'nao-apto'
+			: verificaveis.some((r) => r.status === 'unknown')
+				? 'incompleto'
+				: 'apto'
 	);
 
+	const estilos: Record<Status, { box: string; row: string; texto: string }> = {
+		ok:      { box: 'border-emerald-400/60 bg-emerald-500/20 text-emerald-300', row: 'border-emerald-400/20', texto: 'text-white/60' },
+		fail:    { box: 'border-rose-400/60 bg-rose-500/20 text-rose-300',          row: 'border-rose-400/30',    texto: 'text-rose-200/90' },
+		unknown: { box: 'border-white/25 bg-white/5 text-white/40',                 row: 'border-white/10',       texto: 'text-white/45' },
+		manual:  { box: 'border-amber-400/50 bg-amber-500/15 text-amber-300',       row: 'border-amber-400/25',   texto: 'text-amber-200/80' }
+	};
+
+	const grupos = [
+		{ id: 'origem', titulo: 'Curso de origem', sub: 'Conclusão do fluxo inicial e ausência de travas de permanência' },
+		{ id: 'destino', titulo: 'Curso pretendido', sub: 'Carga horária em componentes equivalentes do destino' },
+		{ id: 'edital', titulo: 'Conferir no edital', sub: 'Não dá para verificar automaticamente' }
+	] as const;
 </script>
+
+{#snippet checkbox(status: Status)}
+	<span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border {estilos[status].box}">
+		{#if status === 'ok'}<Check class="h-3.5 w-3.5" strokeWidth={3} />
+		{:else if status === 'fail'}<X class="h-3.5 w-3.5" strokeWidth={3} />
+		{:else if status === 'manual'}<AlertTriangle class="h-3 w-3" />
+		{:else}<Minus class="h-3.5 w-3.5" />{/if}
+	</span>
+{/snippet}
 
 <div
 	class="rounded-xl border border-white/12 bg-black/35 p-3.5 text-sm shadow-lg backdrop-blur-md sm:p-4"
@@ -56,22 +172,26 @@
 	<div class="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
 		<h3 class="flex items-center gap-2 font-semibold text-white/92">
 			<Scale class="h-4 w-4 shrink-0 text-cyan-400" />
-			Requisitos de mudança de curso (referência institucional)
+			Requisitos de mudança de curso
 		</h3>
 
-		{#if avaliacao && !avaliacaoRodando && !integralizacaoLoading}
+		{#if avaliacao && !avaliacaoRodando}
 			<div>
-				{#if isApto}
+				{#if veredito === 'apto'}
 					<span
 						class="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300"
 					>
 						<Check class="h-3 w-3" /> APTO PARA MUDANÇA
 					</span>
-				{:else}
+				{:else if veredito === 'nao-apto'}
 					<span
 						class="inline-flex items-center gap-1 rounded-full border border-rose-400/30 bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-rose-300"
 					>
 						<X class="h-3 w-3" /> NÃO APTO
+					</span>
+				{:else}
+					<span class="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold text-white/70">
+						<Minus class="h-3 w-3" /> ANÁLISE INCOMPLETA
 					</span>
 				{/if}
 			</div>
@@ -85,153 +205,70 @@
 		</div>
 	{:else if !integralizacao}
 		<p class="text-xs text-white/55">Carregue a integralização para ver o indicativo de elegibilidade.</p>
-	{:else}
-		<p class="mb-4 text-[11px] leading-relaxed text-white/45">
-			Use como guia rápido. A decisão oficial segue sempre o PPC, o histórico consolidado no SIGAA e o edital vigente da
-			mudança de curso. O primeiro dia útil após as inscrições costuma servir como data de referência para a análise.
-		</p>
-
-		<div class="space-y-3">
-			<!-- BLCO 1: CURSO DE ORIGEM -->
-			<div class="rounded-lg border border-cyan-500/30 bg-cyan-500/[0.07] px-3 py-2.5 text-cyan-100/90 space-y-2.5">
-				<div class="flex items-start gap-2">
-					<BookOpenCheck class="mt-0.5 h-4 w-4 shrink-0 text-cyan-400/90" />
-					<div>
-						<p class="font-medium text-[13px] text-white/90">Curso de Origem · Requisitos e Limites</p>
-						<p class="mt-0.5 text-[11px] leading-relaxed text-white/62">
-							Exige conclusão do fluxo inicial e ausência de travas impeditivas de permanência.
-						</p>
-					</div>
-				</div>
-
-				{#if avaliacao}
-					<!-- 1.1 Obrigatórias 1º e 2º períodos -->
-					<div class="rounded-md border bg-black/25 px-2.5 py-2 text-[11px]
-						{avaliacao.origem.codigosPendentes.length === 0 ? 'border-emerald-400/25 text-emerald-200/95' : 'border-amber-400/25 text-amber-100/92'}">
-						<div class="flex items-center justify-between font-medium">
-							<span>1. Obrigatórias dos 1º e 2º períodos (Níveis 1 e 2):</span>
-							<span class="font-mono text-[10px]">
-								{avaliacao.origem.obrigatoriosConcluidos}/{avaliacao.origem.obrigatoriosPeriodos12Total}
-							</span>
-						</div>
-						{#if avaliacao.origem.atendeIntegralizacaoOrigem || avaliacao.origem.codigosPendentes.length === 0}
-							<p class="mt-1 text-white/80">
-								✓ Todas as obrigatórias dos dois primeiros períodos foram integralizadas.
-							</p>
-						{:else}
-							<p class="mt-1">
-								Faltam <strong>{avaliacao.origem.codigosPendentes.length}</strong> de
-								{avaliacao.origem.obrigatoriosPeriodos12Total} obrigatória(s) — ex.:
-								<span class="font-mono text-[10px] text-white/80"
-									>{avaliacao.origem.codigosPendentes.slice(0, 5).join(', ')}{avaliacao.origem.codigosPendentes.length > 5 ? '…' : ''}</span
-								>
-							</p>
-						{/if}
-					</div>
-
-					<!-- 1.2 Impeditivo: Limite de 75% da Carga Horária -->
-					<div class="rounded-md border bg-black/25 px-2.5 py-2 text-[11px]
-						{avaliacao.origem.ultrapassou75PorcentoCarga === false ? 'border-emerald-400/25 text-emerald-200/95' : avaliacao.origem.ultrapassou75PorcentoCarga === true ? 'border-rose-400/30 text-rose-200' : 'border-white/10 text-white/60'}">
-						<div class="flex items-center justify-between font-medium">
-							<span class="flex items-center gap-1.5">
-								<Percent class="h-3.5 w-3.5 text-cyan-400/80" />
-								2. Conclusão de Carga Horária (&lt; 75% do curso):
-							</span>
-							{#if avaliacao.origem.percentualCargaConcluida !== null}
-								<span class="font-mono text-[10px]">{avaliacao.origem.percentualCargaConcluida}%</span>
-							{/if}
-						</div>
-						{#if avaliacao.origem.ultrapassou75PorcentoCarga === true}
-							<p class="mt-1 font-semibold text-rose-300">
-								✕ Impeditivo: Você concluiu {avaliacao.origem.percentualCargaConcluida}% da carga total exigida pelo curso de origem (máximo permitido: 75%).
-							</p>
-						{:else if avaliacao.origem.ultrapassou75PorcentoCarga === false}
-							<p class="mt-1 text-white/80">
-								✓ Carga horária integralizada no curso atual está abaixo do limite de 75%.
-							</p>
-						{:else}
-							<p class="mt-1 text-white/50">
-								Não foi possível calcular o percentual de carga concluída da origem.
-							</p>
-						{/if}
-					</div>
-
-					<!-- 1.3 Impeditivo: Tempo de Permanência (50%) -->
-					<div class="rounded-md border bg-black/25 px-2.5 py-2 text-[11px]
-						{avaliacao.origem.ultrapassou50PorcentoTempo === false ? 'border-emerald-400/25 text-emerald-200/95' : avaliacao.origem.ultrapassou50PorcentoTempo === true ? 'border-rose-400/30 text-rose-200' : 'border-white/10 text-white/60'}">
-						<div class="flex items-center justify-between font-medium">
-							<span class="flex items-center gap-1.5">
-								<Clock class="h-3.5 w-3.5 text-cyan-400/80" />
-								3. Tempo de Permanência (&lt; 50% do prazo máximo):
-							</span>
-						</div>
-						{#if avaliacao.origem.ultrapassou50PorcentoTempo === true}
-							<p class="mt-1 font-semibold text-rose-300">
-								✕ Impeditivo: Você atingiu ou ultrapassou 50% do tempo máximo de permanência do curso de origem.
-							</p>
-						{:else if avaliacao.origem.ultrapassou50PorcentoTempo === false}
-							<p class="mt-1 text-white/80">
-								✓ Tempo decorrido está dentro do limite máximo de 50% do prazo do curso.
-							</p>
-						{:else}
-							<p class="mt-1 text-white/50">
-								Tempo máximo de permanência não verificado.
-							</p>
-						{/if}
-					</div>
-				{/if}
+	{:else if avaliacao}
+		<!-- Progresso -->
+		<div class="mb-4">
+			<div class="mb-1.5 flex items-center justify-between text-[11px] text-white/60">
+				<span>{cumpridos} de {verificaveis.length} requisitos cumpridos</span>
+				<span class="font-mono">{Math.round(pct)}%</span>
 			</div>
-
-			<!-- BLOCO 2: CURSO PRETENDIDO (DESTINO) -->
-			<div class="rounded-lg border border-cyan-500/30 bg-cyan-500/[0.07] px-3 py-2.5 text-cyan-100/90 space-y-2">
-				<div class="flex items-start gap-2">
-					<ShieldAlert class="mt-0.5 h-4 w-4 shrink-0 text-amber-400/95" />
-					<div>
-						<p class="font-medium text-[13px] text-white/90">Integralização · Curso Pretendido</p>
-						<p class="mt-0.5 text-[11px] leading-relaxed text-white/62">
-							Acúmulo de carga horária em componentes equivalentes do curso de destino.
-						</p>
-					</div>
-				</div>
-
-				{#if avaliacao}
-					<div class="rounded-md border bg-black/25 px-2.5 py-2 text-[11px]
-						{avaliacao.destino.atendeCargaDestino ? 'border-emerald-400/25 text-emerald-200/95' : 'border-amber-400/25 text-amber-100/92'}">
-						<p>
-							Indicativo nesta simulação:
-							<strong>{avaliacao.destino.horasObrigatoriasEOptativas.toLocaleString('pt-BR')} h</strong> em
-							obrigatórias + optativas do destino.
-						</p>
-						{#if avaliacao.destino.atendeCargaDestino}
-							<p class="mt-1 text-white/80">
-								✓ Você já atinge a carga horária mínima exigida (≥ {avaliacao.destino.minimoHorasInstitucional} h).
-							</p>
-						{:else}
-							<p class="mt-1">
-								Faltam <strong>{Math.max(0, avaliacao.destino.minimoHorasInstitucional - avaliacao.destino.horasObrigatoriasEOptativas).toLocaleString('pt-BR')} h</strong> para atingir o mínimo institucional de {avaliacao.destino.minimoHorasInstitucional} h.
-							</p>
-						{/if}
-					</div>
-
-					<!-- Alerta Prova de Habilidade Específica (Música) -->
-					{#if avaliacao.destino.requerHabilidadeEspecifica}
-						<div class="rounded-md border border-amber-400/30 bg-amber-500/10 p-2.5 text-[11px] text-amber-200/90 flex items-start gap-2">
-							<AlertTriangle class="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
-							<div>
-								<span class="font-semibold text-white/90">Prova de Habilidade Específica (PHE):</span>
-								Este curso exige aprovação e certificação válida na Prova de Habilidade Específica no momento da seleção.
-							</div>
-						</div>
-					{/if}
-				{/if}
-			</div>
-
-			<!-- BLOCO 3: CRITÉRIOS DE CLASSIFICAÇÃO (INFORMATIVO) -->
-			<div class="rounded-lg border border-white/10 bg-white/[0.03] p-2.5 text-[10px] leading-relaxed text-white/50 space-y-1">
-				<p class="font-semibold text-white/70">ℹ️ Critérios de Classificação e Desempate (Edital UnB):</p>
-				<p>• <strong>Classificação:</strong> Ordem decrescente de maior Carga Horária obtida em componentes obrigatórios do curso pretendido.</p>
-				<p>• <strong>Desempate:</strong> 1º) Média ponderada no curso pretendido; 2º) Maior CH total no curso pretendido; 3º) Maior IRA.</p>
+			<div class="h-1.5 overflow-hidden rounded-full bg-white/10">
+				<div
+					class="h-full rounded-full transition-all duration-500 {veredito === 'nao-apto' ? 'bg-rose-400' : 'bg-emerald-400'}"
+					style="width: {pct}%"
+				></div>
 			</div>
 		</div>
+
+		<div class="space-y-4">
+			{#each grupos as g (g.id)}
+				{@const itens = requisitos.filter((r) => r.grupo === g.id)}
+				{#if itens.length}
+					<section>
+						<div class="mb-2">
+							<p class="text-[13px] font-medium text-white/90">{g.titulo}</p>
+							<p class="text-[11px] text-white/50">{g.sub}</p>
+						</div>
+
+						<ul class="space-y-2">
+							{#each itens as r (r.id)}
+								<li class="flex items-start gap-2.5 rounded-lg border bg-black/25 px-3 py-2.5 {estilos[r.status].row}">
+									{@render checkbox(r.status)}
+									<div class="min-w-0 flex-1">
+										<div class="flex items-center justify-between gap-2">
+											<span class="text-[12px] font-medium text-white/90">{r.titulo}</span>
+											{#if r.valor}
+												<span class="font-mono text-[10px] text-white/70">{r.valor}</span>
+											{/if}
+										</div>
+										<p class="mt-0.5 text-[11px] leading-relaxed {estilos[r.status].texto}">{r.detalhe}</p>
+									</div>
+								</li>
+							{/each}
+						</ul>
+					</section>
+				{/if}
+			{/each}
+		</div>
+
+		<!-- Classificação e desempate -->
+		<details class="mt-4 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[10px] leading-relaxed text-white/50">
+			<summary class="cursor-pointer font-semibold text-white/70">Critérios de classificação e desempate (edital UnB)</summary>
+			<div class="mt-2 space-y-1">
+				<p>• <strong>Classificação:</strong> maior carga horária total em componentes obrigatórios do curso pretendido.</p>
+				<p>• <strong>Desempate:</strong> 1º) média ponderada das menções (obrigatórios e optativos do pretendido, cursados na UnB); 2º) maior CH total no pretendido; 3º) maior IRA.</p>
+			</div>
+		</details>
+
+		<!-- Legenda + aviso -->
+		<div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-white/45">
+			<span class="flex items-center gap-1"><Check class="h-3 w-3 text-emerald-300" /> cumprido</span>
+			<span class="flex items-center gap-1"><X class="h-3 w-3 text-rose-300" /> não cumprido</span>
+			<span class="flex items-center gap-1"><Minus class="h-3 w-3" /> não verificado</span>
+			<span class="flex items-center gap-1"><AlertTriangle class="h-3 w-3 text-amber-300" /> conferir no edital</span>
+		</div>
+		<p class="mt-2 text-[10px] leading-relaxed text-white/40">
+			Guia rápido: a decisão oficial segue o PPC, o histórico no SIGAA e o edital vigente. O primeiro dia útil após as inscrições costuma ser a data de referência.
+		</p>
 	{/if}
 </div>

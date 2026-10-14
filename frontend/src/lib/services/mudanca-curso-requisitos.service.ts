@@ -70,7 +70,8 @@ export async function avaliarRequisitosMudancaCurso(
 	// Aviso de Habilidade Específica (Música)
     const destRecord = integralizacaoDestino as unknown as Record<string, any>;
     const cursoDestinoNome = String(destRecord?.curso?.nome ?? destRecord?.nomeCurso ?? destRecord?.nome ?? ''); 
-    const isMusica = cursoDestinoNome.toLowerCase().includes('música') || cursoDestinoNome.toLowerCase().includes('musica');
+    const nomeNormalizado = cursoDestinoNome.toLowerCase();
+	const isMusica = cursoDestinoNome.toLowerCase().includes('música') || cursoDestinoNome.toLowerCase().includes('musica');
 
 	const destino: AvaliacaoIntegralizacaoDestino = {
 		horasObrigatoriasEOptativas: horasDestino,
@@ -129,22 +130,19 @@ export async function avaliarRequisitosMudancaCurso(
 		let percentualCarga: number | null = null;
 
 		if(integralizacaoOrigem){
-			const chObrigatoria = integralizacaoOrigem.realizado.chObrigatoria;
-
-			// Limita a CH Optativa realizada à CH Optativa exigida pelo curso
-            const chOptativaExigida = integralizacaoOrigem.exigido?.chOptativa ?? 0;
-            const chOptativaLimitada = Math.min(integralizacaoOrigem.realizado.chOptativa, chOptativaExigida);
-            
-            // Faz o mesmo para Modulo Livre / Complementar (se houver no seu sistema)
-            const chComplementarExigida = integralizacaoOrigem.exigido?.chComplementar ?? 0;
-            const chComplementarLimitada = Math.min(integralizacaoOrigem.realizado.chComplementar ?? 0, chComplementarExigida);
+			const { realizado, exigido } = integralizacaoOrigem;
 			
-			const chTotalConsiderada = chObrigatoria + chOptativaLimitada + chComplementarLimitada;
+			// Edital: optativas contam só até a CH prevista na estrutura do curso de origem
+            const chOptativaLimitada = Math.min(realizado.chOptativa, exigido?.chOptativa ?? 0);
+            const chComplementarLimitada = Math.min(realizado.chComplementar ?? 0, exigido?.chComplementar ?? 0);
+            
+			const chConsiderada = realizado.chObrigatoria + chOptativaLimitada + chComplementarLimitada;
             const chTotalExigida = integralizacaoOrigem.exigido?.chTotal ?? 0;
 
             if (chTotalExigida > 0) {
-                percentualCarga = Math.round((chTotalConsiderada / chTotalExigida) * 10000) / 100; // Porcentagem com 2 casas
-                ultrapassou75Carga = percentualCarga >= 75;
+                const razao = chConsiderada / chTotalExigida;
+				ultrapassou75Carga = razao >= 0.75; // compara o valor bruto
+				percentualCarga = Math.round(razao * 10000) / 100;
             }
 		}
 
@@ -160,7 +158,12 @@ export async function avaliarRequisitosMudancaCurso(
             ultrapassou50Tempo = (semestresCursados / prazoMaximo) >= 0.5;
         }
 
-		const elegivelOrigem = atendePeriodos12 && !ultrapassou75Carga && !ultrapassou50Tempo;
+		const checks = [
+			atendePeriodos12,
+			ultrapassou75Carga === null ? null : !ultrapassou75Carga,
+			ultrapassou50Tempo === null ? null : !ultrapassou50Tempo
+		];
+		const elegivelOrigem = checks.includes(false) ? false : checks.includes(null) ? null : true;
 
 		origemPartial = {
 			podeAvaliar: true,
