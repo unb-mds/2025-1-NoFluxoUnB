@@ -1,0 +1,50 @@
+# ATA DE REUNIÃO – SPRINT X
+
+**Data:** DD/MM/AAAA  
+**Horário:** HHhMM às HHhMM  
+**Plataforma:** Discord  
+
+---
+
+## Participantes
+
+- Nome 1  
+- Nome 2  
+- Nome 3  
+- ...  
+
+---
+
+## 1. Objetivos da Reunião
+
+- Objetivo 1  
+- Objetivo 2  
+- Objetivo 3  
+
+---
+
+## 2. Tópicos Abordados
+
+### a) Review das entregas semanais
+
+- **Nome:**  
+  - Atividade 1 — Status (Feito, Em andamento, Quase pronto, etc.)  
+  - Atividade 2 — Status  
+
+- **Nome:**  
+  - Atividade 1 — Status (Feito, Em andamento, Quase pronto, etc.)  
+  - Atividade 2 — Status 
+
+### b) Próximos passos definidos
+
+- Próximo passo 1  
+- Próximo passo 2  
+- Próximo passo 3  
+
+---
+
+## 3. Decisões Estratégicas
+
+- Decisão 1, responsavel
+- Decisão 2, responsavel
+- Decisão 3, responsavel
