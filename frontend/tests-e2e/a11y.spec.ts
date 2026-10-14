@@ -29,6 +29,26 @@ for (const tema of ['light', 'dark'] as const) {
 	});
 }
 
+// Chat do assistente (harness /dev/chat, mensagens fixas com negrito, turma, botões e
+// montar grade): o negrito ilegível no modo claro foi apontado na reunião de 12/10/2026.
+for (const tema of ['light', 'dark'] as const) {
+	test(`chat do assistente sem violações no tema ${tema}`, async ({ page }) => {
+		await page.emulateMedia({ reducedMotion: 'reduce' });
+		await page.addInitScript((t) => {
+			localStorage.setItem('theme', t);
+			localStorage.setItem('nofluxo_anonimo', 'true');
+		}, tema);
+		await page.context().addCookies([
+			{ name: 'nofluxo_anonimo', value: 'true', url: 'http://localhost:5173' }
+		]);
+		await page.goto('/dev/chat');
+		await page.waitForLoadState('networkidle');
+		await expect(page.getByText('Estruturas de Dados 2').first()).toBeVisible();
+		const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+		expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
+	});
+}
+
 test('alto contraste ligado: home sem violações e tokens sobrescritos', async ({ page }) => {
 	await page.addInitScript(() => {
 		localStorage.setItem('theme', 'light');

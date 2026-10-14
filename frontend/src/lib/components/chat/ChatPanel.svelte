@@ -328,7 +328,7 @@
 			<span class="shrink-0 text-[11px] font-bold tracking-[0.16em] text-foreground uppercase"
 				>{title.toUpperCase()}</span
 			>
-			<span class="min-w-0 truncate text-[10.5px] font-normal text-muted-foreground dark:text-white/40"
+			<span class="min-w-0 truncate text-[10.5px] font-normal text-muted-foreground dark:text-white/60"
 				>Powered by Maritaca AI</span
 			>
 		</div>
