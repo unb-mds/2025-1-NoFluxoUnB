@@ -399,13 +399,15 @@ export function lerPoolSalvo(idUser: number | null, periodo: string): string[] {
 }
 
 /** Códigos removidos pelo aluno — a página exclui do re-semeio do recomendado. */
-export function lerRemovidasSalvo(idUser: number | null, periodo: string): string[] {
+export function lerDispensadasSalvo(idUser: number | null, periodo: string): string[] {
 	const key = cenariosKey(idUser, periodo);
 	if (!key || typeof localStorage === 'undefined') return [];
 	try {
 		const obj = JSON.parse(localStorage.getItem(key) ?? '{}');
-		return Array.isArray(obj?.removidas)
-			? obj.removidas.filter((x: unknown): x is string => typeof x === 'string')
+		// `removidas` = nome antigo do campo (cache de antes da troca de nome).
+		const lista = obj?.dispensadas ?? obj?.removidas;
+		return Array.isArray(lista)
+			? lista.filter((x: unknown): x is string => typeof x === 'string')
 			: [];
 	} catch {
 		return [];
@@ -426,7 +428,7 @@ function createGradeStore() {
 	/** Turnos permitidos ao montar a grade (M/T/N). Os 3 = sem filtro. */
 	let turnosPermitidos = $state<Set<Turno>>(new Set<Turno>(['M', 'T', 'N']));
 	/** Códigos que o aluno removeu — não voltam ao re-semear o recomendado. */
-	let removidas = $state<Set<string>>(new Set());
+	let dispensadas = $state<Set<string>>(new Set());
 	/**
 	 * Professor obrigatório por matéria, confirmado numa sessão anterior (vem do
 	 * banco — tabela `preferencias_grade`) e reaplicado em toda montagem automática,
@@ -566,7 +568,7 @@ function createGradeStore() {
 				activeId,
 				prioritarias: [...prioritarias],
 				turnos: [...turnosPermitidos],
-				removidas: [...removidas],
+				dispensadas: [...dispensadas],
 				incluirCursando
 			})
 		);
@@ -992,7 +994,7 @@ function createGradeStore() {
 
 		/**
 		 * Foto de TUDO que uma mudança da Darcy pode alterar (abas, ativa, lista,
-		 * estrelas, turnos, removidas, "incluir cursando") — o ponto de desfazer.
+		 * estrelas, turnos, dispensadas, "incluir cursando") — o ponto de desfazer.
 		 */
 		snapshotCompleto(): SnapshotGrade {
 			return {
@@ -1001,7 +1003,7 @@ function createGradeStore() {
 				pool: pool.map((m) => m.codigo),
 				prioritarias: [...prioritarias],
 				turnos: [...turnosPermitidos],
-				removidas: [...removidas],
+				dispensadas: [...dispensadas],
 				incluirCursando
 			};
 		},
@@ -1019,7 +1021,8 @@ function createGradeStore() {
 		restaurarCompleto(s: SnapshotGrade): { descartadas: string[] } {
 			prioritarias = new Set(s.prioritarias);
 			turnosPermitidos = new Set<Turno>(s.turnos.length > 0 ? s.turnos : ['M', 'T', 'N']);
-			removidas = new Set(s.removidas);
+			// Ponto de desfazer guardado antes da troca de nome ainda traz `removidas`.
+			dispensadas = new Set(s.dispensadas ?? (s as unknown as { removidas?: string[] }).removidas ?? []);
 			incluirCursando = s.incluirCursando;
 			const descartadas: string[] = [];
 			const restauradas = s.grades.map((g) => {
@@ -1081,7 +1084,7 @@ function createGradeStore() {
 				if (tg) selecaoTravadas[codigo] = tg.turma.id_turmas;
 			}
 			// Teto de grades por semestre (o servidor também recusa acima disso): as opções do
-			// solver anteriores já foram removidas pela tela; aqui só cabem as que sobram.
+			// solver anteriores já foram dispensadas pela tela; aqui só cabem as que sobram.
 			const vagas = Math.max(0, MAX_CENARIOS - grades.length);
 			const novos: Cenario[] = opcoes.slice(0, vagas).map((opcao) => ({
 				id: novoId(),
@@ -1107,8 +1110,8 @@ function createGradeStore() {
 		 * pool (a rota, ao montar a grade automaticamente) precisa respeitar essa
 		 * escolha — `addMateriaAoPool` limpa a marca, então filtrar é com o chamador.
 		 */
-		get removidas() {
-			return removidas;
+		get dispensadas() {
+			return dispensadas;
 		},
 
 		/** Filtro de turno ativo (1 ou 2 turnos selecionados; 0 ou 3 = sem filtro). */
@@ -1211,6 +1214,8 @@ function createGradeStore() {
 				activeId: string;
 				prioritarias?: string[];
 				turnos?: Turno[];
+				dispensadas?: string[];
+				/** Nome antigo — cache salvo antes da troca. */
 				removidas?: string[];
 				incluirCursando?: boolean;
 			} | null = null;
@@ -1231,7 +1236,8 @@ function createGradeStore() {
 					? restaurado!.turnos
 					: ['M', 'T', 'N']
 			);
-			removidas = new Set(Array.isArray(restaurado?.removidas) ? restaurado!.removidas : []);
+			const dispensadasSalvas = restaurado?.dispensadas ?? restaurado?.removidas;
+			dispensadas = new Set(Array.isArray(dispensadasSalvas) ? dispensadasSalvas : []);
 			// Ausente no storage (cenário salvo antes desta opção existir) = ligado, que
 			// é o comportamento de sempre.
 			incluirCursando =
@@ -1266,10 +1272,10 @@ function createGradeStore() {
 		addMateriaAoPool(materia: MateriaGrade): void {
 			if (pool.some((m) => m.codigo === materia.codigo)) return;
 			pool = [...pool, materia];
-			if (removidas.has(materia.codigo)) {
-				const nr = new Set(removidas);
+			if (dispensadas.has(materia.codigo)) {
+				const nr = new Set(dispensadas);
 				nr.delete(materia.codigo);
-				removidas = nr;
+				dispensadas = nr;
 			}
 			persistPool();
 			persistCenarios();
@@ -1298,9 +1304,9 @@ function createGradeStore() {
 				nt.delete(codigo);
 				travadas = nt;
 			}
-			const nr = new Set(removidas);
+			const nr = new Set(dispensadas);
 			nr.add(codigo);
-			removidas = nr;
+			dispensadas = nr;
 			ultimaMontagem = null;
 			persistPool();
 			persistCenarios();
@@ -1569,16 +1575,16 @@ function createGradeStore() {
 		 * Esvazia tudo — lista de matérias e grade — e marca cada código como
 		 * removido, para o recarregamento da página não re-semear o que o aluno
 		 * acabou de apagar. "Recomeçar do zero" (menu da grade) é o caminho de volta: ele zera as
-		 * `removidas` e refaz o preenchimento automático.
+		 * `dispensadas` e refaz o preenchimento automático.
 		 */
 		limparTudo(): void {
-			const nr = new Set(removidas);
-			// Matrícula em curso nunca entra em `removidas`: ela é fato consumado, não
-			// sugestão do app. A rota filtra as em curso por `removidas` ao carregar, então
+			const nr = new Set(dispensadas);
+			// Matrícula em curso nunca entra em `dispensadas`: ela é fato consumado, não
+			// sugestão do app. A rota filtra as em curso por `dispensadas` ao carregar, então
 			// marcá-las aqui fazia "Limpar tudo" apagar em definitivo, de todo carregamento
 			// seguinte, as matérias em que o aluno JÁ está matriculado.
 			for (const m of pool) if (!cursandoAtual.has(m.codigo)) nr.add(m.codigo);
-			removidas = nr;
+			dispensadas = nr;
 			pool = [];
 			prioritarias = new Set();
 			travadas = new Set();
@@ -1593,12 +1599,12 @@ function createGradeStore() {
 		/**
 		 * Volta o montador ao estado de início: pool recém-semeado, um único cenário
 		 * "Grade 1" com a seleção dada (turmas reais das matérias em curso), sem
-		 * removidas/prioridades/travas/filtro de turno de sessões passadas. Quem
+		 * dispensadas/prioridades/travas/filtro de turno de sessões passadas. Quem
 		 * calcula pool e seleção é a rota — o store só aplica e persiste.
 		 */
 		resetarParaInicio(poolInicial: MateriaGrade[], selecao: Record<string, number> = {}): void {
 			pool = poolInicial;
-			removidas = new Set();
+			dispensadas = new Set();
 			prioritarias = new Set();
 			travadas = new Set();
 			cursandoAtual = new Set();

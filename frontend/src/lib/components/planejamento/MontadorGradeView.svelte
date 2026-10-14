@@ -959,7 +959,11 @@
 			class="grid items-start gap-4 md:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)_17rem]"
 		>
 			<div class="md:col-start-1 md:row-start-1">
-				<MateriasPanel onAbrir={(c) => (materiaDialog = c)} onAdicionar={abrirManual} />
+				<MateriasPanel
+					onAbrir={(c) => (materiaDialog = c)}
+					onAdicionar={abrirManual}
+					onTrazerDeVolta={onAdd}
+				/>
 			</div>
 			<div class="md:col-start-2 md:row-start-1">
 				{@render semana()}
@@ -1029,6 +1033,7 @@
 		<div class="px-5 pb-5">
 			<MateriasPanel
 				embutido
+				onTrazerDeVolta={onAdd}
 				onAbrir={(c) => (materiaDialog = c)}
 				onAdicionar={() => {
 					painel = null;

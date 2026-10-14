@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { gradeStore } from './grade.store.svelte';
 
 describe('gradeStore — snapshot completo (desfazer da Darcy)', () => {
-	it('restaura abas, ativa, turnos, estrelas e removidas ao estado anterior', () => {
+	it('restaura abas, ativa, turnos, estrelas e dispensadas ao estado anterior', () => {
 		gradeStore.init([], { idUser: null, periodo: '2026.2' });
 		gradeStore.criarCenario('Minha');
 		gradeStore.setTurnos(['M']);

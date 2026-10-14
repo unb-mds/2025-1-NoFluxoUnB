@@ -3,7 +3,8 @@
 	import { unidadeCargaStore } from '$lib/stores/unidade-carga.store.svelte';
 	import { horarioLegivel } from '$lib/utils/sigaa';
 	import type { Turno } from '$lib/utils/horario-slots';
-	import { Plus, Star, X, Lock, TriangleAlert, Sparkles, ChevronRight } from 'lucide-svelte';
+	import { Plus, Star, X, Lock, TriangleAlert, Sparkles, ChevronRight, Undo2 } from 'lucide-svelte';
+	import { nomeDoCodigo } from '$lib/services/grade-pool.service';
 
 	/**
 	 * "Suas matérias": a lista que a montagem usa, em chips. O chip mostra a turma
@@ -18,10 +19,13 @@
 	let {
 		onAbrir,
 		onAdicionar,
+		onTrazerDeVolta,
 		embutido = false
 	}: {
 		onAbrir: (codigo: string) => void;
 		onAdicionar: () => void;
+		/** Devolve uma matéria dispensada à lista (carrega as turmas dela). */
+		onTrazerDeVolta?: (codigo: string) => void | Promise<void>;
 		/** Dentro de um sheet (celular): sem o cartão e sem o título repetido. */
 		embutido?: boolean;
 	} = $props();
@@ -93,6 +97,27 @@
 		[...gradeStore.motivosPrioritarias].map(([codigo, motivo]) => ({ codigo, motivo }))
 	);
 	const temEstrelas = $derived(gradeStore.temPrioritarias);
+
+	/**
+	 * Matérias dispensadas (o X do chip): somem da lista e não voltam sozinhas ao
+	 * recarregar. Ficam visíveis aqui para o aluno saber que existem e poder trazer
+	 * de volta. A dispensa vale só para este semestre.
+	 */
+	const dispensadas = $derived(
+		[...gradeStore.dispensadas]
+			.filter((c) => !gradeStore.hasMateria(c))
+			.map((codigo) => ({ codigo, nome: nomeDoCodigo(codigo) }))
+	);
+	let trazendo = $state<string | null>(null);
+	async function trazerDeVolta(codigo: string): Promise<void> {
+		if (!onTrazerDeVolta || trazendo) return;
+		trazendo = codigo;
+		try {
+			await onTrazerDeVolta(codigo);
+		} finally {
+			trazendo = null;
+		}
+	}
 
 	const creditosNaGrade = $derived(grupos.naGrade.reduce((acc, m) => acc + m.creditos, 0));
 </script>
@@ -167,8 +192,8 @@
 			<button
 				type="button"
 				onclick={() => gradeStore.removerMateriaDoPool(m.codigo)}
-				aria-label="Remover {m.codigo} da lista"
-				title="Remover da lista"
+				aria-label="Dispensar {m.codigo}"
+				title="Dispensar: sai da lista e não volta sozinha ao recarregar. Dá para trazer de volta em “Dispensadas”."
 				class="text-muted-foreground/60 touch-manipulation rounded-md p-1.5 transition-colors hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-300"
 			>
 				<X class="h-3.5 w-3.5" />
@@ -220,19 +245,22 @@
 			uma.
 		</p>
 	{:else}
-		<div class={embutido ? '' : 'mt-4'}>
-			<p class="text-foreground flex items-baseline justify-between gap-2 text-xs font-semibold">
-				<span
-					>Na grade <span class="text-muted-foreground font-normal tabular-nums"
-						>· {grupos.naGrade.length}</span
-					></span
-				>
+		<!-- Mesmo formato recolhível dos outros grupos; começa aberto por ser o principal. -->
+		<details class="group {embutido ? '' : 'mt-4'}" open>
+			<summary
+				class="text-foreground flex cursor-pointer list-none items-center gap-1.5 rounded-lg py-1 text-xs font-semibold select-none [&::-webkit-details-marker]:hidden"
+			>
+				<ChevronRight
+					class="text-muted-foreground h-3.5 w-3.5 transition-transform group-open:rotate-90"
+				/>
+				Na grade
+				<span class="text-muted-foreground font-normal tabular-nums">· {grupos.naGrade.length}</span>
 				{#if grupos.naGrade.length > 0}
-					<span class="text-muted-foreground text-[11px] font-normal tabular-nums">
+					<span class="text-muted-foreground ml-auto text-[11px] font-normal tabular-nums">
 						{unidadeCargaStore.formatarCurto(creditosNaGrade)}
 					</span>
 				{/if}
-			</p>
+			</summary>
 			{#if grupos.naGrade.length > 0}
 				<ul class="mt-2 space-y-2">
 					{#each grupos.naGrade as m (m.codigo)}
@@ -240,11 +268,11 @@
 					{/each}
 				</ul>
 			{:else}
-				<p class="text-muted-foreground mt-1 text-[11px]">
+				<p class="text-muted-foreground mt-1 pl-5 text-[11px]">
 					Nada na grade ainda. Use “Montar grade” ou abra uma matéria abaixo e escolha a turma.
 				</p>
 			{/if}
-		</div>
+		</details>
 
 		{#if temEstrelas}
 			<div
@@ -289,6 +317,48 @@
 			'Não há turma ofertada agora, então não dá para pôr na grade.',
 			grupos.semTurma
 		)}
+	{/if}
+
+	{#if dispensadas.length > 0}
+		<details class="group mt-3">
+			<summary
+				class="text-muted-foreground flex cursor-pointer list-none items-center gap-1.5 rounded-lg py-1 text-xs font-semibold select-none [&::-webkit-details-marker]:hidden"
+			>
+				<ChevronRight class="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
+				Dispensadas
+				<span class="font-normal tabular-nums">· {dispensadas.length}</span>
+			</summary>
+			<p class="text-muted-foreground mt-0.5 mb-2 pl-5 text-[11px] leading-snug">
+				Você tirou estas da lista neste semestre. Elas não voltam sozinhas ao abrir a tela, mas
+				“Montar grade” ainda pode usá-las se faltar o que sugerir.
+			</p>
+			<ul class="space-y-1.5">
+				{#each dispensadas as d (d.codigo)}
+					<li
+						class="mg-sunken grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-[10px] py-1 pr-1 pl-2.5"
+					>
+						<span class="min-w-0">
+							<span class="text-foreground/80 font-mono text-xs font-semibold">{d.codigo}</span>
+							{#if d.nome && d.nome.toUpperCase() !== d.codigo}
+								<span class="text-muted-foreground block truncate text-[11px]">{d.nome}</span>
+							{/if}
+						</span>
+						{#if onTrazerDeVolta}
+							<button
+								type="button"
+								onclick={() => void trazerDeVolta(d.codigo)}
+								disabled={trazendo !== null}
+								class="text-muted-foreground hover:text-foreground hover:bg-foreground/10 inline-flex touch-manipulation items-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-50"
+								aria-label="Trazer {d.codigo} de volta para a lista"
+							>
+								<Undo2 class="h-3.5 w-3.5" />
+								Trazer de volta
+							</button>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		</details>
 	{/if}
 
 	<button

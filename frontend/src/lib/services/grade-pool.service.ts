@@ -636,7 +636,7 @@ export async function montarPoolRecomendado(
 		limiteCreditos: number;
 		/** Semestre recomendado do plano de formatura — só desempata a ordem. */
 		ordemDoPlano?: string[];
-		/** Códigos que não devem voltar (lixeira do aluno) ou que já estão na lista. */
+		/** Códigos que não devem voltar (dispensadas do aluno) ou que já estão na lista. */
 		excluir?: Iterable<string>;
 		/** O que a grade já ocupa. Ausente = lista partindo do zero. */
 		base?: OrcamentoInicial;
@@ -780,7 +780,7 @@ export async function montarPoolRecomendado(
 
 	// Correquisito vem junto: sem o par, o solver tira a matéria da montagem
 	// (`utils/correquisitos`). Só entra se for elegível — par fora da matriz, sem
-	// turma ou na lixeira deixa a matéria na lista, mas ela não vai para a grade.
+	// turma ou nas dispensadas deixa a matéria na lista, mas ela não vai para a grade.
 	const listadas = new Set([...materiasEmCurso, ...recomendadas].map((m) => m.codigo));
 	const elegivelPorCodigo = new Map(elegiveis.map((m) => [m.codigo, m]));
 	for (const m of [...recomendadas]) {

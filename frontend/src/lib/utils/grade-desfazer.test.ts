@@ -14,7 +14,7 @@ const snap = (nome: string): SnapshotGrade => ({
 	pool: ['FGA0060'],
 	prioritarias: [],
 	turnos: ['M', 'T', 'N'],
-	removidas: [],
+	dispensadas: [],
 	incluirCursando: true
 });
 

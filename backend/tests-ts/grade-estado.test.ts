@@ -79,3 +79,16 @@ describe("períodos", () => {
         expect(periodosParaApagar(["2026.2", "2027.1"], "2026.2")).toEqual([]);
     });
 });
+
+describe("compatibilidade: removidas → dispensadas", () => {
+    it("aceita o nome antigo (linhas já gravadas e clientes em cache) e devolve o novo", () => {
+        const r = validarEstadoGrade({ grades: [cenario("a")], removidas: ["fga0060"] });
+        expect(r.ok && r.estado.dispensadas).toEqual(["FGA0060"]);
+        expect(r.ok && (r.estado as any).removidas).toBeUndefined();
+    });
+
+    it("o nome novo vale quando os dois vêm juntos", () => {
+        const r = validarEstadoGrade({ grades: [cenario("a")], dispensadas: ["MAT0025"], removidas: ["FGA0060"] });
+        expect(r.ok && r.estado.dispensadas).toEqual(["MAT0025"]);
+    });
+});

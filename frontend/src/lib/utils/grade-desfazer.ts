@@ -25,7 +25,7 @@ export interface SnapshotGrade {
 	pool: string[];
 	prioritarias: string[];
 	turnos: Array<'M' | 'T' | 'N'>;
-	removidas: string[];
+	dispensadas: string[];
 	incluirCursando: boolean;
 }
 

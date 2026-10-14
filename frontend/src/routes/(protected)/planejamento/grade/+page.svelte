@@ -11,7 +11,7 @@
 	import {
 		gradeStore,
 		lerPoolSalvo,
-		lerRemovidasSalvo,
+		lerDispensadasSalvo,
 		type MateriaGrade
 	} from '$lib/stores/grade.store.svelte';
 	import {
@@ -158,7 +158,7 @@
 
 	/**
 	 * Tira da lista de exclusão o que o aluno está cursando agora. Matrícula é fato
-	 * consumado: nem a lixeira nem "Limpar tudo" podem apagá-la da lista — era assim
+	 * consumado: nem as dispensadas nem "Limpar tudo" podem apagá-la da lista — era assim
 	 * que as MATR sumiam de vez do montador depois de um clique em "Limpar tudo".
 	 */
 	function semExcluirCursando(codigos: string[]): string[] {
@@ -217,7 +217,7 @@
 	/**
 	 * Volta o montador ao estado de início: só o semestre recomendado do plano +
 	 * as matérias em que o aluno já está matriculado (com a turma real do SIGAA),
-	 * como na primeira visita — o que foi removido na lixeira também volta.
+	 * como na primeira visita — o que foi removido nas dispensadas também volta.
 	 */
 	async function voltarAoInicio(): Promise<void> {
 		if (!periodo) return;
@@ -245,7 +245,7 @@
 	 * não pertence à matriz do aluno.
 	 *
 	 * Roda a cada montagem e é idempotente: só entra o que falta na lista e
-	 * matéria já cursada nunca entra. A lixeira é respeitada enquanto houver outra
+	 * matéria já cursada nunca entra. As dispensadas é respeitada enquanto houver outra
 	 * coisa a trazer; quando ela é tudo o que sobrou, vale o pedido explícito.
 	 */
 	async function semear(opcoes?: OpcoesSemeadura): Promise<SemeaduraResultado> {
@@ -254,7 +254,7 @@
 		if (!periodo) return { adicionadas: [], obrigatoriasSemOferta: [] };
 
 		const naLista = gradeStore.pool.map((m) => m.codigo);
-		const recomendar = (respeitarLixeira: boolean) =>
+		const recomendar = (respeitarDispensadas: boolean) =>
 			montarPoolRecomendado(periodo!, {
 				// O limite que o aluno escolheu no Passo 1 vale mais que o do plano:
 				// semear 24 créditos para quem pediu 30 deixa o solver sem o que encaixar.
@@ -262,10 +262,10 @@
 				escopo: opcoes?.escopo,
 				apenasObrigatorias: opcoes?.apenasObrigatorias,
 				ordemDoPlano: codigosRecomendados(),
-				// A lixeira não vale para matrícula em curso: quem quer a MATR fora da grade
+				// As dispensadas não vale para matrícula em curso: quem quer a MATR fora da grade
 				// usa o botão "matérias em curso", que a esconde sem perder a informação.
 				excluir: semExcluirCursando(
-					respeitarLixeira ? [...gradeStore.removidas, ...naLista] : naLista
+					respeitarDispensadas ? [...gradeStore.dispensadas, ...naLista] : naLista
 				),
 				// Complementa a lista que já existe em vez de ignorá-la: o que o aluno já
 				// selecionou ocupa horário e crédito antes de recomendarmos o resto.
@@ -285,13 +285,13 @@
 			r.materias.some((m) => !emCurso.has(m.codigo));
 
 		let r = await recomendar(true);
-		// "Limpar tudo" joga a lista inteira na lixeira — para o recarregar da página
+		// "Limpar tudo" joga a lista inteira nas dispensadas — para o recarregar da página
 		// não trazê-la de volta sozinho. Mas aqui o aluno PEDIU uma grade: se fora da
-		// lixeira não há nada a trazer, ela vale menos que o pedido. Sem isto, depois
+		// dispensadas não há nada a trazer, ela vale menos que o pedido. Sem isto, depois
 		// de um "Limpar tudo" a montagem só via as em curso e saía vazia para sempre.
-		if (!trazNovidade(r) && gradeStore.removidas.size > 0) {
-			const semLixeira = await recomendar(false);
-			if (trazNovidade(semLixeira)) r = semLixeira;
+		if (!trazNovidade(r) && gradeStore.dispensadas.size > 0) {
+			const semDispensadas = await recomendar(false);
+			if (trazNovidade(semDispensadas)) r = semDispensadas;
 		}
 		const { materias, obrigatoriasSemOferta, naturezasSaturadas, pendentesSemOferta } = r;
 
@@ -336,19 +336,19 @@
 			if (!jaViu && anteriores.length > 0) periodosAntigos = anteriores;
 		}
 		const salvos = lerPoolSalvo(idUser, alvo);
-		const removidas = new Set(lerRemovidasSalvo(idUser, alvo));
+		const dispensadas = new Set(lerDispensadasSalvo(idUser, alvo));
 
 		// O que o aluno já tinha na lista da visita anterior. O filtro de já-cursadas
 		// vale também aqui: matéria concluída depois de ter entrado no pool some
 		// sozinha no próximo carregamento, sem ele ter que remover na mão.
 		const salvosVivos = filtrarNaoCursados(
-			salvos.filter((c) => !removidas.has(c)),
+			salvos.filter((c) => !dispensadas.has(c)),
 			fluxogramaStore.completedCodes,
 			fluxogramaStore.currentCodes ?? new Set<string>()
 		);
 		const doStorage = await construirMateriasGrade(salvosVivos, alvo);
 
-		// Matérias em curso NÃO são filtradas por `removidas`: matrícula é fato
+		// Matérias em curso NÃO são filtradas por `dispensadas`: matrícula é fato
 		// consumado. Antes elas eram, e um "Limpar tudo" fazia o aluno recarregar a
 		// página sem as matérias em que ele está de fato matriculado.
 		const cursandoCodigos = [...(fluxogramaStore.currentCodes ?? new Set<string>())];
@@ -356,7 +356,7 @@
 		const { materias: recomendadas, obrigatoriasSemOferta } = await montarPoolRecomendado(alvo, {
 			limiteCreditos,
 			ordemDoPlano: codigosRecomendados(),
-			excluir: semExcluirCursando([...removidas, ...salvosVivos]),
+			excluir: semExcluirCursando([...dispensadas, ...salvosVivos]),
 			situacao: situacao ?? undefined,
 			cursandoOcupaOrcamento: incluirCursando ?? undefined
 		});

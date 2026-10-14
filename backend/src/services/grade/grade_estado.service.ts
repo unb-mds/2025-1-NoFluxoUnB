@@ -32,7 +32,7 @@ export interface EstadoGrade {
     pool: string[];
     prioritarias: string[];
     turnos: Array<(typeof TURNOS)[number]>;
-    removidas: string[];
+    dispensadas: string[];
     incluirCursando: boolean;
 }
 
@@ -84,8 +84,9 @@ export function validarEstadoGrade(bruto: unknown): ResultadoValidacao {
 
     const pool = codigos(bruto.pool, MAX_POOL);
     const prioritarias = codigos(bruto.prioritarias, MAX_POOL);
-    const removidas = codigos(bruto.removidas, MAX_POOL);
-    if (!pool || !prioritarias || !removidas) return falha("lista de matérias inválida");
+    // `removidas` é o nome antigo do campo (linhas já gravadas e clientes em cache).
+    const dispensadas = codigos(bruto.dispensadas ?? bruto.removidas, MAX_POOL);
+    if (!pool || !prioritarias || !dispensadas) return falha("lista de matérias inválida");
 
     const turnosBrutos = Array.isArray(bruto.turnos) ? bruto.turnos : [...TURNOS];
     const turnos = TURNOS.filter((t) => turnosBrutos.includes(t));
@@ -99,7 +100,7 @@ export function validarEstadoGrade(bruto: unknown): ResultadoValidacao {
         pool,
         prioritarias,
         turnos: turnos.length > 0 ? turnos : [...TURNOS],
-        removidas,
+        dispensadas,
         incluirCursando: bruto.incluirCursando !== false,
     };
     if (Buffer.byteLength(JSON.stringify(estado), "utf8") > MAX_BYTES) {

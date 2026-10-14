@@ -33,7 +33,7 @@ export interface EstadoServidor {
 	pool: string[];
 	prioritarias: string[];
 	turnos: Array<'M' | 'T' | 'N'>;
-	removidas: string[];
+	dispensadas: string[];
 	incluirCursando: boolean;
 }
 
@@ -102,6 +102,8 @@ interface CenariosLocais {
 	activeId?: string;
 	prioritarias?: string[];
 	turnos?: Array<'M' | 'T' | 'N'>;
+	dispensadas?: string[];
+	/** Nome antigo do campo — o cache de quem já usava a tela antes da troca. */
 	removidas?: string[];
 	incluirCursando?: boolean;
 }
@@ -118,7 +120,7 @@ function lerLocal(idUser: number, periodo: string): EstadoServidor | null {
 			pool: Array.isArray(poolRaw) ? poolRaw : [],
 			prioritarias: c.prioritarias ?? [],
 			turnos: c.turnos ?? ['M', 'T', 'N'],
-			removidas: c.removidas ?? [],
+			dispensadas: c.dispensadas ?? c.removidas ?? [],
 			incluirCursando: c.incluirCursando !== false
 		});
 	} catch {
@@ -135,7 +137,7 @@ function escreverLocal(idUser: number, periodo: string, e: EstadoServidor): void
 			activeId: e.activeId ?? e.grades[0]?.id ?? '',
 			prioritarias: e.prioritarias,
 			turnos: e.turnos,
-			removidas: e.removidas,
+			dispensadas: e.dispensadas,
 			incluirCursando: e.incluirCursando
 		})
 	);
@@ -172,7 +174,7 @@ export function normalizar(e: EstadoServidor): EstadoServidor {
 		pool: cods(e.pool),
 		prioritarias: cods(e.prioritarias),
 		turnos: (['M', 'T', 'N'] as const).filter((t) => (e.turnos ?? []).includes(t)),
-		removidas: cods(e.removidas),
+		dispensadas: cods(e.dispensadas),
 		incluirCursando: e.incluirCursando !== false
 	};
 }

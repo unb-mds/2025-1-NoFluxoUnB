@@ -36,7 +36,7 @@ const estado = (extra: Partial<EstadoServidor> = {}): EstadoServidor => ({
 	pool: ['FGA0060'],
 	prioritarias: [],
 	turnos: ['M', 'T', 'N'],
-	removidas: [],
+	dispensadas: [],
 	incluirCursando: true,
 	...extra
 });
@@ -50,7 +50,7 @@ function gravarLocal(mem: Map<string, string>, e: EstadoServidor) {
 			activeId: e.activeId,
 			prioritarias: e.prioritarias,
 			turnos: e.turnos,
-			removidas: e.removidas,
+			dispensadas: e.dispensadas,
 			incluirCursando: e.incluirCursando
 		})
 	);
@@ -232,5 +232,35 @@ describe('normalizar / limpeza', () => {
 		mem.set('outra:coisa', 'x');
 		limparCacheGrade();
 		expect([...mem.keys()]).toEqual(['outra:coisa']);
+	});
+});
+
+describe('compatibilidade: removidas → dispensadas', () => {
+	it('cache salvo com o nome antigo é lido e subido já com o nome novo', async () => {
+		mem.set(poolKey(USER, PERIODO)!, JSON.stringify(['FGA0060']));
+		mem.set(
+			cenariosKey(USER, PERIODO)!,
+			JSON.stringify({
+				grades: [{ id: 'a', nome: 'Grade 1', selecao: { FGA0060: 10 }, origem: 'usuario' }],
+				activeId: 'a',
+				prioritarias: [],
+				turnos: ['M', 'T', 'N'],
+				removidas: ['IQD0051'],
+				incluirCursando: true
+			})
+		);
+		apiRequest
+			.mockResolvedValueOnce({
+				data: { estado: null, versao: 0, outrosPeriodos: [] },
+				error: null,
+				status: 200
+			})
+			.mockResolvedValueOnce({ data: { versao: 1 }, error: null, status: 200 });
+
+		await sincronizarCacheComServidor(USER, PERIODO);
+
+		const corpo = apiRequest.mock.calls[1][1].body.estado;
+		expect(corpo.dispensadas).toEqual(['IQD0051']);
+		expect(corpo.removidas).toBeUndefined();
 	});
 });
