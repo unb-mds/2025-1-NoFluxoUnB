@@ -17,7 +17,7 @@
 		integralizacaoOrigem, integralizacaoLoading = false }: Props = $props();
 
 	type Status = 'ok' | 'fail' | 'unknown' | 'manual';
-	type Tom = 'roxo' | 'verde' | 'laranja' | 'azul';
+	type Tom = 'roxo' | 'verde' | 'laranja' | 'azul' | 'vermelho';
 	type Requisito = {
 		id: String;
 		grupo: 'origem' | 'destino' | 'edital';
@@ -148,7 +148,8 @@ let requisitos = $derived.by<Requisito[]>(() => {
 	roxo:    { card: 'border-[#2a2142] bg-[#1d1630]', icone: 'bg-[#2c1f4a] text-[#b57bff]', texto: 'text-[#c9a6ff]', borda: 'border-[#2a2142]' },
 	verde:   { card: 'border-[#1a3a2b] bg-[#0f2319]', icone: 'bg-[#13402b] text-[#2ee59d]', texto: 'text-[#2ee59d]', borda: 'border-[#1a3a2b]' },
 	laranja: { card: 'border-[#3b2518] bg-[#2a1a12]', icone: 'bg-[#4a2a14] text-[#ff8a1f]', texto: 'text-[#ffa04d]', borda: 'border-[#3b2518]' },
-	azul:    { card: 'border-[#1c2c48] bg-[#111c30]', icone: 'bg-[#16294d] text-[#4a90ff]', texto: 'text-[#6aa5ff]', borda: 'border-[#1c2c48]' }
+	azul:    { card: 'border-[#1c2c48] bg-[#111c30]', icone: 'bg-[#16294d] text-[#4a90ff]', texto: 'text-[#6aa5ff]', borda: 'border-[#1c2c48]' },
+	vermelho: { card: 'border-[#3d1a20] bg-[#2a1216]', icone: 'bg-[#4a1a22] text-[#ff4d5e]', texto: 'text-[#ff6b7a]', borda: 'border-[#3d1a20]' }
 };
 
 </script>
@@ -158,8 +159,8 @@ let requisitos = $derived.by<Requisito[]>(() => {
 		<span class="mb-2 flex h-8 w-8 items-center justify-center rounded-full {tons[tom].icone}">
 			<Icone class="h-4 w-4" />
 		</span>
-		<span class="text-2xl font-bold">{valor}</span>
-		<span class="mt-0.5 text-[11px] opacity-70">{label}</span>
+		<span class="text-2xl font-bold text-white">{valor}</span>
+		<span class="mt-0.5 text-[11px] text-white/50">{label}</span>
 	</div>
 {/snippet}
 
@@ -176,10 +177,10 @@ let requisitos = $derived.by<Requisito[]>(() => {
 				{#each itens as r (r.id)}
 					<li class="text-[12px]">
 						<div class="flex items-center justify-between gap-2">
-							<span class="font-medium">{r.titulo}</span>
-							{#if r.valor}<span class="font-mono text-[10px] opacity-70">{r.valor}</span>{/if}
+							<span class="font-medium text-white/90">{r.titulo}</span>
+							{#if r.valor}<span class="font-mono text-[10px] text-white/60">{r.valor}</span>{/if}
 						</div>
-						<p class="mt-0.5 leading-relaxed opacity-70">{r.detalhe}</p>
+						<p class="mt-0.5 leading-relaxed text-white/55">{r.detalhe}</p>
 					</li>
 				{/each}
 			</ul>
