@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Loader2, Scale, Check, X, Minus, AlertTriangle } from 'lucide-svelte';
+	import { Loader2, Scale, Check, X, Minus, AlertTriangle, BookOpen, ClipboardList, ChevronDown } from 'lucide-svelte';
 	import type { DadosFluxogramaUser } from '$lib/types/user';
 	import type { IntegralizacaoResult } from '$lib/types/matriz';
 	import {
@@ -17,6 +17,7 @@
 		integralizacaoOrigem, integralizacaoLoading = false }: Props = $props();
 
 	type Status = 'ok' | 'fail' | 'unknown' | 'manual';
+	type Tom = 'roxo' | 'verde' | 'laranja' | 'azul';
 	type Requisito = {
 		id: String;
 		grupo: 'origem' | 'destino' | 'edital';
@@ -130,145 +131,112 @@ let requisitos = $derived.by<Requisito[]>(() => {
 		return lista;
 	});
 
-	let verificaveis = $derived(requisitos.filter((r) => r.status !== 'manual'));
-	let cumpridos = $derived(verificaveis.filter((r) => r.status === 'ok').length);
-	let pct = $derived(verificaveis.length ? (cumpridos / verificaveis.length) * 100 : 0);
+	let cumpridos = $derived(requisitos.filter((r) => r.status === 'ok'));
+	let naoCumpridos = $derived(requisitos.filter((r) => r.status === 'fail'));
+	let aConferir = $derived(requisitos.filter((r) => r.status === 'unknown'));
+	let totalVerificaveis = $derived(requisitos.filter((r) => r.status !== 'manual').length);
+
 	let veredito = $derived<'apto' | 'nao-apto' | 'incompleto'>(
-		verificaveis.some((r) => r.status === 'fail')
+		naoCumpridos.length > 0
 			? 'nao-apto'
-			: verificaveis.some((r) => r.status === 'unknown')
+			: requisitos.some((r) => r.status === 'unknown')
 				? 'incompleto'
 				: 'apto'
 	);
 
-	const estilos: Record<Status, { box: string; row: string; texto: string }> = {
-		ok:      { box: 'border-emerald-400/60 bg-emerald-500/20 text-emerald-300', row: 'border-emerald-400/20', texto: 'text-white/60' },
-		fail:    { box: 'border-rose-400/60 bg-rose-500/20 text-rose-300',          row: 'border-rose-400/30',    texto: 'text-rose-200/90' },
-		unknown: { box: 'border-white/25 bg-white/5 text-white/40',                 row: 'border-white/10',       texto: 'text-white/45' },
-		manual:  { box: 'border-amber-400/50 bg-amber-500/15 text-amber-300',       row: 'border-amber-400/25',   texto: 'text-amber-200/80' }
+	const tons: Record<Tom, { card: string; icone: string; texto: string; borda: string }> = {
+		roxo:    { card: 'border-purple-500/20 bg-purple-500/10',   icone: 'bg-purple-500/15 text-purple-600 dark:text-purple-300',   texto: 'text-purple-700 dark:text-purple-300',   borda: 'border-purple-500/20' },
+		verde:   { card: 'border-emerald-500/25 bg-emerald-500/10', icone: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300', texto: 'text-emerald-700 dark:text-emerald-300', borda: 'border-emerald-500/20' },
+		laranja: { card: 'border-orange-500/25 bg-orange-500/10',   icone: 'bg-orange-500/15 text-orange-600 dark:text-orange-300',   texto: 'text-orange-700 dark:text-orange-300',   borda: 'border-orange-500/20' },
+		azul:    { card: 'border-blue-500/25 bg-blue-500/10',       icone: 'bg-blue-500/15 text-blue-600 dark:text-blue-300',         texto: 'text-blue-700 dark:text-blue-300',       borda: 'border-blue-500/20' }
 	};
 
-	const grupos = [
-		{ id: 'origem', titulo: 'Curso de origem', sub: 'Conclusão do fluxo inicial e ausência de travas de permanência' },
-		{ id: 'destino', titulo: 'Curso pretendido', sub: 'Carga horária em componentes equivalentes do destino' },
-		{ id: 'edital', titulo: 'Conferir no edital', sub: 'Não dá para verificar automaticamente' }
-	] as const;
 </script>
 
-{#snippet checkbox(status: Status)}
-	<span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border {estilos[status].box}">
-		{#if status === 'ok'}<Check class="h-3.5 w-3.5" strokeWidth={3} />
-		{:else if status === 'fail'}<X class="h-3.5 w-3.5" strokeWidth={3} />
-		{:else if status === 'manual'}<AlertTriangle class="h-3 w-3" />
-		{:else}<Minus class="h-3.5 w-3.5" />{/if}
-	</span>
+{#snippet stat(valor: number, label: string, tom: Tom, Icone: typeof Check)}
+	<div class="flex flex-col items-center rounded-xl border px-3 py-4 text-center {tons[tom].card}">
+		<span class="mb-2 flex h-8 w-8 items-center justify-center rounded-full {tons[tom].icone}">
+			<Icone class="h-4 w-4" />
+		</span>
+		<span class="text-2xl font-bold">{valor}</span>
+		<span class="mt-0.5 text-[11px] opacity-70">{label}</span>
+	</div>
 {/snippet}
 
-<div
-	class="rounded-xl border border-white/12 bg-black/35 p-3.5 text-sm shadow-lg backdrop-blur-md sm:p-4"
->
+{#snippet acordeao(titulo: string, itens: Requisito[], tom: Tom)}
+	{#if itens.length}
+		<details class="group rounded-xl border {tons[tom].card}">
+			<summary
+				class="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden {tons[tom].texto}"
+			>
+				<span>{titulo} ({itens.length})</span>
+				<ChevronDown class="h-4 w-4 transition-transform duration-200 group-open:rotate-180" />
+			</summary>
+			<ul class="space-y-3 border-t px-4 py-3 {tons[tom].borda}">
+				{#each itens as r (r.id)}
+					<li class="text-[12px]">
+						<div class="flex items-center justify-between gap-2">
+							<span class="font-medium">{r.titulo}</span>
+							{#if r.valor}<span class="font-mono text-[10px] opacity-70">{r.valor}</span>{/if}
+						</div>
+						<p class="mt-0.5 leading-relaxed opacity-70">{r.detalhe}</p>
+					</li>
+				{/each}
+			</ul>
+		</details>
+	{/if}
+{/snippet}
 
-<!-- Cabeçalho -->
-	<div class="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
-		<h3 class="flex items-center gap-2 font-semibold text-white/92">
+<div class="rounded-xl border border-white/12 bg-black/35 p-3.5 text-sm shadow-lg backdrop-blur-md sm:p-4">
+	<!-- Cabeçalho -->
+	<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+		<h3 class="flex items-center gap-2 font-semibold">
 			<Scale class="h-4 w-4 shrink-0 text-cyan-400" />
 			Requisitos de mudança de curso
 		</h3>
 
 		{#if avaliacao && !avaliacaoRodando}
-			<div>
-				{#if veredito === 'apto'}
-					<span
-						class="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300"
-					>
-						<Check class="h-3 w-3" /> APTO PARA MUDANÇA
-					</span>
-				{:else if veredito === 'nao-apto'}
-					<span
-						class="inline-flex items-center gap-1 rounded-full border border-rose-400/30 bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-rose-300"
-					>
-						<X class="h-3 w-3" /> NÃO APTO
-					</span>
-				{:else}
-					<span class="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold text-white/70">
-						<Minus class="h-3 w-3" /> ANÁLISE INCOMPLETA
-					</span>
-				{/if}
-			</div>
+			{#if veredito === 'apto'}
+				<span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold {tons.verde.card} {tons.verde.texto}">
+					<Check class="h-3 w-3" /> APTO
+				</span>
+			{:else if veredito === 'nao-apto'}
+				<span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold {tons.laranja.card} {tons.laranja.texto}">
+					<X class="h-3 w-3" /> NÃO APTO
+				</span>
+			{:else}
+				<span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold {tons.azul.card} {tons.azul.texto}">
+					<Minus class="h-3 w-3" /> INCOMPLETO
+				</span>
+			{/if}
 		{/if}
 	</div>
 
 	{#if avaliacaoRodando || integralizacaoLoading}
-		<div class="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-4 text-xs text-white/55">
+		<div class="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-4 text-xs opacity-70">
 			<Loader2 class="h-4 w-4 shrink-0 animate-spin text-cyan-400" />
-			Analisando seu histórico em relação a essas regras…
+			Analisando seu histórico…
 		</div>
 	{:else if !integralizacao}
-		<p class="text-xs text-white/55">Carregue a integralização para ver o indicativo de elegibilidade.</p>
+		<p class="text-xs opacity-60">Carregue a integralização para ver o indicativo de elegibilidade.</p>
 	{:else if avaliacao}
-		<!-- Progresso -->
-		<div class="mb-4">
-			<div class="mb-1.5 flex items-center justify-between text-[11px] text-white/60">
-				<span>{cumpridos} de {verificaveis.length} requisitos cumpridos</span>
-				<span class="font-mono">{Math.round(pct)}%</span>
-			</div>
-			<div class="h-1.5 overflow-hidden rounded-full bg-white/10">
-				<div
-					class="h-full rounded-full transition-all duration-500 {veredito === 'nao-apto' ? 'bg-rose-400' : 'bg-emerald-400'}"
-					style="width: {pct}%"
-				></div>
-			</div>
+		<!-- Resumo -->
+		<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+			{@render stat(totalVerificaveis, 'Requisitos', 'roxo', BookOpen)}
+			{@render stat(cumpridos.length, 'Cumpridos', 'verde', Check)}
+			{@render stat(naoCumpridos.length, 'Não cumpridos', 'laranja', AlertTriangle)}
+			{@render stat(aConferir.length, 'A conferir', 'azul', ClipboardList)}
 		</div>
 
-		<div class="space-y-4">
-			{#each grupos as g (g.id)}
-				{@const itens = requisitos.filter((r) => r.grupo === g.id)}
-				{#if itens.length}
-					<section>
-						<div class="mb-2">
-							<p class="text-[13px] font-medium text-white/90">{g.titulo}</p>
-							<p class="text-[11px] text-white/50">{g.sub}</p>
-						</div>
-
-						<ul class="space-y-2">
-							{#each itens as r (r.id)}
-								<li class="flex items-start gap-2.5 rounded-lg border bg-black/25 px-3 py-2.5 {estilos[r.status].row}">
-									{@render checkbox(r.status)}
-									<div class="min-w-0 flex-1">
-										<div class="flex items-center justify-between gap-2">
-											<span class="text-[12px] font-medium text-white/90">{r.titulo}</span>
-											{#if r.valor}
-												<span class="font-mono text-[10px] text-white/70">{r.valor}</span>
-											{/if}
-										</div>
-										<p class="mt-0.5 text-[11px] leading-relaxed {estilos[r.status].texto}">{r.detalhe}</p>
-									</div>
-								</li>
-							{/each}
-						</ul>
-					</section>
-				{/if}
-			{/each}
+		<!-- Detalhes -->
+		<div class="mt-4 space-y-2">
+			{@render acordeao('Requisitos não cumpridos', naoCumpridos, 'laranja')}
+			{@render acordeao('Requisitos cumpridos', cumpridos, 'verde')}
+			{@render acordeao('A conferir (dados ausentes ou edital)', aConferir, 'azul')}
 		</div>
 
-		<!-- Classificação e desempate -->
-		<details class="mt-4 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[10px] leading-relaxed text-white/50">
-			<summary class="cursor-pointer font-semibold text-white/70">Critérios de classificação e desempate (edital UnB)</summary>
-			<div class="mt-2 space-y-1">
-				<p>• <strong>Classificação:</strong> maior carga horária total em componentes obrigatórios do curso pretendido.</p>
-				<p>• <strong>Desempate:</strong> 1º) média ponderada das menções (obrigatórios e optativos do pretendido, cursados na UnB); 2º) maior CH total no pretendido; 3º) maior IRA.</p>
-			</div>
-		</details>
-
-		<!-- Legenda + aviso -->
-		<div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-white/45">
-			<span class="flex items-center gap-1"><Check class="h-3 w-3 text-emerald-300" /> cumprido</span>
-			<span class="flex items-center gap-1"><X class="h-3 w-3 text-rose-300" /> não cumprido</span>
-			<span class="flex items-center gap-1"><Minus class="h-3 w-3" /> não verificado</span>
-			<span class="flex items-center gap-1"><AlertTriangle class="h-3 w-3 text-amber-300" /> conferir no edital</span>
-		</div>
-		<p class="mt-2 text-[10px] leading-relaxed text-white/40">
-			Guia rápido: a decisão oficial segue o PPC, o histórico no SIGAA e o edital vigente. O primeiro dia útil após as inscrições costuma ser a data de referência.
+		<p class="mt-3 text-[10px] leading-relaxed opacity-50">
+			Guia rápido: a decisão oficial segue o PPC, o histórico no SIGAA e o edital vigente.
 		</p>
 	{/if}
 </div>
