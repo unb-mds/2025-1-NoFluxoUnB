@@ -145,11 +145,11 @@ let requisitos = $derived.by<Requisito[]>(() => {
 	);
 
 	const tons: Record<Tom, { card: string; icone: string; texto: string; borda: string }> = {
-		roxo:    { card: 'border-purple-500/20 bg-purple-500/10',   icone: 'bg-purple-500/15 text-purple-600 dark:text-purple-300',   texto: 'text-purple-700 dark:text-purple-300',   borda: 'border-purple-500/20' },
-		verde:   { card: 'border-emerald-500/25 bg-emerald-500/10', icone: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300', texto: 'text-emerald-700 dark:text-emerald-300', borda: 'border-emerald-500/20' },
-		laranja: { card: 'border-orange-500/25 bg-orange-500/10',   icone: 'bg-orange-500/15 text-orange-600 dark:text-orange-300',   texto: 'text-orange-700 dark:text-orange-300',   borda: 'border-orange-500/20' },
-		azul:    { card: 'border-blue-500/25 bg-blue-500/10',       icone: 'bg-blue-500/15 text-blue-600 dark:text-blue-300',         texto: 'text-blue-700 dark:text-blue-300',       borda: 'border-blue-500/20' }
-	};
+	roxo:    { card: 'border-[#2a2142] bg-[#1d1630]', icone: 'bg-[#2c1f4a] text-[#b57bff]', texto: 'text-[#c9a6ff]', borda: 'border-[#2a2142]' },
+	verde:   { card: 'border-[#1a3a2b] bg-[#0f2319]', icone: 'bg-[#13402b] text-[#2ee59d]', texto: 'text-[#2ee59d]', borda: 'border-[#1a3a2b]' },
+	laranja: { card: 'border-[#3b2518] bg-[#2a1a12]', icone: 'bg-[#4a2a14] text-[#ff8a1f]', texto: 'text-[#ffa04d]', borda: 'border-[#3b2518]' },
+	azul:    { card: 'border-[#1c2c48] bg-[#111c30]', icone: 'bg-[#16294d] text-[#4a90ff]', texto: 'text-[#6aa5ff]', borda: 'border-[#1c2c48]' }
+};
 
 </script>
 
