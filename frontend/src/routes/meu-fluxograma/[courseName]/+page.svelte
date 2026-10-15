@@ -14,6 +14,7 @@
 	import OptativasAdicionadasSection from '$lib/components/fluxograma/dashboard/OptativasAdicionadasSection.svelte';
 	import PrerequisiteChainDialog from '$lib/components/fluxograma/modal/PrerequisiteChainDialog.svelte';
 	import RequisitosMudancaCursoBanner from '$lib/components/fluxograma/controls/RequisitosMudancaCursoBanner.svelte';
+	import RequisitosDuplaDiplomacaoBanner from '$lib/components/fluxograma/controls/RequisitosDuplaDiplomacaoBanner.svelte';
 	import MateriasConcluidasModal from '$lib/components/fluxograma/modal/MateriasConcluidasModal.svelte';
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
 	import { matchesFluxogramCompactTouchMode } from '$lib/utils/fluxogram-viewport';
@@ -63,6 +64,8 @@ type EquivalenciaSimulacaoItem = {
 
 	let userFluxograma = $derived(store.userFluxograma);
 	let curriculoCompletoAtual = $derived(store.state.courseData?.curriculoCompleto ?? null);
+	/** ?modo=dupla → veio do fluxo de Dupla Diplomação; decide qual banner de requisitos mostrar. */
+	let modoSimulacaoDupla = $derived($page.url.searchParams.get('modo') === 'dupla');
 
 	function normalizarChaveMatriz(valor: string | null | undefined): string {
 		const s = (valor ?? '').trim().toUpperCase();
@@ -536,11 +539,21 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 					{#if userFluxograma && store.state.courseData}
 						<div class="space-y-2">
 							{#if eSimulacaoOutroCurso}
-								<RequisitosMudancaCursoBanner
-									dadosFluxograma={userFluxograma}
-									{integralizacao}
-									integralizacaoLoading={integralizacaoLoading}
-								/>
+								{#if modoSimulacaoDupla}
+									<RequisitosDuplaDiplomacaoBanner
+										dadosFluxograma={userFluxograma}
+										{integralizacao}
+										integralizacaoLoading={integralizacaoLoading}
+										materiasDestino={store.state.courseData.materias}
+										cargaHorariaIntegralizada={store.cargaHorariaIntegralizada}
+									/>
+								{:else}
+									<RequisitosMudancaCursoBanner
+										dadosFluxograma={userFluxograma}
+										{integralizacao}
+										integralizacaoLoading={integralizacaoLoading}
+									/>
+								{/if}
 							{/if}
 							<p class="flex items-center gap-1.5 text-xs text-white/70 sm:text-sm">
 								<ArrowRightLeft class="h-4 w-4 shrink-0 text-cyan-400" />
@@ -564,11 +577,21 @@ let equivalenciasSimulacao = $derived.by((): EquivalenciaSimulacaoItem[] => {
 			{:else if !fluxogramaFocusMode && userFluxograma && store.state.courseData}
 				<div class="relative z-40 mt-2 space-y-2 border-t border-white/10 pt-4">
 					{#if eSimulacaoOutroCurso}
-						<RequisitosMudancaCursoBanner
-							dadosFluxograma={userFluxograma}
-							{integralizacao}
-							integralizacaoLoading={integralizacaoLoading}
-						/>
+						{#if modoSimulacaoDupla}
+							<RequisitosDuplaDiplomacaoBanner
+								dadosFluxograma={userFluxograma}
+								{integralizacao}
+								integralizacaoLoading={integralizacaoLoading}
+								materiasDestino={store.state.courseData.materias}
+								cargaHorariaIntegralizada={store.cargaHorariaIntegralizada}
+							/>
+						{:else}
+							<RequisitosMudancaCursoBanner
+								dadosFluxograma={userFluxograma}
+								{integralizacao}
+								integralizacaoLoading={integralizacaoLoading}
+							/>
+						{/if}
 					{/if}
 					<p class="flex items-center gap-1.5 text-xs text-white/70">
 						<ArrowRightLeft class="h-4 w-4 shrink-0 text-cyan-400" />
