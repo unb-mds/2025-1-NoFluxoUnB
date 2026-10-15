@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CheckCircle, RotateCcw, ArrowRight } from 'lucide-svelte';
+	import { CircleCheckBig, RotateCcw, ArrowRight } from 'lucide-svelte';
 	import ProcessingResults from './ProcessingResults.svelte';
 	import type { CasarDisciplinasResponse, UploadPdfResponse } from '$lib/services/upload.service';
 
@@ -15,7 +15,7 @@
 
 <div class="success-wrap">
 	<div class="success-icon">
-		<CheckCircle class="size-10 text-emerald-400 sm:size-12" stroke-width="2" />
+		<CircleCheckBig class="size-10 text-emerald-400 sm:size-12" stroke-width="2" />
 	</div>
 
 	<div class="success-text">

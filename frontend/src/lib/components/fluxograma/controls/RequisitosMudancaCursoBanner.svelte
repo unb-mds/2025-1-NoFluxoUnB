@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Loader2, Scale, Check, X, Minus, AlertTriangle, BookOpen, ClipboardList, ChevronDown } from 'lucide-svelte';
+	import { LoaderCircle, Scale, Check, X, Minus, AlertTriangle, BookOpen, ClipboardList, ChevronDown } from 'lucide-svelte';
 	import type { DadosFluxogramaUser } from '$lib/types/user';
 	import type { IntegralizacaoResult } from '$lib/types/matriz';
 	import {
@@ -202,7 +202,7 @@ let requisitos = $derived.by<Requisito[]>(() => {
 					<Check class="h-3 w-3" /> APTO
 				</span>
 			{:else if veredito === 'nao-apto'}
-				<span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold {tons.laranja.card} {tons.laranja.texto}">
+				<span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold {tons.vermelho.card} {tons.vermelho.texto}">
 					<X class="h-3 w-3" /> NÃO APTO
 				</span>
 			{:else}
@@ -215,7 +215,7 @@ let requisitos = $derived.by<Requisito[]>(() => {
 
 	{#if avaliacaoRodando || integralizacaoLoading}
 		<div class="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-4 text-xs opacity-70">
-			<Loader2 class="h-4 w-4 shrink-0 animate-spin text-cyan-400" />
+			<LoaderCircle class="h-4 w-4 shrink-0 animate-spin text-cyan-400" />
 			Analisando seu histórico…
 		</div>
 	{:else if !integralizacao}
