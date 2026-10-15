@@ -68,7 +68,7 @@ let requisitos = $derived.by<Requisito[]>(() => {
 				detalhe: !o.podeAvaliar
 					? 'Não foi possível carregar a grade do curso de origem.'
 					: faltam === 0
-						? 'Todas as obrigatórias dos dois primeiros períodos foram integralizadas.'
+						? 'Todas as obrigatórias dos dois primeiros semestres do curso de origem foram integralizadas.'
 						: `Faltam ${faltam}: ${o.codigosPendentes.slice(0, 5).join(', ')}${faltam > 5 ? '…' : ''}`
 			},
 			{
