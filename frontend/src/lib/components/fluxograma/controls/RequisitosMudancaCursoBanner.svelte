@@ -1,11 +1,14 @@
 <script lang="ts">
-	import { LoaderCircle, Scale, Check, X, Minus, AlertTriangle, BookOpen, ClipboardList, ChevronDown } from 'lucide-svelte';
+	import { LoaderCircle, Scale, Check, X, Minus, AlertTriangle, 
+		BookOpen, ClipboardList, ChevronDown } from 'lucide-svelte';
 	import type { DadosFluxogramaUser } from '$lib/types/user';
 	import type { IntegralizacaoResult } from '$lib/types/matriz';
+	import MudancaCursoPopup from './MudancaCursoPopup.svelte';
 	import {
 		avaliarRequisitosMudancaCurso,
 		type AvaliacaoMudancaCurso
 	} from '$lib/services/mudanca-curso-requisitos.service';
+	import type { effect } from 'zod/v3';
 
 	type Props = {
 		dadosFluxograma: DadosFluxogramaUser;
@@ -144,10 +147,24 @@ let requisitos = $derived.by<Requisito[]>(() => {
 				: 'apto'
 	);
 
+	let toastAberto = $state(false);
+
+$effect(() => {
+	toastAberto = !!avaliacao && !avaliacaoRodando;
+});
+
+let toastMensagem = $derived(
+	veredito === 'apto'
+		? 'Você atende a todos os requisitos verificados.'
+		: veredito === 'nao-apto'
+			? `${naoCumpridos.length} requisito(s) não cumprido(s). Veja os detalhes abaixo.`
+			: 'Alguns dados não puderam ser verificados. Veja "A conferir".'
+);
+
 	const tons: Record<Tom, { card: string; icone: string; texto: string; borda: string }> = {
 	roxo:    { card: 'border-[#2a2142] bg-[#1d1630]', icone: 'bg-[#2c1f4a] text-[#b57bff]', texto: 'text-[#c9a6ff]', borda: 'border-[#2a2142]' },
-	verde:   { card: 'border-[#1a3a2b] bg-[#0f2319]', icone: 'bg-[#13402b] text-[#2ee59d]', texto: 'text-[#2ee59d]', borda: 'border-[#1a3a2b]' },
-	laranja: { card: 'border-[#3b2518] bg-[#2a1a12]', icone: 'bg-[#4a2a14] text-[#ff8a1f]', texto: 'text-[#ffa04d]', borda: 'border-[#3b2518]' },
+	verde:   { card: 'border-[#1a3a2b] bg-[#0f2319]', icone: 'bg-emerald-500/10 text-emerald-400', texto: 'text-emerald-400', borda: 'border-[#1a3a2b]' },
+	laranja: { card: 'border-[#3b2518] bg-[#2a1a12]', icone: 'bg-orange-500/10 text-orange-400', texto: 'text-orange-400', borda: 'border-[#3b2518]' },
 	azul:    { card: 'border-[#1c2c48] bg-[#111c30]', icone: 'bg-[#16294d] text-[#4a90ff]', texto: 'text-[#6aa5ff]', borda: 'border-[#1c2c48]' },
 	vermelho: { card: 'border-[#3d1a20] bg-[#2a1216]', icone: 'bg-[#4a1a22] text-[#ff4d5e]', texto: 'text-[#ff6b7a]', borda: 'border-[#3d1a20]' }
 };
@@ -223,17 +240,17 @@ let requisitos = $derived.by<Requisito[]>(() => {
 	{:else if avaliacao}
 		<!-- Resumo -->
 		<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-			{@render stat(totalVerificaveis, 'Requisitos', 'roxo', BookOpen)}
+			{@render stat(totalVerificaveis, 'Total de Requisitos', 'roxo', BookOpen)}
 			{@render stat(cumpridos.length, 'Cumpridos', 'verde', Check)}
-			{@render stat(naoCumpridos.length, 'Não cumpridos', 'laranja', AlertTriangle)}
-			{@render stat(aConferir.length, 'A conferir', 'azul', ClipboardList)}
+			{@render stat(naoCumpridos.length, 'Não Cumpridos', 'vermelho', AlertTriangle)}
+			{@render stat(aConferir.length, 'A conferir', 'laranja', ClipboardList)}
 		</div>
 
 		<!-- Detalhes -->
 		<div class="mt-4 space-y-2">
-			{@render acordeao('Requisitos não cumpridos', naoCumpridos, 'laranja')}
 			{@render acordeao('Requisitos cumpridos', cumpridos, 'verde')}
-			{@render acordeao('A conferir (dados ausentes ou edital)', aConferir, 'azul')}
+			{@render acordeao('Requisitos não cumpridos', naoCumpridos, 'vermelho')}
+			{@render acordeao('A conferir (dados ausentes ou edital)', aConferir, 'laranja')}
 		</div>
 
 		<p class="mt-3 text-[10px] leading-relaxed opacity-50">
@@ -241,3 +258,4 @@ let requisitos = $derived.by<Requisito[]>(() => {
 		</p>
 	{/if}
 </div>
+<MudancaCursoPopup bind:open={toastAberto} mensagem={toastMensagem} />
