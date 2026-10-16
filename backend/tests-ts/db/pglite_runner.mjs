@@ -24,6 +24,8 @@ const PRELUDIO = `
   CREATE SCHEMA IF NOT EXISTS auth;
   CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE
     AS $$ SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+  -- Só o alvo das FKs (ex.: chat_sessions.user_id); o resto do auth não é usado.
+  CREATE TABLE auth.users (id uuid PRIMARY KEY);
   CREATE ROLE anon NOLOGIN;
   CREATE ROLE authenticated NOLOGIN;
   CREATE ROLE service_role NOLOGIN BYPASSRLS;

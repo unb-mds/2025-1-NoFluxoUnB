@@ -8,7 +8,9 @@
  *
  * Conversa ativa = itens com `conversa_id` nulo. "Nova conversa" (ou inatividade, ver
  * `INATIVIDADE_ARQUIVAR_MS`) ARQUIVA esses itens numa linha de `chat_conversas` — o
- * aluno reabre, retoma ou apaga depois; nada é apagado sem ele pedir.
+ * aluno reabre, retoma ou apaga depois. Fora isso, só a retenção apaga: conversa
+ * parada há 12 meses e sessão inativa há 2 anos (pg_cron, migration
+ * 20261016000000_chat_retencao.sql).
  *
  * Sem estado em memória entre instâncias — uma instância nova com o mesmo session_id
  * sempre reconstrói o histórico a partir do banco (é isso que faz a sessão sobreviver

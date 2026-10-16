@@ -55,8 +55,14 @@
 					histórico que você enviou.
 				</p>
 				<p class="text-foreground/80 leading-relaxed mt-4">
-					Em <strong>“Nova conversa”</strong>, a conversa é apagada e só o resumo permanece. Em
-					<strong>“Esquecer tudo”</strong>, a conversa e o resumo são apagados.
+					Em <strong>“Nova conversa”</strong>, a conversa atual é arquivada: você pode reabri-la,
+					retomá-la ou apagá-la depois. Em <strong>“Esquecer tudo”</strong>, todas as conversas e o
+					resumo são apagados.
+				</p>
+				<p class="text-foreground/80 leading-relaxed mt-4">
+					<strong>Prazo de guarda:</strong> mesmo que você não apague nada, conversas sem atividade há
+					<strong>12 meses</strong> são apagadas automaticamente. Se a sua conta ficar <strong>2 anos</strong>
+					sem usar a Darcy, as conversas e o resumo também são apagados.
 				</p>
 			</section>
 
