@@ -2,14 +2,21 @@
 	import { estadoRodinha, TOKEN_RODINHA, type CotaIA } from '$lib/utils/darcy-cota';
 
 	/**
-	 * Rodinha de uso diário do Darcy, ao lado do botão de enviar: anel de
+	 * Rodinha de uso diário do Darcy, no cabeçalho do chat: anel de
 	 * progresso (usadas/limite) — azul no normal, âmbar quando restam ≤ 20%,
 	 * vermelho no limite. O texto completo vai no tooltip e no aria-label.
 	 *
 	 * Cores só por token (`--status-*`, com par light/dark) e disco próprio em
 	 * `bg-card`: o contraste do anel (≥ 3:1) não depende da superfície do chat.
 	 */
-	let { cota }: { cota: Pick<CotaIA, 'usadas' | 'limite'> } = $props();
+	let {
+		cota,
+		tooltip = 'cima'
+	}: {
+		cota: Pick<CotaIA, 'usadas' | 'limite'>;
+		/** Para onde o tooltip abre — 'baixo' quando a rodinha está no topo do painel. */
+		tooltip?: 'cima' | 'baixo';
+	} = $props();
 
 	const RAIO = 9;
 	const CIRCUNFERENCIA = 2 * Math.PI * RAIO;
@@ -46,7 +53,9 @@
 		/>
 	</svg>
 	<span
-		class="pointer-events-none absolute right-0 bottom-full mb-2 hidden w-max max-w-56 rounded-lg border border-border bg-popover px-2.5 py-1.5 text-[11px] leading-snug text-popover-foreground shadow-lg group-hover:block"
+		class="pointer-events-none absolute right-0 z-20 {tooltip === 'baixo'
+			? 'top-full mt-2'
+			: 'bottom-full mb-2'} hidden w-max max-w-56 rounded-lg border border-border bg-popover px-2.5 py-1.5 text-[11px] leading-snug text-popover-foreground shadow-lg group-hover:block"
 		aria-hidden="true"
 	>
 		{estado.rotulo}

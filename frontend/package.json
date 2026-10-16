@@ -76,6 +76,8 @@
     "bits-ui": "^2.15.5",
     "clsx": "^2.1.1",
     "html2canvas-pro": "^2.0.2",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "lucide-svelte": "^0.564.0",
     "pdfjs-dist": "^5.4.624",
     "svelte-sonner": "^1.0.7",

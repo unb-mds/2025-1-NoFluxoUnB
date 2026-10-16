@@ -1,9 +1,14 @@
+/** Forma canônica de um código de disciplina: sem espaços nas pontas, em maiúsculas. */
+export function normalizarCodigo(code: string | null | undefined): string {
+	return (code || '').trim().toUpperCase();
+}
+
 /** Comparação de código de disciplina no histórico / sets (caixa e espaços). */
 export function setHasCodeIgnoreCase(codes: Set<string>, code: string): boolean {
 	if (codes.has(code)) return true;
-	const codeUpper = (code || '').trim().toUpperCase();
+	const codeUpper = normalizarCodigo(code);
 	if (!codeUpper) return false;
-	return [...codes].some((c) => c.trim().toUpperCase() === codeUpper);
+	return [...codes].some((c) => normalizarCodigo(c) === codeUpper);
 }
 
 /**
@@ -25,7 +30,7 @@ export function filtrarNaoCursados(
 	const out: string[] = [];
 
 	for (const codigo of codigos) {
-		const norm = (codigo || '').trim().toUpperCase();
+		const norm = normalizarCodigo(codigo);
 		if (!norm || vistos.has(norm)) continue;
 		if (setHasCodeIgnoreCase(concluidos, codigo)) continue;
 		if (setHasCodeIgnoreCase(emCurso, codigo)) continue;

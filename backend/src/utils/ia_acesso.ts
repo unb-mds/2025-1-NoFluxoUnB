@@ -23,6 +23,8 @@ import { Utils } from '../utils';
 import { SupabaseWrapper } from '../supabase_wrapper';
 import {
     type CotaIA,
+    cotaIlimitada,
+    ehAdminSemCota,
     estornarPergunta,
     reservarPergunta,
     tetoGlobalAtingido,
@@ -119,6 +121,11 @@ export async function reservarPerguntaIA(res: Response, usuario: UsuarioIA): Pro
         return null;
     }
 
+    // Admin do sistema: sem cota diária — a pergunta não é contada nem estornada.
+    if (await ehAdminSemCota(usuario.id)) {
+        return criarPergunta(res, usuario, cotaIlimitada(), async () => {});
+    }
+
     let reserva;
     try {
         reserva = await reservarPergunta(usuario.id);
@@ -143,6 +150,21 @@ export async function reservarPerguntaIA(res: Response, usuario: UsuarioIA): Pro
         return null;
     }
 
+    const dia = reserva.dia;
+    return criarPergunta(res, usuario, reserva.cota, async (pergunta) => {
+        const usadas = Math.max(0, pergunta.cota.usadas - 1);
+        pergunta.cota = { ...pergunta.cota, usadas, restantes: Math.max(0, pergunta.cota.limite - usadas) };
+        await estornarPergunta(usuario.id, dia);
+    });
+}
+
+/** Monta a `PerguntaIA`; `devolver` roda no máximo uma vez (estorno idempotente). */
+function criarPergunta(
+    res: Response,
+    usuario: UsuarioIA,
+    cota: CotaIA,
+    devolver: (pergunta: PerguntaIA) => Promise<void>
+): PerguntaIA {
     // Marca o cliente que saiu antes da resposta (não estorna: ver cabeçalho).
     // O guard ignora o 'close' que também dispara depois do res.end().
     let saiu = false;
@@ -157,13 +179,11 @@ export async function reservarPerguntaIA(res: Response, usuario: UsuarioIA): Pro
         clienteSaiu: () => saiu,
         usuario,
         perguntaId: randomUUID(),
-        cota: reserva.cota,
+        cota,
         async estornar() {
             if (estornada) return;
             estornada = true;
-            const usadas = Math.max(0, pergunta.cota.usadas - 1);
-            pergunta.cota = { ...pergunta.cota, usadas, restantes: Math.max(0, pergunta.cota.limite - usadas) };
-            await estornarPergunta(usuario.id, reserva.dia);
+            await devolver(pergunta);
         },
     };
     return pergunta;

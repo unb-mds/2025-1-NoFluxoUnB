@@ -21,6 +21,7 @@
 		situacao,
 		carregando = false,
 		compacto = false,
+		embutido = false,
 		obrigatoriasSemOferta = [],
 		periodo = null,
 		moduloLivre = null,
@@ -34,6 +35,8 @@
 		situacao: SituacaoAcademica | null;
 		carregando?: boolean;
 		compacto?: boolean;
+		/** Dentro do painel de análise: sem cartão próprio, título discreto. */
+		embutido?: boolean;
 		obrigatoriasSemOferta?: string[];
 		periodo?: string | null;
 		/** Resposta já dada pelo aluno, ou `null` se ainda não perguntamos. */
@@ -119,7 +122,23 @@
 	}
 </script>
 
-<section class="rounded-2xl border border-border bg-card dark:bg-background/80 p-3" data-tour="situacao">
+<section
+	class={embutido
+		? 'mg-sunken rounded-xl p-3'
+		: 'rounded-2xl border border-border bg-card dark:bg-background/80 p-3'}
+	data-tour="situacao"
+>
+	{#if embutido}
+		<p
+			class="mb-3 flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.06em] text-foreground/80 uppercase"
+		>
+			Situação curricular
+			<HelpTip
+				title="O que ainda falta pra você"
+				text="A carga horária que seu curso exige contra a que você já cumpriu. É por isto que a montagem prioriza umas matérias e para de sugerir outras."
+			/>
+		</p>
+	{:else}
 	<header class="mb-2.5 flex items-center justify-between border-b border-border pb-2">
 		<p
 			class="flex items-center gap-1.5 text-xs font-semibold tracking-[0.12em] text-foreground/80 uppercase"
@@ -132,6 +151,7 @@
 			/>
 		</p>
 	</header>
+	{/if}
 
 	{#if carregando}
 		<p class="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">

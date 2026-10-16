@@ -174,3 +174,28 @@ describe('incluirCursando — desligado', () => {
 		expect(sel().join(',')).toBe(ligado);
 	});
 });
+
+describe('planejar o próximo semestre (modo desligado) com essencial', () => {
+	// Chamado: "pedi a grade focada na FGA0211 e ele focou nas matérias já
+	// matriculadas". Com a matrícula ocupando a carga, a essencial entrava sozinha
+	// ao lado dela. Para o semestre seguinte a matrícula conta como feita.
+	it('a essencial entra com as outras novas, sem a matrícula atual', () => {
+		init([
+			mat('MATR0001', ['2M12'], 6),
+			mat('MATR0002', ['3M12'], 6),
+			mat('MATR0003', ['4M12'], 6),
+			mat('FGA0211', ['2M12', '5T12'], 4),
+			mat('NOVA0001', ['3M12'], 4),
+			mat('NOVA0002', ['4M12'], 4)
+		]);
+		gradeStore.definirCursandoAtual(['MATR0001', 'MATR0002', 'MATR0003']);
+		gradeStore.setIncluirCursando(false);
+
+		const opcoes = gradeStore.montarOpcoes({ limiteCreditos: 12, essencial: 'FGA0211' });
+
+		expect(opcoes.length).toBeGreaterThan(0);
+		for (const o of opcoes) {
+			expect([...o.resultado.selecao.keys()].sort()).toEqual(['FGA0211', 'NOVA0001', 'NOVA0002']);
+		}
+	});
+});

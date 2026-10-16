@@ -22,6 +22,7 @@ import { EndpointController, RequestType } from "../interfaces";
 import { Pair, Utils } from "../utils";
 import { Request, Response } from "express";
 import { SupabaseWrapper } from "../supabase_wrapper";
+import { invalidarPerfilAluno } from "../services/chat/perfil_cache";
 import { createControllerLogger } from "../utils/controller_logger";
 import { MARITACA_MODELS } from "../config/maritaca";
 import { executarComContextoIA, logAiUsage, usageParcialDoErro, type ContextoIA, type LlmUsage } from "../utils/ai_usage_logger";
@@ -36,6 +37,15 @@ import {
 import { PlanejadorAgenteService, ehComandoDireto, type MensagemChat, type AgenteContexto } from "../services/planejador_agente.service";
 import { AI_SEM_CREDITOS_BODY, isMaritacaSemCreditos } from "../config/maritaca_errors";
 import { sugerirModuloLivre } from "../services/chat/actuators/modulo_livre_actuator";
+import {
+    apagarPeriodoGrade,
+    lerEstadoGrade,
+    listarPeriodosGrade,
+    periodosParaApagar,
+    periodoValido,
+    salvarEstadoGrade,
+    validarEstadoGrade,
+} from "../services/grade/grade_estado.service";
 import { DificuldadeAgenteService } from "../services/dificuldade_agente.service";
 import type {
     MateriaInput,
@@ -174,6 +184,8 @@ interface DadosPlano {
     fluxogramaAtual: string | null | undefined;
     materiasMapeadas: MateriaInput[];
     codigosComOferta: Set<string>;
+    /** Período letivo vigente (RPC `periodo_letivo_atual`), base dos rótulos das colunas do plano. */
+    periodoAtivo: string;
 }
 
 /**
@@ -199,6 +211,31 @@ export async function resolverPeriodoAtivo(supabase: any): Promise<string> {
         // Cai no fallback abaixo.
     }
     return calcularSemestreAtualStr();
+}
+
+/** Período seguinte: AAAA.1 → AAAA.2 → (AAAA+1).1. Mesma regra do frontend (`proximoPeriodo`). */
+export function proximoPeriodo(periodo: string): string {
+    const [ano, sem] = periodo.split(".");
+    return sem === "1" ? `${ano}.2` : `${Number(ano) + 1}.1`;
+}
+
+/**
+ * Período cuja oferta o Montador deve usar. Com `proximoSemestre`, procura na tabela
+ * `turmas` o período seguinte ao atual; se o SIGAA ainda não publicou, cai no atual
+ * (a grade vira estimativa) — mesmo comportamento da tela do Montador.
+ */
+export async function resolverPeriodoOferta(
+    supabase: any,
+    periodoAtual: string,
+    proximoSemestre: boolean
+): Promise<string> {
+    if (!proximoSemestre) return periodoAtual;
+    const seguinte = proximoPeriodo(periodoAtual);
+    const { count, error } = await supabase
+        .from("turmas")
+        .select("id_turmas", { count: "exact", head: true })
+        .eq("ano_periodo", seguinte);
+    return !error && (count ?? 0) > 0 ? seguinte : periodoAtual;
 }
 
 /**
@@ -492,6 +529,7 @@ export async function montarDadosPlano(
                 fluxogramaAtual: usuarioData.fluxograma_atual as string | null | undefined,
                 materiasMapeadas,
                 codigosComOferta,
+                periodoAtivo,
             }
         };
     } catch (err: any) {
@@ -551,6 +589,7 @@ export async function montarContextoAgente(
             adicionarEm: restricoes.adicionarEm ?? {},
         },
         codigosComOferta: dados.codigosComOferta,
+        periodoAtivo: dados.periodoAtivo,
     };
     return { ctx };
 }
@@ -758,7 +797,8 @@ export const PlanejamentoController: EndpointController = {
                         dados.fluxogramaAtual,
                         dados.materiasMapeadas,
                         dados.preferencias,
-                        dados.codigosComOferta
+                        dados.codigosComOferta,
+                        dados.periodoAtivo
                     );
 
                     await resolverNomesSemestreAtual(plano);
@@ -970,6 +1010,96 @@ export const PlanejamentoController: EndpointController = {
                 }
             }
         ),
+        "grade-estado": new Pair(
+            RequestType.GET,
+            async (req: Request, res: Response) => {
+                const logger = createControllerLogger("PlanejamentoController", "grade-estado");
+                try {
+                    if (!await Utils.checkAuthorization(req as Request)) {
+                        return res.status(401).json({ error: "Usuário não autorizado" });
+                    }
+                    const id_user = req.headers["user-id"] || req.headers["User-ID"];
+                    if (!id_user) return res.status(401).json({ error: "User-ID não informado" });
+
+                    const periodo = req.query.periodo;
+                    if (!periodoValido(periodo)) return res.status(400).json({ error: "periodo inválido" });
+
+                    const atual = await lerEstadoGrade(id_user as string, periodo);
+                    const periodos = await listarPeriodosGrade(id_user as string);
+                    const vencidos = new Set(periodosParaApagar(periodos.map((p) => p.periodo), periodo));
+                    return res.status(200).json({
+                        estado: atual?.estado ?? null,
+                        versao: atual?.versao ?? 0,
+                        // Outros semestres salvos; `vencido` = além de "atual + anterior".
+                        outrosPeriodos: periodos
+                            .filter((p) => p.periodo !== periodo)
+                            .map((p) => ({ ...p, vencido: vencidos.has(p.periodo) })),
+                    });
+                } catch (err: any) {
+                    logger.error(`Erro ao ler grade: ${err?.message || String(err)}`);
+                    return res.status(500).json({ error: err?.message || "Erro ao ler grade" });
+                }
+            }
+        ),
+        "grade-estado-salvar": new Pair(
+            RequestType.POST,
+            async (req: Request, res: Response) => {
+                const logger = createControllerLogger("PlanejamentoController", "grade-estado-salvar");
+                try {
+                    if (!await Utils.checkAuthorization(req as Request)) {
+                        return res.status(401).json({ error: "Usuário não autorizado" });
+                    }
+                    const id_user = req.headers["user-id"] || req.headers["User-ID"];
+                    if (!id_user) return res.status(401).json({ error: "User-ID não informado" });
+
+                    const body = req.body;
+                    if (!isObject(body) || !periodoValido(body.periodo)) {
+                        return res.status(400).json({ error: "periodo inválido" });
+                    }
+                    const versaoBase = Number(body.versaoBase ?? 0);
+                    if (!Number.isInteger(versaoBase) || versaoBase < 0) {
+                        return res.status(400).json({ error: "versaoBase inválida" });
+                    }
+                    const v = validarEstadoGrade(body.estado);
+                    if (!v.ok) return res.status(v.status).json({ error: v.erro });
+
+                    const r = await salvarEstadoGrade(id_user as string, body.periodo, v.estado, versaoBase);
+                    if (r.ok) {
+                        invalidarPerfilAluno(id_user as string);
+                        return res.status(200).json({ versao: r.versao });
+                    }
+                    if (r.conflito) return res.status(409).json({ estado: r.estado, versao: r.versao });
+                    return res.status(r.status).json({ error: r.erro });
+                } catch (err: any) {
+                    logger.error(`Erro ao salvar grade: ${err?.message || String(err)}`);
+                    return res.status(500).json({ error: err?.message || "Erro ao salvar grade" });
+                }
+            }
+        ),
+        "grade-estado-apagar": new Pair(
+            RequestType.POST,
+            async (req: Request, res: Response) => {
+                const logger = createControllerLogger("PlanejamentoController", "grade-estado-apagar");
+                try {
+                    if (!await Utils.checkAuthorization(req as Request)) {
+                        return res.status(401).json({ error: "Usuário não autorizado" });
+                    }
+                    const id_user = req.headers["user-id"] || req.headers["User-ID"];
+                    if (!id_user) return res.status(401).json({ error: "User-ID não informado" });
+
+                    const body = req.body;
+                    if (!isObject(body) || !periodoValido(body.periodo)) {
+                        return res.status(400).json({ error: "periodo inválido" });
+                    }
+                    await apagarPeriodoGrade(id_user as string, body.periodo);
+                    invalidarPerfilAluno(id_user as string);
+                    return res.status(200).json({ ok: true });
+                } catch (err: any) {
+                    logger.error(`Erro ao apagar grade: ${err?.message || String(err)}`);
+                    return res.status(500).json({ error: err?.message || "Erro ao apagar grade" });
+                }
+            }
+        ),
         "preferencias-grade-listar": new Pair(
             RequestType.GET,
             async (req: Request, res: Response) => {
@@ -1032,6 +1162,7 @@ export const PlanejamentoController: EndpointController = {
                         logger.error(`Erro ao salvar preferência: ${error.message}`);
                         return res.status(500).json({ error: error.message });
                     }
+                    invalidarPerfilAluno(id_user as string);
                     return res.status(200).json({ ok: true });
                 } catch (err: any) {
                     logger.error(`Erro ao salvar preferência: ${err?.message || String(err)}`);
@@ -1065,6 +1196,7 @@ export const PlanejamentoController: EndpointController = {
                         logger.error(`Erro ao remover preferência: ${error.message}`);
                         return res.status(500).json({ error: error.message });
                     }
+                    invalidarPerfilAluno(id_user as string);
                     return res.status(200).json({ ok: true });
                 } catch (err: any) {
                     logger.error(`Erro ao remover preferência: ${err?.message || String(err)}`);

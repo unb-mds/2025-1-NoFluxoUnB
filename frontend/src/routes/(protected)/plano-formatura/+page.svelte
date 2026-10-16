@@ -4,11 +4,23 @@
 	import { authStore } from '$lib/stores/auth';
 	import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
 	import { planoFormaturaStore } from '$lib/stores/plano-formatura.store.svelte';
+	import { darcyStore } from '$lib/stores/darcy.store.svelte';
 	import PlanoFormaturaView from '$lib/components/plano-formatura/PlanoFormaturaView.svelte';
 	import OnboardingModal from '$lib/components/plano-formatura/OnboardingModal.svelte';
 	import PageMeta from '$lib/components/seo/PageMeta.svelte';
 	import { ROUTES } from '$lib/config/routes';
 	import type { PreferenciasPlano } from '$lib/types/plano-formatura';
+
+	// Enquanto esta tela está aberta, as mensagens da Darcy saem como superfície
+	// "plano" e o que ela recalcular (plano, restrições) é aplicado aqui.
+	$effect(() =>
+		darcyStore.registrarSuperficie({
+			superficie: 'plano',
+			estado: () => ({ tipo: 'plano' }),
+			onPlano: (plano) => planoFormaturaStore.aplicarPlanoDoChat(plano),
+			onRestricoes: (restricoes) => planoFormaturaStore.aplicarRestricoesDoChat(restricoes)
+		})
+	);
 
 	onMount(async () => {
 		// Garante que dados do curso estão carregados (necessário para o Motor 2)

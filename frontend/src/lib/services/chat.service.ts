@@ -1,48 +1,162 @@
 /**
- * Cliente do pipeline novo de chat (orquestrador + atuadores, /chat/send).
- * Separado de AssistenteService (que ainda fala com o Darcy legado,
- * /assistente/chat) — os dois convivem até a migração completa.
+ * Cliente HTTP da Darcy única (orquestrador, `/chat/*`).
+ *
+ * O cliente manda só a mensagem nova, a superfície (tela) de onde ela saiu e o
+ * estado dessa tela. Tudo o que é do aluno — matriz, concluídas, plano,
+ * preferências — o backend lê do banco; mandar daqui seria duplicar (e deixar o
+ * cliente forjar) o que já é fonte de verdade lá. A conversa é uma só e vive na
+ * sessão do servidor, por isso `historico()` em vez de reenviar mensagens.
  */
 import { apiRequest } from '$lib/utils/api';
+import type {
+	AcaoGradeChat,
+	OpcaoGradeChat,
+	PlanoFormaturav2,
+	RestricoesPlano
+} from '$lib/types/plano-formatura';
 import { ErroIA, type CotaIA } from '$lib/utils/darcy-cota';
 
-export interface EnviarMensagemOrquestradorOpts {
-	contexto?: 'montador';
-	curriculoCompleto?: string;
-	horarioLivre?: string;
-	turnos?: string[];
-	/** Códigos já alocados na grade em construção (mesmo semestre da recomendação). */
-	codigosNaGrade?: string[];
+export type Superficie = 'assistente' | 'plano' | 'montador';
+export type TurnoChat = 'M' | 'T' | 'N';
+
+export interface EstadoMontador {
+	tipo: 'montador';
+	/** Grade aberta: matéria → turma escolhida. */
+	grade: Array<{ codigo: string; idTurma: number }>;
+	creditos: number;
+	turnos: TurnoChat[];
+	incluirCursando: boolean;
+	/** `gradeStore.freeMask.toString()` — slots livres nos turnos permitidos. */
+	horarioLivre: string;
+	/** Matérias na lista do Montador (candidatas), com ou sem turma escolhida. */
+	pool?: string[];
+	/** Marcadas com estrela (prioridade na montagem). */
+	prioritarias?: string[];
+	/** O que ficou de fora na última montagem automática. */
+	naoAlocadas?: string[];
+	/** Cenários salvos; `ativo` = o aberto. O `id` é estável (nomes podem repetir). */
+	cenarios?: Array<{ id?: string; nome: string; ativo: boolean }>;
+	/** Pontos de desfazer guardados neste navegador (do mais novo ao mais antigo). */
+	desfazer?: Array<{ id: string; rotulo: string; quando: string }>;
+	/** Grade que o aluno está VENDO — alvo padrão de qualquer pedido de grade. */
+	cenarioAtivoId?: string;
 }
 
-export interface OrquestradorChatResponse {
+export interface EstadoPlano {
+	tipo: 'plano';
+	semestreFoco?: number;
+}
+
+export interface EstadoAssistente {
+	tipo: 'assistente';
+}
+
+export type EstadoSuperficie = EstadoMontador | EstadoPlano | EstadoAssistente;
+
+export interface ChatSendResponse {
 	reply: string;
+	/** Seleção que o solver do backend já resolveu (aplicada pelo botão "Montar grade"). */
+	opcaoGrade?: OpcaoGradeChat;
+	/** Todas as opções do solver (a escolhida inclusa), para comparar no chat. */
+	opcoesGrade?: OpcaoGradeChat[];
+	/** Mudanças pontuais na grade aberta, validadas — aplicadas no clique do aluno. */
+	acoesGrade?: AcaoGradeChat[];
+	/** Plano atualizado quando uma tool de plano (adiar, mover, ajustar carga…) mudou algo. */
+	plano?: PlanoFormaturav2;
+	restricoes?: RestricoesPlano;
 	/** Cota diária do aluno já contando esta pergunta (rodinha do chat). */
 	cota?: CotaIA;
+}
+
+export interface MensagemHistorico {
+	role: 'user' | 'assistant';
+	content: string;
+}
+
+/** Conversa arquivada ("Conversas anteriores"). */
+export interface ConversaAnterior {
+	id: string;
+	titulo: string;
+	mensagens: number;
+	inicio: string | null;
+	fim: string | null;
 }
 
 export class ChatService {
 	async enviarMensagem(
 		message: string,
-		opts?: EnviarMensagemOrquestradorOpts
-	): Promise<OrquestradorChatResponse> {
-		const body: Record<string, unknown> = { message };
-		if (opts?.contexto) body.contexto = opts.contexto;
-		if (opts?.curriculoCompleto) body.curriculoCompleto = opts.curriculoCompleto;
-		if (opts?.horarioLivre) body.horarioLivre = opts.horarioLivre;
-		if (opts?.turnos && opts.turnos.length > 0) body.turnos = opts.turnos;
-		if (opts?.codigosNaGrade && opts.codigosNaGrade.length > 0)
-			body.codigosNaGrade = opts.codigosNaGrade;
+		superficie: Superficie,
+		estado?: EstadoSuperficie
+	): Promise<ChatSendResponse> {
+		const body: Record<string, unknown> = { message, superficie };
+		if (estado) body.estado = estado;
 
-		const { data, error, status } = await apiRequest<OrquestradorChatResponse>('/chat/send', {
+		const { data, error, status } = await apiRequest<ChatSendResponse>('/chat/send', {
 			method: 'POST',
 			body
 		});
-
 		if (error || !data) {
 			throw new ErroIA(status, error ?? '', '/chat/send');
 		}
 		return data;
+	}
+
+	async historico(): Promise<MensagemHistorico[]> {
+		const { data, error, status } = await apiRequest<{ mensagens: MensagemHistorico[] }>(
+			'/chat/historico'
+		);
+		if (error || !data) {
+			throw new Error(`Erro ${status} ao chamar /chat/historico: ${error ?? 'Resposta inválida'}`);
+		}
+		return Array.isArray(data.mensagens) ? data.mensagens : [];
+	}
+
+	/**
+	 * Começa uma conversa nova: a atual vai para "Conversas anteriores" e o que
+	 * importa dela vira memória da Darcy. Com `esquecer`, apaga a conversa, as
+	 * anteriores e a memória.
+	 */
+	async novaConversa(esquecer = false): Promise<void> {
+		const rota = esquecer ? '/chat/esquecer' : '/chat/nova-conversa';
+		const { error, status } = await apiRequest<{ ok: boolean }>(rota, { method: 'POST' });
+		if (error) throw new Error(`Erro ${status} ao chamar ${rota}: ${error}`);
+	}
+
+	async conversas(): Promise<ConversaAnterior[]> {
+		const { data, error, status } = await apiRequest<{ conversas: ConversaAnterior[] }>(
+			'/chat/conversas'
+		);
+		if (error || !data) throw new Error(`Erro ${status} ao chamar /chat/conversas: ${error ?? ''}`);
+		return Array.isArray(data.conversas) ? data.conversas : [];
+	}
+
+	/** Mensagens de uma conversa anterior (só leitura). */
+	async conversa(id: string): Promise<MensagemHistorico[]> {
+		const { data, error, status } = await apiRequest<{ mensagens: MensagemHistorico[] }>(
+			`/chat/conversa?id=${encodeURIComponent(id)}`
+		);
+		if (error || !data) throw new Error(`Erro ${status} ao chamar /chat/conversa: ${error ?? ''}`);
+		return Array.isArray(data.mensagens) ? data.mensagens : [];
+	}
+
+	/** A conversa anterior volta a ser a atual; devolve as mensagens dela. */
+	async retomarConversa(id: string): Promise<MensagemHistorico[]> {
+		const { data, error, status } = await apiRequest<{ mensagens: MensagemHistorico[] }>(
+			'/chat/retomar-conversa',
+			{ method: 'POST', body: { id } }
+		);
+		if (error || !data) {
+			throw new Error(`Erro ${status} ao chamar /chat/retomar-conversa: ${error ?? ''}`);
+		}
+		return Array.isArray(data.mensagens) ? data.mensagens : [];
+	}
+
+	async apagarConversa(id: string): Promise<void> {
+		const { error, status } = await apiRequest<{ ok: boolean }>('/chat/apagar-conversa', {
+			method: 'POST',
+			body: { id }
+		});
+		if (error) throw new Error(`Erro ${status} ao chamar /chat/apagar-conversa: ${error}`);
 	}
 }
 

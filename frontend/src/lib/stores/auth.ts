@@ -8,6 +8,19 @@ const ANON_KEY = 'nofluxo_anonimo';
 /** DEV-ONLY: marca que o usuário atual foi impersonado via /dev/impersonar. */
 const DEV_IMPERSONATE_KEY = 'nofluxo_dev_impersonate';
 
+/**
+ * O que vai para o localStorage: o usuário SEM papel de admin e SEM token. O papel
+ * vem da RPC get_my_admin a cada carregamento (ensureSessionBootstrapped, que o guard
+ * de rota aguarda) e o token já vive na sessão do Supabase. Gravá-los aqui só deixava
+ * o papel visível e editável no navegador — a checagem de verdade é no banco, mas o
+ * menu de admin aparecia para quem editasse o cache.
+ */
+function paraPersistir(user: UserModel): string {
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const { isAdmin, adminRole, adminScopes, token, ...resto } = user;
+	return JSON.stringify(resto);
+}
+
 // Initialize state from localStorage if available
 function getInitialState(): AuthState {
 	if (browser) {
@@ -37,16 +50,21 @@ function getInitialState(): AuthState {
 				);
 				// Handle both old snake_case and new camelCase formats from localStorage
 				const cargaHorariaIntegralizada = rawUser.cargaHorariaIntegralizada ?? rawUser.carga_horaria_integralizada ?? null;
+				// Caches antigos ainda trazem papel de admin e token: descartados aqui, o
+				// bootstrap repõe o papel a partir do banco.
+				delete rawUser.isAdmin;
+				delete rawUser.is_admin;
+				delete rawUser.adminRole;
+				delete rawUser.adminScopes;
+				delete rawUser.token;
 				const user: UserModel = rawUser.idUser !== undefined
 					? { ...rawUser, dadosFluxograma: dadosFluxograma ?? rawUser.dadosFluxograma ?? null, cargaHorariaIntegralizada: cargaHorariaIntegralizada ?? undefined }
 					: {
 							idUser: idUserCandidate,
 							email: emailCandidate,
 							nomeCompleto: rawUser.nome_completo ?? '',
-							token: rawUser.token ?? null,
 							dadosFluxograma: dadosFluxograma ?? rawUser.dados_fluxograma ?? null,
-							cargaHorariaIntegralizada: cargaHorariaIntegralizada ?? undefined,
-							isAdmin: Boolean(rawUser.isAdmin ?? rawUser.is_admin ?? false)
+							cargaHorariaIntegralizada: cargaHorariaIntegralizada ?? undefined
 						};
 				return {
 					user,
@@ -89,7 +107,7 @@ function createAuthStore() {
 		setUser(user: UserModel | null) {
 			if (browser) {
 				if (user) {
-					localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+					localStorage.setItem(STORAGE_KEY, paraPersistir(user));
 					localStorage.removeItem(ANON_KEY);
 				} else {
 					localStorage.removeItem(STORAGE_KEY);
@@ -139,7 +157,7 @@ function createAuthStore() {
 				if (state.user) {
 					const updatedUser = { ...state.user, token };
 					if (browser) {
-						localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
+						localStorage.setItem(STORAGE_KEY, paraPersistir(updatedUser));
 					}
 					return { ...state, user: updatedUser };
 				}
@@ -159,7 +177,7 @@ function createAuthStore() {
 						...(cargaHorariaIntegralizada !== undefined && { cargaHorariaIntegralizada })
 					};
 					if (browser) {
-						localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
+						localStorage.setItem(STORAGE_KEY, paraPersistir(updatedUser));
 					}
 					return { ...state, user: updatedUser };
 				}

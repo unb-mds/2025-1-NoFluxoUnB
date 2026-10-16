@@ -104,6 +104,11 @@ jest.mock("../src/controllers/PlanejamentoController", () => ({
             codigosComOferta: new Set(["FGA0002"]),
         },
     })),
+    // Usado por `montador_grade.service.ts` (Fase 3) — a tool nova `montar_grade`
+    // (adiante neste arquivo) passa pela Facade de verdade, que chama isso.
+    resolverPeriodoAtivo: async () => "2026.2",
+    // Sem oferta do próximo semestre publicada: a montagem usa o período atual.
+    resolverPeriodoOferta: async (_supabase: unknown, periodoAtual: string) => periodoAtual,
 }));
 
 import { maskLivre, slotMaskFromHorario } from "../src/utils/horario_slots";
@@ -159,6 +164,41 @@ describe("recomendarPorHorarioLivre — filtro determinístico de horário", () 
 
         const candidatos = (resultado as any).candidatos as Array<{ codigo: string }>;
         expect(candidatos.map((c) => c.codigo)).not.toContain("FGA0003");
+    });
+
+    /**
+     * FGA0009 já foi aprovada e a tabela diz que FGA0002 a substitui sozinha:
+     * cursar FGA0002 não contaria de novo (docs/montador-de-grade.md).
+     */
+    it("não recomenda matéria que substitui sozinha uma já aprovada", async () => {
+        db.turmas.push({ id_materia: 1, ano_periodo: "2026.2", horario: "2M12" });
+        db.turmas.push({ id_materia: 2, ano_periodo: "2026.2", horario: "3T12" });
+        (montarDadosPlano as jest.Mock).mockResolvedValueOnce({
+            dados: {
+                idUser: "42",
+                idCurso: "1",
+                numeroPeriodo: 3,
+                preferencias: { limiteCreditos: 24, objetivo: "equilibrado", trabalha: false },
+                cargaHorariaIntegralizada: { total: 0, obrigatoria: 0, optativa: 0, complementar: 0 },
+                exigidaMatriz: { total: 0, obrigatoria: 0, optativa: 0, complementar: 0 },
+                fluxogramaAtual: JSON.stringify({ dados_fluxograma: [[{ codigo: "FGA0009", status: "APR" }]] }),
+                materiasMapeadas: [
+                    ...materiasMapeadasFake,
+                    {
+                        codigo: "FGA0009", nome: "Já aprovada", creditos: 4, nivel: 2, obrigatoria: true,
+                        tipo_natureza: 0, carga_horaria: 60,
+                        equivalencias: [{ operador: "OU", condicoes: ["FGA0002"] }],
+                    },
+                ],
+                codigosComOferta: new Set(["FGA0002"]),
+            },
+        });
+
+        const livreTotal = maskLivre(0n, ["M", "T", "N"]);
+        const resultado = await recomendarPorHorarioLivre("aluno@unb.br", "8117/-2 - 2018.2", livreTotal.toString(), "2026.2");
+
+        const candidatos = (resultado as any).candidatos as Array<{ codigo: string }>;
+        expect(candidatos.map((c) => c.codigo)).toEqual(["FGA0001"]);
     });
 
     it("freeMask = 0n devolve lista vazia sem consultar turmas", async () => {
@@ -643,7 +683,7 @@ describe("AtuadorGrade — revisor (código citado precisa estar nos candidatos)
 
         const freeMaskTotal = (1n << 96n) - 1n; // universo inteiro, simplificado pro teste
         const agente = createGradeAgent("aluno@unb.br", "8117/-2 - 2018.2", freeMaskTotal.toString(), "2026.2");
-        const reply = await runGradeComRevisao(agente, "me recomenda algo pro horário livre");
+        const { reply } = await runGradeComRevisao(agente, "me recomenda algo pro horário livre");
         expect(reply).toContain("FGA0001");
         expect(reply).not.toContain("FGA9999");
     });
@@ -661,7 +701,7 @@ describe("AtuadorGrade — revisor (código citado precisa estar nos candidatos)
 
         const freeMaskTotal = (1n << 96n) - 1n;
         const agente = createGradeAgent("aluno@unb.br", "8117/-2 - 2018.2", freeMaskTotal.toString(), "2026.2");
-        const reply = await runGradeComRevisao(agente, "me recomenda algo pro horário livre");
+        const { reply } = await runGradeComRevisao(agente, "me recomenda algo pro horário livre");
         expect(reply).toBe(RESPOSTA_ESCALONAMENTO_GRADE);
     });
 
@@ -682,7 +722,7 @@ describe("AtuadorGrade — revisor (código citado precisa estar nos candidatos)
 
         // runGradeComRevisao nunca escala pra fora um código não verificado: como o mock
         // sempre pula a tool, a reexecução também reprova e o wrapper escalona.
-        const reply = await runGradeComRevisao(agente, "me recomenda algo pro horário livre");
+        const { reply } = await runGradeComRevisao(agente, "me recomenda algo pro horário livre");
         expect(reply).toBe(RESPOSTA_ESCALONAMENTO_GRADE);
         expect(reply).not.toContain("FGA9999");
     });
@@ -918,6 +958,123 @@ describe("recomendarPorHorarioLivre — turma achada via equivalência", () => {
         );
 
         expect((resultado as any).candidatos).toEqual([]);
+    });
+});
+
+/**
+ * Fase 3 (montador-de-grade-resilient-muffin.md) — tool nova `montar_grade`, que chama
+ * `montarGrade()` da Facade (`montador_grade.service.ts`) de verdade (mesma matriz mockada
+ * via `montarDadosPlano`/`resolverPeriodoAtivo` acima) e o guardrail evoluído
+ * (`criarRevisorHorario`), que agora também valida pares `codigo:idTurma` contra as
+ * `OpcaoGrade[]` realmente retornadas — não só `codigo` solto contra `CandidatoGrade[]`.
+ */
+describe("AtuadorGrade — tool montar_grade (Fase 3)", () => {
+    beforeEach(() => {
+        mockCreate.mockReset();
+        db.turmas.length = 0;
+        // FGA0001 (obrigatória pendente de materiasMapeadasFake) com UMA turma real —
+        // montarGrade() a aloca sozinha (FGA0002/FGA0003 sem turma aqui não atrapalham).
+        db.turmas.push({ id_turmas: 55, id_materia: 1, ano_periodo: "2026.2", horario: "2M12" });
+    });
+
+    it("createGradeAgent expõe as duas tools: recomendar_por_horario_livre e montar_grade", () => {
+        const agente = createGradeAgent("aluno@unb.br", "8117/-2 - 2018.2", "0", "2026.2");
+        const nomes = (agente as any).tools?.map((t: any) => t.name) ?? [];
+        expect(nomes).toContain("recomendar_por_horario_livre");
+        expect(nomes).toContain("montar_grade");
+    });
+
+    it("aprova e propaga `opcaoGrade` quando o marcador cita um par codigo:idTurma real, vindo de uma OpcaoGrade[] efetivamente retornada", async () => {
+        mockCreate.mockImplementation(async (req: any) => {
+            const jaTemTool = req.messages.some((m: any) => m.role === "tool");
+            if (!jaTemTool) {
+                return {
+                    choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "montar_grade", arguments: "{}" } }] } }],
+                };
+            }
+            return { choices: [{ message: { role: "assistant", content: "Beleza, montei! [MONTAR_GRADE|FGA0001:55]" } }] };
+        });
+
+        const freeMaskTotal = (1n << 96n) - 1n;
+        const agente = createGradeAgent("aluno@unb.br", "8117/-2 - 2018.2", freeMaskTotal.toString(), "2026.2");
+        const { reply, opcaoGrade, opcoesGrade } = await runGradeComRevisao(agente, "monta minha grade priorizando FGA0001");
+
+        expect(reply).toContain("[MONTAR_GRADE|FGA0001:55]");
+        expect(opcaoGrade).toBeDefined();
+        expect(opcaoGrade?.selecao).toEqual(expect.arrayContaining([{ codigo: "FGA0001", idTurma: 55 }]));
+        // Mini-grade do chat: horário de cada par + métricas reais da opção.
+        expect(opcaoGrade?.detalhes).toEqual(
+            expect.arrayContaining([expect.objectContaining({ codigo: "FGA0001", horario: "2M12" })])
+        );
+        expect(opcaoGrade?.metricas?.diasComAula).toBe(1);
+        // Comparador: todas as opções, a escolhida entre elas.
+        expect(opcoesGrade?.length).toBeGreaterThanOrEqual(1);
+        expect(opcoesGrade?.map((o) => o.estrategia)).toContain(opcaoGrade?.estrategia);
+    });
+
+    it("reprova e reexecuta quando o marcador cita um idTurma que NÃO está em nenhuma opção retornada — runGradeComRevisao corrige", async () => {
+        let tentativa = 0;
+        mockCreate.mockImplementation(async (req: any) => {
+            const jaTemTool = req.messages.some((m: any) => m.role === "tool");
+            if (!jaTemTool) {
+                return {
+                    choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "montar_grade", arguments: "{}" } }] } }],
+                };
+            }
+            tentativa++;
+            const idTurma = tentativa === 1 ? 9999 : 55; // 1ª vez alucina uma turma, 2ª vez corrige
+            return { choices: [{ message: { role: "assistant", content: `Beleza! [MONTAR_GRADE|FGA0001:${idTurma}]` } }] };
+        });
+
+        const freeMaskTotal = (1n << 96n) - 1n;
+        const agente = createGradeAgent("aluno@unb.br", "8117/-2 - 2018.2", freeMaskTotal.toString(), "2026.2");
+        const { reply } = await runGradeComRevisao(agente, "monta minha grade priorizando FGA0001");
+
+        expect(reply).toContain("FGA0001:55");
+        expect(reply).not.toContain("9999");
+    });
+
+    it("reprova quando o código está certo mas o idTurma citado é de OUTRA matéria/turma (par errado)", async () => {
+        // Turma extra pra outra matéria, pra provar que o revisor valida o PAR inteiro
+        // (codigo:idTurma), não só se o idTurma existe em ALGUM lugar.
+        db.turmas.push({ id_turmas: 77, id_materia: 2, ano_periodo: "2026.2", horario: "3M12" });
+
+        mockCreate.mockImplementation(async (req: any) => {
+            const jaTemTool = req.messages.some((m: any) => m.role === "tool");
+            if (!jaTemTool) {
+                return {
+                    choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "montar_grade", arguments: "{}" } }] } }],
+                };
+            }
+            // 77 é uma turma real, mas de outra matéria — nunca de FGA0001.
+            return { choices: [{ message: { role: "assistant", content: "Beleza! [MONTAR_GRADE|FGA0001:77]" } }] };
+        });
+
+        const freeMaskTotal = (1n << 96n) - 1n;
+        const agente = createGradeAgent("aluno@unb.br", "8117/-2 - 2018.2", freeMaskTotal.toString(), "2026.2");
+        await expect(run(agente, "monta minha grade priorizando FGA0001")).rejects.toThrow(
+            OutputGuardrailTripwireTriggered
+        );
+    });
+
+    it("citação de código SOLTO (sem idTurma) continua validada contra os candidatos de recomendar_por_horario_livre, comportamento antigo intacto", async () => {
+        mockCreate.mockImplementation(async (req: any) => {
+            const jaTemTool = req.messages.some((m: any) => m.role === "tool");
+            if (!jaTemTool) {
+                return {
+                    choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "recomendar_por_horario_livre", arguments: "{}" } }] } }],
+                };
+            }
+            return { choices: [{ message: { role: "assistant", content: "Achei! [MONTAR_GRADE|FGA0001]" } }] };
+        });
+
+        const freeMaskTotal = (1n << 96n) - 1n;
+        const agente = createGradeAgent("aluno@unb.br", "8117/-2 - 2018.2", freeMaskTotal.toString(), "2026.2");
+        const { reply, opcaoGrade } = await runGradeComRevisao(agente, "tenho um buraco na segunda de manhã, me recomenda algo");
+
+        expect(reply).toContain("[MONTAR_GRADE|FGA0001]");
+        // recomendar_por_horario_livre não passa por montar_grade — nunca tem opcaoGrade.
+        expect(opcaoGrade).toBeUndefined();
     });
 });
 

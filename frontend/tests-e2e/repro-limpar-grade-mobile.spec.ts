@@ -23,6 +23,19 @@ async function abrirMenu(page: import('@playwright/test').Page): Promise<void> {
 	await expect(page.getByRole('menu')).toBeVisible();
 }
 
+/**
+ * "Montar grade" abre o painel "Gerar grade" (bottom sheet no celular) — encher a
+ * grade pra estes reprós precisa completar o fluxo: abrir e gerar as opções, que
+ * já aplica a estratégia escolhida.
+ */
+async function montarGradeCompleta(page: import('@playwright/test').Page): Promise<void> {
+	await page.getByRole('button', { name: /Montar grade/ }).tap();
+	const gerar = page.getByRole('button', { name: /Gerar opções/i });
+	await gerar.waitFor({ state: 'visible', timeout: 10_000 });
+	await gerar.tap();
+	await gerar.waitFor({ state: 'hidden', timeout: 20_000 });
+}
+
 test.use(MOBILE);
 
 test.describe('repro: limpar grade no mobile', () => {
@@ -60,7 +73,7 @@ test.describe('repro: limpar grade no mobile', () => {
 
 	test('ALVO: tocar em "Limpar a grade" zera os créditos', async ({ page }) => {
 		// Enche a grade primeiro.
-		await page.getByRole('button', { name: /Montar grade/ }).tap();
+		await montarGradeCompleta(page);
 		await expect
 			.poll(async () => await creditos(page), { timeout: 15_000 })
 			.not.toMatch(/^0\//);
@@ -110,11 +123,16 @@ test.describe('repro: variantes', () => {
 			.catch(() => false);
 		console.log('[VARIANTE-A] tour aberto?', tourAberto);
 
+		// Só o primeiro toque (abrir o wizard) — o objetivo desta variante é ver se o
+		// toque atravessa o tour aberto, não completar a montagem.
 		await page.getByRole('button', { name: /Montar grade/ }).tap({ force: true });
 		await page.waitForTimeout(1000);
 		console.log(
-			'[VARIANTE-A] créditos depois de tentar montar =',
-			await creditos(page)
+			'[VARIANTE-A] wizard abriu (passo "Gerar opções" visível)?',
+			await page
+				.getByRole('button', { name: /Gerar opções/i })
+				.isVisible()
+				.catch(() => false)
 		);
 		await page.screenshot({ path: 'test-results/variante-a-tour-aberto.png' });
 	});
@@ -126,7 +144,7 @@ test.describe('repro: variantes', () => {
 			page.getByRole('heading', { name: 'Montador de Grade', exact: true })
 		).toBeVisible();
 
-		await page.getByRole('button', { name: /Montar grade/ }).tap();
+		await montarGradeCompleta(page);
 		await expect.poll(async () => await creditos(page), { timeout: 15_000 }).not.toMatch(/^0\//);
 		console.log('[VARIANTE-B] antes =', await creditos(page));
 
@@ -142,7 +160,7 @@ test.describe('repro: variantes', () => {
 
 	test('VARIANTE C: página rolada até o fim antes de abrir o menu', async ({ page }) => {
 		await preparar(page, { matarTour: true });
-		await page.getByRole('button', { name: /Montar grade/ }).tap();
+		await montarGradeCompleta(page);
 		await expect.poll(async () => await creditos(page), { timeout: 15_000 }).not.toMatch(/^0\//);
 		console.log('[VARIANTE-C] antes =', await creditos(page));
 

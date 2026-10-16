@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { gradeStore, type MateriaGrade } from './grade.store.svelte';
 import type { TurmaOferta } from '$lib/services/turmas.service';
 
@@ -53,7 +53,7 @@ describe('gradeStore — limparTudo e resetarParaInicio', () => {
 		expect(gradeStore.grades).toHaveLength(1);
 		// Removida: o reload da página não pode re-semear o que o aluno apagou.
 		// 'A' é matrícula em curso e fica de fora — ver o teste dedicado abaixo.
-		expect(gradeStore.removidas.has('B')).toBe(true);
+		expect(gradeStore.dispensadas.has('B')).toBe(true);
 		expect(gradeStore.temPrioritarias).toBe(false);
 		expect(gradeStore.isTravada('A')).toBe(false);
 	});
@@ -61,7 +61,7 @@ describe('gradeStore — limparTudo e resetarParaInicio', () => {
 	/**
 	 * Matrícula em curso é fato consumado, não sugestão: "Limpar tudo" esvazia a
 	 * tela, mas não pode apagar do próximo carregamento uma matéria em que o aluno
-	 * JÁ está matriculado. Antes disso, `removidas` engolia as MATR e a rota
+	 * JÁ está matriculado. Antes disso, `dispensadas` engolia as MATR e a rota
 	 * (`montar()`) as filtrava para sempre — o aluno recarregava a página e as
 	 * matérias que ele cursa de verdade simplesmente não estavam mais na lista.
 	 */
@@ -72,15 +72,15 @@ describe('gradeStore — limparTudo e resetarParaInicio', () => {
 
 		gradeStore.limparTudo();
 
-		expect(gradeStore.removidas.has('A')).toBe(false);
-		expect(gradeStore.removidas.has('B')).toBe(true);
+		expect(gradeStore.dispensadas.has('A')).toBe(false);
+		expect(gradeStore.dispensadas.has('B')).toBe(true);
 	});
 
-	it('resetarParaInicio zera removidas/prioridades/turnos e aplica pool + seleção reconciliada', () => {
+	it('resetarParaInicio zera dispensadas/prioridades/turnos e aplica pool + seleção reconciliada', () => {
 		gradeStore.init([materiaComTurmas('A', 4, [0], 1)], { idUser: null, periodo: '2026.1' });
 		gradeStore.removerMateriaDoPool('A');
 		gradeStore.toggleTurno('N');
-		expect(gradeStore.removidas.has('A')).toBe(true);
+		expect(gradeStore.dispensadas.has('A')).toBe(true);
 		expect(gradeStore.temFiltroTurno).toBe(true);
 
 		// A e B disputam o mesmo horário (bit 0): a seleção inicial só mantém A.
@@ -88,7 +88,7 @@ describe('gradeStore — limparTudo e resetarParaInicio', () => {
 		gradeStore.resetarParaInicio(pool, { A: 1, B: 10 });
 
 		expect(gradeStore.pool.map((m) => m.codigo)).toEqual(['A', 'B']);
-		expect(gradeStore.removidas.size).toBe(0);
+		expect(gradeStore.dispensadas.size).toBe(0);
 		expect(gradeStore.temFiltroTurno).toBe(false);
 		expect(gradeStore.grades).toHaveLength(1);
 		expect(gradeStore.turmaSelecionada('A')?.turma.id_turmas).toBe(1);
@@ -98,10 +98,30 @@ describe('gradeStore — limparTudo e resetarParaInicio', () => {
 	it('depois do reset, matéria removida antes pode voltar ao pool normalmente', () => {
 		gradeStore.init([materiaComTurmas('A', 4, [0], 1)], { idUser: null, periodo: '2026.1' });
 		gradeStore.limparTudo();
-		expect(gradeStore.removidas.has('A')).toBe(true);
+		expect(gradeStore.dispensadas.has('A')).toBe(true);
 
 		gradeStore.resetarParaInicio([materiaComTurmas('A', 4, [0], 1)]);
 		expect(gradeStore.hasMateria('A')).toBe(true);
-		expect(gradeStore.removidas.has('A')).toBe(false);
+		expect(gradeStore.dispensadas.has('A')).toBe(false);
+	});
+});
+
+describe('compatibilidade: cache com o nome antigo "removidas"', () => {
+	it('lerDispensadasSalvo e o init leem o campo antigo', async () => {
+		const mem = new Map<string, string>();
+		vi.stubGlobal('localStorage', {
+			getItem: (k: string) => mem.get(k) ?? null,
+			setItem: (k: string, v: string) => void mem.set(k, v),
+			removeItem: (k: string) => void mem.delete(k)
+		});
+		mem.set(
+			'nofluxo:grade:9:2026.2:cenarios',
+			JSON.stringify({ grades: [], activeId: '', removidas: ['FGA0060'] })
+		);
+		const { lerDispensadasSalvo, gradeStore } = await import('./grade.store.svelte');
+		expect(lerDispensadasSalvo(9, '2026.2')).toEqual(['FGA0060']);
+		gradeStore.init([], { idUser: 9, periodo: '2026.2' });
+		expect([...gradeStore.dispensadas]).toEqual(['FGA0060']);
+		vi.unstubAllGlobals();
 	});
 });

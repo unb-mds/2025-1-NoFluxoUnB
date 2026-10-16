@@ -14,6 +14,36 @@ import type { AgentTool } from "../tool_registry";
 // Instância única do proxy para o agente Python (busca semântica por embeddings).
 const sabia = new SabiaService();
 
+/**
+ * Marcador `[TURMA|turma|docente|horario|local|vagas|periodo|COD|IDTURMA]` que o
+ * chat desenha como card (contrato em `docs/darcy-unificada.md`, "Ações no chat").
+ * `|` e `]` dentro de um campo quebrariam o parser do app, então viram espaço.
+ */
+export function marcadorTurma(t: {
+    turma: string;
+    docente: string;
+    horario: string;
+    local: string;
+    vagas: string;
+    periodo: string;
+    codigo: string;
+    idTurma: number | string | null | undefined;
+}): string {
+    const campo = (v: unknown) => String(v ?? "").replace(/[|\]\[\n\r]/g, " ").trim();
+    return `[TURMA|${[
+        t.turma,
+        t.docente,
+        t.horario,
+        t.local,
+        t.vagas,
+        t.periodo,
+        t.codigo,
+        t.idTurma ?? "",
+    ]
+        .map(campo)
+        .join("|")}]`;
+}
+
 /** Executor cru — também usado pelo atalho `/turmas CODIGO` (bypass do LLM). */
 export async function consultarTurmasMateria(args: Record<string, unknown>): Promise<string> {
     const codigo = typeof args.codigo === "string" ? norm(args.codigo) : "";
@@ -36,7 +66,7 @@ export async function consultarTurmasMateria(args: Record<string, unknown>): Pro
 
         let turmasQuery = supabase
             .from("turmas")
-            .select("turma, docente, horario, local, vagas_ofertadas, vagas_ocupadas, ano_periodo")
+            .select("id_turmas, turma, docente, horario, local, vagas_ofertadas, vagas_ocupadas, ano_periodo")
             .eq("id_materia", materiaData.id_materia);
 
         if (periodoAtual) {
@@ -51,7 +81,7 @@ export async function consultarTurmasMateria(args: Record<string, unknown>): Pro
         if (!turmasRows || turmasRows.length === 0) {
             const { data: fallbackRows } = await supabase
                 .from("turmas")
-                .select("turma, docente, horario, local, vagas_ofertadas, vagas_ocupadas, ano_periodo")
+                .select("id_turmas, turma, docente, horario, local, vagas_ofertadas, vagas_ocupadas, ano_periodo")
                 .eq("id_materia", materiaData.id_materia)
                 .order("ano_periodo", { ascending: false })
                 .limit(10);
@@ -62,15 +92,25 @@ export async function consultarTurmasMateria(args: Record<string, unknown>): Pro
             return JSON.stringify({ erro: `Nenhuma turma encontrada para ${codigo} - ${materiaData.nome_materia}.` });
         }
 
-        const turmasFormatadas = turmasRows.map((t) => (
-            `[TURMA|${t.turma || "?"}|${t.docente || "A definir"}|${t.horario || "?"}|${t.local || "?"}|${t.vagas_ocupadas ?? "?"}/${t.vagas_ofertadas ?? "?"}|${t.ano_periodo || "?"}]`
-        ));
+        const turmasFormatadas = turmasRows.map((t) =>
+            marcadorTurma({
+                turma: t.turma || "?",
+                docente: t.docente || "A definir",
+                horario: t.horario || "?",
+                local: t.local || "?",
+                vagas: `${t.vagas_ocupadas ?? "?"}/${t.vagas_ofertadas ?? "?"}`,
+                periodo: t.ano_periodo || "",
+                codigo,
+                idTurma: t.id_turmas,
+            })
+        );
 
         return JSON.stringify({
             codigo,
             nome_materia: materiaData.nome_materia,
             periodo: periodoAtual || (turmasRows[0]?.ano_periodo ?? null),
-            instrucao_llm: "Para exibir as turmas, COPIE E COLE EXATAMENTE o formato gerado abaixo ([TURMA|...]). Não altere nada dentro dos colchetes, pois o frontend usa isso para desenhar a interface.",
+            instrucao_llm:
+                "Para exibir as turmas, COPIE E COLE EXATAMENTE as linhas [TURMA|...] abaixo, uma por linha, sem alterar nada dentro dos colchetes (o app desenha o card e usa o código e o id da turma para a ação \"Usar esta turma\"). Nunca escreva um [TURMA|...] que não veio desta tool.",
             turmas_recentes: turmasFormatadas,
         });
     } catch (e) {

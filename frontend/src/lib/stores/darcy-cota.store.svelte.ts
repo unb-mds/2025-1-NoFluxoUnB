@@ -13,6 +13,7 @@
 import {
 	classificarErroIA,
 	cotaRenovou,
+	cotaEsgotada,
 	type CotaIA,
 	type TipoErroIA
 } from '$lib/utils/darcy-cota';
@@ -55,7 +56,7 @@ function createDarcyCotaStore() {
 			cota = nova;
 			// Última pergunta do dia respondida: já mostra o card em vez de
 			// esperar o 429 da próxima tentativa.
-			if (nova.usadas >= nova.limite) bloqueio = 'cota';
+			if (cotaEsgotada(nova)) bloqueio = 'cota';
 			else if (bloqueio === 'cota') bloqueio = null;
 			if (bloqueio === 'teto') {
 				bloqueio = null;
@@ -71,7 +72,7 @@ function createDarcyCotaStore() {
 				if (status === 401) return;
 				if (data?.cota) {
 					cota = data.cota;
-					bloqueio = data.cota.usadas >= data.cota.limite ? 'cota' : bloqueio === 'cota' ? null : bloqueio;
+					bloqueio = cotaEsgotada(data.cota) ? 'cota' : bloqueio === 'cota' ? null : bloqueio;
 				}
 			} catch {
 				// Sem rodinha: o chat segue funcionando.

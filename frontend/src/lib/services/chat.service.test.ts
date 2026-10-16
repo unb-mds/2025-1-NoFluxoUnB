@@ -7,51 +7,53 @@ vi.mock('$lib/utils/api', () => ({
 import { apiRequest } from '$lib/utils/api';
 import { ChatService } from './chat.service';
 
-describe('ChatService.enviarMensagem', () => {
+describe('ChatService (Darcy única, /chat/*)', () => {
 	beforeEach(() => {
 		vi.mocked(apiRequest).mockReset();
 	});
 
-	it('chama POST /chat/send só com message quando sem opts', async () => {
+	it('POST /chat/send leva só mensagem, superfície e estado — nada do aluno', async () => {
 		vi.mocked(apiRequest).mockResolvedValue({ data: { reply: 'oi' }, error: null, status: 200 });
 
-		const service = new ChatService();
-		const resultado = await service.enviarMensagem('quantos créditos faltam?');
+		const resultado = await new ChatService().enviarMensagem('quantos créditos faltam?', 'plano', {
+			tipo: 'plano'
+		});
 
 		expect(apiRequest).toHaveBeenCalledWith('/chat/send', {
 			method: 'POST',
-			body: { message: 'quantos créditos faltam?' }
+			body: { message: 'quantos créditos faltam?', superficie: 'plano', estado: { tipo: 'plano' } }
 		});
 		expect(resultado).toEqual({ reply: 'oi' });
 	});
 
-	it('inclui contexto, curriculoCompleto, horarioLivre e turnos quando fornecidos', async () => {
+	it('sem estado, o corpo não leva a chave estado', async () => {
 		vi.mocked(apiRequest).mockResolvedValue({ data: { reply: 'ok' }, error: null, status: 200 });
-
-		const service = new ChatService();
-		await service.enviarMensagem('preenche meu horário livre', {
-			contexto: 'montador',
-			curriculoCompleto: '8117/-2 - 2018.2',
-			horarioLivre: '12345',
-			turnos: ['M', 'T']
-		});
-
+		await new ChatService().enviarMensagem('oi', 'assistente');
 		expect(apiRequest).toHaveBeenCalledWith('/chat/send', {
 			method: 'POST',
-			body: {
-				message: 'preenche meu horário livre',
-				contexto: 'montador',
-				curriculoCompleto: '8117/-2 - 2018.2',
-				horarioLivre: '12345',
-				turnos: ['M', 'T']
-			}
+			body: { message: 'oi', superficie: 'assistente' }
 		});
 	});
 
-	it('lança erro legível quando apiRequest devolve erro', async () => {
+	it('lança erro legível quando /chat/send falha', async () => {
 		vi.mocked(apiRequest).mockResolvedValue({ data: null, error: 'Token inválido.', status: 401 });
+		await expect(new ChatService().enviarMensagem('oi', 'assistente')).rejects.toThrow(/401/);
+	});
 
-		const service = new ChatService();
-		await expect(service.enviarMensagem('oi')).rejects.toThrow(/401/);
+	it('GET /chat/historico devolve as mensagens', async () => {
+		const mensagens = [
+			{ role: 'user', content: 'oi' },
+			{ role: 'assistant', content: 'olá!' }
+		];
+		vi.mocked(apiRequest).mockResolvedValue({ data: { mensagens }, error: null, status: 200 });
+
+		expect(await new ChatService().historico()).toEqual(mensagens);
+		expect(apiRequest).toHaveBeenCalledWith('/chat/historico');
+	});
+
+	it('POST /chat/nova-conversa', async () => {
+		vi.mocked(apiRequest).mockResolvedValue({ data: { ok: true }, error: null, status: 200 });
+		await new ChatService().novaConversa();
+		expect(apiRequest).toHaveBeenCalledWith('/chat/nova-conversa', { method: 'POST' });
 	});
 });

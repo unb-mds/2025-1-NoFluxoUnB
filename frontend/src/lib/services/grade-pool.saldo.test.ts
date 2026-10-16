@@ -55,7 +55,16 @@ vi.mock('$lib/services/oferta-turmas.service', () => ({
 		)
 }));
 
-const { montarPoolRecomendado, construirMateriasGrade } = await import('./grade-pool.service');
+// Código fora da matriz (ex.: uma em curso que não é do curso) cairia no Supabase
+// de verdade — no CI não há rede e o teste quebra com `fetch failed`.
+vi.mock('$lib/services/materias.service', () => ({
+	getMateriasByCodigos: async () => [],
+	searchMaterias: async () => []
+}));
+
+const { montarPoolRecomendado, construirMateriasGrade, motivoParaNaoAdicionar } = await import(
+	'./grade-pool.service'
+);
 
 function materiaDaMatriz(
 	codigo: string,
@@ -107,7 +116,7 @@ describe('semeadura — natureza já cumprida', () => {
 	 * montador continuava enchendo a grade dele de optativa, deixando de fora a
 	 * obrigatória que ele ainda deve.
 	 */
-	it('optativa some da lista quando a carga optativa já está cumprida', async () => {
+	it('optativa já cumprida não toma o lugar da obrigatória', async () => {
 		curso.materias = [
 			materiaDaMatriz('OBR0001', 1, 0, 1),
 			materiaDaMatriz('OPT0001', 0, 1, 2),
@@ -116,12 +125,33 @@ describe('semeadura — natureza já cumprida', () => {
 		todasComOferta();
 
 		const r = await montarPoolRecomendado('2026.2', {
-			limiteCreditos: 24,
+			limiteCreditos: 4,
 			situacao: situacao({ optativa: 0 })
 		});
 
 		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0001']);
 		expect(r.naturezasSaturadas).toContain('optativa');
+	});
+
+	/**
+	 * O relato: "priorizei uma matéria e ela saiu sozinha". Quem já fechou as
+	 * optativas e tem poucas pendentes com turma recebia uma grade com metade do
+	 * limite vazio. A lacuna é completada — depois das que contam, nunca antes.
+	 */
+	it('com crédito sobrando, optativa já cumprida completa a lacuna — depois da obrigatória', async () => {
+		curso.materias = [
+			materiaDaMatriz('OPT0001', 0, 1, 2),
+			materiaDaMatriz('OBR0001', 1, 0, 1),
+			materiaDaMatriz('OPT0002', 0, 1, 3)
+		];
+		todasComOferta();
+
+		const r = await montarPoolRecomendado('2026.2', {
+			limiteCreditos: 12,
+			situacao: situacao({ optativa: 0 })
+		});
+
+		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0001', 'OPT0001', 'OPT0002']);
 	});
 
 	it('optativa continua entrando quando a carga optativa ainda falta', async () => {
@@ -169,7 +199,7 @@ describe('semeadura — optatórias sobrevivem à saturação', () => {
 		optatorias = new Map([['OPT0002', ['OBR0009']]]);
 
 		const r = await montarPoolRecomendado('2026.2', {
-			limiteCreditos: 24,
+			limiteCreditos: 4,
 			situacao: situacao({ optativa: 0 })
 		});
 
@@ -180,18 +210,18 @@ describe('semeadura — optatórias sobrevivem à saturação', () => {
 	 * Optativa que só destrava obrigatória JÁ CURSADA é peso morto: destravar o que
 	 * já está feito não serve para nada, e mantê-la ocuparia o lugar de matéria útil.
 	 */
-	it('optativa que só destrava obrigatória já cursada NÃO sobrevive', async () => {
-		curso.materias = [materiaDaMatriz('OPT0001', 0, 1, 1)];
+	it('optativa que só destrava obrigatória já cursada NÃO ganha a vaga da obrigatória', async () => {
+		curso.materias = [materiaDaMatriz('OPT0001', 0, 1, 1), materiaDaMatriz('OBR0002', 3, 0, 2)];
 		todasComOferta();
 		optatorias = new Map([['OPT0001', ['OBR0009']]]);
 		completed.add('OBR0009');
 
 		const r = await montarPoolRecomendado('2026.2', {
-			limiteCreditos: 24,
+			limiteCreditos: 4,
 			situacao: situacao({ optativa: 0 })
 		});
 
-		expect(r.materias).toEqual([]);
+		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0002']);
 	});
 });
 
@@ -209,13 +239,16 @@ describe('semeadura — teto pelo que falta de cada natureza', () => {
 		];
 		todasComOferta();
 
-		// 60h faltando = 4 créditos = exatamente uma matéria de 4 créditos.
+		// 60h faltando = 4 créditos = exatamente uma matéria de 4 créditos. A obrigatória
+		// pendente vem antes das optativas além do que falta (que só completam a lacuna).
+		curso.materias.push(materiaDaMatriz('OBR0001', 5, 0, 5));
+		comOferta.add('OBR0001');
 		const r = await montarPoolRecomendado('2026.2', {
-			limiteCreditos: 24,
+			limiteCreditos: 8,
 			situacao: situacao({ optativa: 60 })
 		});
 
-		expect(r.materias).toHaveLength(1);
+		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0001', 'OPT0001']);
 	});
 
 	it('sem situação, o teto por natureza não existe — comportamento de antes', async () => {
@@ -279,7 +312,7 @@ describe('orçamento das matérias em curso', () => {
 		expect(r.materias.map((m) => m.codigo)).toEqual(['MATR0001', 'OBR0001']);
 	});
 
-	it('estourado o teto pelas em curso, nada mais é recomendado', async () => {
+	it('estourado o teto pelas em curso, só a obrigatória continua na lista', async () => {
 		curso.materias = [
 			materiaDaMatriz('MATR0001', 1, 0, 1, 24),
 			materiaDaMatriz('OBR0001', 2, 0, 2, 4)
@@ -289,7 +322,9 @@ describe('orçamento das matérias em curso', () => {
 
 		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
 
-		expect(r.materias.map((m) => m.codigo)).toEqual(['MATR0001']);
+		// Não cabe na grade (o solver não a encaixa), mas aparece como sugestão: o
+		// aluno precisa saber que a obrigatória existe e tem turma.
+		expect(r.materias.map((m) => m.codigo)).toEqual(['MATR0001', 'OBR0001']);
 	});
 
 	/**
@@ -349,5 +384,81 @@ describe('pendentes sem oferta no período', () => {
 
 		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0001']);
 		expect(r.pendentesSemOferta).toBe(1);
+	});
+});
+
+/**
+ * "Já aproveitada como equivalente": OBR0009 está feita e a tabela diz que
+ * OPT0002 sozinha a substitui. Cursar OPT0002 não contaria de novo — então ela
+ * não é recomendação, nem como complemento da lacuna.
+ */
+describe('semeadura — equivalente de matéria já feita', () => {
+	function equivalencia(origem: string, expressao: string) {
+		return { codigoMateriaOrigem: origem, expressao } as never;
+	}
+
+	it('optativa que substitui sozinha uma matéria já concluída não é recomendada', async () => {
+		curso.materias = [materiaDaMatriz('OPT0001', 0, 1, 1), materiaDaMatriz('OPT0002', 0, 1, 2)];
+		curso.equivalencias = [equivalencia('OBR0009', 'OPT0002 OU XYZ0001')];
+		completed.add('OBR0009');
+		todasComOferta();
+
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
+
+		expect(r.materias.map((m) => m.codigo)).toEqual(['OPT0001']);
+		expect(r.pendentesSemOferta).toBe(0);
+	});
+
+	it('vale também para matéria em curso', async () => {
+		curso.materias = [materiaDaMatriz('OPT0002', 0, 1, 2)];
+		curso.equivalencias = [equivalencia('OBR0009', 'OPT0002')];
+		current.add('OBR0009');
+		todasComOferta();
+
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
+
+		expect(r.materias.map((m) => m.codigo)).not.toContain('OPT0002');
+	});
+
+	it('metade de um ramo E não é equivalente sozinha: continua recomendada', async () => {
+		curso.materias = [materiaDaMatriz('OPT0002', 0, 1, 2)];
+		curso.equivalencias = [equivalencia('OBR0009', 'OPT0002 E OPT0003')];
+		completed.add('OBR0009');
+		todasComOferta();
+
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
+
+		expect(r.materias.map((m) => m.codigo)).toEqual(['OPT0002']);
+	});
+
+	it('vale também para obrigatória equivalente a matéria já concluída', async () => {
+		curso.materias = [materiaDaMatriz('OBR0002', 2, 0, 2), materiaDaMatriz('OBR0003', 2, 0, 3)];
+		curso.equivalencias = [equivalencia('OBR0009', 'OBR0002')];
+		completed.add('OBR0009');
+		todasComOferta();
+
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
+
+		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0003']);
+		expect(r.obrigatoriasSemOferta).not.toContain('OBR0002');
+	});
+
+	it('cursei X fora da matriz e a tabela registra "R equivale a X": R já conta como feita', async () => {
+		curso.materias = [materiaDaMatriz('OPT0002', 0, 1, 2)];
+		curso.equivalencias = [equivalencia('OPT0002', 'MAT0035')];
+		completed.add('MAT0035');
+		completed.add('OPT0002'); // o que o fluxogramaStore faz via getCompletedByEquivalenceCodes
+		todasComOferta();
+
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
+
+		expect(r.materias).toEqual([]);
+	});
+
+	it('adicionar na mão avisa o motivo em vez de aceitar calado', () => {
+		curso.equivalencias = [equivalencia('OBR0009', 'OPT0002')];
+		completed.add('OBR0009');
+
+		expect(motivoParaNaoAdicionar('opt0002')).toMatch(/OPT0002 equivale a OBR0009, que você já concluiu/);
 	});
 });

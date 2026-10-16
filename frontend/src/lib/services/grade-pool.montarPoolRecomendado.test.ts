@@ -47,8 +47,7 @@ vi.mock('$lib/services/oferta-turmas.service', () => ({
 		new Map(
 			materias.map((m) => {
 				if (!comOferta.has(m.codigo)) return [m.codigo, []];
-				const horario =
-					horarioDe.get(m.codigo) ?? HORARIOS[proximoHorario++ % HORARIOS.length];
+				const horario = horarioDe.get(m.codigo) ?? HORARIOS[proximoHorario++ % HORARIOS.length];
 				return [
 					m.codigo,
 					[{ turma: { id_turmas: 1000 + proximoHorario, horario }, codigoOfertado: undefined }]
@@ -86,6 +85,7 @@ describe('montarPoolRecomendado', () => {
 	beforeEach(() => {
 		curso.materias = [];
 		curso.preRequisitos = [];
+		curso.coRequisitos = [];
 		curso.equivalencias = [];
 		completed.clear();
 		current.clear();
@@ -101,10 +101,7 @@ describe('montarPoolRecomendado', () => {
 	 * recomendação e não disputa vaga no limite de créditos.
 	 */
 	it('a matéria em curso entra sempre, antes das recomendadas', async () => {
-		curso.materias = [
-			materiaDaMatriz('MATR0001', 3, 0, 1),
-			materiaDaMatriz('OBR0001', 1, 0, 2)
-		];
+		curso.materias = [materiaDaMatriz('MATR0001', 3, 0, 1), materiaDaMatriz('OBR0001', 1, 0, 2)];
 		todasComOferta();
 		current.add('MATR0001');
 
@@ -113,7 +110,35 @@ describe('montarPoolRecomendado', () => {
 		expect(r.materias.map((m) => m.codigo)).toEqual(['MATR0001', 'OBR0001']);
 	});
 
-	it('as obrigatórias param no limite de créditos', async () => {
+	/**
+	 * "Só obrigatórias": nenhuma optativa comum é semeada, nem como complemento do
+	 * crédito que sobra — o horário livre é para o aluno/Darcy escolher depois. A
+	 * optatória (que destrava obrigatória) é núcleo e continua entrando.
+	 */
+	it('apenasObrigatorias semeia o núcleo e nenhuma optativa comum', async () => {
+		curso.materias = [
+			materiaDaMatriz('OBR0001', 1, 0, 1),
+			materiaDaMatriz('OPT0001', 0, 1, 2),
+			materiaDaMatriz('OPT0002', 0, 1, 3)
+		];
+		todasComOferta();
+		optatorias = new Map([['OPT0002', ['OBR0001']]]);
+
+		const completa = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
+		const soObrigatorias = await montarPoolRecomendado('2026.2', {
+			limiteCreditos: 24,
+			apenasObrigatorias: true
+		});
+
+		expect(completa.materias.map((m) => m.codigo)).toContain('OPT0001');
+		expect(soObrigatorias.materias.map((m) => m.codigo).sort()).toEqual(['OBR0001', 'OPT0002']);
+	});
+
+	/**
+	 * Obrigatória não é cortada pelo limite na LISTA: quem corta é o solver, onde
+	 * ela pesa mais que optativa. A ordem continua dizendo quem cabe primeiro.
+	 */
+	it('obrigatória além do limite continua na lista, depois das que cabem', async () => {
 		curso.materias = [
 			materiaDaMatriz('OBR0001', 1, 0, 1),
 			materiaDaMatriz('OBR0002', 2, 0, 2),
@@ -125,8 +150,15 @@ describe('montarPoolRecomendado', () => {
 
 		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 12 });
 
-		// 4 créditos cada: cabem 3, e as mais atrasadas (nível baixo) vêm primeiro.
-		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0001', 'OBR0002', 'OBR0003']);
+		// 4 créditos cada: cabem 3, e as mais atrasadas (nível baixo) vêm primeiro;
+		// as outras duas vêm depois, para o solver poder trocá-las.
+		expect(r.materias.map((m) => m.codigo)).toEqual([
+			'OBR0001',
+			'OBR0002',
+			'OBR0003',
+			'OBR0004',
+			'OBR0005'
+		]);
 	});
 
 	/**
@@ -146,8 +178,14 @@ describe('montarPoolRecomendado', () => {
 
 		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 12 });
 
-		// 4 da MATR + 8 de recomendação = 12.
-		expect(r.materias.map((m) => m.codigo)).toEqual(['MATR0001', 'OBR0001', 'OBR0002']);
+		// 4 da MATR + 8 de recomendação = 12; OBR0003 não cabe, mas é obrigatória e
+		// fica na lista, por último.
+		expect(r.materias.map((m) => m.codigo)).toEqual([
+			'MATR0001',
+			'OBR0001',
+			'OBR0002',
+			'OBR0003'
+		]);
 	});
 
 	/**
@@ -170,6 +208,25 @@ describe('montarPoolRecomendado', () => {
 	});
 
 	/**
+	 * TCC e estágio não têm turma com horário em período nenhum — a matrícula é
+	 * pela coordenação. Avisar "não tem turma em 2026.2" para elas era ruído que
+	 * todo aluno no fim do curso via, e escondia o aviso que importa.
+	 */
+	it('TCC e estágio não entram no aviso; obrigatória comum sem turma, sim', async () => {
+		curso.materias = [
+			materiaDaMatriz('OBR0001', 1, 0, 1),
+			materiaDaMatriz('OBR0002', 2, 0, 2),
+			{ ...materiaDaMatriz('FGA0009', 9, 0, 3), nomeMateria: 'TRABALHO DE CONCLUSÃO DE CURSO 1' },
+			{ ...materiaDaMatriz('FGA0021', 8, 0, 4), nomeMateria: 'ESTÁGIO SUPERVISIONADO' }
+		] as MateriaModel[];
+		comOferta = new Set(['OBR0001']);
+
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
+
+		expect(r.obrigatoriasSemOferta).toEqual(['OBR0002']);
+	});
+
+	/**
 	 * As "optatórias": no SIGAA constam como optativa, mas são pré-requisito de
 	 * obrigatória — quem não as faz trava a formatura. Entre optativas, elas vêm
 	 * primeiro; o `fluxogramaStore.optatorias` já mapeia quais são.
@@ -186,6 +243,49 @@ describe('montarPoolRecomendado', () => {
 		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
 
 		expect(r.materias.map((m) => m.codigo)).toEqual(['OPT0003', 'OPT0001', 'OPT0002']);
+	});
+
+	/**
+	 * Caso real (Eng. de Software): TPPE é optativa, mas é pré-requisito de Eng. de
+	 * Produto de Software (obrigatória), e depende de matéria que o aluno cursa agora.
+	 * Ordenar primeiro por "pré-requisito em curso" a mandava para o fim das
+	 * optativas, e o limite acabava em Prática Desportiva e afins antes de chegar nela.
+	 */
+	it('optatória com pré-requisito em curso ainda vem antes da optativa comum', async () => {
+		curso.materias = [
+			materiaDaMatriz('MATR0001', 3, 0, 1),
+			materiaDaMatriz('OPT0001', 0, 1, 2),
+			materiaDaMatriz('OPT0003', 0, 1, 3)
+		];
+		curso.preRequisitos = [
+			{ idMateria: 3, idPreRequisito: 1, codigoMateriaRequisito: 'MATR0001', expressaoLogica: null }
+		];
+		todasComOferta();
+		current.add('MATR0001');
+		optatorias = new Map([['OPT0003', ['OBR0009']]]);
+
+		// Cabe a em curso e mais UMA optativa.
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 8 });
+
+		expect(r.materias.map((m) => m.codigo)).toEqual(['MATR0001', 'OPT0003']);
+	});
+
+	/**
+	 * Teoria e Prática de Eletrônica Digital são correquisito uma da outra: o
+	 * orçamento só tinha espaço para a Teoria, e a Prática ficava fora da lista —
+	 * a grade saía com uma matéria que o SIGAA não deixa matricular sozinha.
+	 */
+	it('traz o correquisito junto, mesmo além do orçamento', async () => {
+		curso.materias = [materiaDaMatriz('OPT0074', 0, 1, 1), materiaDaMatriz('OPT0072', 0, 1, 2, 2)];
+		curso.coRequisitos = [
+			{ idMateria: 1, codigoMateriaCoRequisito: 'OPT0072' },
+			{ idMateria: 2, codigoMateriaCoRequisito: 'OPT0074' }
+		];
+		todasComOferta();
+
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 4 });
+
+		expect(r.materias.map((m) => m.codigo).sort()).toEqual(['OPT0072', 'OPT0074']);
 	});
 
 	/**
@@ -257,5 +357,83 @@ describe('montarPoolRecomendado', () => {
 		});
 
 		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0002']);
+	});
+
+	/**
+	 * Pré-requisito que não fecha nem contando o que ele cursa agora: a matrícula
+	 * seria recusada. Recomendar isso é recomendar uma grade impossível.
+	 */
+	it('não semeia matéria com pré-requisito pendente', async () => {
+		curso.materias = [materiaDaMatriz('OBR0001', 1, 0, 1), materiaDaMatriz('OBR0002', 2, 0, 2)];
+		curso.preRequisitos = [
+			{ idMateria: 2, idPreRequisito: 1, codigoMateriaRequisito: 'XYZ0001', expressaoLogica: null }
+		];
+		todasComOferta();
+
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
+
+		expect(r.materias.map((m) => m.codigo)).toEqual(['OBR0001']);
+	});
+
+	it('dependência em curso continua sendo semeada', async () => {
+		curso.materias = [materiaDaMatriz('MATR0001', 1, 0, 1), materiaDaMatriz('OBR0002', 2, 0, 2)];
+		curso.preRequisitos = [
+			{ idMateria: 2, idPreRequisito: 1, codigoMateriaRequisito: 'MATR0001', expressaoLogica: null }
+		];
+		todasComOferta();
+		current.add('MATR0001');
+
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
+
+		expect(r.materias.map((m) => m.codigo)).toEqual(['MATR0001', 'OBR0002']);
+	});
+
+	it('carimba o nível da matriz na matéria (desempate por atraso)', async () => {
+		curso.materias = [materiaDaMatriz('OBR0001', 3, 0, 1), materiaDaMatriz('OPT0001', 0, 1, 2)];
+		todasComOferta();
+
+		const r = await montarPoolRecomendado('2026.2', { limiteCreditos: 24 });
+
+		expect(r.materias.find((m) => m.codigo === 'OBR0001')?.nivel).toBe(3);
+		expect(r.materias.find((m) => m.codigo === 'OPT0001')?.nivel).toBeUndefined();
+	});
+
+	/**
+	 * "Todas as pendentes": o solver escolhe dentro do limite, então a lista leva
+	 * toda obrigatória com oferta — inclusive as que conflitam entre si ou passam
+	 * do limite, que é justamente o que dá alternativa para a montagem.
+	 */
+	it('todas-pendentes semeia toda obrigatória com oferta, sem cortar por crédito', async () => {
+		curso.materias = [
+			materiaDaMatriz('OBR0001', 1, 0, 1),
+			materiaDaMatriz('OBR0002', 2, 0, 2),
+			materiaDaMatriz('OBR0003', 3, 0, 3),
+			materiaDaMatriz('OPT0001', 0, 1, 4)
+		];
+		todasComOferta();
+		horarioDe = new Map([
+			['OBR0001', '2M12'],
+			['OBR0002', '2M12'],
+			['OBR0003', '3M12'],
+			['OPT0001', '4M12']
+		]);
+
+		// OBR0002 conflita com OBR0001 no encaixe guloso, mas é obrigatória: fica na
+		// lista, por último, e o solver decide qual das duas vale mais.
+		const periodo = await montarPoolRecomendado('2026.2', { limiteCreditos: 8 });
+		expect(periodo.materias.map((m) => m.codigo)).toEqual(['OBR0001', 'OBR0003', 'OBR0002']);
+
+		const todas = await montarPoolRecomendado('2026.2', {
+			limiteCreditos: 8,
+			escopo: 'todas-pendentes'
+		});
+		// Optativa comum continua pelo prefixo do orçamento (num peso menor, o solver
+		// só a encaixa se sobrar espaço depois das obrigatórias).
+		expect(todas.materias.map((m) => m.codigo)).toEqual([
+			'OBR0001',
+			'OBR0002',
+			'OBR0003',
+			'OPT0001'
+		]);
 	});
 });

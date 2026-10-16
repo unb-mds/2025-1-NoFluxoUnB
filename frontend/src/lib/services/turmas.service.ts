@@ -56,6 +56,29 @@ export async function getTurmasPorMaterias(
 	return (data as TurmaOferta[] | null) ?? [];
 }
 
+/**
+ * Período letivo seguinte ao informado: AAAA.1 → AAAA.2 → (AAAA+1).1. Mesma regra
+ * de reserva do `scrape_turmas_lite.yml`, que coleta esse período uma vez por mês.
+ */
+export function proximoPeriodo(periodo: string): string {
+	const [ano, sem] = periodo.split('.');
+	return sem === '1' ? `${ano}.2` : `${Number(ano) + 1}.1`;
+}
+
+/**
+ * Já existe alguma turma coletada para o período? A oferta do próximo semestre só
+ * aparece quando o SIGAA a publica (e a coleta mensal a traz) — antes disso o
+ * Montador planeja com a oferta do semestre atual, como estimativa.
+ */
+export async function temOfertaNoPeriodo(periodo: string): Promise<boolean> {
+	const { count, error } = await supabase
+		.from('turmas')
+		.select('id_turmas', { count: 'exact', head: true })
+		.eq('ano_periodo', periodo);
+	if (error) throw new Error(error.message);
+	return (count ?? 0) > 0;
+}
+
 /** Turma da busca global, já com a matéria a que pertence. */
 export interface TurmaComMateria extends TurmaOferta {
 	codigoMateria: string;

@@ -4,7 +4,7 @@
  * Also handles loading/saving user preferences via supabaseDataService.
  */
 
-import type { PlanoFormatura, PlanoFormaturav2, PreferenciasPlano, PlannerChatMessage, PlannerChatResponse, RestricoesPlano } from '$lib/types/plano-formatura';
+import type { PlanoFormaturav2, PreferenciasPlano, PlannerChatMessage, PlannerChatResponse, RestricoesPlano } from '$lib/types/plano-formatura';
 import { ErroIA } from '$lib/utils/darcy-cota';
 import { DEFAULT_PREFERENCIAS } from '$lib/types/plano-formatura';
 import { supabaseDataService } from './supabase-data.service';
@@ -70,7 +70,6 @@ class PlanoFormaturaService {
 	async savePreferencias(idUser: number, preferencias: PreferenciasPlano): Promise<void> {
 		await supabaseDataService.savePreferenciasPlano(idUser, preferencias);
 	}
-
 	/**
 	 * Envia mensagem para o agente planejador via chat.
 	 * Stateless — frontend envia histórico + planoInput + restrições atuais.

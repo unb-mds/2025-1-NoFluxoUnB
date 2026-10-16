@@ -2,6 +2,7 @@ import { EndpointController, RequestType } from "../interfaces";
 import { Pair, Utils } from "../utils";
 import { Request, Response } from "express";
 import { SupabaseWrapper } from "../supabase_wrapper";
+import { invalidarPerfilAluno } from "../services/chat/perfil_cache";
 import { createControllerLogger } from '../utils/controller_logger';
 import {
     type ExpressaoLogicaRecursiva,
@@ -1025,6 +1026,7 @@ export const FluxogramaController: EndpointController = {
                         semestre_atual: periodo_letivo
                     }).select("*");
                 if (error) throw error;
+                invalidarPerfilAluno(userId as string);
                 return res.status(200).json(data);
             } catch (error: any) {
                 log.error(`Erro ao salvar fluxograma: ${error.message}`);
@@ -1049,6 +1051,7 @@ export const FluxogramaController: EndpointController = {
                     .delete()
                     .eq("id_user", userId);
                 if (error) throw error;
+                invalidarPerfilAluno(userId as string);
                 return res.status(200).json({ success: true });
             } catch (error: any) {
                 log.error(`Erro ao remover fluxograma: ${error.message}`);

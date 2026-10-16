@@ -6,6 +6,10 @@
  * perguntando ao mesmo tempo não passam do limite. O "dia" é o de Brasília e
  * renova à meia-noite (America/Sao_Paulo).
  *
+ * Admins do sistema (tabela `admins`) não têm cota diária: a pergunta não é
+ * contada e a cota volta com `ilimitado: true`. O teto global de custo continua
+ * valendo para todo mundo.
+ *
  * Configuração por env:
  *   AI_COTA_DIARIA     perguntas por usuário por dia (padrão 30);
  *   AI_TETO_DIARIO_RS  custo máximo de IA no dia, em R$ (padrão 15).
@@ -24,6 +28,8 @@ export interface CotaIA {
     restantes: number;
     /** ISO 8601 da próxima meia-noite de Brasília. */
     renova_em: string;
+    /** Admin: sem limite diário (o app esconde a rodinha e nunca bloqueia). */
+    ilimitado?: true;
 }
 
 export interface ReservaCota {
@@ -63,6 +69,51 @@ function primeiraLinha<T>(data: unknown): T | null {
     return (data as T) ?? null;
 }
 
+/** Próxima meia-noite de Brasília (UTC-3, sem horário de verão desde 2019). */
+export function proximaMeiaNoiteBrasilia(agora: number = Date.now()): string {
+    const BRASILIA_MS = 3 * 60 * 60 * 1000;
+    const local = new Date(agora - BRASILIA_MS);
+    const meiaNoiteLocal = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() + 1);
+    return new Date(meiaNoiteLocal + BRASILIA_MS).toISOString();
+}
+
+/** Cota de admin: sem limite, nada contado. */
+export function cotaIlimitada(agora: number = Date.now()): CotaIA {
+    return { usadas: 0, limite: 0, restantes: 0, renova_em: proximaMeiaNoiteBrasilia(agora), ilimitado: true };
+}
+
+/** Por quanto tempo "é admin?" fica em cache por usuário. */
+export const ADMIN_CACHE_MS = 60_000;
+const cacheAdmin = new Map<string, { admin: boolean; em: number }>();
+
+/** Só para testes. */
+export function _limparCacheAdmin(): void {
+    cacheAdmin.clear();
+}
+
+/**
+ * True se o usuário (auth.users.id) está na tabela `admins`. Se o banco falhar,
+ * devolve false: na dúvida a cota vale (nunca libera uso ilimitado por erro).
+ */
+export async function ehAdminSemCota(userId: string, agora: number = Date.now()): Promise<boolean> {
+    const salvo = cacheAdmin.get(userId);
+    if (salvo && agora - salvo.em < ADMIN_CACHE_MS) return salvo.admin;
+    try {
+        const { data, error } = await SupabaseWrapper.get()
+            .from('admins')
+            .select('auth_id')
+            .eq('auth_id', userId)
+            .limit(1);
+        if (error) throw new Error(error.message);
+        const admin = Array.isArray(data) && data.length > 0;
+        cacheAdmin.set(userId, { admin, em: agora });
+        return admin;
+    } catch (e) {
+        console.error('[darcy_cota] checagem de admin falhou:', e instanceof Error ? e.message : e);
+        return false;
+    }
+}
+
 /** Reserva uma pergunta. Lança se o banco falhar (o chamador decide o que fazer). */
 export async function reservarPergunta(userId: string): Promise<ReservaCota> {
     const { data, error } = await SupabaseWrapper.get().rpc('darcy_reservar_pergunta', {
@@ -88,8 +139,9 @@ export async function estornarPergunta(userId: string, dia: string): Promise<voi
     }
 }
 
-/** Estado atual sem consumir (rodinha ao abrir a página). */
+/** Estado atual sem consumir (rodinha ao abrir a página). Admin: `cotaIlimitada`. */
 export async function estadoCota(userId: string): Promise<CotaIA> {
+    if (await ehAdminSemCota(userId)) return cotaIlimitada();
     const { data, error } = await SupabaseWrapper.get().rpc('darcy_estado_cota', {
         p_user_id: userId,
         p_limite_padrao: cotaDiariaPadrao(),

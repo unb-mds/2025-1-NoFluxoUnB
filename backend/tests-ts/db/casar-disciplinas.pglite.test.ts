@@ -9,7 +9,7 @@
 
 import { Job, rodarCenarios, rodarNoBanco } from "./pglite_supabase";
 
-const MIGRATIONS = ["20260928_casar_disciplinas_premortem.sql"];
+const MIGRATIONS = ["20260928_casar_disciplinas_premortem.sql", "20261015130000_casar_disciplinas_turma.sql"];
 
 type Json = Record<string, any>;
 
@@ -232,6 +232,10 @@ const CENARIOS = {
         [disc("MAT0025", "CALCULO 1", "MATR"), disc("FIS9999", "FISICA")]
     ),
     r17_rep_sem_equivalencia: engsoftAluno("", [disc("MAT0025", "CALCULO 1", "REP")]),
+    turma_preservada: engsoftAluno("", [
+        { ...disc("MAT0025", "CALCULO 1", "MATR"), turma: "02" },
+        { ...disc("XXX9999", "NAO EXISTE", "MATR"), turma: "18" },
+    ]),
     r17_rep_equivalencia_incompleta: engsoftAluno(EQ_A_E_B_TEXTO, [
         disc("MAT0025", "CALCULO 1", "REP"),
         disc("AAA0001", "A"),
@@ -435,6 +439,16 @@ describe("R15 — disciplina de outra matriz com equivalência na matriz atual",
         expect(out.materias_pendentes).toEqual([]);
         expect(out.materias_optativas).toEqual([]);
         expect(out.resumo).toMatchObject({ total_obrigatorias: 1, percentual_conclusao_obrigatorias: 100 });
+    });
+});
+
+describe("turma do histórico", () => {
+    it("disciplinas_casadas devolve a turma, casada ou não", () => {
+        const out = r("turma_preservada");
+        const porCodigo = Object.fromEntries(
+            out.disciplinas_casadas.map((d: Json) => [d.codigo_historico, d.turma])
+        );
+        expect(porCodigo).toEqual({ MAT0025: "02", XXX9999: "18" });
     });
 });
 

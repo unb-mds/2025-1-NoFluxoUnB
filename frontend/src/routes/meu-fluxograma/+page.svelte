@@ -267,6 +267,22 @@
 				Importar Histórico
 			</button>
 		</div>
+	{:else if !store.state.courseData && !courseName.trim() && !matrizCurricular.trim()}
+		<!-- Histórico salvo sem curso nem matriz: não há o que carregar (antes ficava tela em branco). -->
+		<div class="mx-auto max-w-md rounded-2xl border border-border bg-card p-8 text-center backdrop-blur-md dark:bg-background/80">
+			<AlertTriangle class="mx-auto mb-3 h-8 w-8 text-amber-700 dark:text-amber-400" />
+			<h2 class="mb-2 text-lg font-semibold text-foreground">Não identificamos seu curso</h2>
+			<p class="mb-4 text-sm text-muted-foreground">
+				Seu histórico foi salvo sem o curso ou a matriz curricular. Envie o histórico novamente para gerar o fluxograma.
+			</p>
+			<button
+				onclick={() => goto(ROUTES.UPLOAD_HISTORICO)}
+				class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-3 font-semibold text-white transition-transform dark:from-blue-500 dark:to-blue-700 hover:scale-105"
+			>
+				<Upload class="h-4 w-4" />
+				Enviar histórico novamente
+			</button>
+		</div>
 	{:else if store.state.courseData}
 		<!--
 			Optativas planejadas: só aparece com itens (componente interno); no topo para destaque.

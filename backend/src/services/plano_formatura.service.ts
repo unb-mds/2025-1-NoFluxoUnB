@@ -307,6 +307,28 @@ export function construirSubstitutosPorCodigo(
 }
 
 /**
+ * Codigos que repetiriam uma materia ja cumprida: os substitutos (ver
+ * construirSubstitutosPorCodigo) de cada materia em `cumpridas`.
+ *
+ * E a direcao que expandirCumpridasComEquivalencias nao cobre. La, "cursou C e
+ * Y ≡ C" marca Y como cumprida; aqui, "X ja esta cumprida e R ≡ X" faz R inutil —
+ * cursar R nao conta de novo, a secretaria nao aproveita duas materias
+ * equivalentes. Mesma regra do Montador (frontend, `jaAproveitadas` em
+ * grade-pool.service.ts) e de docs/montador-de-grade.md.
+ */
+export function substitutosDeCumpridas(
+    substitutosPorCodigo: Map<string, string[]>,
+    cumpridas: Set<string>
+): Set<string> {
+    const out = new Set<string>();
+    for (const [origem, substitutos] of substitutosPorCodigo) {
+        if (!cumpridas.has(origem)) continue;
+        for (const s of substitutos) out.add(s);
+    }
+    return out;
+}
+
+/**
  * Expande o conjunto de codigos com oferta real: uma materia da matriz tambem conta
  * como ofertada quando algum codigo que a substitui tem turma no periodo.
  *
@@ -678,6 +700,10 @@ export interface DisciplinaFluxo {
     tipo_dado?: string;
     nome?: string;
     creditos?: number;
+    /** Turma da matrícula real (MATR), como o histórico SIGAA registra (ex.: "01"). */
+    turma?: string;
+    /** Professor da matrícula real (MATR), como o histórico SIGAA registra. */
+    professor?: string;
 }
 
 /**
@@ -729,6 +755,11 @@ export function parseFluxograma(fluxograma_atual_str: string | null | undefined)
                         tipo_dado: disc.tipo_dado,
                         nome: disc.nome,
                         creditos: disc.creditos,
+                        turma: typeof disc.turma === "string" && disc.turma.trim() ? disc.turma.trim() : undefined,
+                        professor:
+                            typeof disc.professor === "string" && disc.professor.trim()
+                                ? disc.professor.trim()
+                                : undefined,
                     });
                 }
             }
@@ -1005,7 +1036,8 @@ export function gerarPlanoCompletov2(
     fluxogramaAtualJson: string | null | undefined,
     materias: MateriaInput[],
     preferencias?: PreferenciasPlano,
-    codigosComOferta?: Set<string>
+    codigosComOferta?: Set<string>,
+    periodoAtivo?: string  // vem da RPC (calendario_academico); sem ele cai na fórmula por data
 ): PlanoFormaturav2 {
     
     const prefs: PreferenciasPlano = preferencias ?? {
@@ -1085,7 +1117,7 @@ export function gerarPlanoCompletov2(
     );
 
     // Calcular semestre atual como string "2026.1" para preencher labels das colunas
-    const semestreBaseStr = calcularSemestreAtualStr();
+    const semestreBaseStr = periodoAtivo ?? calcularSemestreAtualStr();
 
     // Se o aluno já tem MATR no semestre corrente, o semestre corrente já está "gasto"
     // (aparece à parte em resultado.semestreAtual) e o plano deve começar no seguinte.

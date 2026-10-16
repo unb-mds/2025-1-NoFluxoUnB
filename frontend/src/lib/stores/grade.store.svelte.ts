@@ -6,18 +6,38 @@
  *  - bloqueio de conflito de horário, montagem automática e persistência em
  *    localStorage por usuário + período.
  */
+import type { SnapshotGrade } from '$lib/utils/grade-desfazer';
+import {
+	agendarEnvio,
+	cenariosKey,
+	MAX_CENARIOS,
+	poolKey
+} from '$lib/services/grade-estado.service';
 import {
 	hasConflict,
-	autoMontarGrade,
+	autoMontarGradeCompacta,
+	autoMontarGradeOpcoes,
+	diagnosticarEssenciais,
+	epsilonSeguro,
 	slotMaskFromHorario,
 	turmaRespeitaTurnos,
 	maskDosTurnos,
 	type TurmaComMask,
+	type TurmaCandidata,
+	type MateriaTurmas,
+	type RankingStrategy,
+	type OpcaoGrade,
+	type ErroMontagem,
 	type Turno
 } from '$lib/utils/horario-slots';
+import { fundirCorrequisitos, type CorrequisitosFundidos } from '$lib/utils/correquisitos';
 import type { TurmaOferta } from '$lib/services/turmas.service';
 import { saturada, type SituacaoAcademica } from '$lib/services/situacao-academica.service';
 import { fluxogramaStore } from '$lib/stores/fluxograma.store.svelte';
+import {
+	evaluateExpressaoLogica,
+	getCodigosFromExpressaoLogica
+} from '$lib/utils/expressao-logica';
 
 export interface MateriaGrade {
 	codigo: string;
@@ -56,6 +76,12 @@ export interface MateriaGrade {
 	 * junto com as outras optativas quando a carga optativa já está cumprida.
 	 */
 	optatoria?: boolean;
+	/**
+	 * Semestre esperado na matriz (1 = primeiro). É o que faz a montagem preferir a
+	 * matéria mais atrasada quando duas do mesmo degrau disputam o horário — ver
+	 * `fatorAtraso`. Ausente (ou 0, caso das optativas) = sem preferência.
+	 */
+	nivel?: number;
 }
 
 interface Cenario {
@@ -63,6 +89,14 @@ interface Cenario {
 	nome: string;
 	/** código da matéria → id_turmas selecionado. */
 	selecao: Record<string, number>;
+	/**
+	 * Como este cenário nasceu: `usuario` é o padrão (criado na mão, ou é a "Grade 1"
+	 * inicial); `opcao-solver` é um cenário populado a partir de uma `OpcaoGrade` do
+	 * `montarOpcoes` (`popularOpcoes`) — o switcher de cenários usa isto pra
+	 * diferenciar visualmente (implementação de outro agente). Cenários salvos antes
+	 * deste campo existir voltam como `usuario` (ver `init`).
+	 */
+	origem: 'opcao-solver' | 'usuario' | 'darcy';
 }
 
 export interface SelecaoResultado {
@@ -85,6 +119,13 @@ export interface MontagemResultado {
 	 * caso está intacta, o que manda o aluno procurar defeito no lugar errado.
 	 */
 	candidatas: number;
+	/**
+	 * Diagnóstico estruturado de por que a matéria `essencial` (se houver) não
+	 * coube — `undefined` quando não há `essencial` nesta montagem, ou quando ela
+	 * coube. Calculado por `diagnosticarEssenciais` só quando a essencial cai em
+	 * `naoAlocadas`, com o contexto de turno/pré-requisito que só o store tem.
+	 */
+	erros?: ErroMontagem[];
 }
 
 /**
@@ -175,9 +216,120 @@ export function pesoDaNatureza(
 	return saturada(situacao, natureza) ? PESO_SATURADO : PESO_NECESSARIA;
 }
 
+/** Nível a partir do qual o atraso não dá mais vantagem nenhuma. */
+const NIVEL_TETO_ATRASO = 16;
+/** Vantagem máxima (fração do próprio peso) da matéria do 1º semestre. */
+export const ATRASO_MAX = 0.5;
+
+/**
+ * Multiplicador de peso pelo atraso: entre duas matérias do MESMO degrau, a de
+ * semestre mais baixo na matriz vale um pouco mais — é a que mais atrasa a
+ * formatura e a que mais destrava o resto.
+ *
+ * Por que nunca cruza degrau: o fator vai de 1 a `1 + ATRASO_MAX` (1,5). Duas
+ * matérias de um degrau continuam valendo mais que uma só do mesmo degrau (2 >
+ * 1,5), então encaixar mais matérias segue ganhando de escolher a mais atrasada;
+ * e a conta de `FATOR_ENTRE_DEGRAUS` passa a exigir `1,5·N < 1000` em vez de
+ * `N < 1000` — folga de sobra para qualquer pool que caiba na tela. O bônus de
+ * turma (professor/estratégia, `epsilonSeguro`) continua abaixo de
+ * `PESO_SATURADO`, que é o menor peso possível (fator ≥ 1).
+ */
+export function fatorAtraso(nivel: number | undefined): number {
+	if (!nivel || nivel < 1) return 1;
+	const n = Math.min(nivel, NIVEL_TETO_ATRASO);
+	return 1 + (ATRASO_MAX * (NIVEL_TETO_ATRASO - n)) / (NIVEL_TETO_ATRASO - 1);
+}
+
 /** Docentes comparáveis: sem espaços redundantes, caixa alta. */
 function normDocente(nome: string | null | undefined): string {
 	return (nome ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
+}
+
+/**
+ * O campo `docente` de uma turma pode trazer vários nomes separados por vírgula
+ * (turma com mais de um professor). Comparar a string crua inteira contra o alvo
+ * (como o filtro rígido antigo fazia) cruza fronteira de nome — "ANA" bateria em
+ * "MARIANA" só por causa de substring cru, ou pior, o pedaço de um nome podia
+ * colar com o pedaço do próximo depois da vírgula. Aqui o split vem primeiro:
+ * cada nome é normalizado e comparado individualmente contra o alvo.
+ */
+export function docenteBate(docenteCru: string | null | undefined, alvo: string): boolean {
+	const alvoNorm = normDocente(alvo);
+	if (!alvoNorm) return false;
+	return (docenteCru ?? '')
+		.split(',')
+		.map((nome) => normDocente(nome))
+		.some((nome) => nome.length > 0 && nome.includes(alvoNorm));
+}
+
+/**
+ * Turnos com pelo menos uma turma ofertando, ANTES do filtro de turno permitido —
+ * insumo de `diagnosticarEssenciais` pra distinguir "fora do turno escolhido" de
+ * "sem oferta nenhuma".
+ */
+function turnosDaOferta(turmas: ReadonlyArray<{ mask: bigint }>): Array<'M' | 'T' | 'N'> {
+	const vistos: Array<'M' | 'T' | 'N'> = [];
+	for (const turno of ['M', 'T', 'N'] as const) {
+		if (turmas.some((t) => (t.mask & maskDosTurnos([turno])) !== 0n)) vistos.push(turno);
+	}
+	return vistos;
+}
+
+/**
+ * Códigos de pré-requisito que a matéria `essencial` ainda não cumpre, contra o
+ * histórico do aluno (`fluxogramaStore.completedCodes`) — insumo de
+ * `diagnosticarEssenciais` para `ESSENCIAL_PRE_REQUISITO`. Usa `expressaoLogica`
+ * do curso quando existe (mesma fonte que `satisfazPreRequisitos` em
+ * `types/curso.ts`); sem curso carregado ou sem pré-requisito cadastrado, vazio —
+ * degrada para as outras causas (`ESSENCIAL_SEM_VAGA`/`ESSENCIAL_CONFLITO`).
+ */
+function pendenciasPreRequisitoDe(idMateria: number): string[] {
+	const curso = fluxogramaStore.state.courseData;
+	if (!curso) return [];
+	const completos = fluxogramaStore.completedCodes ?? new Set<string>();
+	const prereqs = curso.preRequisitos.filter((pr) => pr.idMateria === idMateria);
+	const pendentes = new Set<string>();
+	for (const pr of prereqs) {
+		if (pr.expressaoLogica != null) {
+			if (!evaluateExpressaoLogica(pr.expressaoLogica, completos)) {
+				for (const c of getCodigosFromExpressaoLogica(pr.expressaoLogica)) pendentes.add(c);
+			}
+			continue;
+		}
+		const req = (pr.codigoMateriaRequisito || '').trim().toUpperCase();
+		if (req && ![...completos].some((c) => c.trim().toUpperCase() === req)) pendentes.add(req);
+	}
+	return [...pendentes];
+}
+
+/**
+ * As 3 `RankingStrategy` padrão de `montarOpcoes`. Cada uma avalia a grade
+ * INTEIRA (métricas de `autoMontarGradeOpcoes`) e escolhe entre as grades que já
+ * empatam no tanto de matéria por degrau e nas preferências — pode rotacionar
+ * uma obrigatória por outra se a semana fecha melhor, nunca deixa matéria de
+ * fora. A versão anterior pontuava turma por turma e não enxergava o furo
+ * entre duas matérias: "Menos lacunas" chegava a devolver a grade com mais furo.
+ *
+ * O custo é lexicográfico (menor é melhor): o primeiro número é o critério da
+ * estratégia, os seguintes só desempatam. O último é sempre `-pesoAlocado`: entre
+ * semanas iguais, fica a rotação que mantém as matérias mais atrasadas.
+ */
+function construirEstrategiasPadrao(): RankingStrategy<TurmaOferta>[] {
+	return [
+		{
+			nome: 'Menos dias',
+			avaliar: (m) => [m.diasComAula, m.minutosDeLacuna, -m.pesoAlocado]
+		},
+		{
+			nome: 'Menos lacunas',
+			avaliar: (m) => [m.minutosDeLacuna, m.diasComAula, -m.pesoAlocado]
+		},
+		{
+			// Carga parecida em todo dia útil; furo desempata.
+			nome: 'Semana equilibrada',
+			avaliar: (m) => [m.variancaCargaDiaria, m.minutosDeLacuna, -m.pesoAlocado]
+		}
+	];
 }
 
 /**
@@ -234,13 +386,6 @@ function novoId(): string {
 	return `g-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function poolKey(idUser: number | null, periodo: string | null): string | null {
-	return idUser != null && periodo ? `nofluxo:grade:${idUser}:${periodo}:pool` : null;
-}
-function cenariosKey(idUser: number | null, periodo: string | null): string | null {
-	return idUser != null && periodo ? `nofluxo:grade:${idUser}:${periodo}:cenarios` : null;
-}
-
 /** Lê (fora do store) os códigos do pool salvo — a página usa p/ rehidratar turmas. */
 export function lerPoolSalvo(idUser: number | null, periodo: string): string[] {
 	const key = poolKey(idUser, periodo);
@@ -254,13 +399,15 @@ export function lerPoolSalvo(idUser: number | null, periodo: string): string[] {
 }
 
 /** Códigos removidos pelo aluno — a página exclui do re-semeio do recomendado. */
-export function lerRemovidasSalvo(idUser: number | null, periodo: string): string[] {
+export function lerDispensadasSalvo(idUser: number | null, periodo: string): string[] {
 	const key = cenariosKey(idUser, periodo);
 	if (!key || typeof localStorage === 'undefined') return [];
 	try {
 		const obj = JSON.parse(localStorage.getItem(key) ?? '{}');
-		return Array.isArray(obj?.removidas)
-			? obj.removidas.filter((x: unknown): x is string => typeof x === 'string')
+		// `removidas` = nome antigo do campo (cache de antes da troca de nome).
+		const lista = obj?.dispensadas ?? obj?.removidas;
+		return Array.isArray(lista)
+			? lista.filter((x: unknown): x is string => typeof x === 'string')
 			: [];
 	} catch {
 		return [];
@@ -281,7 +428,7 @@ function createGradeStore() {
 	/** Turnos permitidos ao montar a grade (M/T/N). Os 3 = sem filtro. */
 	let turnosPermitidos = $state<Set<Turno>>(new Set<Turno>(['M', 'T', 'N']));
 	/** Códigos que o aluno removeu — não voltam ao re-semear o recomendado. */
-	let removidas = $state<Set<string>>(new Set());
+	let dispensadas = $state<Set<string>>(new Set());
 	/**
 	 * Professor obrigatório por matéria, confirmado numa sessão anterior (vem do
 	 * banco — tabela `preferencias_grade`) e reaplicado em toda montagem automática,
@@ -306,6 +453,13 @@ function createGradeStore() {
 	 */
 	let cursandoAtual = $state<Set<string>>(new Set());
 	/**
+	 * Turma real (id_turmas) da matrícula de cada matéria em curso, vinda do
+	 * histórico SIGAA. Quem define é a rota (`definirTurmasReais`). É a fonte de
+	 * verdade da turma de uma matéria em curso — independe do cenário ativo e da
+	 * trava, que podem ser apagados ("Limpar a grade", cenário novo).
+	 */
+	let turmasReais = $state<Record<string, number>>({});
+	/**
 	 * Códigos travados: `montarAutomatico` nunca reatribui a turma deles, só ocupa o
 	 * horário pras outras matérias otimizarem em volta. Uma matéria de `cursandoAtual`
 	 * trava sozinha assim que o aluno escolhe a turma real dela (`selecionarTurma`) —
@@ -326,6 +480,13 @@ function createGradeStore() {
 	 * obrigatórias ofertadas de fora.
 	 */
 	let incluirCursando = $state(true);
+
+	/**
+	 * A última montagem foi só com obrigatórias? Só em memória, de propósito: é o
+	 * contexto da conversa com a Darcy ("sobrou horário, quer optativa?"), não uma
+	 * preferência do aluno — cada "Gerar opções" decide de novo.
+	 */
+	let montagemSoObrigatorias = $state(false);
 
 	/**
 	 * Matérias em curso que valem para esta montagem. Desligado o modo, o conjunto é
@@ -395,6 +556,7 @@ function createGradeStore() {
 		const key = poolKey(idUser, periodo);
 		if (!key || typeof localStorage === 'undefined') return;
 		localStorage.setItem(key, JSON.stringify(pool.map((m) => m.codigo)));
+		agendarEnvio(idUser, periodo);
 	}
 	function persistCenarios(): void {
 		const key = cenariosKey(idUser, periodo);
@@ -406,10 +568,11 @@ function createGradeStore() {
 				activeId,
 				prioritarias: [...prioritarias],
 				turnos: [...turnosPermitidos],
-				removidas: [...removidas],
+				dispensadas: [...dispensadas],
 				incluirCursando
 			})
 		);
+		agendarEnvio(idUser, periodo);
 	}
 
 	/** Remove seleções cuja turma sumiu do pool ou que passaram a conflitar. */
@@ -442,6 +605,223 @@ function createGradeStore() {
 		return mask;
 	}
 
+	/** Opções de `montarAutomatico`/`montarOpcoes` — as duas montam a mesma entrada do solver. */
+	interface MontarOpts {
+		/**
+		 * Professor preferido por matéria — agora é BÔNUS de desempate (via
+		 * `docenteBate` + `epsilonSeguro`), não filtro rígido: a matéria nunca fica
+		 * de fora só porque nenhuma turma bateu com o professor, ela só deixa de
+		 * ganhar o bônus. Mescla com `docentesPersistidos` (confirmados numa sessão
+		 * anterior); o argumento vence em caso de conflito.
+		 */
+		docentesObrigatorios?: Record<string, string>;
+		/** Teto de créditos do semestre (o slider da tela). */
+		limiteCreditos?: number;
+		/**
+		 * Código da matéria que NUNCA pode ficar de fora — vira `essencial`/`obrigatoria`
+		 * em `MateriaTurmas` (ver docstring de `essencial` em `horario-slots.ts`).
+		 */
+		essencial?: string;
+		/** Professor preferido especificamente para a `essencial` — mesmo bônus, mesmo mecanismo. */
+		professorPreferidoEssencial?: string;
+		/**
+		 * Turnos específicos da `essencial` (preferência por disciplina, coluna
+		 * `preferencias_grade.turnos`) — filtro ADICIONAL só pra ela, por cima do
+		 * `turnosPermitidos` global da tela (interseção das duas). Vazio/ausente = só
+		 * o filtro global vale, como sempre foi.
+		 */
+		turnosEssencial?: Turno[];
+		/**
+		 * Que universo de matérias considerar. O store sempre resolve sobre `pool`
+		 * como ele está no momento da chamada; quem aplica o escopo é a semeadura
+		 * (`onSemear` → `montarPoolRecomendado`): `todas-pendentes` põe na lista toda
+		 * obrigatória pendente com oferta e deixa o solver escolher dentro do limite;
+		 * `periodo-atual` semeia só o prefixo que cabe no limite. Aqui o campo não
+		 * tem efeito próprio.
+		 */
+		escopo?: 'periodo-atual' | 'todas-pendentes';
+		/**
+		 * Só obrigatória e optatória entram no solver; optativa comum (mesmo a que o
+		 * aluno pôs na lista na mão) fica de fora. Matrícula real e a `essencial`
+		 * continuam valendo — foram pedidas/são fato consumado.
+		 */
+		apenasObrigatorias?: boolean;
+	}
+
+	/**
+	 * Monta a entrada do solver (`MateriaTurmas[]` + máscara travada + orçamento)
+	 * a partir do estado do store — compartilhada por `montarAutomatico` (uma
+	 * grade) e `montarOpcoes` (várias, uma por `RankingStrategy`), que não podem
+	 * divergir em COMO os candidatos são filtrados/pesados, só em qual bônus extra
+	 * cada turma recebe por cima.
+	 */
+	function construirEntradaSolver(opts?: MontarOpts): {
+		/** Entrada do solver, com os pares de correquisito fundidos. */
+		materiasSolver: Array<MateriaTurmas<TurmaOferta>>;
+		/** Uma por matéria, sem fusão — o que o diagnóstico da essencial entende. */
+		materiasOriginais: Array<MateriaTurmas<TurmaOferta>>;
+		/** Separa o resultado do solver de volta em matérias. */
+		correquisitos: CorrequisitosFundidos<TurmaOferta>;
+		mascaraTravada: bigint;
+		orcamento: number | undefined;
+		candidatasCount: number;
+		essencialCodigo: string | undefined;
+		bonusProfessor: number;
+		turmasAntesDoFiltroDeTurno: Map<string, unknown[]>;
+		turnosComOferta: Map<string, Array<'M' | 'T' | 'N'>>;
+	} {
+		const essencialCodigo = opts?.essencial?.trim().toUpperCase() || undefined;
+		const docentesEfetivos = { ...docentesPersistidos, ...(opts?.docentesObrigatorios ?? {}) };
+		if (essencialCodigo && opts?.professorPreferidoEssencial) {
+			docentesEfetivos[essencialCodigo] = opts.professorPreferidoEssencial;
+		}
+
+		const mascaraTravada = [...travadasAtivas].reduce((acc, codigo) => {
+			const tg = selecaoAtiva.get(codigo);
+			return tg ? acc | tg.mask : acc;
+		}, 0n);
+
+		// As travadas continuam na grade final, então o crédito delas já está gasto
+		// antes do solver começar — o orçamento que sobra é o do resto.
+		const creditosTravados = [...travadasAtivas].reduce((acc, codigo) => {
+			if (!selecaoAtiva.has(codigo)) return acc;
+			return acc + (pool.find((m) => m.codigo === codigo)?.creditos ?? 0);
+		}, 0);
+		const orcamento =
+			opts?.limiteCreditos === undefined ? undefined : opts.limiteCreditos - creditosTravados;
+
+		const candidatas = pool
+			// Modo desligado: a matéria em curso não é candidata — sai da grade e
+			// devolve o horário e o crédito dela para as outras.
+			// Travada só sai do solver se a turma dela está neste cenário (vira horário
+			// pré-ocupado). Num cenário novo ela não tem turma aqui, e excluí-la fazia a
+			// matéria sumir da montagem em vez de entrar na turma real.
+			.filter((m) => !(travadasAtivas.has(m.codigo) && selecaoAtiva.has(m.codigo)))
+			// A `essencial` fica de fora desta regra: o aluno a pediu explicitamente, e
+			// tirá-la aqui virava "não coube em nenhuma opção" sem motivo de verdade.
+			.filter(
+				(m) => incluirCursando || !cursandoAtual.has(m.codigo) || m.codigo === essencialCodigo
+			)
+			// Pré-requisito que não fecha nem contando o que ele cursa agora: a
+			// matrícula seria recusada, então a montagem automática não a propõe. Ela
+			// continua na lista (o aluno pode escolher turma na mão). Exceções: a
+			// `essencial`, que o aluno pediu explicitamente (se não couber, o
+			// diagnóstico explica o porquê), e a matrícula que já aconteceu.
+			.filter(
+				(m) =>
+					m.nivelPreRequisito !== 'pendente' ||
+					m.codigo === essencialCodigo ||
+					cursandoAtivo.has(m.codigo)
+			)
+			// Mesmo núcleo que `montarPoolRecomendado` semeia (`ehNucleo`). Natureza
+			// ausente conta como optativa, como em `pesoDaNatureza`.
+			.filter(
+				(m) =>
+					!(opts?.apenasObrigatorias ?? montagemSoObrigatorias) ||
+					m.natureza === 'obrigatoria' ||
+					m.optatoria === true ||
+					m.codigo === essencialCodigo ||
+					cursandoAtivo.has(m.codigo)
+			);
+
+		// Bônus seguro de professor — mesmo teto para todas as matérias desta
+		// montagem, dado o tamanho do pool que pode entrar junto na mesma grade.
+		const bonusProfessor = epsilonSeguro(PESO_SATURADO, Math.max(candidatas.length, 1));
+
+		const turmasAntesDoFiltroDeTurno = new Map<string, unknown[]>();
+		const turnosComOferta = new Map<string, Array<'M' | 'T' | 'N'>>();
+
+		const materiasSolver: Array<MateriaTurmas<TurmaOferta>> = candidatas.map((m) => {
+			const docenteAlvo = docentesEfetivos[m.codigo];
+			// Vaga NÃO filtra: turma lotada entra na montagem como qualquer outra. A
+			// lotação é retrato da matrícula de agora (vaga abre em ajuste, matrícula
+			// extraordinária, "seguir turma lotada"), e o aluno vê o status na turma.
+			// Antes a turma lotada saía, e a essencial virava "não tem turma com vaga".
+			turmasAntesDoFiltroDeTurno.set(m.codigo, m.turmas);
+			turnosComOferta.set(m.codigo, turnosDaOferta(m.turmas));
+
+			// Turno continua sendo filtro rígido (o aluno não quer ver grade fora do
+			// turno escolhido). Professor não: agora é bônus por cima da turma que já
+			// passou no turno, não mais um segundo filtro que podia esvaziar a matéria.
+			let turmasNoTurno = m.turmas.filter((t) => turmaRespeitaTurnos(t.mask, turnosPermitidos));
+			// `turnosEssencial` é preferência POR DISCIPLINA (só a essencial), a mais
+			// da tela — interseção com o filtro global, nunca substitui.
+			const essencialAqui = essencialCodigo !== undefined && m.codigo === essencialCodigo;
+			if (essencialAqui && opts?.turnosEssencial && opts.turnosEssencial.length > 0) {
+				const turnosEssencialSet = new Set<Turno>(opts.turnosEssencial);
+				turmasNoTurno = turmasNoTurno.filter((t) => turmaRespeitaTurnos(t.mask, turnosEssencialSet));
+			}
+			let turmas: Array<TurmaCandidata<TurmaOferta>> = docenteAlvo
+				? turmasNoTurno.map((t) =>
+						docenteBate(t.turma.docente, docenteAlvo) ? { ...t, bonus: bonusProfessor } : t
+					)
+				: turmasNoTurno;
+
+			// CUIDADO com o nome: o campo `obrigatoria` de `MateriaTurmas` NÃO é
+			// "obrigatória da matriz" — é "não pode ser barrada pelo teto de
+			// créditos", e isso vale para a matrícula que já aconteceu OU para a
+			// `essencial` (que também não pode ser barrada por crédito). A natureza
+			// da matriz entra pelo `peso`, logo abaixo.
+			const matriculaReal = cursandoAtivo.has(m.codigo);
+
+			// Matrícula com turma real conhecida só tem UMA turma possível — a dela,
+			// fora de qualquer filtro de turno. Sem isto a turma real só sobrevivia
+			// enquanto estivesse travada no cenário ativo: "Limpar a grade", um
+			// cenário novo ou uma seleção antiga errada deixavam o solver trocar a
+			// turma de uma matéria que o aluno já cursa.
+			// Vale também para a essencial que o aluno já cursa com o modo desligado:
+			// ela entra na grade, e a turma dela é a da matrícula, não outra qualquer.
+			const idReal =
+				matriculaReal || (essencialAqui && cursandoAtual.has(m.codigo))
+					? turmasReais[m.codigo]
+					: undefined;
+			const turmaReal =
+				idReal !== undefined ? m.turmas.find((t) => t.turma.id_turmas === idReal) : undefined;
+			if (turmaReal) turmas = [turmaReal];
+
+			const degrau = matriculaReal
+				? PESO_CURSANDO
+				: prioritarias.has(m.codigo)
+					? PESO_PRIORITARIA
+					: pesoDaNatureza(m.natureza, situacao, m.optatoria === true);
+
+			return {
+				chave: m.codigo,
+				turmas,
+				creditos: m.creditos,
+				obrigatoria: matriculaReal || essencialAqui,
+				essencial: essencialAqui,
+				// Dentro do degrau, a mais atrasada na matriz vale um pouco mais
+				// (`fatorAtraso`, nunca cruza degrau). Matrícula real não precisa.
+				peso: matriculaReal ? degrau : degrau * fatorAtraso(m.nivel),
+				// Sem o atraso: é o que deixa as opções rotacionarem matérias do degrau.
+				pesoDegrau: degrau
+			};
+		});
+
+		// Correquisito: o par entra junto ou nenhuma entra (`utils/correquisitos`).
+		// Travada já na grade atende o correquisito; matrícula real não passa pela regra.
+		const correquisitos = fundirCorrequisitos(
+			materiasSolver,
+			new Map(candidatas.map((m) => [m.codigo, m.coRequisitos ?? []])),
+			new Set([...travadasAtivas].filter((c) => selecaoAtiva.has(c))),
+			cursandoAtivo
+		);
+
+		return {
+			materiasSolver: correquisitos.materias,
+			materiasOriginais: materiasSolver,
+			correquisitos,
+			mascaraTravada,
+			orcamento,
+			candidatasCount: candidatas.length,
+			essencialCodigo,
+			bonusProfessor,
+			turmasAntesDoFiltroDeTurno,
+			turnosComOferta
+		};
+	}
+
 	return {
 		get pool() {
 			return pool;
@@ -471,8 +851,79 @@ function createGradeStore() {
 		get creditosSelecionados() {
 			return creditosSelecionados;
 		},
+
+		/**
+		 * O que a grade já ocupa, do ponto de vista de quem vai semear o resto
+		 * (`montarPoolRecomendado`, campo `base`).
+		 *
+		 * Matéria em curso fora daqui: o crédito dela a semeadura já cobra sozinha
+		 * (`cursandoOcupaOrcamento`). Somar de novo pela seleção cobrava duas vezes —
+		 * e com o modo "sem as cursando" cobrava matéria que nem vai para a grade.
+		 * Nos dois casos sobrava zero de orçamento e a lista não ganhava
+		 * complemento: a essencial saía sozinha na grade. O horário dela só bloqueia
+		 * quando ela de fato entra (modo ligado, ou é a essencial).
+		 */
+		orcamentoParaSemear(essencial?: string | null): { mask: bigint; creditos: number } {
+			let mask = 0n;
+			let creditos = 0;
+			for (const [codigo, t] of selecaoAtiva) {
+				const emCurso = cursandoAtual.has(codigo);
+				if (emCurso && !incluirCursando && codigo !== essencial) continue;
+				mask |= t.mask;
+				if (!emCurso || !incluirCursando) {
+					creditos += pool.find((m) => m.codigo === codigo)?.creditos ?? 0;
+				}
+			}
+			return { mask, creditos };
+		},
 		get ultimaMontagem() {
 			return ultimaMontagem;
+		},
+
+		/**
+		 * Por que cada matéria com estrela AINDA NÃO está na grade (só as que não estão).
+		 * Estrela é preferência forte, não garantia — sem isto o aluno não tem como saber
+		 * se a estrela "pegou". Texto pronto para mostrar.
+		 */
+		get motivosPrioritarias(): Map<string, string> {
+			const out = new Map<string, string>();
+			for (const codigo of prioritarias) {
+				if (selecaoAtiva.has(codigo)) continue;
+				const m = pool.find((x) => x.codigo === codigo);
+				if (!m) {
+					out.set(codigo, 'ela não está mais na sua lista');
+					continue;
+				}
+				if (cursandoAtivo.has(codigo) && !incluirCursando) {
+					out.set(codigo, 'você já cursa e escolheu montar sem as matérias em curso');
+					continue;
+				}
+				if (m.turmas.length === 0) {
+					out.set(codigo, 'não tem turma ofertada neste período');
+					continue;
+				}
+				const noTurno = m.turmas.filter((t) => turmaRespeitaTurnos(t.mask, turnosPermitidos));
+				if (noTurno.length === 0) {
+					out.set(codigo, 'todas as turmas dela estão fora dos turnos que você permitiu');
+					continue;
+				}
+				// A turma que menos atrapalha, e com quem ela bate na grade de agora.
+				let melhor: string[] | null = null;
+				for (const t of noTurno) {
+					const bate: string[] = [];
+					for (const [c, sel] of selecaoAtiva) if (hasConflict(t.mask, sel.mask)) bate.push(c);
+					if (melhor === null || bate.length < melhor.length) melhor = bate;
+				}
+				out.set(
+					codigo,
+					melhor && melhor.length > 0
+						? `o horário bate com ${melhor.join(', ')}`
+						: ultimaMontagem
+							? 'não coube no limite de créditos ou tem pré-requisito pendente'
+							: 'cabe, mas ainda não foi encaixada — vale na próxima montagem'
+				);
+			}
+			return out;
 		},
 		get hoverCodigo() {
 			return hoverCodigo;
@@ -541,9 +992,113 @@ function createGradeStore() {
 			return { ...(cenarioAtivo?.selecao ?? {}) };
 		},
 
-		/** Restaura uma seleção tirada por `snapshotSelecao`. */
+		/**
+		 * Foto de TUDO que uma mudança da Darcy pode alterar (abas, ativa, lista,
+		 * estrelas, turnos, dispensadas, "incluir cursando") — o ponto de desfazer.
+		 */
+		snapshotCompleto(): SnapshotGrade {
+			return {
+				grades: grades.map((g) => ({ ...g, selecao: { ...g.selecao } })),
+				activeId,
+				pool: pool.map((m) => m.codigo),
+				prioritarias: [...prioritarias],
+				turnos: [...turnosPermitidos],
+				dispensadas: [...dispensadas],
+				incluirCursando
+			};
+		},
+
+		/** Códigos do snapshot que não estão mais na lista (a tela os re-adiciona antes de restaurar). */
+		faltantesNoPool(s: SnapshotGrade): string[] {
+			const tem = new Set(pool.map((m) => m.codigo));
+			return s.pool.filter((c) => !tem.has(c));
+		},
+
+		/**
+		 * Volta ao estado de `snapshotCompleto`. As seleções passam por `reconciliar`:
+		 * turma que saiu da oferta nesse meio-tempo não volta (devolve quais caíram).
+		 */
+		restaurarCompleto(s: SnapshotGrade): { descartadas: string[] } {
+			prioritarias = new Set(s.prioritarias);
+			turnosPermitidos = new Set<Turno>(s.turnos.length > 0 ? s.turnos : ['M', 'T', 'N']);
+			// Ponto de desfazer guardado antes da troca de nome ainda traz `removidas`.
+			dispensadas = new Set(s.dispensadas ?? (s as unknown as { removidas?: string[] }).removidas ?? []);
+			incluirCursando = s.incluirCursando;
+			const descartadas: string[] = [];
+			const restauradas = s.grades.map((g) => {
+				const selecao = reconciliar(g.selecao);
+				for (const c of Object.keys(g.selecao)) if (!(c in selecao)) descartadas.push(c);
+				return { id: g.id, nome: g.nome, origem: g.origem, selecao };
+			});
+			grades = restauradas.length > 0 ? restauradas : grades;
+			activeId = grades.some((g) => g.id === s.activeId) ? s.activeId : grades[0].id;
+			ultimaMontagem = null;
+			persistPool();
+			persistCenarios();
+			return { descartadas: [...new Set(descartadas)] };
+		},
+
+		/**
+		 * Caminho ÚNICO para aplicar uma seleção pronta (código → id_turmas) no
+		 * cenário ativo — usado tanto pelo clique numa `OpcaoGrade` já montada na tela
+		 * quanto pelo handler do chat quando a Darcy manda `opcaoGrade` pronta (em vez
+		 * da tag de texto, que ainda passa por `montarAutomatico`). Reconcilia contra
+		 * o pool antes de aplicar: turma que sumiu ou passou a conflitar não entra —
+		 * mesma rede de segurança que `init` já aplica em cenário restaurado do
+		 * localStorage.
+		 *
+		 * `selecao` vem de `OpcaoGrade.resultado.selecao` (via `montarOpcoes`), que
+		 * NUNCA inclui as travadas — elas são horário pré-ocupado passado pro solver
+		 * via `mascaraTravada`, não candidatas dele (mesmo motivo por trás do merge em
+		 * `montarAutomatico`, linhas ~1174-1179). Sem mesclar aqui, aplicar uma opção
+		 * apagaria a turma de qualquer matéria travada do cenário ativo.
+		 */
+		aplicarSelecao(selecao: Record<string, number>): void {
+			const comTravadas: Record<string, number> = {};
+			for (const codigo of travadasAtivas) {
+				const tg = selecaoAtiva.get(codigo);
+				if (tg) comTravadas[codigo] = tg.turma.id_turmas;
+			}
+			updateAtivo(() => reconciliar({ ...comTravadas, ...selecao }));
+		},
+
+		/** Restaura uma seleção tirada por `snapshotSelecao` — mesmo caminho de `aplicarSelecao`. */
 		restaurarSelecao(snapshot: Record<string, number>): void {
-			updateAtivo(() => ({ ...snapshot }));
+			this.aplicarSelecao(snapshot);
+		},
+
+		/**
+		 * Mapeia cada `OpcaoGrade` (uma por `RankingStrategy` de `montarOpcoes`) para
+		 * um cenário novo, nomeado pela estratégia — não mexe no cenário ativo, só
+		 * populam a lista pra o aluno comparar lado a lado antes de escolher uma. A
+		 * tela troca de cenário direto por `selecionarCenario` no clique (não passa
+		 * por `aplicarSelecao`), então cada cenário criado aqui já precisa vir com a
+		 * seleção completa — inclusive as travadas, pelo mesmo motivo documentado em
+		 * `aplicarSelecao`: `opcao.resultado.selecao` nunca inclui quem está travado.
+		 */
+		popularOpcoes(opcoes: OpcaoGrade<TurmaOferta>[]): void {
+			if (opcoes.length === 0) return;
+			const selecaoTravadas: Record<string, number> = {};
+			for (const codigo of travadasAtivas) {
+				const tg = selecaoAtiva.get(codigo);
+				if (tg) selecaoTravadas[codigo] = tg.turma.id_turmas;
+			}
+			// Teto de grades por semestre (o servidor também recusa acima disso): as opções do
+			// solver anteriores já foram dispensadas pela tela; aqui só cabem as que sobram.
+			const vagas = Math.max(0, MAX_CENARIOS - grades.length);
+			const novos: Cenario[] = opcoes.slice(0, vagas).map((opcao) => ({
+				id: novoId(),
+				nome: opcao.estrategia,
+				selecao: {
+					...selecaoTravadas,
+					...Object.fromEntries(
+						[...opcao.resultado.selecao].map(([codigo, t]) => [codigo, t.turma.id_turmas])
+					)
+				},
+				origem: 'opcao-solver'
+			}));
+			grades = [...grades, ...novos];
+			persistCenarios();
 		},
 
 		get turnosPermitidos() {
@@ -555,8 +1110,8 @@ function createGradeStore() {
 		 * pool (a rota, ao montar a grade automaticamente) precisa respeitar essa
 		 * escolha — `addMateriaAoPool` limpa a marca, então filtrar é com o chamador.
 		 */
-		get removidas() {
-			return removidas;
+		get dispensadas() {
+			return dispensadas;
 		},
 
 		/** Filtro de turno ativo (1 ou 2 turnos selecionados; 0 ou 3 = sem filtro). */
@@ -587,6 +1142,14 @@ function createGradeStore() {
 
 		get incluirCursando() {
 			return incluirCursando;
+		},
+
+		get montagemSoObrigatorias() {
+			return montagemSoObrigatorias;
+		},
+
+		setMontagemSoObrigatorias(valor: boolean): void {
+			montagemSoObrigatorias = valor;
 		},
 
 		/**
@@ -636,14 +1199,23 @@ function createGradeStore() {
 			// montador) não pode herdar travas/cursando da sessão anterior do store —
 			// quem sabe o estado atual é a rota, via `definirCursandoAtual` logo após.
 			cursandoAtual = new Set();
+			turmasReais = {};
 			travadas = new Set();
 
 			const key = cenariosKey(idUser, periodo);
 			let restaurado: {
-				grades: Cenario[];
+				grades: Array<{
+					id: string;
+					nome: string;
+					selecao?: Record<string, number>;
+					/** Ausente em cenário salvo antes deste campo existir. */
+					origem?: Cenario['origem'];
+				}>;
 				activeId: string;
 				prioritarias?: string[];
 				turnos?: Turno[];
+				dispensadas?: string[];
+				/** Nome antigo — cache salvo antes da troca. */
 				removidas?: string[];
 				incluirCursando?: boolean;
 			} | null = null;
@@ -664,7 +1236,8 @@ function createGradeStore() {
 					? restaurado!.turnos
 					: ['M', 'T', 'N']
 			);
-			removidas = new Set(Array.isArray(restaurado?.removidas) ? restaurado!.removidas : []);
+			const dispensadasSalvas = restaurado?.dispensadas ?? restaurado?.removidas;
+			dispensadas = new Set(Array.isArray(dispensadasSalvas) ? dispensadasSalvas : []);
 			// Ausente no storage (cenário salvo antes desta opção existir) = ligado, que
 			// é o comportamento de sempre.
 			incluirCursando =
@@ -674,14 +1247,16 @@ function createGradeStore() {
 				grades = restaurado.grades.map((g) => ({
 					id: g.id,
 					nome: g.nome,
-					selecao: reconciliar(g.selecao ?? {})
+					selecao: reconciliar(g.selecao ?? {}),
+					origem:
+						g.origem === 'opcao-solver' || g.origem === 'darcy' ? g.origem : 'usuario'
 				}));
 				activeId = grades.some((g) => g.id === restaurado!.activeId)
 					? restaurado.activeId
 					: grades[0].id;
 			} else {
 				const id = novoId();
-				grades = [{ id, nome: 'Grade 1', selecao: {} }];
+				grades = [{ id, nome: 'Grade 1', selecao: {}, origem: 'usuario' }];
 				activeId = id;
 			}
 
@@ -697,10 +1272,10 @@ function createGradeStore() {
 		addMateriaAoPool(materia: MateriaGrade): void {
 			if (pool.some((m) => m.codigo === materia.codigo)) return;
 			pool = [...pool, materia];
-			if (removidas.has(materia.codigo)) {
-				const nr = new Set(removidas);
+			if (dispensadas.has(materia.codigo)) {
+				const nr = new Set(dispensadas);
 				nr.delete(materia.codigo);
-				removidas = nr;
+				dispensadas = nr;
 			}
 			persistPool();
 			persistCenarios();
@@ -729,9 +1304,9 @@ function createGradeStore() {
 				nt.delete(codigo);
 				travadas = nt;
 			}
-			const nr = new Set(removidas);
+			const nr = new Set(dispensadas);
 			nr.add(codigo);
-			removidas = nr;
+			dispensadas = nr;
 			ultimaMontagem = null;
 			persistPool();
 			persistCenarios();
@@ -815,6 +1390,37 @@ function createGradeStore() {
 			if (jaEscolhidas.length > 0) travadas = new Set([...travadas, ...jaEscolhidas]);
 		},
 
+		/**
+		 * Registra a turma real de cada matéria em curso e corrige o cenário ativo:
+		 * seleção restaurada que aponta outra turma (ex.: escolhida por uma montagem
+		 * antiga) volta para a da matrícula, e a matéria trava. Seleção que conflitaria
+		 * com outra matéria não é forçada aqui — a próxima montagem já respeita a
+		 * turma real e resolve em volta dela.
+		 */
+		definirTurmasReais(mapa: Record<string, number>): void {
+			turmasReais = Object.fromEntries(
+				Object.entries(mapa).map(([c, id]) => [c.trim().toUpperCase(), id])
+			);
+			const corrigir: Record<string, number> = {};
+			for (const [codigo, idReal] of Object.entries(turmasReais)) {
+				if (!cursandoAtual.has(codigo)) continue;
+				const atual = cenarioAtivo?.selecao[codigo];
+				if (atual === idReal) continue;
+				const tg = pool
+					.find((m) => m.codigo === codigo)
+					?.turmas.find((t) => t.turma.id_turmas === idReal);
+				if (!tg) continue;
+				const conflita = [...selecaoAtiva].some(
+					([c, t]) => c !== codigo && hasConflict(tg.mask, t.mask)
+				);
+				if (!conflita) corrigir[codigo] = idReal;
+			}
+			if (Object.keys(corrigir).length > 0) {
+				updateAtivo((sel) => ({ ...sel, ...corrigir }));
+				travadas = new Set([...travadas, ...Object.keys(corrigir)]);
+			}
+		},
+
 		/** Destrava manualmente — o aluno quer que "Montar grade" mexa nessa também. */
 		destravar(codigo: string): void {
 			if (!travadas.has(codigo)) return;
@@ -824,10 +1430,10 @@ function createGradeStore() {
 		},
 
 		/**
-		 * `docentesObrigatorios` (código → nome) é um filtro RÍGIDO, não bônus: a
-		 * matéria só considera turmas daquele professor e pode ficar de fora se
-		 * nenhuma bater — diferente do antigo bônus de desempate, que nunca deixava
-		 * uma matéria fora por causa de preferência. Mescla com `docentesPersistidos`
+		 * `docentesObrigatorios` (código → nome) hoje é BÔNUS de desempate (via
+		 * `docenteBate`), não mais filtro rígido — a matéria nunca fica de fora só
+		 * porque nenhuma turma bateu com o professor, ela só deixa de ganhar o
+		 * bônus e pode sair com outro professor. Mescla com `docentesPersistidos`
 		 * (confirmados numa sessão anterior); o argumento vence em caso de conflito.
 		 *
 		 * Matérias travadas (`travadas` — cursando agora, turma real já escolhida)
@@ -839,64 +1445,35 @@ function createGradeStore() {
 		 * aluno já está cursando (`cursandoAtual`) entram primeiro e comem o
 		 * orçamento — se elas sozinhas já estouram o teto, ninguém mais entra, mas
 		 * nenhuma delas sai: a matrícula já aconteceu de verdade.
+		 *
+		 * `essencial` (código) é a única matéria desta montagem que NUNCA pode
+		 * ficar de fora — ver docstring de `essencial` em `horario-slots.ts`. Se
+		 * mesmo assim ela cair em `naoAlocadas`, o resultado vem com `erros`
+		 * (`diagnosticarEssenciais`, chamado só neste caso — é a única situação em
+		 * que vale o custo de classificar a causa).
 		 */
-		montarAutomatico(opts?: {
-			docentesObrigatorios?: Record<string, string>;
-			limiteCreditos?: number;
-		}): MontagemResultado {
-			const docentesEfetivos = { ...docentesPersistidos, ...(opts?.docentesObrigatorios ?? {}) };
-
-			const mascaraTravada = [...travadasAtivas].reduce((acc, codigo) => {
-				const tg = selecaoAtiva.get(codigo);
-				return tg ? acc | tg.mask : acc;
-			}, 0n);
-
-			// As travadas continuam na grade final, então o crédito delas já está gasto
-			// antes do solver começar — o orçamento que sobra é o do resto.
-			const creditosTravados = [...travadasAtivas].reduce((acc, codigo) => {
-				if (!selecaoAtiva.has(codigo)) return acc;
-				return acc + (pool.find((m) => m.codigo === codigo)?.creditos ?? 0);
-			}, 0);
-			const orcamento =
-				opts?.limiteCreditos === undefined ? undefined : opts.limiteCreditos - creditosTravados;
-
-			const candidatas = pool
-				// Modo desligado: a matéria em curso não é candidata — sai da grade e
-				// devolve o horário e o crédito dela para as outras.
-				.filter((m) => !travadasAtivas.has(m.codigo))
-				.filter((m) => incluirCursando || !cursandoAtual.has(m.codigo));
-
-			const r = autoMontarGrade(
-				candidatas
-					.map((m) => {
-						const docenteAlvo = docentesEfetivos[m.codigo];
-						// Só considera turmas dentro dos turnos permitidos e, se houver
-						// professor obrigatório pra essa matéria, só as turmas dele.
-						let turmas = m.turmas.filter((t) => turmaRespeitaTurnos(t.mask, turnosPermitidos));
-						if (docenteAlvo) {
-							const alvoNorm = normDocente(docenteAlvo);
-							turmas = turmas.filter((t) => normDocente(t.turma.docente).includes(alvoNorm));
-						}
-						// CUIDADO com o nome: o campo `obrigatoria` de `MateriaTurmas` NÃO é
-						// "obrigatória da matriz" — é "não pode ser barrada pelo teto de
-						// créditos", e isso só vale para a matrícula que já aconteceu. A
-						// natureza da matriz entra pelo `peso`, logo abaixo.
-						const matriculaReal = cursandoAtivo.has(m.codigo);
-						return {
-							chave: m.codigo,
-							turmas,
-							creditos: m.creditos,
-							obrigatoria: matriculaReal,
-							peso: matriculaReal
-								? PESO_CURSANDO
-								: prioritarias.has(m.codigo)
-									? PESO_PRIORITARIA
-									: pesoDaNatureza(m.natureza, situacao, m.optatoria === true)
-						};
-					}),
-				mascaraTravada,
-				orcamento
+		montarAutomatico(opts?: MontarOpts): MontagemResultado {
+			const entrada = construirEntradaSolver(opts);
+			const r = entrada.correquisitos.separar(
+				autoMontarGradeCompacta(entrada.materiasSolver, entrada.mascaraTravada, entrada.orcamento)
 			);
+
+			let erros: ErroMontagem[] | undefined;
+			if (entrada.essencialCodigo && r.naoAlocadas.includes(entrada.essencialCodigo)) {
+				const materiaEssencial = pool.find((m) => m.codigo === entrada.essencialCodigo);
+				const pendenciasPreRequisito = new Map<string, string[]>();
+				if (materiaEssencial) {
+					const pendencias = pendenciasPreRequisitoDe(materiaEssencial.idMateria);
+					if (pendencias.length > 0) pendenciasPreRequisito.set(entrada.essencialCodigo, pendencias);
+				}
+				erros = diagnosticarEssenciais(entrada.materiasOriginais, r.naoAlocadas, {
+					turmasAntesDoFiltroDeTurno: entrada.turmasAntesDoFiltroDeTurno,
+					turnosComOferta: entrada.turnosComOferta,
+					pendenciasPreRequisito,
+					mascaraInicial: entrada.mascaraTravada
+				});
+			}
+
 			const novaSel: Record<string, number> = {};
 			for (const codigo of travadasAtivas) {
 				const tg = selecaoAtiva.get(codigo);
@@ -907,10 +1484,79 @@ function createGradeStore() {
 			ultimaMontagem = {
 				naoAlocadas: r.naoAlocadas,
 				truncado: r.truncado,
-				candidatas: candidatas.length
+				candidatas: entrada.candidatasCount,
+				...(erros ? { erros } : {})
 			};
 			persistCenarios();
 			return ultimaMontagem;
+		},
+
+		/**
+		 * Facade do frontend para `autoMontarGradeOpcoes`: monta até 6 grades
+		 * alternativas (uma por `RankingStrategy` escolhida — "Menos dias", "Menos
+		 * lacunas", "Semana equilibrada"), reaproveitando a MESMA entrada de
+		 * candidatos que `montarAutomatico` — os dois não podem divergir em quem é
+		 * candidato, só no bônus extra que cada estratégia soma por cima. Não aplica
+		 * nada no cenário ativo sozinho — quem decide o que fazer com as opções é
+		 * `popularOpcoes` (lista lado a lado, cenário por opção) ou `aplicarSelecao`
+		 * (aplica uma seleção pronta direto), a critério de quem chama.
+		 *
+		 * `estrategias` (nomes) filtra as 3 padrão pelo que o aluno marcou no Passo 1
+		 * do wizard (`MontadorParametros`) — nomes desconhecidos são ignorados; lista
+		 * vazia/ausente cai nas 3 padrão (nunca gera zero opções por causa disto).
+		 *
+		 * Cada `OpcaoGrade.resultado.naoAlocadas`/`.selecao` já basta para quem chama
+		 * decidir se a `essencial` coube (`MontadorGradeView` faz isso direto,
+		 * `opcoes.some(o => o.resultado.selecao.has(essencial))`); quem quiser a causa
+		 * estruturada (turno/pré-requisito/conflito) chama `diagnosticarEssenciais`
+		 * por cima — mesmo padrão de `montarAutomatico`, só que não roda aqui de
+		 * graça: com múltiplas opções o chamador é quem sabe se already tem o que
+		 * precisa só olhando `naoAlocadas`.
+		 */
+		montarOpcoes(
+			opts?: MontarOpts & { estrategias?: string[]; maxOpcoes?: number }
+		): OpcaoGrade<TurmaOferta>[] {
+			const entrada = construirEntradaSolver(opts);
+			const padrao = construirEstrategiasPadrao();
+			const nomesEscolhidos = new Set(opts?.estrategias ?? []);
+			const estrategias =
+				nomesEscolhidos.size > 0 ? padrao.filter((e) => nomesEscolhidos.has(e.nome)) : padrao;
+
+			return autoMontarGradeOpcoes(
+				entrada.materiasSolver,
+				entrada.mascaraTravada,
+				entrada.orcamento,
+				estrategias.length > 0 ? estrategias : padrao,
+				opts?.maxOpcoes,
+				(turma) => turma.id_turmas
+			).map(entrada.correquisitos.separarOpcao);
+		},
+
+		/**
+		 * Diagnóstico estruturado de por que a `essencial` não coube em nenhuma
+		 * `OpcaoGrade` de `montarOpcoes` — separado da montagem em si (ao contrário
+		 * de `montarAutomatico`, que já embute isso em `erros`) porque, com múltiplas
+		 * opções, saber SE coube é tão barato quanto `opcoes.some(...)` — só vale
+		 * calcular a causa estruturada quando o chamador realmente precisa mostrá-la.
+		 */
+		diagnosticarEssencialDasOpcoes(
+			opts: MontarOpts,
+			naoAlocadas: string[]
+		): ErroMontagem[] {
+			const entrada = construirEntradaSolver(opts);
+			if (!entrada.essencialCodigo) return [];
+			const materiaEssencial = pool.find((m) => m.codigo === entrada.essencialCodigo);
+			const pendenciasPreRequisito = new Map<string, string[]>();
+			if (materiaEssencial) {
+				const pendencias = pendenciasPreRequisitoDe(materiaEssencial.idMateria);
+				if (pendencias.length > 0) pendenciasPreRequisito.set(entrada.essencialCodigo, pendencias);
+			}
+			return diagnosticarEssenciais(entrada.materiasOriginais, naoAlocadas, {
+				turmasAntesDoFiltroDeTurno: entrada.turmasAntesDoFiltroDeTurno,
+				turnosComOferta: entrada.turnosComOferta,
+				pendenciasPreRequisito,
+				mascaraInicial: entrada.mascaraTravada
+			});
 		},
 
 		/**
@@ -928,22 +1574,22 @@ function createGradeStore() {
 		/**
 		 * Esvazia tudo — lista de matérias e grade — e marca cada código como
 		 * removido, para o recarregamento da página não re-semear o que o aluno
-		 * acabou de apagar. "Voltar ao início" é o caminho de volta: ele zera as
-		 * `removidas` e refaz o preenchimento automático.
+		 * acabou de apagar. "Recomeçar do zero" (menu da grade) é o caminho de volta: ele zera as
+		 * `dispensadas` e refaz o preenchimento automático.
 		 */
 		limparTudo(): void {
-			const nr = new Set(removidas);
-			// Matrícula em curso nunca entra em `removidas`: ela é fato consumado, não
-			// sugestão do app. A rota filtra as em curso por `removidas` ao carregar, então
+			const nr = new Set(dispensadas);
+			// Matrícula em curso nunca entra em `dispensadas`: ela é fato consumado, não
+			// sugestão do app. A rota filtra as em curso por `dispensadas` ao carregar, então
 			// marcá-las aqui fazia "Limpar tudo" apagar em definitivo, de todo carregamento
 			// seguinte, as matérias em que o aluno JÁ está matriculado.
 			for (const m of pool) if (!cursandoAtual.has(m.codigo)) nr.add(m.codigo);
-			removidas = nr;
+			dispensadas = nr;
 			pool = [];
 			prioritarias = new Set();
 			travadas = new Set();
 			const id = novoId();
-			grades = [{ id, nome: 'Grade 1', selecao: {} }];
+			grades = [{ id, nome: 'Grade 1', selecao: {}, origem: 'usuario' }];
 			activeId = id;
 			ultimaMontagem = null;
 			persistPool();
@@ -953,18 +1599,18 @@ function createGradeStore() {
 		/**
 		 * Volta o montador ao estado de início: pool recém-semeado, um único cenário
 		 * "Grade 1" com a seleção dada (turmas reais das matérias em curso), sem
-		 * removidas/prioridades/travas/filtro de turno de sessões passadas. Quem
+		 * dispensadas/prioridades/travas/filtro de turno de sessões passadas. Quem
 		 * calcula pool e seleção é a rota — o store só aplica e persiste.
 		 */
 		resetarParaInicio(poolInicial: MateriaGrade[], selecao: Record<string, number> = {}): void {
 			pool = poolInicial;
-			removidas = new Set();
+			dispensadas = new Set();
 			prioritarias = new Set();
 			travadas = new Set();
 			cursandoAtual = new Set();
 			turnosPermitidos = new Set<Turno>(['M', 'T', 'N']);
 			const id = novoId();
-			grades = [{ id, nome: 'Grade 1', selecao: reconciliar(selecao) }];
+			grades = [{ id, nome: 'Grade 1', selecao: reconciliar(selecao), origem: 'usuario' }];
 			activeId = id;
 			ultimaMontagem = null;
 			persistPool();
@@ -1041,12 +1687,30 @@ function createGradeStore() {
 		},
 
 		// ─── Cenários ────────────────────────────────────────────────────────────
-		criarCenario(nome?: string): void {
+		/** `false` quando já há MAX_CENARIOS grades neste semestre (nada é criado). */
+		criarCenario(nome?: string, origem: Cenario['origem'] = 'usuario'): boolean {
+			if (grades.length >= MAX_CENARIOS) return false;
 			const id = novoId();
-			grades = [...grades, { id, nome: nome?.trim() || `Grade ${grades.length + 1}`, selecao: {} }];
+			grades = [
+				...grades,
+				{ id, nome: nome?.trim() || `Grade ${grades.length + 1}`, selecao: {}, origem }
+			];
 			activeId = id;
 			ultimaMontagem = null;
 			persistCenarios();
+			return true;
+		},
+
+		/** Usuário e semestre do estado carregado (chave dos pontos de desfazer). */
+		get idUser() {
+			return idUser;
+		},
+		get periodo() {
+			return periodo;
+		},
+
+		get limiteCenarios() {
+			return MAX_CENARIOS;
 		},
 
 		renomearCenario(id: string, nome: string): void {

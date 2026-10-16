@@ -93,6 +93,8 @@ jobs:
           RAGFLOW_AGENT_ID: ${{ secrets.RAGFLOW_AGENT_ID }}
           MARITACA_API_KEY: ${{ secrets.MARITACA_API_KEY }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          # Cifra as conversas da Darcy no banco (backend/src/utils/cripto_chat.ts)
+          CHAT_ENCRYPTION_KEY: ${{ secrets.CHAT_ENCRYPTION_KEY }}
         run: |
           TARGET="${{ github.event.inputs.target || 'all' }}"
           python scripts/deploy/deploy_local.py "$TARGET" \

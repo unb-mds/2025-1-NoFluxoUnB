@@ -170,7 +170,7 @@ async function semear(limiteCreditos: number) {
 	const { materias, obrigatoriasSemOferta } = await montarPoolRecomendado(fx.periodo, {
 		limiteCreditos,
 		ordemDoPlano,
-		excluir: [...gradeStore.removidas, ...gradeStore.pool.map((m) => m.codigo)].filter(
+		excluir: [...gradeStore.dispensadas, ...gradeStore.pool.map((m) => m.codigo)].filter(
 			(c) => !cursando.has(c)
 		)
 	});

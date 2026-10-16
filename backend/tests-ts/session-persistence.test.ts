@@ -43,6 +43,10 @@ jest.mock("../src/supabase_wrapper", () => {
                         filtros.push([col, val]);
                         return builder;
                     },
+                    is(col: string, val: any) {
+                        filtros.push([col, val]);
+                        return builder;
+                    },
                     order(col: string, opts: { ascending: boolean }) {
                         ordenacao = { col, ascending: opts.ascending };
                         return builder;
@@ -56,11 +60,11 @@ jest.mock("../src/supabase_wrapper", () => {
                         return builder;
                     },
                     then(resolve: (v: any) => any) {
-                        let resultado = rows.filter((r) => filtros.every(([c, v]) => r[c] === v));
+                        let resultado = rows.filter((r) => filtros.every(([c, v]) => (r[c] ?? null) === v));
                         if (ordenacao) {
                             const { col, ascending } = ordenacao;
                             resultado = [...resultado].sort((a, b) => {
-                                const cmp = String(a[col]).localeCompare(String(b[col]));
+                                const cmp = typeof a[col] === "number" && typeof b[col] === "number" ? a[col] - b[col] : String(a[col]).localeCompare(String(b[col]));
                                 return ascending ? cmp : -cmp;
                             });
                         }
@@ -98,9 +102,13 @@ jest.mock("../src/supabase_wrapper", () => {
                         filtros.push([col, val]);
                         return builder;
                     },
+                    is(col: string, val: any) {
+                        filtros.push([col, val]);
+                        return builder;
+                    },
                     then(resolve: (v: any) => any) {
                         rows.forEach((r) => {
-                            if (filtros.every(([c, v]) => r[c] === v)) Object.assign(r, payload);
+                            if (filtros.every(([c, v]) => (r[c] ?? null) === v)) Object.assign(r, payload);
                         });
                         return resolve({ data: null, error: null });
                     },
@@ -114,8 +122,12 @@ jest.mock("../src/supabase_wrapper", () => {
                         filtros.push([col, val]);
                         return builder;
                     },
+                    is(col: string, val: any) {
+                        filtros.push([col, val]);
+                        return builder;
+                    },
                     then(resolve: (v: any) => any) {
-                        const restantes = rows.filter((r) => !filtros.every(([c, v]) => r[c] === v));
+                        const restantes = rows.filter((r) => !filtros.every(([c, v]) => (r[c] ?? null) === v));
                         rows.length = 0;
                         rows.push(...restantes);
                         return resolve({ data: null, error: null });

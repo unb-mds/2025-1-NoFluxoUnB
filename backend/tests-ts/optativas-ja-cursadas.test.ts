@@ -195,6 +195,37 @@ describe("buscarOptativas — filtro por histórico do aluno", () => {
         expect(out.aviso).toBeTruthy();
     });
 
+    /**
+     * A direção inversa: a linha está cadastrada na matéria que o aluno CURSOU
+     * ("CIC0004 equivale a FGA0009"). FGA0009 substitui sozinha algo já feito —
+     * cursá-la não contaria de novo.
+     */
+    it("não sugere matéria que substitui sozinha uma que o aluno já cursou", async () => {
+        db.equivalencias.push({
+            id_materia: 398,
+            expressao_logica: { operador: "OU", condicoes: ["FGA0009", "XYZ0001"] },
+        });
+        mockBuscarMaterias.mockResolvedValue([
+            { codigo: "FGA0009", nome: "SUBSTITUI CIC0004", similaridade: 0.9 },
+        ]);
+
+        const out = JSON.parse(await buscarOptativas(["tema"], false, "aluno@unb.br"));
+        expect(out.materias).toEqual([]);
+    });
+
+    it("metade de um ramo E da matéria cursada não é substituta: continua sugerida", async () => {
+        db.equivalencias.push({
+            id_materia: 398,
+            expressao_logica: { operador: "E", condicoes: ["FGA0009", "XYZ0001"] },
+        });
+        mockBuscarMaterias.mockResolvedValue([
+            { codigo: "FGA0009", nome: "METADE", similaridade: 0.9 },
+        ]);
+
+        const out = JSON.parse(await buscarOptativas(["tema"], false, "aluno@unb.br"));
+        expect(out.materias.map((m: any) => m.codigo)).toEqual(["FGA0009"]);
+    });
+
     it("equivalência com operador E não dispensa com só uma das pernas cursada", async () => {
         db.equivalencias.push({
             id_materia: 500,

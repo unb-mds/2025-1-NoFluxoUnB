@@ -17,12 +17,26 @@ import { Request, Response } from "express";
 var mockGetUser = jest.fn();
 var mockRpc = jest.fn();
 var mockInsert = jest.fn(async (_rows: unknown) => ({ error: null }));
+/** auth_id dos admins do sistema (tabela `admins`); `null` simula o banco fora. */
+var mockAdmins: string[] | null = [];
 jest.mock("../src/supabase_wrapper", () => ({
     SupabaseWrapper: {
         get: () => ({
             auth: { getUser: (...a: unknown[]) => mockGetUser(...a) },
             rpc: (...a: unknown[]) => mockRpc(...a),
-            from: () => ({ insert: (rows: unknown) => mockInsert(rows) }),
+            from: (tabela: string) => ({
+                insert: (rows: unknown) => mockInsert(rows),
+                select: () => ({
+                    eq: (_col: string, valor: string) => ({
+                        limit: async () =>
+                            tabela !== "admins"
+                                ? { data: [], error: null }
+                                : mockAdmins === null
+                                  ? { data: null, error: { message: "banco fora" } }
+                                  : { data: mockAdmins.filter((a) => a === valor).map((auth_id) => ({ auth_id })), error: null },
+                    }),
+                }),
+            }),
         }),
     },
 }));
@@ -56,7 +70,11 @@ jest.mock("../src/services/planejador_agente.service", () => ({
 
 var mockRun = jest.fn();
 jest.mock("@openai/agents", () => ({ ...jest.requireActual("@openai/agents"), run: (...a: unknown[]) => mockRun(...a) }));
-jest.mock("../src/services/chat/orquestrador_agent", () => ({ createOrquestradorAgent: jest.fn(() => ({})) }));
+jest.mock("../src/services/chat/orquestrador_agent", () => ({
+    createOrquestradorAgent: jest.fn(() => ({})),
+    obterEfeitosDoOrquestrador: jest.fn(() => ({})),
+}));
+jest.mock("../src/services/chat/perfil_aluno", () => ({ montarPerfilAluno: jest.fn(async () => null) }));
 jest.mock("../src/services/chat/model_provider", () => ({ isMaritacaConfigured: () => true }));
 jest.mock("../src/services/chat/supabase_session", () => ({ SupabaseSession: jest.fn(() => ({})) }));
 
@@ -75,7 +93,13 @@ import { AssistenteController } from "../src/controllers/assistente_controller";
 import { PlanejamentoController } from "../src/controllers/PlanejamentoController";
 import { ChatController } from "../src/controllers/chat_controller";
 import { Utils } from "../src/utils";
-import { _limparCacheTeto, TETO_CACHE_MS, tetoGlobalAtingido } from "../src/services/darcy_cota.service";
+import {
+    _limparCacheAdmin,
+    _limparCacheTeto,
+    proximaMeiaNoiteBrasilia,
+    TETO_CACHE_MS,
+    tetoGlobalAtingido,
+} from "../src/services/darcy_cota.service";
 
 // ---------------------------------------------------------------------------
 // Fakes
@@ -163,6 +187,8 @@ const envOriginal = { ...process.env };
 beforeEach(() => {
     jest.clearAllMocks();
     _limparCacheTeto();
+    _limparCacheAdmin();
+    mockAdmins = [];
     process.env = { ...envOriginal };
     delete process.env.AI_COTA_DIARIA;
     delete process.env.AI_TETO_DIARIO_RS;
@@ -583,6 +609,68 @@ describe("teto global diário", () => {
         expect(await tetoGlobalAtingido(1_000 + TETO_CACHE_MS - 1)).toBe(false);
         expect(rpcsChamadas("darcy_custo_ia_hoje")).toHaveLength(1);
         expect(await tetoGlobalAtingido(1_000 + TETO_CACHE_MS)).toBe(true);
+    });
+});
+
+describe("admins do sistema não têm cota diária", () => {
+    it.each(ROTAS_IA)("%s: admin com a cota estourada passa sem reservar pergunta", async (_rota, handler, body) => {
+        mockAdmins = [ALUNO.id];
+        bancoCom({ usadas: 30, limite: 30 });
+        const { req, res } = mockReqRes({ body, token: TOKEN });
+        await handler()(req, res);
+
+        expect(res.statusCode).not.toBe(429);
+        expect(rpcsChamadas("darcy_reservar_pergunta")).toHaveLength(0);
+    });
+
+    it("a resposta leva a cota marcada como ilimitada", async () => {
+        mockAdmins = [ALUNO.id];
+        bancoCom();
+        const { req, res } = mockReqRes({ body: MSG, token: TOKEN });
+        await assistente("chat")(req, res);
+        expect(res.body.cota).toMatchObject({ ilimitado: true, usadas: 0 });
+    });
+
+    it("falha da IA não estorna nada para admin", async () => {
+        mockAdmins = [ALUNO.id];
+        bancoCom();
+        mockConversar.mockRejectedValueOnce(new Error("boom"));
+        const { req, res } = mockReqRes({ body: MSG, token: TOKEN });
+        await assistente("chat")(req, res);
+        expect(rpcsChamadas("darcy_estornar_pergunta")).toHaveLength(0);
+    });
+
+    it("o teto global de custo continua valendo para admin", async () => {
+        mockAdmins = [ALUNO.id];
+        bancoCom({ custo: 15.2 });
+        const { req, res } = mockReqRes({ body: MSG, token: TOKEN });
+        await assistente("chat")(req, res);
+        expect(res.statusCode).toBe(503);
+        nenhumLlmChamado();
+    });
+
+    it("GET /assistente/cota devolve ilimitada para admin", async () => {
+        mockAdmins = [ALUNO.id];
+        bancoCom({ usadas: 12 });
+        const { req, res } = mockReqRes({ token: TOKEN });
+        await assistente("cota")(req, res);
+        expect(res.body.cota).toMatchObject({ ilimitado: true });
+        expect(rpcsChamadas("darcy_estado_cota")).toHaveLength(0);
+    });
+
+    it("se a checagem de admin falhar, a cota vale (nunca libera por erro)", async () => {
+        mockAdmins = null;
+        bancoCom({ usadas: 30, limite: 30 });
+        const { req, res } = mockReqRes({ body: MSG, token: TOKEN });
+        await assistente("chat")(req, res);
+        expect(res.statusCode).toBe(429);
+    });
+
+    it("renova_em da cota ilimitada é a próxima meia-noite de Brasília", () => {
+        // 29/09 23:30 em Brasília = 30/09 02:30 UTC → renova 30/09 03:00 UTC
+        expect(proximaMeiaNoiteBrasilia(Date.parse("2026-09-30T02:30:00Z"))).toBe("2026-09-30T03:00:00.000Z");
+        // 30/09 00:10 em Brasília → renova 01/10 03:00 UTC
+        expect(proximaMeiaNoiteBrasilia(Date.parse("2026-09-30T03:10:00Z"))).toBe("2026-10-01T03:00:00.000Z");
     });
 });
 

@@ -18,7 +18,7 @@
 	{/if}
 	
 	<div
-		class="max-w-[88%] px-5 py-3.5 text-[14px] leading-[1.75] [text-wrap:pretty] backdrop-blur-xl shadow-sm dark:shadow-lg my-1 transition-all {isUser
+		class="max-w-[88%] min-w-0 px-4 py-3 sm:px-5 sm:py-3.5 text-[14px] leading-[1.75] [overflow-wrap:anywhere] break-words [text-wrap:pretty] backdrop-blur-xl shadow-sm dark:shadow-lg my-1 transition-all {isUser
 				? 'bg-primary text-primary-foreground rounded-[24px] rounded-tr-[8px] border border-primary/60 dark:bg-white/15 dark:text-white dark:border-white/20'
 				: 'bg-accent text-foreground rounded-[24px] rounded-tl-[8px] border border-ai/20 dark:bg-black/30 dark:text-white/85 dark:border-white/10'}"
 	>

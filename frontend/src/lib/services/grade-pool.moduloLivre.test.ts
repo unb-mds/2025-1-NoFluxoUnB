@@ -137,6 +137,22 @@ describe('candidatosModuloLivre', () => {
 		expect(r.map((m) => m.codigo)).toEqual(['MUS0033']);
 	});
 
+	/**
+	 * MAT0035 substitui sozinha uma matéria da matriz que o aluno já concluiu:
+	 * cursá-la como módulo livre repetiria um conteúdo já aproveitado.
+	 */
+	it('descarta a equivalente de uma matéria já concluída', async () => {
+		curso.materias = [materiaDaMatriz('MAT1234', 1)];
+		curso.equivalencias = [{ codigoMateriaOrigem: 'MAT1234', expressao: 'MAT0035' }];
+		completed.add('MAT1234');
+		noCatalogo('MAT0035', 'MUS0033');
+		comOferta = new Set(['MAT0035', 'MUS0033']);
+
+		const r = await candidatosModuloLivre('matemática', '2026.2');
+
+		expect(r.map((m) => m.codigo)).toEqual(['MUS0033']);
+	});
+
 	it('descarta o que o aluno já cursou', async () => {
 		noCatalogo('MUS0033', 'LIP0096');
 		comOferta = new Set(['MUS0033', 'LIP0096']);
