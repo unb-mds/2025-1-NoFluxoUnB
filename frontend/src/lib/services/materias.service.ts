@@ -37,7 +37,8 @@ function mapRow(m: {
 
 /** Busca global de matérias por código ou nome (mín. 2 caracteres). */
 export async function searchMaterias(query: string): Promise<MateriaBusca[]> {
-	const safe = query.replace(/[%,]/g, ' ').trim();
+	// Vírgula e parênteses delimitam filtros no PostgREST; % é curinga (como em searchTurmas).
+	const safe = query.replace(/[%,()]/g, ' ').trim();
 	if (safe.length < 2) return [];
 	const up = safe.toUpperCase();
 	const { data, error } = await supabase
