@@ -4,7 +4,7 @@
  * Implementa a interface `Session` do @openai/agents sobre duas tabelas do Supabase:
  *   - chat_sessions: uma linha por sessão (session_id = uuid do usuário, uma sessão
  *     contínua por aluno — ver docs/chatbot-orquestrador.md)
- *   - chat_items: log append-only dos AgentInputItem da sessão, em ordem de created_at
+ *   - chat_items: log append-only dos AgentInputItem da sessão, em ordem de id (serial)
  *
  * Conversa ativa = itens com `conversa_id` nulo. "Nova conversa" (ou inatividade, ver
  * `INATIVIDADE_ARQUIVAR_MS`) ARQUIVA esses itens numa linha de `chat_conversas` — o
@@ -20,8 +20,22 @@ import type { Session } from "@openai/agents";
 import { SupabaseWrapper } from "../../supabase_wrapper";
 import { cifrarItem, cifrarTexto, decifrarItem, decifrarTexto } from "../../utils/cripto_chat";
 
-/** Quantos itens da sessão entram em cada `run` (o perfil do aluno já cobre o que é estável). */
-export const JANELA_PADRAO_ITENS = 30;
+/**
+ * Janela do prompt, em TURNOS (uma pergunta do aluno e tudo que veio até a
+ * próxima). Contar itens fazia a janela encolher justo nas conversas com tool:
+ * cada turno com tool são 4+ itens, e 30 itens viravam 5 ou 6 perguntas.
+ */
+export const TURNOS_NA_JANELA = 12;
+/** Dos turnos da janela, os mais recentes vão inteiros (com as tools); os demais, só o texto que o aluno viu. */
+export const TURNOS_COMPLETOS = 3;
+/**
+ * Conversa que ainda não virou memória (`memoria_ate`) continua na janela além
+ * dos `TURNOS_NA_JANELA`, até este teto — senão ela não estaria em lugar nenhum
+ * até a próxima consolidação.
+ */
+export const TETO_TURNOS_PENDENTES = 24;
+/** Linhas lidas do banco para montar a janela (turno com tool ocupa várias). */
+const LINHAS_LIDAS = 400;
 
 /**
  * Sem falar com a Darcy por este tempo, a próxima abertura do chat começa uma
@@ -45,7 +59,7 @@ export interface MensagemVisivel {
     content: string;
 }
 
-function textoDoItem(item: any): string {
+export function textoDoItem(item: any): string {
     const c = item?.content;
     if (typeof c === "string") return c;
     if (Array.isArray(c)) {
@@ -57,7 +71,7 @@ function textoDoItem(item: any): string {
     return "";
 }
 
-function ehMensagemDoUsuario(item: any): boolean {
+export function ehMensagemDoUsuario(item: any): boolean {
     return item?.role === "user" && (item?.type === undefined || item?.type === "message");
 }
 
@@ -90,6 +104,82 @@ export function decifrarLinhas<L extends { item: unknown }>(linhas: L[]): Array<
 export function aparaInicioDaJanela(itens: AgentInputItem[]): AgentInputItem[] {
     const inicio = itens.findIndex(ehMensagemDoUsuario);
     return inicio <= 0 ? (inicio === 0 ? itens : []) : itens.slice(inicio);
+}
+
+/** Resultado de tool de turnos anteriores: o que a Darcy concluiu dele já está na resposta dela. */
+export const TETO_RESULTADO_ANTIGO_CARACTERES = 600;
+const MARCA_TRUNCADO = "… [resultado antigo resumido]";
+
+function truncarTexto(texto: string, teto: number): string {
+    return texto.length > teto ? `${texto.slice(0, teto).trimEnd()}${MARCA_TRUNCADO}` : texto;
+}
+
+/**
+ * Encurta os resultados de tool que ficaram para trás (antes da última mensagem do
+ * aluno). Eles pesam muito (turmas, integralização) e a resposta final de cada turno
+ * já carrega o que importava; o turno atual segue inteiro. Só mexe no texto do
+ * `output` — a chamada e o resultado continuam pareados, como o modelo exige.
+ */
+export function compactarResultadosAntigos(
+    itens: AgentInputItem[],
+    teto: number = TETO_RESULTADO_ANTIGO_CARACTERES
+): AgentInputItem[] {
+    let ultimoDoAluno = -1;
+    for (let i = itens.length - 1; i >= 0; i--) {
+        if (ehMensagemDoUsuario(itens[i])) {
+            ultimoDoAluno = i;
+            break;
+        }
+    }
+    return itens.map((item: any, i) => {
+        if (i >= ultimoDoAluno || item?.type !== "function_call_result") return item;
+        const saida = item.output;
+        if (typeof saida === "string") {
+            return saida.length > teto ? { ...item, output: truncarTexto(saida, teto) } : item;
+        }
+        if (saida?.type === "text" && typeof saida.text === "string" && saida.text.length > teto) {
+            return { ...item, output: { ...saida, text: truncarTexto(saida.text, teto) } };
+        }
+        return item;
+    });
+}
+
+/**
+ * Índice onde começam os últimos `n` turnos. Com menos de `n`, o primeiro turno
+ * (o que vem antes da primeira mensagem do aluno fica de fora); sem nenhum, o fim.
+ */
+export function inicioDosUltimosTurnos(itens: unknown[], n: number): number {
+    let vistos = 0;
+    for (let i = itens.length - 1; i >= 0; i--) {
+        if (ehMensagemDoUsuario(itens[i]) && ++vistos === n) return i;
+    }
+    const primeiro = itens.findIndex(ehMensagemDoUsuario);
+    return primeiro === -1 ? itens.length : primeiro;
+}
+
+/**
+ * O que o modelo vê da conversa: os `completos` últimos turnos inteiros (tool de
+ * turno anterior encurtada) e, antes deles, só a pergunta e a resposta final de
+ * cada turno — o fio da conversa sem o peso dos resultados de tool.
+ */
+export function montarJanela(itens: AgentInputItem[], completos: number = TURNOS_COMPLETOS): AgentInputItem[] {
+    const corte = inicioDosUltimosTurnos(itens, completos);
+    const resumidos: AgentInputItem[] = [];
+    let resposta: AgentInputItem | null = null;
+    const fecharTurno = () => {
+        if (resposta) resumidos.push(resposta);
+        resposta = null;
+    };
+    for (const item of itens.slice(0, corte)) {
+        if (ehMensagemDoUsuario(item)) {
+            fecharTurno();
+            resumidos.push(item);
+        } else if (ehMensagemDaDarcy(item) && textoDoItem(item)) {
+            resposta = item;
+        }
+    }
+    fecharTurno();
+    return [...aparaInicioDaJanela(resumidos), ...compactarResultadosAntigos(itens.slice(corte))];
 }
 
 /**
@@ -134,15 +224,15 @@ function lerTitulo(valor: unknown): string {
 }
 
 export class SupabaseSession implements Session {
-    constructor(
-        private readonly sessionId: string,
-        private readonly janela: number = JANELA_PADRAO_ITENS
-    ) {}
+    /** Último item já resumido na memória (`chat_sessions.memoria_ate`), lido junto com a sessão. */
+    private cursorMemoria = 0;
+
+    constructor(private readonly sessionId: string) {}
 
     async getSessionId(): Promise<string> {
         const { data: existente, error: erroBusca } = await SupabaseWrapper.get()
             .from("chat_sessions")
-            .select("session_id")
+            .select("session_id, memoria_ate")
             .eq("session_id", this.sessionId)
             .maybeSingle();
 
@@ -150,6 +240,7 @@ export class SupabaseSession implements Session {
             throw new Error(`Falha ao buscar sessão ${this.sessionId}: ${erroBusca.message}`);
         }
         if (existente?.session_id) {
+            this.cursorMemoria = Number(existente.memoria_ate ?? 0) || 0;
             return existente.session_id as string;
         }
 
@@ -164,15 +255,22 @@ export class SupabaseSession implements Session {
     }
 
     /**
-     * Últimos itens da sessão, em ordem cronológica. Sem `limit` explícito vale a
-     * janela da instância — antes carregava a sessão inteira e o prompt crescia sem
-     * limite. A janela é aparada para começar numa mensagem do aluno.
+     * O que entra no `run`, em ordem cronológica. Sem `limit` explícito é a janela
+     * (`montarJanela`): os últimos `TURNOS_NA_JANELA` turnos e, se houver, a conversa
+     * mais antiga que a memória ainda não resumiu (até `TETO_TURNOS_PENDENTES`) — o
+     * que o aluno disse está sempre no prompt ou na memória, nunca fora dos dois.
      */
     async getItems(limit?: number): Promise<AgentInputItem[]> {
-        if (limit === undefined) {
-            return aparaInicioDaJanela(await this.carregarRecentes(this.janela));
+        if (limit !== undefined) return this.carregarRecentes(limit);
+
+        const linhas = await this.carregarLinhas(LINHAS_LIDAS);
+        const itens = linhas.map((l) => l.item as AgentInputItem);
+        let inicio = inicioDosUltimosTurnos(itens, TURNOS_NA_JANELA);
+        const naoResumido = linhas.findIndex((l) => l.id > this.cursorMemoria);
+        if (naoResumido !== -1 && naoResumido < inicio) {
+            inicio = Math.max(naoResumido, inicioDosUltimosTurnos(itens, TETO_TURNOS_PENDENTES));
         }
-        return this.carregarRecentes(limit);
+        return montarJanela(aparaInicioDaJanela(itens.slice(inicio)));
     }
 
     /** Conversa visível para as telas (`GET /chat/historico`), últimas `max` mensagens. */
@@ -183,14 +281,24 @@ export class SupabaseSession implements Session {
     }
 
     private async carregarRecentes(limit?: number): Promise<AgentInputItem[]> {
+        return (await this.carregarLinhas(limit)).map((linha) => linha.item as AgentInputItem);
+    }
+
+    /**
+     * Linhas da conversa ativa em ordem cronológica (as `limit` mais recentes).
+     * Ordena por `id`, não por `created_at`: os itens de um turno são gravados num
+     * só insert e saem com o mesmo `created_at` — empatados, a chamada de tool e o
+     * resultado dela podiam voltar fora de ordem.
+     */
+    private async carregarLinhas(limit?: number): Promise<Array<{ id: number; item: any }>> {
         await this.getSessionId();
 
         let query = SupabaseWrapper.get()
             .from("chat_items")
-            .select("item, created_at")
+            .select("id, item")
             .eq("session_id", this.sessionId)
             .is("conversa_id", null)
-            .order("created_at", { ascending: !limit });
+            .order("id", { ascending: !limit });
 
         if (limit) {
             query = query.limit(limit);
@@ -201,11 +309,10 @@ export class SupabaseSession implements Session {
             throw new Error(`Falha ao carregar histórico da sessão ${this.sessionId}: ${error.message}`);
         }
 
-        const linhas = decifrarLinhas((data ?? []) as Array<{ item: unknown }>);
-        const itens = linhas.map((linha) => linha.item as AgentInputItem);
+        const linhas = decifrarLinhas((data ?? []) as Array<{ id: number; item: unknown }>);
         // Quando limitado, a ordenação acima é decrescente (pega os N mais recentes) —
         // a interface exige devolver em ordem cronológica, então reverte de volta.
-        return limit ? itens.reverse() : itens;
+        return limit ? linhas.reverse() : linhas;
     }
 
     async addItems(items: AgentInputItem[]): Promise<void> {
@@ -231,7 +338,7 @@ export class SupabaseSession implements Session {
             .select("id, item")
             .eq("session_id", this.sessionId)
             .is("conversa_id", null)
-            .order("created_at", { ascending: false })
+            .order("id", { ascending: false })
             .limit(1);
 
         if (error) {
@@ -258,7 +365,7 @@ export class SupabaseSession implements Session {
             .select("id, item")
             .eq("session_id", this.sessionId)
             .is("conversa_id", null)
-            .order("created_at", { ascending: false })
+            .order("id", { ascending: false })
             .limit(20);
         if (error) {
             throw new Error(`Falha ao ler a última resposta da sessão ${this.sessionId}: ${error.message}`);
@@ -303,7 +410,7 @@ export class SupabaseSession implements Session {
             .select("item, created_at")
             .eq("session_id", this.sessionId)
             .is("conversa_id", null)
-            .order("created_at", { ascending: true })
+            .order("id", { ascending: true })
             .limit(2000);
         if (error) throw new Error(`Falha ao ler a conversa da sessão ${this.sessionId}: ${error.message}`);
         const linhas = decifrarLinhas((data ?? []) as Array<{ item: unknown; created_at: string }>);
@@ -393,7 +500,7 @@ export class SupabaseSession implements Session {
             .select("item, created_at")
             .eq("session_id", this.sessionId)
             .eq("conversa_id", conversaId)
-            .order("created_at", { ascending: true })
+            .order("id", { ascending: true })
             .limit(2000);
         if (error) throw new Error(`Falha ao ler a conversa ${conversaId}: ${error.message}`);
         const itens = decifrarLinhas((data ?? []) as Array<{ item: unknown }>).map((l) => l.item as AgentInputItem);

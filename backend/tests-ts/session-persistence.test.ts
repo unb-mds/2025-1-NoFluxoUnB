@@ -64,7 +64,7 @@ jest.mock("../src/supabase_wrapper", () => {
                         if (ordenacao) {
                             const { col, ascending } = ordenacao;
                             resultado = [...resultado].sort((a, b) => {
-                                const cmp = String(a[col]).localeCompare(String(b[col]));
+                                const cmp = typeof a[col] === "number" && typeof b[col] === "number" ? a[col] - b[col] : String(a[col]).localeCompare(String(b[col]));
                                 return ascending ? cmp : -cmp;
                             });
                         }

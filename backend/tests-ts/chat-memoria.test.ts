@@ -64,7 +64,7 @@ import {
     renderizarMemoria,
     TETO_MEMORIA_CARACTERES,
 } from "../src/services/chat/memoria_aluno";
-import { JANELA_PADRAO_ITENS } from "../src/services/chat/supabase_session";
+import { TURNOS_NA_JANELA } from "../src/services/chat/supabase_session";
 import { montarInstrucoes } from "../src/services/chat/orquestrador_agent";
 
 const { __state: db } = jest.requireMock("../src/supabase_wrapper") as {
@@ -92,7 +92,7 @@ beforeEach(() => {
 
 describe("consolidarMemoria", () => {
     it("não chama o modelo enquanto tudo ainda cabe na janela do prompt", async () => {
-        conversar(JANELA_PADRAO_ITENS / 2);
+        conversar(TURNOS_NA_JANELA);
         const chamar = jest.fn(async () => "- prefere manhã");
 
         await consolidarMemoria(SID, { chamar });
@@ -103,7 +103,7 @@ describe("consolidarMemoria", () => {
 
     it("resume só o que saiu da janela, avança o cursor e não resume o mesmo trecho de novo", async () => {
         conversar(5, "antigo"); // 10 itens que vão sair da janela
-        conversar(JANELA_PADRAO_ITENS / 2, "recente");
+        conversar(TURNOS_NA_JANELA, "recente");
         const chamar = jest.fn(async (_p: string) => "- quer se formar em 2027.2");
 
         await consolidarMemoria(SID, { chamar });
@@ -137,7 +137,7 @@ describe("consolidarMemoria", () => {
     it("a memória anterior vai junto para o modelo atualizar, não para recomeçar", async () => {
         db.sessions[0].memoria = "- trabalha à tarde";
         conversar(5);
-        conversar(JANELA_PADRAO_ITENS / 2);
+        conversar(TURNOS_NA_JANELA);
         const chamar = jest.fn(async (_p: string) => "- trabalha à tarde\n- gosta de IA");
 
         await consolidarMemoria(SID, { chamar });
@@ -159,7 +159,7 @@ describe("consolidarMemoria", () => {
     it("falha do modelo não lança e não mexe na memória", async () => {
         db.sessions[0].memoria = "- prefere noite";
         conversar(5);
-        conversar(JANELA_PADRAO_ITENS / 2);
+        conversar(TURNOS_NA_JANELA);
 
         await expect(
             consolidarMemoria(SID, { chamar: async () => { throw new Error("503"); } })
@@ -208,7 +208,7 @@ describe("leitura, prompt e esquecer", () => {
     it("freio de custo: não chama o modelo de novo antes do intervalo mínimo", async () => {
         db.sessions[0].memoria_atualizada_em = new Date().toISOString();
         conversar(5);
-        conversar(JANELA_PADRAO_ITENS / 2);
+        conversar(TURNOS_NA_JANELA);
         const chamar = jest.fn(async () => "- algo");
 
         await consolidarMemoria(SID, { chamar });
@@ -221,7 +221,7 @@ describe("leitura, prompt e esquecer", () => {
         process.env.CHAT_ENCRYPTION_KEY = require("crypto").randomBytes(32).toString("base64");
         try {
             const { cifrarItem } = require("../src/utils/cripto_chat");
-            for (let i = 0; i < 5 + JANELA_PADRAO_ITENS / 2; i++) {
+            for (let i = 0; i < 5 + TURNOS_NA_JANELA; i++) {
                 db.items.push({ id: ++seq, session_id: SID, item: cifrarItem({ role: "user", content: `pergunta ${i}` }) });
                 db.items.push({ id: ++seq, session_id: SID, item: cifrarItem({ role: "assistant", content: `resposta ${i}` }) });
             }

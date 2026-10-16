@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Fase 3: Inserir/atualizar turmas na tabela public.turmas a partir de:
-DBA/dados/dados_finais_teste_p_depto_20/turmas_depto_*.json
+DBA/turmas/turmas_depto_*.json
 
 Regras:
 - FK id_materia é resolvida por materias.codigo_materia == turma["codigo"].
@@ -32,7 +32,7 @@ from config import DBA_ROOT, SUPABASE_URL, SUPABASE_KEY
 DRY_RUN = "--dry-run" in sys.argv
 CHUNK_SIZE = 300
 FETCH_PAGE = 4000
-PASTA_TURMAS = DBA_ROOT / "dados" / "dados_finais_teste_p_depto_20"
+PASTA_TURMAS = DBA_ROOT / "turmas"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 

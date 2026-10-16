@@ -123,7 +123,7 @@ jest.mock("openai", () => ({
 import { montarPerfilAluno, renderizarPerfil, limparCachePerfis, type PerfilAluno } from "../src/services/chat/perfil_aluno";
 import { createOrquestradorAgent, obterEfeitosDoOrquestrador } from "../src/services/chat/orquestrador_agent";
 import { parseCorpoChat } from "../src/services/chat/superficie";
-import { SupabaseSession, aparaInicioDaJanela, mensagensVisiveis, INATIVIDADE_ARQUIVAR_MS } from "../src/services/chat/supabase_session";
+import { SupabaseSession, aparaInicioDaJanela, mensagensVisiveis, INATIVIDADE_ARQUIVAR_MS, TETO_TURNOS_PENDENTES, TURNOS_COMPLETOS } from "../src/services/chat/supabase_session";
 import { ChatController } from "../src/controllers/chat_controller";
 
 // ---------------------------------------------------------------------------
@@ -456,16 +456,19 @@ describe("janela da sessão", () => {
         ]);
     });
 
-    it("getItems sem limite carrega no máximo a janela (30), começando numa mensagem do aluno", async () => {
+    it("getItems sem limite: no máximo o teto de turnos, começando numa mensagem do aluno, tools só nos últimos", async () => {
         const session = new SupabaseSession("s1");
         const itens = [];
-        for (let i = 0; i < 25; i++) itens.push(user(`p${i}`), call(), out(), darcy(`r${i}`));
+        for (let i = 0; i < 40; i++) itens.push(user(`p${i}`), call(), out(), darcy(`r${i}`));
         await session.addItems(itens);
 
         const janela = await session.getItems();
-        expect(janela.length).toBeLessThanOrEqual(30);
+        const perguntas = janela.filter((i: any) => i.role === "user");
+        // Nada foi resumido ainda (sem memoria_ate): a janela estica até o teto de pendentes.
+        expect(perguntas.length).toBe(TETO_TURNOS_PENDENTES);
         expect((janela[0] as any).role).toBe("user");
-        expect((janela[janela.length - 1] as any).content[0].text).toBe("r24");
+        expect((janela[janela.length - 1] as any).content[0].text).toBe("r39");
+        expect(janela.filter((i: any) => i.type === "function_call")).toHaveLength(TURNOS_COMPLETOS);
     });
 });
 

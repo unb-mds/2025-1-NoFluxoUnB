@@ -36,9 +36,7 @@ MAX_WORKERS = 3  # Reduzido para evitar bloqueios
 REQUEST_DELAY = (2, 5)  # Intervalo maior entre requisições
 MAX_RETRIES = 5  # Mais tentativas por departamento
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_OUTPUT_DIR = str(
-    (SCRIPT_DIR / ".." / "dados" / "dados_finais_teste_p_depto_20").resolve()
-)
+DEFAULT_OUTPUT_DIR = str((SCRIPT_DIR / ".." / "turmas").resolve())
 DEFAULT_IDS_FILE = str(SCRIPT_DIR / "departamentos_ID_unb.csv")
 DEBUG = True  # Ativar para ver logs detalhados
 

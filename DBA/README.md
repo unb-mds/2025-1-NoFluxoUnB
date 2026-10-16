@@ -18,7 +18,7 @@ Coleta, transformação e ingestão dos dados acadêmicos da UnB no Supabase.
 - `parse_pdf/` — `pdf_parser_final.py`, parser de histórico em PDF usado pela suíte de
   testes (o parse vivo do produto é client-side, no frontend Svelte).
 - `dados/` — datasets de apoio (`cursos-de-graduacao.json`, expressões lógicas).
-- `turmas_2026_1/` — saída do scraping de turmas (JSON por departamento).
+- `turmas/` — saída do scraping de turmas (JSON por departamento; não versionada).
 - `package.json` (`coleta-dados`) — só 2 scripts JS de migração pontual.
 
 ## Testes

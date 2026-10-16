@@ -165,7 +165,7 @@
 				</li>
 			{/if}
 
-			<li class="flex gap-2.5 border-t border-border px-0.5 py-2.5">
+			<li class="flex items-start gap-2.5 border-t border-border px-0.5 py-2.5">
 				<span
 					class="grid h-6 w-6 shrink-0 place-items-center rounded-md {semana.janelaHoras <= 2
 						? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300'
@@ -173,14 +173,19 @@
 				>
 					<Clock class="h-3.5 w-3.5" />
 				</span>
-				<p>
+				<p class="min-w-0 flex-1">
 					<strong class="block text-xs font-semibold text-foreground">
 						{semana.janelaHoras === 0 ? 'Sem janelas' : `${horas(semana.janelaHoras)} de janelas`}
 					</strong>
 					<small class="block text-[11px] text-muted-foreground">
-						{semana.janelaHoras <= 2 ? 'Boa distribuição semanal' : 'Tempo parado entre aulas no mesmo dia'}
+						{semana.janelaHoras <= 2 ? 'Boa distribuição semanal' : 'Soma dos intervalos entre aulas, de todos os dias da semana'}
 					</small>
 				</p>
+				<HelpTip
+					side="left"
+					title="O que é uma janela"
+					text="Janela é o tempo parado entre duas aulas do mesmo dia. Aqui somamos as janelas de todos os dias da semana. Não contam a pausa normal de 10 min entre módulos nem intervalos maiores que 3h (aí já é período livre). Cada hora de janela tira 4 pontos da nota da grade."
+				/>
 			</li>
 
 			<li class="flex gap-2.5 border-t border-border px-0.5 py-2.5">

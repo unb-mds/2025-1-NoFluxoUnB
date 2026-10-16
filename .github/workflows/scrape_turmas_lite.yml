@@ -173,7 +173,7 @@ jobs:
 
       - name: Create required data directories
         run: |
-          mkdir -p DBA/dados/dados_finais_teste_p_depto_20
+          mkdir -p DBA/turmas
           mkdir -p DBA/logs
 
       - name: Compute run_started_at

@@ -14,7 +14,8 @@
 		CalendarSearch,
 		Plus,
 		ArrowUpRight,
-		History
+		History,
+		Check
 	} from 'lucide-svelte';
 	import { formatHorarioSigaa, compactarFaixasHorarias, formatLocalSigaa } from '$lib/utils/sigaa';
 	import ChatWrapper from '$lib/components/chat/ChatWrapper.svelte';
@@ -200,6 +201,22 @@
 				lista.findIndex((o) => o.estrategia === opcao?.estrategia)
 			)
 		};
+	}
+
+	/** Blocos de grade já aplicados (`mensagem-bloco`): mostram a confirmação no chat. */
+	let gradesAplicadas = $state(new Set<string>());
+
+	function aplicarGradeDoBloco(chave: string, codigos: string[], opcao?: OpcaoGradeChat): void {
+		acoesEfetivas.grade.executar(codigos, opcao);
+		if (acoesEfetivas.grade.modo === 'abrir') return;
+		gradesAplicadas = new Set(gradesAplicadas).add(chave);
+	}
+
+	/** "Cálculo 1 · Física 1 · Química +9": no celular a lista inteira vira um paredão. */
+	function resumoMaterias(codigos: string[], max = 3): string {
+		const nomes = codigos.map((c) => nomeDe(c) ?? c);
+		if (nomes.length <= max) return nomes.join(' · ');
+		return `${nomes.slice(0, max).join(' · ')} +${nomes.length - max}`;
 	}
 
 	function rotuloGrade(pronta: boolean, codigos: string[]): string {
@@ -742,16 +759,27 @@
 												o.selecao.map((s) => s.codigo)
 											)}
 										onAplicar={(o) =>
-											acoesEfetivas.grade.executar(
+											aplicarGradeDoBloco(
+												`${mi}-${i}`,
 												o.selecao.map((s) => s.codigo),
 												o
 											)}
 									/>
+									{#if gradesAplicadas.has(`${mi}-${i}`)}
+										<p role="status" class="mb-4 flex max-w-[88%] items-center gap-1.5 text-[12.5px] font-medium text-emerald-700 dark:text-emerald-300">
+											<Check class="h-3.5 w-3.5 shrink-0" /> Grade aplicada no montador.
+										</p>
+									{/if}
+								{:else if gradesAplicadas.has(`${mi}-${i}`)}
+									<p role="status" class="mb-4 flex max-w-[88%] items-center gap-2 rounded-2xl border border-emerald-600/40 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-600/15 dark:text-emerald-100">
+										<Check class="h-4 w-4 shrink-0" />
+										Grade aplicada · {block.codigos.length} {block.codigos.length === 1 ? 'matéria' : 'matérias'}
+									</p>
 								{:else}
 									<div class="mb-4 max-w-[88%]">
 										<button
 											type="button"
-											onclick={() => acoesEfetivas.grade.executar(block.codigos, opcao)}
+											onclick={() => aplicarGradeDoBloco(`${mi}-${i}`, block.codigos, opcao)}
 											class="flex w-full min-w-0 items-start gap-2.5 rounded-2xl border border-emerald-600/60 bg-emerald-50 px-4 py-2.5 text-left text-emerald-800 shadow-sm transition-colors hover:bg-emerald-100 active:scale-[0.99] dark:border-emerald-500/40 dark:bg-emerald-600/20 dark:text-emerald-50 dark:hover:bg-emerald-600/40"
 										>
 											{#if abrir}
@@ -767,7 +795,7 @@
 													<span
 														class="mt-0.5 block text-[12px] break-words text-emerald-900/70 dark:text-emerald-100/70"
 													>
-														{block.codigos.map((c) => nomeDe(c) ?? c).join(' · ')}
+														{resumoMaterias(block.codigos)}
 													</span>
 												{/if}
 											</span>

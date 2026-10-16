@@ -39,7 +39,8 @@
 		X,
 		CalendarDays,
 		BookMarked,
-		ChartColumn
+		ChartColumn,
+		Pencil
 	} from 'lucide-svelte';
 	import OnboardingTour from '$lib/components/onboarding/OnboardingTour.svelte';
 	import { tourStore, type TourStep } from '$lib/components/onboarding/tour.store.svelte';
@@ -185,6 +186,37 @@
 	// Opções (cenários)
 	// ---------------------------------------------------------------------------
 	const tituloSemana = $derived(gradeStore.cenarioAtivo?.nome ?? 'Sua grade');
+
+	let editandoNome = $state(false);
+	let rascunhoNome = $state('');
+
+	function iniciarRenomear() {
+		rascunhoNome = tituloSemana;
+		editandoNome = true;
+	}
+
+	function confirmarRenomear() {
+		if (!editandoNome) return;
+		editandoNome = false;
+		const id = gradeStore.activeId;
+		if (id && rascunhoNome.trim() && rascunhoNome.trim() !== tituloSemana) {
+			gradeStore.renomearCenario(id, rascunhoNome);
+		}
+	}
+
+	/** Mantém a aba ativa visível na barra rolável (ex.: depois de gerar várias opções). */
+	function rolarSeAtivo(el: HTMLElement, ativo: boolean) {
+		const rolar = (a: boolean) => {
+			if (a) el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+		};
+		rolar(ativo);
+		return { update: rolar };
+	}
+
+	function focarAoMontar(el: HTMLInputElement) {
+		el.focus();
+		el.select();
+	}
 	const naoCouberam = $derived(gradeStore.ultimaMontagem?.naoAlocadas.length ?? 0);
 
 	// ---------------------------------------------------------------------------
@@ -665,7 +697,10 @@
 {#snippet seletorOpcoes()}
 	{#if gradeStore.grades.length > 1}
 		<div
-			class="mg-sunken flex gap-1.5 overflow-x-auto rounded-[11px] p-1 [scrollbar-width:none]"
+			class="mg-sunken flex snap-x gap-1.5 overflow-x-auto rounded-[11px] p-1 [scrollbar-width:thin] {gradeStore.grades.length >
+			3
+				? 'pr-6 [mask-image:linear-gradient(to_right,black_calc(100%-24px),transparent)]'
+				: ''}"
 			role="tablist"
 			aria-label="Opções de grade"
 			data-tour="opcoes"
@@ -673,11 +708,12 @@
 			{#each gradeStore.grades as g, i (g.id)}
 				{@const ativo = g.id === gradeStore.activeId}
 				<!-- O "×" fica ao lado da aba, não dentro: botão dentro de botão é HTML inválido. -->
-				<div class="flex min-w-28 flex-1 items-center">
+				<div class="flex min-w-28 flex-1 snap-start items-center">
 					<button
 						type="button"
 						role="tab"
 						aria-selected={ativo}
+						use:rolarSeAtivo={ativo}
 						onclick={() => gradeStore.selecionarCenario(g.id)}
 						class="mg-choice flex min-w-0 flex-1 items-center justify-center gap-1 border-transparent bg-transparent px-2.5 py-2 text-[11px] whitespace-nowrap"
 					>
@@ -711,7 +747,33 @@
 		<div class="mb-4 flex items-end justify-between gap-3">
 			<div class="min-w-0">
 				<span class="mg-eyebrow">{compacto ? 'Sua semana' : 'Sua semana ideal'}</span>
-				<h2 class="truncate text-lg font-semibold text-foreground md:text-xl">{tituloSemana}</h2>
+				{#if editandoNome}
+					<input
+						use:focarAoMontar
+						bind:value={rascunhoNome}
+						maxlength="40"
+						aria-label="Nome da grade"
+						class="w-full min-w-0 rounded-md border border-border bg-transparent px-1.5 py-0.5 text-lg font-semibold text-foreground md:text-xl"
+						onblur={confirmarRenomear}
+						onkeydown={(e) => {
+							if (e.key === 'Enter') confirmarRenomear();
+							else if (e.key === 'Escape') editandoNome = false;
+						}}
+					/>
+				{:else}
+					<div class="flex min-w-0 items-center gap-1">
+						<h2 class="truncate text-lg font-semibold text-foreground md:text-xl">{tituloSemana}</h2>
+						<button
+							type="button"
+							onclick={iniciarRenomear}
+							class="shrink-0 touch-manipulation rounded-md p-1.5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+							aria-label="Renomear grade"
+							title="Renomear grade"
+						>
+							<Pencil class="h-3.5 w-3.5" />
+						</button>
+					</div>
+				{/if}
 			</div>
 			{#if !semTurmaEscolhida}
 				<div class="flex shrink-0 items-center gap-2">

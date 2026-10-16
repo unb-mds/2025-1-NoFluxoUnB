@@ -164,9 +164,17 @@ Como o backend garante isso:
 
 ## Memória e custo
 
-- A cada `run` entram só os **últimos 30 itens** da sessão (`SupabaseSession`), aparados
-  para começar numa mensagem do aluno. O perfil cobre o que é estável, então a conversa
-  não precisa carregar tudo.
+- A janela de cada `run` conta **turnos**, não itens (`SupabaseSession.getItems`): os
+  últimos 12 turnos (`TURNOS_NA_JANELA`), dos quais só os 3 mais recentes vão com as
+  chamadas de tool; os anteriores vão só com a pergunta e a resposta final, e resultado
+  de tool de turno passado é encurtado. O perfil cobre o que é estável.
+- **Nada fica fora do prompt e da memória ao mesmo tempo**: conversa que ainda não foi
+  resumida (`chat_sessions.memoria_ate`) continua na janela, até 24 turnos
+  (`TETO_TURNOS_PENDENTES`). A consolidação (`memoria_aluno.ts`) usa a mesma conta de
+  turnos para decidir o que já saiu da janela; conversa longa vai ao modelo em blocos
+  (cursor avança bloco a bloco), e resposta vazia do modelo não apaga a memória.
+- Itens são lidos em ordem de `id`: os de um turno saem com o mesmo `created_at`
+  (índices em `supabase/migrations/20261015000000_chat_items_ordem_id.sql`).
 - O perfil é cacheado em memória por aluno (TTL 10 min). A cada mensagem o backend lê só
   os dados baratos (`dados_users`, último histórico, `preferencias_grade`) e compara a
   assinatura: mudou, recalcula. As rotas que gravam esses dados chamam

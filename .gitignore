@@ -178,3 +178,8 @@ documentacao/pitch_vendas_investidor.*
 
 # Configuração local de agents (uso individual, não versionado).
 .agents/
+
+# Saída do scraping de turmas (um JSON por departamento): gerada a cada rodada.
+DBA/turmas/
+DBA/dados/dados_finais_teste_p_depto_20/
+DBA/turmas_2026_1/
