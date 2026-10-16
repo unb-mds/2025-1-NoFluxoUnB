@@ -107,6 +107,8 @@ jest.mock("../src/controllers/PlanejamentoController", () => ({
     // Usado por `montador_grade.service.ts` (Fase 3) — a tool nova `montar_grade`
     // (adiante neste arquivo) passa pela Facade de verdade, que chama isso.
     resolverPeriodoAtivo: async () => "2026.2",
+    // Sem oferta do próximo semestre publicada: a montagem usa o período atual.
+    resolverPeriodoOferta: async (_supabase: unknown, periodoAtual: string) => periodoAtual,
 }));
 
 import { maskLivre, slotMaskFromHorario } from "../src/utils/horario_slots";

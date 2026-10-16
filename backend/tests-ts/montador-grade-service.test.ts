@@ -83,6 +83,8 @@ const montarDadosPlanoMock = jest.fn();
 jest.mock("../src/controllers/PlanejamentoController", () => ({
     montarDadosPlano: (...args: any[]) => montarDadosPlanoMock(...args),
     resolverPeriodoAtivo: async () => "2026.2",
+    // Sem oferta do próximo semestre publicada: a montagem usa o período atual.
+    resolverPeriodoOferta: async (_supabase: unknown, periodoAtual: string) => periodoAtual,
 }));
 
 import { montarGrade, docenteBate, normDocente, turmaRealDaMatricula, type ParametrosMontador } from "../src/services/grade/montador_grade.service";
