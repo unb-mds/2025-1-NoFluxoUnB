@@ -11,6 +11,28 @@ export interface SugestaoChat {
 	suffix?: string;
 	message: string;
 	populateOnly?: boolean;
+	/**
+	 * Em vez de enviar `message`, o clique abre a escolha de dias (`opcoes`, rótulos
+	 * "Seg"…"Sáb") e envia `mensagem(diasEscolhidos)`.
+	 */
+	escolherDias?: { opcoes: string[]; mensagem: (dias: string[]) => string };
+}
+
+const DIA_POR_EXTENSO: Record<string, string> = {
+	Seg: 'na segunda',
+	Ter: 'na terça',
+	Qua: 'na quarta',
+	Qui: 'na quinta',
+	Sex: 'na sexta',
+	Sáb: 'no sábado'
+};
+
+/** "Rearranje minha grade sem aula na segunda e na sexta". */
+export function mensagemEvitarDias(dias: string[]): string {
+	const partes = dias.map((d) => DIA_POR_EXTENSO[d] ?? `na ${d.toLowerCase()}`);
+	const lista =
+		partes.length <= 1 ? (partes[0] ?? '') : `${partes.slice(0, -1).join(', ')} e ${partes.at(-1)}`;
+	return `Rearranje minha grade sem aula ${lista}`;
 }
 
 export interface SituacaoMontador {
@@ -54,11 +76,14 @@ export function sugestoesDoMontador(
 			message: 'Que optativas cabem nos horários livres da minha grade?'
 		});
 	}
-	if (s.diasComAula.includes('Sex')) {
+	// O aluno escolhe o(s) dia(s) a liberar — antes era sempre a sexta. Com um dia
+	// só de aula não há o que liberar.
+	if (s.diasComAula.length > 1) {
 		out.push({
 			prefix: 'Grade',
-			badge: 'sem sexta',
-			message: 'Rearranje minha grade sem aula na sexta-feira'
+			badge: 'sem aula em…',
+			message: 'Rearranje minha grade sem aula em alguns dias',
+			escolherDias: { opcoes: s.diasComAula, mensagem: mensagemEvitarDias }
 		});
 	}
 	out.push({

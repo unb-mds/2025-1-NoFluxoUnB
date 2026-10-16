@@ -50,6 +50,8 @@
 		 * pra não mandar o exemplo fixo do `message` como se fosse a escolha dele.
 		 */
 		populateOnly?: boolean;
+		/** O clique abre a escolha de dias e envia `mensagem(diasEscolhidos)`. */
+		escolherDias?: { opcoes: string[]; mensagem: (dias: string[]) => string };
 	}
 	interface ChatMsg {
 		role: 'user' | 'assistant';
@@ -281,6 +283,35 @@
 		onSend(msg);
 	}
 
+	/** Escolha de dias aberta por um chip com `escolherDias` (ex.: "Grade sem aula em…"). */
+	let escolhaDias = $state<{ starter: Starter; marcados: string[] } | null>(null);
+
+	function alternarDia(dia: string) {
+		if (!escolhaDias) return;
+		const { marcados } = escolhaDias;
+		escolhaDias.marcados = marcados.includes(dia)
+			? marcados.filter((d) => d !== dia)
+			: escolhaDias.starter.escolherDias!.opcoes.filter((d) => d === dia || marcados.includes(d));
+	}
+
+	function enviarDiasEscolhidos() {
+		if (!escolhaDias || escolhaDias.marcados.length === 0) return;
+		const texto = escolhaDias.starter.escolherDias!.mensagem(escolhaDias.marcados);
+		escolhaDias = null;
+		enviarTexto(texto);
+	}
+
+	/** Chip de sugestão: envia o exemplo, ou só preenche o campo quando há algo a completar. */
+	function usarStarter(starter: Starter) {
+		if (starter.escolherDias) {
+			escolhaDias = { starter, marcados: [] };
+			return;
+		}
+		messageInput = starter.message;
+		if (starter.populateOnly) inputRef?.focus();
+		else enviar();
+	}
+
 	// Envio direto (botões/badges) — não mexe no que o usuário está digitando.
 	function enviarTexto(text: string) {
 		if (!text.trim() || loading) return;
@@ -469,14 +500,7 @@
 									{#each promptStarters as starter}
 										<button
 											type="button"
-											onclick={() => {
-												messageInput = starter.message;
-												if (starter.populateOnly) {
-													inputRef?.focus();
-												} else {
-													enviar();
-												}
-											}}
+											onclick={() => usarStarter(starter)}
 											class="group border-foreground/10 bg-foreground/5 text-foreground/80 hover:border-primary/40 hover:bg-foreground/10 hover:text-foreground flex shrink-0 cursor-pointer items-center rounded-full border px-3 py-1.5 text-[12px] font-medium shadow-sm backdrop-blur-md transition-all dark:hover:border-indigo-500/40 dark:hover:shadow-[0_0_15px_rgba(99,102,241,0.15)]"
 										>
 											<Sparkles
@@ -826,7 +850,80 @@
 				{#if bloqueio}
 					<DarcyLimiteCard tipo={bloqueio} />
 				{/if}
+				{#if escolhaDias}
+					<div
+						class="border-border bg-card mb-3 rounded-2xl border p-3 shadow-sm dark:border-white/15 dark:bg-white/5"
+						role="group"
+						aria-label="Dias sem aula"
+					>
+						<p class="text-foreground mb-2 text-[13px] font-medium">Quais dias você quer livres?</p>
+						<div class="flex flex-wrap gap-1.5">
+							{#each escolhaDias.starter.escolherDias?.opcoes ?? [] as dia (dia)}
+								{@const marcado = escolhaDias.marcados.includes(dia)}
+								<button
+									type="button"
+									aria-pressed={marcado}
+									onclick={() => alternarDia(dia)}
+									class="min-h-9 min-w-12 touch-manipulation rounded-full border px-3 text-[13px] font-medium transition-colors {marcado
+										? 'border-primary bg-primary text-primary-foreground'
+										: 'border-foreground/15 text-foreground/80 hover:bg-foreground/10'}"
+								>
+									{dia}
+								</button>
+							{/each}
+						</div>
+						<div class="mt-3 flex justify-end gap-2">
+							<button
+								type="button"
+								onclick={() => (escolhaDias = null)}
+								class="text-muted-foreground hover:text-foreground min-h-9 rounded-full px-3 text-[13px]"
+							>
+								Cancelar
+							</button>
+							<button
+								type="button"
+								onclick={enviarDiasEscolhidos}
+								disabled={escolhaDias.marcados.length === 0 || loading || bloqueio !== null}
+								class="bg-primary text-primary-foreground min-h-9 rounded-full px-4 text-[13px] font-medium disabled:opacity-40"
+							>
+								Rearranjar grade
+							</button>
+						</div>
+					</div>
+				{/if}
 				<div class="relative flex w-full items-center dark:shadow-2xl">
+					{#if messages.length > 0 && promptStarters.length > 0}
+						<!-- Os chips de sugestão só aparecem com o chat vazio; aqui continuam à mão. -->
+						<DropdownMenu.Root>
+							<DropdownMenu.Trigger
+								disabled={loading || bloqueio !== null}
+								class="text-muted-foreground hover:bg-foreground/10 hover:text-foreground absolute left-2 z-10 cursor-pointer rounded-full p-2 transition-colors disabled:opacity-30"
+								aria-label="Sugestões de perguntas"
+								title="Sugestões de perguntas"
+							>
+								<Sparkles class="h-4 w-4" />
+							</DropdownMenu.Trigger>
+							<DropdownMenu.Content
+								side="top"
+								align="start"
+								class="bg-popover text-popover-foreground z-[200] max-w-80 min-w-56 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/95 dark:text-white"
+							>
+								<DropdownMenu.Label
+									class="text-muted-foreground text-[11px] dark:text-white/50"
+								>
+									Sugestões
+								</DropdownMenu.Label>
+								{#each promptStarters as starter (starter.message)}
+									<DropdownMenu.Item
+										class="min-h-9 cursor-pointer text-[13px] max-sm:min-h-11"
+										onclick={() => usarStarter(starter)}
+									>
+										{[starter.prefix, starter.badge, starter.suffix].filter(Boolean).join(' ')}
+									</DropdownMenu.Item>
+								{/each}
+							</DropdownMenu.Content>
+						</DropdownMenu.Root>
+					{/if}
 					<input
 						type="text"
 						bind:value={messageInput}
@@ -834,7 +931,10 @@
 						placeholder={bloqueio ? PLACEHOLDER_BLOQUEADO : placeholder}
 						disabled={loading || bloqueio !== null}
 						onkeydown={handleKeydown}
-						class="border-border-strong bg-card text-foreground placeholder:text-muted-foreground focus:border-ring w-full rounded-full border py-3.5 pr-12 pl-5 text-[14.5px] shadow-sm backdrop-blur-2xl transition-all focus:outline-none disabled:opacity-50 dark:border-white/20 dark:bg-white/10 dark:shadow-inner dark:focus:border-white/30 dark:focus:bg-white/15"
+						class="border-border-strong bg-card text-foreground placeholder:text-muted-foreground focus:border-ring w-full rounded-full border py-3.5 pr-12 {messages.length > 0 &&
+						promptStarters.length > 0
+							? 'pl-12'
+							: 'pl-5'} text-[14.5px] shadow-sm backdrop-blur-2xl transition-all focus:outline-none disabled:opacity-50 dark:border-white/20 dark:bg-white/10 dark:shadow-inner dark:focus:border-white/30 dark:focus:bg-white/15"
 					/>
 					<button
 						type="button"

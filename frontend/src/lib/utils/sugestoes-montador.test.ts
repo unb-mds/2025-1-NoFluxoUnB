@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sugestoesDoMontador } from './sugestoes-montador';
+import { mensagemEvitarDias, sugestoesDoMontador } from './sugestoes-montador';
 
 const base = { naGrade: 4, naoAlocadas: [], diasComAula: ['Seg', 'Ter'], cenarios: 1 };
 
@@ -13,9 +13,23 @@ describe('sugestoesDoMontador', () => {
 		expect(s[0].message).toContain('MAT0026');
 	});
 
-	it('aula na sexta sugere tirar a sexta', () => {
-		const s = sugestoesDoMontador({ ...base, diasComAula: ['Seg', 'Sex'] });
-		expect(s.map((x) => x.badge)).toContain('sem sexta');
+	it('com aula em mais de um dia, oferece escolher os dias a liberar', () => {
+		const s = sugestoesDoMontador({ ...base, diasComAula: ['Seg', 'Qua', 'Sex'] });
+		const dias = s.find((x) => x.escolherDias);
+		expect(dias?.escolherDias?.opcoes).toEqual(['Seg', 'Qua', 'Sex']);
+		expect(dias?.escolherDias?.mensagem(['Seg', 'Sex'])).toBe(
+			'Rearranje minha grade sem aula na segunda e na sexta'
+		);
+		expect(sugestoesDoMontador({ ...base, diasComAula: ['Seg'] }).some((x) => x.escolherDias)).toBe(
+			false
+		);
+	});
+
+	it('mensagemEvitarDias: um dia, vários dias e sábado', () => {
+		expect(mensagemEvitarDias(['Qua'])).toBe('Rearranje minha grade sem aula na quarta');
+		expect(mensagemEvitarDias(['Seg', 'Ter', 'Sáb'])).toBe(
+			'Rearranje minha grade sem aula na segunda, na terça e no sábado'
+		);
 	});
 
 	it('grade só com obrigatórias oferece optativas para o horário que sobrou', () => {
