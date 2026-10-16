@@ -1036,7 +1036,8 @@ export function gerarPlanoCompletov2(
     fluxogramaAtualJson: string | null | undefined,
     materias: MateriaInput[],
     preferencias?: PreferenciasPlano,
-    codigosComOferta?: Set<string>
+    codigosComOferta?: Set<string>,
+    periodoAtivo?: string  // vem da RPC (calendario_academico); sem ele cai na fórmula por data
 ): PlanoFormaturav2 {
     
     const prefs: PreferenciasPlano = preferencias ?? {
@@ -1116,7 +1117,7 @@ export function gerarPlanoCompletov2(
     );
 
     // Calcular semestre atual como string "2026.1" para preencher labels das colunas
-    const semestreBaseStr = calcularSemestreAtualStr();
+    const semestreBaseStr = periodoAtivo ?? calcularSemestreAtualStr();
 
     // Se o aluno já tem MATR no semestre corrente, o semestre corrente já está "gasto"
     // (aparece à parte em resultado.semestreAtual) e o plano deve começar no seguinte.

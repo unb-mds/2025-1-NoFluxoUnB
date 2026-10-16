@@ -293,6 +293,7 @@ async function calcularPerfil(
         preferencias: { limiteCreditos: prefs.limiteCreditos, objetivo: prefs.objetivo, trabalha: prefs.trabalha },
         restricoes,
         codigosComOferta: dados.codigosComOferta,
+        periodoAtivo: dados.periodoAtivo,
     };
     perfil.ctx = ctx;
 

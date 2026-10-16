@@ -184,6 +184,8 @@ interface DadosPlano {
     fluxogramaAtual: string | null | undefined;
     materiasMapeadas: MateriaInput[];
     codigosComOferta: Set<string>;
+    /** Período letivo vigente (RPC `periodo_letivo_atual`), base dos rótulos das colunas do plano. */
+    periodoAtivo: string;
 }
 
 /**
@@ -209,6 +211,31 @@ export async function resolverPeriodoAtivo(supabase: any): Promise<string> {
         // Cai no fallback abaixo.
     }
     return calcularSemestreAtualStr();
+}
+
+/** Período seguinte: AAAA.1 → AAAA.2 → (AAAA+1).1. Mesma regra do frontend (`proximoPeriodo`). */
+export function proximoPeriodo(periodo: string): string {
+    const [ano, sem] = periodo.split(".");
+    return sem === "1" ? `${ano}.2` : `${Number(ano) + 1}.1`;
+}
+
+/**
+ * Período cuja oferta o Montador deve usar. Com `proximoSemestre`, procura na tabela
+ * `turmas` o período seguinte ao atual; se o SIGAA ainda não publicou, cai no atual
+ * (a grade vira estimativa) — mesmo comportamento da tela do Montador.
+ */
+export async function resolverPeriodoOferta(
+    supabase: any,
+    periodoAtual: string,
+    proximoSemestre: boolean
+): Promise<string> {
+    if (!proximoSemestre) return periodoAtual;
+    const seguinte = proximoPeriodo(periodoAtual);
+    const { count, error } = await supabase
+        .from("turmas")
+        .select("id_turmas", { count: "exact", head: true })
+        .eq("ano_periodo", seguinte);
+    return !error && (count ?? 0) > 0 ? seguinte : periodoAtual;
 }
 
 /**
@@ -502,6 +529,7 @@ export async function montarDadosPlano(
                 fluxogramaAtual: usuarioData.fluxograma_atual as string | null | undefined,
                 materiasMapeadas,
                 codigosComOferta,
+                periodoAtivo,
             }
         };
     } catch (err: any) {
@@ -561,6 +589,7 @@ export async function montarContextoAgente(
             adicionarEm: restricoes.adicionarEm ?? {},
         },
         codigosComOferta: dados.codigosComOferta,
+        periodoAtivo: dados.periodoAtivo,
     };
     return { ctx };
 }
@@ -768,7 +797,8 @@ export const PlanejamentoController: EndpointController = {
                         dados.fluxogramaAtual,
                         dados.materiasMapeadas,
                         dados.preferencias,
-                        dados.codigosComOferta
+                        dados.codigosComOferta,
+                        dados.periodoAtivo
                     );
 
                     await resolverNomesSemestreAtual(plano);

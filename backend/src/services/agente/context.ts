@@ -54,6 +54,8 @@ export interface AgenteContexto {
     preferencias: PreferenciasPlano;
     restricoes: RestricoesPlanoInternas;
     codigosComOferta: Set<string>;
+    /** Período vigente (RPC `periodo_letivo_atual`); ausente no contexto leve. */
+    periodoAtivo?: string;
     /**
      * Quando true, tools de recomendação (buscar_materias_unb) devolvem só matérias
      * com turma ofertada no período ativo. Ligado pelo chat embutido no Montador de
@@ -144,7 +146,8 @@ export function gerarPlanoDoContexto(ctx: AgenteContexto): PlanoFormaturav2 {
                 adicionarEm: ctx.restricoes.adicionarEm,
             },
         },
-        ctx.codigosComOferta
+        ctx.codigosComOferta,
+        ctx.periodoAtivo
     );
 }
 

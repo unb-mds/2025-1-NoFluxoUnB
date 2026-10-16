@@ -20,7 +20,7 @@
  */
 import { SupabaseWrapper } from "../../supabase_wrapper";
 import { resolveIdUserPorEmail } from "../chat/aluno_identidade";
-import { montarDadosPlano, resolverPeriodoAtivo } from "../../controllers/PlanejamentoController";
+import { montarDadosPlano, resolverPeriodoAtivo, resolverPeriodoOferta } from "../../controllers/PlanejamentoController";
 import {
     parseFluxograma,
     isDesbloqueada,
@@ -356,6 +356,8 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
 
     const supabase = SupabaseWrapper.get();
     const periodoAtivo = await resolverPeriodoAtivo(supabase);
+    // "Próximo semestre" = não incluir o que está cursando (mesma leitura do frontend).
+    const periodoOferta = await resolverPeriodoOferta(supabase, periodoAtivo, params.incluirCursando === false);
 
     const { dados, error } = await montarDadosPlano(idUser, {
         ...PLANO_INPUT_PADRAO,
@@ -446,7 +448,7 @@ export async function montarGrade(params: ParametrosMontador): Promise<Resultado
         ? await supabase
               .from("turmas")
               .select("id_turmas, id_materia, turma, docente, horario, local, ano_periodo, vagas_ofertadas, vagas_ocupadas, vagas_sobrando")
-              .eq("ano_periodo", periodoAtivo)
+              .eq("ano_periodo", periodoOferta)
               .in("id_materia", ids)
         : { data: [] as any[] };
 
