@@ -55,6 +55,13 @@ vi.mock('$lib/services/oferta-turmas.service', () => ({
 		)
 }));
 
+// Código fora da matriz (ex.: uma em curso que não é do curso) cairia no Supabase
+// de verdade — no CI não há rede e o teste quebra com `fetch failed`.
+vi.mock('$lib/services/materias.service', () => ({
+	getMateriasByCodigos: async () => [],
+	searchMaterias: async () => []
+}));
+
 const { montarPoolRecomendado, construirMateriasGrade, motivoParaNaoAdicionar } = await import(
 	'./grade-pool.service'
 );
