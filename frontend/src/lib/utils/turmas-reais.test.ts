@@ -129,6 +129,16 @@ describe('encontrarTurmaReal', () => {
 		expect(encontrarTurmaReal(m, reais)).toBe(21);
 	});
 
+	it('matrícula lançada no código da matriz casa com a turma do equivalente', () => {
+		// Caso real: FGA0238 (Testes) não tem oferta própria e cai em FGA0314, mas o
+		// histórico do SIGAA registra a matrícula como FGA0238.
+		const m = materia('FGA0238', [
+			{ id: 30, turma: '01', codigoOfertado: 'FGA0314' },
+			{ id: 31, turma: '02', codigoOfertado: 'FGA0314' }
+		]);
+		expect(encontrarTurmaReal(m, new Map([['FGA0238', '02']]))).toBe(31);
+	});
+
 	it('devolve null quando o histórico não tem a matrícula ou a turma sumiu da oferta', () => {
 		const m = materia('FGA0240', [{ id: 10, turma: '01' }]);
 		expect(encontrarTurmaReal(m, new Map())).toBeNull();

@@ -98,18 +98,22 @@ export function encontrarTurmaReal(
 	reais: ReadonlyMap<string, string>,
 	professores?: ReadonlyMap<string, string>
 ): number | null {
-	const chaveDe = (t: MateriaComTurmas['turmas'][number]) =>
-		(t.codigoOfertado ?? materia.codigo).trim().toUpperCase();
+	// O histórico pode registrar a matrícula no código ofertado ou no da matriz:
+	// FGA0238 (matriz) sem oferta própria cai nas turmas de FGA0314, mas o SIGAA
+	// lança a matrícula como FGA0238. Tenta os dois.
+	const daMatricula = (mapa: ReadonlyMap<string, string>, t: MateriaComTurmas['turmas'][number]) =>
+		(t.codigoOfertado ? mapa.get(t.codigoOfertado.trim().toUpperCase()) : undefined) ??
+		mapa.get(materia.codigo.trim().toUpperCase());
 
 	const alvo = materia.turmas.find((t) => {
-		const real = reais.get(chaveDe(t));
+		const real = daMatricula(reais, t);
 		return !!real && mesmaTurma(t.turma.turma, real);
 	});
 	if (alvo) return alvo.turma.id_turmas;
 
 	if (!professores) return null;
 	const doProfessor = materia.turmas.filter((t) => {
-		const prof = normNome(professores.get(chaveDe(t)));
+		const prof = normNome(daMatricula(professores, t));
 		if (!prof) return false;
 		return (t.turma.docente ?? '').split(',').some((d) => {
 			const nome = normNome(d);
